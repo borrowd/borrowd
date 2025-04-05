@@ -1,0 +1,15 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="icon" type="image/png" href="{% static 'web/favicon.png' %}" />
+</head>
+<body>
+
+    {% include "web/includes/header.html" %}
+
+    {% block layout %}
+    {% endblock %}
+
+</body>
+</html>
