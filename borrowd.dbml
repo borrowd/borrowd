@@ -1,0 +1,147 @@
+// Use DBML to define your database structure
+// Docs: https://dbml.dbdiagram.io/docs
+
+// this underpins much of the permissioning
+Enum trust_level {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+Table user {
+  id int [pk]
+  email_address varchar [not null]
+  first_name varchar 
+  last_name varchar
+  role varchar
+}
+
+// these will be filled in as we go
+Table user_preferences {
+  user_id int [ref: > user.id, not null]
+  things varchar
+}
+
+// OPEN would mean that all of your items are shared according to each item's
+// trust_level; CLOSED would mean that you need to individually assign items
+// to the community_group
+Enum sharing_disposition {
+  OPEN
+  CLOSED
+}
+
+// this would be an owned group which can be joined or left
+Table community_group {
+  id int [pk]
+  owner_id int [ref: > user.id, not null]
+  name varchar [not null]
+  description text
+  sharing_disposition sharing_disposition [not null]
+}
+
+// when a user joins a community group, they can assign a trust level
+Table community_group_user {
+  communitry_group_id int [ref: > community_group.id, not null]
+  user_id int [ref: > user.id, not null]
+  trust_level trust_level [not null]
+  // this value would override the community group's default sharing disposition
+  sharing_disposition sharing_disposition [not null]
+}
+
+// m2m table for directly assigning items to groups
+Table community_group_item {
+  communitry_group_id int [ref: > community_group.id, not null]
+  item_id int [ref: > item.id, not null]
+}
+
+// categorize items
+Table item_category {
+  id int [pk]
+  name varchar [not null]
+  description text
+}
+
+// define items
+Table item {
+  id int [pk]
+  owner_id int [ref: > user.id, not null]
+  item_category_id int [ref: > item_category.id, not null]
+  trust_level trust_level [not null]
+  name varchar [not null]
+  description text
+  available bool [not null]
+}
+
+// this could be a generic table "attachment" with a generic foreign
+// key but we get stronger integrity guarantees this way
+Table item_photo {
+  id int [pk]
+  item_id int [ref: > item.id, not null]
+  name varchar
+  bucket varchar [not null]
+  key varchar [not null]
+  size int [not null]
+}
+
+Enum transaction_type {
+  LEND
+  SUB_LEND
+  RETURN
+  GIVE
+}
+
+Enum transaction_status {
+  PENDING
+  COMPLETE
+  CANCELED
+}
+
+// all transactions are one way, for lending transactions, create a return
+// transaction in a pending state at the same time
+Table transaction {
+  id int [pk]
+  item_id int [ref: > item.id, not null]
+  from_user_id int [ref: > user.id, not null]
+  to_user_id int [ref: > user.id, not null]
+  summary text 
+  transaction_type transaction_type [not null]
+  status transaction_status [not null]
+  expected_at timestamp [not null]
+  completed_at timestamp 
+}
+
+Table transaction_review {
+  // for lend/return transaction pairs, only the first transaction will be
+  // linked here
+  id int [pk]
+  transaction_id int [ref: > transaction.id, not null]
+  user_id int [ref: > user.id, not null]
+  item_condition enum 
+  timeliness enum 
+  cordiality enum
+}
+
+Enum notification_status {
+  PENDING
+  SENT
+  FAILED
+}
+
+Enum notification_type {
+  BORROW_REQUEST
+  LEND_COMPLETED
+  RETURN_COMPLETED
+  REVIEW_POSTED
+}
+
+Table notification {
+  id int [pk]
+  user_id int [ref: > user.id, not null]
+  notification_type notification_type [not null]
+  notification_status notification_status [not null]
+  message text [not null]
+  // allow nullable links to items that may be referenced in the notification
+  transaction_id int [ref: > transaction.id]
+  item_id int [ref: > item.id]
+  community_group_id int [ref: > community_group.id]
+}
