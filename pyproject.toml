@@ -8,4 +8,5 @@ dependencies = [
     "django>=5.2",
     "django-allauth>=65.7.0",
     "django-environ>=0.12.0",
+    "pillow>=11.1.0",
 ]

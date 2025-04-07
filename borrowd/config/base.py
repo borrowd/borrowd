@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "borrowd_web",
+    "borrowd_users",
 ]
 
 MIDDLEWARE = [
@@ -99,6 +100,10 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+# AUTH
+
+LOGIN_URL = "/"
+
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
@@ -121,3 +126,15 @@ STATIC_URL = "static/"
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+#
+# Shim for mypy to play nice with certain generic types
+#
+from django.db.models import CharField, ForeignKey  # noqa: E402
+from django.db.models.manager import BaseManager  # noqa: E402
+from django.db.models.query import QuerySet  # noqa: E402
+
+# NOTE: there are probably other items you'll need to monkey patch depending on
+# your version.
+for cls in [BaseManager, CharField, ForeignKey, QuerySet]:
+    cls.__class_getitem__ = classmethod(lambda cls, *args, **kwargs: cls)  # type: ignore [attr-defined]

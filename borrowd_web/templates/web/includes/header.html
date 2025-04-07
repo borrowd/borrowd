@@ -1,5 +1,13 @@
 <header>
     <nav>
-        <ul><li>Nav1</li></ul>
+        <ul>
+            <li><a href="{% url 'index' %}">Home</a></li>
+            {% if request.user.is_authenticated %}
+            <li><a href="{% url 'profile' %}">Profile</a></li>
+            {% endif %}
+        </ul>
     </nav>
+    {% if request.user.is_authenticated %}
+    Hi, {{ user }}!
+    {% endif %}
 </header>
