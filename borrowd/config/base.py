@@ -37,6 +37,8 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "allauth",
+    "allauth.account",
     "borrowd_web",
     "borrowd_users",
 ]
@@ -49,6 +51,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "allauth.account.middleware.AccountMiddleware",
 ]
 
 ROOT_URLCONF = "borrowd.urls"
@@ -102,8 +105,19 @@ AUTH_PASSWORD_VALIDATORS = [
 
 # AUTH
 
-LOGIN_URL = "/"
+LOGIN_REDIRECT_URL = "/"
 
+ACCOUNT_LOGIN_BY_CODE_ENABLED = True
+
+# django-allauth configurations
+AUTHENTICATION_BACKENDS = [
+    "django.contrib.auth.backends.ModelBackend",
+    "allauth.account.auth_backends.AuthenticationBackend",
+]
+
+# Email
+
+EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
