@@ -1,13 +1,13 @@
 {% load static %}
 {% load i18n %}
-<header>
+<header class="flex justify-between items-center bg-white shadow-md p-4 pr-10">
     <div id="header-logo">
         <a href="{% url 'index' %}">
             <img class="w-16" src="{% static 'web/favicon.png' %}" alt="Borrow'd's cute raccoon logo" />
         </a>
     </div>
     <nav>
-        <ul>
+        <ul class="flex space-x-4 items-right">
             {% if user.is_authenticated %}
                 <li>
                     <a href="{% url 'profile' %}">Profile</a>

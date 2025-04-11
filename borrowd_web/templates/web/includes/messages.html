@@ -1,9 +1,10 @@
 {% load i18n %}
 {% if messages %}
-<div>
-    <strong>{% trans "Messages:" %}</strong>
-    <ul>
-        {% for message in messages %}<li>{{ message }}</li>{% endfor %}
+<div class="p-4 bg-blue-100 border border-blue-300 rounded-md shadow-sm">
+    <ul class="space-y-2">
+        {% for message in messages %}
+        <li class="text-blue-800 text-sm">{{ message }}</li>
+        {% endfor %}
     </ul>
 </div>
 {% endif %}
