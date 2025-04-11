@@ -43,5 +43,8 @@ repos:
     hooks:
       # Run the linter.
       - id: ruff
+      # Run import order.
+      - id: ruff
+        args: ["check", "--select", "I", "--fix"]
       # Run the formatter.
       - id: ruff-format
