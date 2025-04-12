@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+
 from borrowd.config.env import env
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -41,6 +42,7 @@ INSTALLED_APPS = [
     "allauth",
     "allauth.account",
     "borrowd_web",
+    "borrowd_items",
 ]
 
 MIDDLEWARE = [
