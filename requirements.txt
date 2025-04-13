@@ -12,8 +12,13 @@ django==5.2 \
     # via
     #   borrowd
     #   django-allauth
+    #   django-cotton
 django-allauth==65.7.0 \
     --hash=sha256:eb060692150f39e1529893c2de5f9b46e1dab51153ff6cca7ad72c7c125259ea
+    # via borrowd
+django-cotton==2.0.3 \
+    --hash=sha256:53fc1d7756c3728ca9c76c1402758c6778147e0653b12cb3890a5f5e679125e4 \
+    --hash=sha256:ffce33d8e680718928e67fe7e9c6bc64c9d03fea0098b313863728fc38c049bf
     # via borrowd
 django-environ==0.12.0 \
     --hash=sha256:227dc891453dd5bde769c3449cf4a74b6f2ee8f7ab2361c93a07068f4179041a \

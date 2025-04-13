@@ -18,6 +18,7 @@ source = { virtual = "." }
 dependencies = [
     { name = "django" },
     { name = "django-allauth" },
+    { name = "django-cotton" },
     { name = "django-environ" },
     { name = "pillow" },
 ]
@@ -26,6 +27,7 @@ dependencies = [
 requires-dist = [
     { name = "django", specifier = ">=5.2" },
     { name = "django-allauth", specifier = ">=65.7.0" },
+    { name = "django-cotton", specifier = ">=2.0.3" },
     { name = "django-environ", specifier = ">=0.12.0" },
     { name = "pillow", specifier = ">=11.1.0" },
 ]
@@ -53,6 +55,18 @@ dependencies = [
     { name = "django" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/4b/08/8557880768ba4d5966195ee5e57c69d8b9425c62ffb80293e2ad36dffb83/django_allauth-65.7.0.tar.gz", hash = "sha256:eb060692150f39e1529893c2de5f9b46e1dab51153ff6cca7ad72c7c125259ea", size = 1640126 }
+
+[[package]]
+name = "django-cotton"
+version = "2.0.3"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "django" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/5b/43/49c48d880ac1461356ddd1a70c74be211db1cf499219ed4cfe54d0e02719/django_cotton-2.0.3.tar.gz", hash = "sha256:ffce33d8e680718928e67fe7e9c6bc64c9d03fea0098b313863728fc38c049bf", size = 21555 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/9f/1f/c4277217d24279451901252da6b2d3e7709efe7f1be9aa1d668c99f36d80/django_cotton-2.0.3-py3-none-any.whl", hash = "sha256:53fc1d7756c3728ca9c76c1402758c6778147e0653b12cb3890a5f5e679125e4", size = 21206 },
+]
 
 [[package]]
 name = "django-environ"
