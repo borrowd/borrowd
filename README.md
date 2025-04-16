@@ -2,7 +2,7 @@
 
 ## Contributing
 
-Contributions are welcome! See [CONTRIBUTING.md](Contributing.md) to
+Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) to
 get started!
 
 ## License

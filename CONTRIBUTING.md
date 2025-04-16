@@ -27,7 +27,23 @@ git clone git@github.com:borrowd/borrowd.git && cd borrowd/
 uv sync
 ```
 
-### 4. Django stuff
+### 4. Create local `.env` file
+
+This project uses [`django-environ`](https://pypi.org/project/django-environ/)
+to manage env-var based configurability for the app. It expects the
+`.env` file to sit in the root of the repository, above the `borrowd/`
+Django project directory and the various sibling Django app dirs
+(`borrowd_web/`, etc.)
+
+An example `.env` file is included in the repo at `.env.example`.
+As part of your setup, copy this to `.env`; it contains values which
+are appropriate for local development.
+
+```bash
+cp .env.example .env
+```
+
+### 5. Django stuff
 
 Now all your tooling is installed, you're ready to fire up the
 Borrow'd app locally.
