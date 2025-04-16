@@ -1,5 +1,10 @@
 # Borrow'd
 
+## Contributing
+
+Contributions are welcome! See [CONTRIBUTING.md](Contributing.md) to
+get started!
+
 ## License
 
 This software is licensed under the terms of the Gnu Affero General
