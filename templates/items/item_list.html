@@ -1,0 +1,15 @@
+{% extends "layouts/default.html" %}
+
+{% block head_title %}Items{% endblock %}
+{% block content %}
+<h1>Items</h1>
+<ul>
+    {% for item in item_list %}
+        <li>
+            <a href="{% url 'item-detail' item.pk %}">{{ item }}</a>
+            <a href="{% url 'item-edit' item.pk %}">Edit</a>
+        </li>
+    {% endfor %}
+</ul>
+<a href="{% url 'item-create' %}">Create New Item</a>
+{% endblock %}

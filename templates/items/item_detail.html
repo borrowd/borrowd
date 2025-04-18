@@ -1,0 +1,10 @@
+{% extends "layouts/default.html" %}
+
+{% block head_title %}View Item{% endblock %}
+{% block content %}
+<h1>{{ object.name }}</h1>
+<p>{{ object.description }}</p>
+<a href="{% url 'item-list' %}">Back to list</a>
+<a href="{% url 'item-edit' object.pk %}">Edit</a>
+<a href="{% url 'item-delete' object.pk %}">Delete</a>
+{% endblock %}
