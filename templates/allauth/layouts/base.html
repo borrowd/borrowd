@@ -11,13 +11,13 @@
         </title>
         {% block extra_head %}
         {% endblock extra_head %}
-        <link rel="icon" type="image/png" href="{% static 'web/favicon.png' %}" />
+        <link rel="icon" type="image/png" href="{% static 'favicon.png' %}" />
         <script src="https://cdn.tailwindcss.com"></script>
     </head>
     <body>
         {% block body %}
-        {% include "web/includes/messages.html" %}
-        {% include "web/includes/header.html" %}
+        {% include "includes/messages.html" %}
+        {% include "includes/header.html" %}
             {% block content_base %}
             {% endblock content_base %}
         {% endblock body %}

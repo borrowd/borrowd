@@ -62,7 +62,9 @@ ROOT_URLCONF = "borrowd.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        "DIRS": [
+            BASE_DIR / "templates",
+        ],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -73,6 +75,9 @@ TEMPLATES = [
         },
     },
 ]
+
+# https://django-cotton.com/docs/configuration
+COTTON_DIR = "components"
 
 WSGI_APPLICATION = "borrowd.wsgi.application"
 
@@ -137,6 +142,9 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
+STATICFILES_DIRS = [
+    BASE_DIR / "static",
+]
 STATIC_URL = "static/"
 
 # Default primary key field type

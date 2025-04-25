@@ -1,5 +1,5 @@
-from django.db import models
 from django.contrib.auth.models import User
+from django.db import models
 from django.templatetags.static import static
 
 
@@ -21,5 +21,5 @@ class Profile(models.Model):
         try:
             pic = self.image.url
         except Exception:
-            pic = static("web/favicon.png")
+            pic = static("favicon.png")
         return pic
