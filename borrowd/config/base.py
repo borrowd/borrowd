@@ -112,6 +112,7 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 # AUTH
+AUTH_USER_MODEL = "borrowd_users.BorrowdUser"
 
 LOGIN_REDIRECT_URL = "/"
 
