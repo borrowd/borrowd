@@ -22,5 +22,6 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("accounts/", include("allauth.urls")),
     path("profile/", include("borrowd_users.urls")),
+    path("groups/", include("borrowd_groups.urls")),
     path("", include("borrowd_web.urls")),
 ]

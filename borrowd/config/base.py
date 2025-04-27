@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     "allauth.account",
     "borrowd_web",
     "borrowd_items",
+    "borrowd_groups",
 ]
 
 MIDDLEWARE = [
@@ -156,11 +157,37 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 #
 # Shim for mypy to play nice with certain generic types
 #
-from django.db.models import CharField, ForeignKey  # noqa: E402
+from django.db.models import (  # noqa: E402
+    BooleanField,
+    CharField,
+    ForeignKey,
+    TextField,
+)
 from django.db.models.manager import BaseManager  # noqa: E402
 from django.db.models.query import QuerySet  # noqa: E402
+from django.forms import ModelForm  # noqa: E402
+from django.views.generic import (  # noqa: E402
+    CreateView,
+    DeleteView,
+    DetailView,
+    ListView,
+    UpdateView,
+)
 
 # NOTE: there are probably other items you'll need to monkey patch depending on
 # your version.
-for cls in [BaseManager, CharField, ForeignKey, QuerySet]:
+for cls in [
+    BaseManager,
+    BooleanField,
+    CharField,
+    CreateView,
+    DeleteView,
+    DetailView,
+    ForeignKey,
+    ListView,
+    ModelForm,
+    QuerySet,
+    TextField,
+    UpdateView,
+]:
     cls.__class_getitem__ = classmethod(lambda cls, *args, **kwargs: cls)  # type: ignore [attr-defined]
