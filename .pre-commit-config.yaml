@@ -35,6 +35,7 @@ repos:
     -   id: mixed-line-ending
         args: [--fix=no]
     -   id: pretty-format-json
+        args: [--indent=4, --top-keys, "model,pk"]
     -   id: trailing-whitespace
 
 -   repo: https://github.com/astral-sh/ruff-pre-commit
