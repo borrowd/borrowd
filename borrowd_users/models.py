@@ -1,11 +1,15 @@
-from django.contrib.auth.models import User
+from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.templatetags.static import static
 
 
+class BorrowdUser(AbstractUser):
+    pass
+
+
 class Profile(models.Model):
-    user: models.OneToOneField[User] = models.OneToOneField(
-        User, on_delete=models.CASCADE
+    user: models.OneToOneField[BorrowdUser] = models.OneToOneField(
+        BorrowdUser, on_delete=models.CASCADE
     )
     image = models.ImageField(upload_to="profile_pics/", null=True, blank=True)
     display_name: models.CharField[str, str] = models.CharField(

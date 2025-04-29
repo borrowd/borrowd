@@ -1,0 +1,11 @@
+{% extends "layouts/default.html" %}
+{% block head_title %}Group Details{% endblock %}
+
+{% block content %}
+<h1>{{ object.name }}</h1>
+<p>{{ object.description }}</p>
+<p>Membership requires approval: {{ object.membership_requires_approval|yesno:"Yes,No" }}</p>
+<a href="{% url 'borrowd_groups:group-list' %}">Back to list</a>
+<a href="{% url 'borrowd_groups:group-edit' object.pk %}">Edit</a>
+<a href="{% url 'borrowd_groups:group-delete' object.pk %}">Delete</a>
+{% endblock %}

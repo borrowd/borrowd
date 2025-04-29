@@ -1,5 +1,6 @@
-from django.contrib.auth.models import User
 from django.db.models import CASCADE, SET_NULL, CharField, ForeignKey, Model
+
+from borrowd_users.models import BorrowdUser
 
 
 class ItemCategory(Model):
@@ -17,7 +18,7 @@ class Item(Model):
         max_length=500, null=False, blank=False
     )
     # If user is deleted, delete their Items
-    owner: ForeignKey[User] = ForeignKey(User, on_delete=CASCADE)
+    owner: ForeignKey[BorrowdUser] = ForeignKey(BorrowdUser, on_delete=CASCADE)
     category: ForeignKey[ItemCategory] = ForeignKey(
         ItemCategory, on_delete=SET_NULL, null=True, blank=False
     )
