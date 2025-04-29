@@ -1,6 +1,6 @@
 from django.db.models import Model
 
-from borrowd_groups.models import Group
+from borrowd_groups.models import BorrowdGroup
 
 
 class BorrowdTemplateFinderMixin:
@@ -22,7 +22,7 @@ class BorrowdTemplateFinderMixin:
     mixin so that we can use it generically across all of our apps.
     """
 
-    model: type[Model | Group]
+    model: type[Model | BorrowdGroup]
     template_name_suffix: str
 
     def get_template_names(self) -> list[str]:

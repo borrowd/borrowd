@@ -10,11 +10,13 @@ from django.views.generic import (
 
 from borrowd.util import BorrowdTemplateFinderMixin
 
-from .models import Group
+from .models import BorrowdGroup
 
 
-class GroupCreateView(BorrowdTemplateFinderMixin, CreateView[Group, ModelForm[Group]]):
-    model = Group
+class GroupCreateView(
+    BorrowdTemplateFinderMixin, CreateView[BorrowdGroup, ModelForm[BorrowdGroup]]
+):
+    model = BorrowdGroup
     fields = ["name", "description", "membership_requires_approval"]
 
     def get_success_url(self) -> str:
@@ -23,21 +25,25 @@ class GroupCreateView(BorrowdTemplateFinderMixin, CreateView[Group, ModelForm[Gr
         return reverse("borrowd_groups:group-detail", args=[self.object.pk])
 
 
-class GroupDeleteView(BorrowdTemplateFinderMixin, DeleteView[Group, ModelForm[Group]]):
-    model = Group
+class GroupDeleteView(
+    BorrowdTemplateFinderMixin, DeleteView[BorrowdGroup, ModelForm[BorrowdGroup]]
+):
+    model = BorrowdGroup
     success_url = reverse_lazy("borrowd_groups:group-list")
 
 
-class GroupDetailView(BorrowdTemplateFinderMixin, DetailView[Group]):
-    model = Group
+class GroupDetailView(BorrowdTemplateFinderMixin, DetailView[BorrowdGroup]):
+    model = BorrowdGroup
 
 
-class GroupListView(BorrowdTemplateFinderMixin, ListView[Group]):
-    model = Group
+class GroupListView(BorrowdTemplateFinderMixin, ListView[BorrowdGroup]):
+    model = BorrowdGroup
 
 
-class GroupUpdateView(BorrowdTemplateFinderMixin, UpdateView[Group, ModelForm[Group]]):
-    model = Group
+class GroupUpdateView(
+    BorrowdTemplateFinderMixin, UpdateView[BorrowdGroup, ModelForm[BorrowdGroup]]
+):
+    model = BorrowdGroup
     fields = ["name", "description", "membership_requires_approval"]
 
     def get_success_url(self) -> str:

@@ -1,6 +1,6 @@
 from typing import Never  # Unfortunately needed for more mypy shenanigans
 
-from django.contrib.auth.models import Group as DefaultGroup
+from django.contrib.auth.models import Group
 from django.db.models import (
     BooleanField,
     TextField,
@@ -8,7 +8,7 @@ from django.db.models import (
 from django.urls import reverse
 
 
-class Group(DefaultGroup):
+class BorrowdGroup(Group):
     """
     A group of users. This is a subclass of Django's built-in Group
     model. There is no clean and widely-accepted way of using a
