@@ -4,7 +4,14 @@ from django.templatetags.static import static
 
 
 class BorrowdUser(AbstractUser):
-    pass
+    groups = models.ManyToManyField(
+        "borrowd_groups.BorrowdGroup",
+        blank=True,
+        help_text="The groups this user belongs to.",
+        related_name="user_set",
+        related_query_name="user",
+        through="borrowd_groups.Membership",
+    )
 
 
 class Profile(models.Model):

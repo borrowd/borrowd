@@ -2,14 +2,19 @@ from typing import Never  # Unfortunately needed for more mypy shenanigans
 
 from django.contrib.auth.models import Group
 from django.db.models import (
+    CASCADE,
     DO_NOTHING,
     BooleanField,
     DateTimeField,
     ForeignKey,
+    IntegerField,
+    ManyToManyField,
+    Model,
     TextField,
 )
 from django.urls import reverse
 
+from borrowd.models import TrustLevel
 from borrowd_users.models import BorrowdUser
 
 
@@ -24,6 +29,12 @@ class BorrowdGroup(Group):
     membership_requires_approval: BooleanField[Never, Never] = BooleanField(
         default=True,
         help_text="If true, new members will require Moderator approval to join the group.",
+    )
+    users: ManyToManyField[BorrowdUser, BorrowdUser] = ManyToManyField(
+        BorrowdUser,
+        blank=True,
+        help_text="The users in this group.",
+        through="borrowd_groups.Membership",
     )
     created_by: ForeignKey[BorrowdUser] = ForeignKey(
         BorrowdUser,
@@ -52,3 +63,34 @@ class BorrowdGroup(Group):
 
     def get_absolute_url(self) -> str:
         return reverse("borrowd_groups:group-detail", args=[self.pk])
+
+
+class Membership(Model):
+    """
+    A membership in a :class:`Group`. This is a custom many-to-many
+    relationship between :class:`borrowd_users.models.BorrowdUser`s
+    and :class:`Group`s, required because we need to track the User's
+    Trust Level with each Group.
+
+    Attributes:
+        user (ForeignKey[BorrowdUser]): A foreign key to the BorrowdUser model,
+            representing the user who is a member of the group.
+        group (ForeignKey[Group]): A foreign key to the :class:`Group` model,
+            representing the group the user is a member of.
+        is_moderator (BooleanField): A boolean field indicating whether the user
+            is a moderator of the group. Defaults to False.
+    """
+
+    user: ForeignKey[BorrowdUser] = ForeignKey(
+        BorrowdUser,
+        on_delete=CASCADE,
+    )
+    group: ForeignKey[BorrowdGroup] = ForeignKey(
+        BorrowdGroup,
+        on_delete=CASCADE,
+    )
+    is_moderator: BooleanField[Never, Never] = BooleanField(default=False)
+    trust_level: IntegerField[Never, Never] = IntegerField(
+        choices=TrustLevel,
+        help_text="The User's selected level of Trust for the given Group.",
+    )

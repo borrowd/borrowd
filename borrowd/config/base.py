@@ -162,6 +162,8 @@ from django.db.models import (  # noqa: E402
     CharField,
     DateTimeField,
     ForeignKey,
+    IntegerField,
+    ManyToManyField,
     TextField,
 )
 from django.db.models.manager import BaseManager  # noqa: E402
@@ -186,7 +188,9 @@ for cls in [
     DeleteView,
     DetailView,
     ForeignKey,
+    IntegerField,
     ListView,
+    ManyToManyField,
     ModelForm,
     QuerySet,
     TextField,
