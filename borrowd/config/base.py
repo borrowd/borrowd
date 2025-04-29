@@ -160,7 +160,10 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 from django.db.models import (  # noqa: E402
     BooleanField,
     CharField,
+    DateTimeField,
     ForeignKey,
+    IntegerField,
+    ManyToManyField,
     TextField,
 )
 from django.db.models.manager import BaseManager  # noqa: E402
@@ -181,10 +184,13 @@ for cls in [
     BooleanField,
     CharField,
     CreateView,
+    DateTimeField,
     DeleteView,
     DetailView,
     ForeignKey,
+    IntegerField,
     ListView,
+    ManyToManyField,
     ModelForm,
     QuerySet,
     TextField,
