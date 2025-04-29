@@ -4,52 +4,48 @@
 {% block head_title  %}{{ profile.user.username }}'s profile{% endblock %}
 
 {% block content %}
+<div class="bg-white shadow-lg rounded-lg p-8 w-full max-w-2xl">
+    <!-- Profile Card -->
+    <div class="flex flex-col items-center text-center border-b pb-6">
+        <img class="w-24 h-24 mb-4" src="{{ profile.profile_pic }}" alt="Profile Picture" />
+        <h1 class="text-3xl font-bold text-gray-800">{{ profile.user.username }}</h1>
+    </div>
 
-<div class="flex justify-center pt-16 bg-gray-100">
-    <div class="bg-white shadow-lg rounded-lg p-8 w-full max-w-2xl">
-        <!-- Profile Card -->
-        <div class="flex flex-col items-center text-center border-b pb-6">
-            <img class="w-24 h-24 mb-4" src="{{ profile.profile_pic }}" alt="Profile Picture" />
-            <h1 class="text-3xl font-bold text-gray-800">{{ profile.user.username }}</h1>
-        </div>
-
-        <!-- Settings Section -->
-        <div class="mt-6">
-            <h2 class="text-xl font-semibold text-gray-700 mb-4">{% trans "Settings" %}</h2>
-            <ul class="space-y-3">
-                {% url 'account_email' as email_url_ %}
-                {% if email_url_ %}
-                    <li>
-                        <a href="{{ email_url_ }}" class="block text-blue-600 hover:underline">{% trans "Change Email" %}</a>
-                    </li>
-                {% endif %}
-                {% url 'account_change_password' as change_password_url_ %}
-                {% if change_password_url_ %}
-                    <li>
-                        <a href="{{ change_password_url_ }}" class="block text-blue-600 hover:underline">{% trans "Change Password" %}</a>
-                    </li>
-                {% endif %}
-                {% url 'socialaccount_connections' as connections_url_ %}
-                {% if connections_url_ %}
-                    <li>
-                        <a href="{{ connections_url_ }}" class="block text-blue-600 hover:underline">{% trans "Account Connections" %}</a>
-                    </li>
-                {% endif %}
-                {% url 'mfa_index' as mfa_url_ %}
-                {% if mfa_url_ %}
-                    <li>
-                        <a href="{{ mfa_url_ }}" class="block text-blue-600 hover:underline">{% trans "Two-Factor Authentication" %}</a>
-                    </li>
-                {% endif %}
-                {% url 'usersessions_list' as usersessions_list_url_ %}
-                {% if usersessions_list_url_ %}
-                    <li>
-                        <a href="{{ usersessions_list_url_ }}" class="block text-blue-600 hover:underline">{% trans "Sessions" %}</a>
-                    </li>
-                {% endif %}
-            </ul>
-        </div>
+    <!-- Settings Section -->
+    <div class="mt-6">
+        <h2 class="text-xl font-semibold text-gray-700 mb-4">{% trans "Settings" %}</h2>
+        <ul class="space-y-3">
+            {% url 'account_email' as email_url_ %}
+            {% if email_url_ %}
+                <li>
+                    <a href="{{ email_url_ }}" class="block text-blue-600 hover:underline">{% trans "Change Email" %}</a>
+                </li>
+            {% endif %}
+            {% url 'account_change_password' as change_password_url_ %}
+            {% if change_password_url_ %}
+                <li>
+                    <a href="{{ change_password_url_ }}" class="block text-blue-600 hover:underline">{% trans "Change Password" %}</a>
+                </li>
+            {% endif %}
+            {% url 'socialaccount_connections' as connections_url_ %}
+            {% if connections_url_ %}
+                <li>
+                    <a href="{{ connections_url_ }}" class="block text-blue-600 hover:underline">{% trans "Account Connections" %}</a>
+                </li>
+            {% endif %}
+            {% url 'mfa_index' as mfa_url_ %}
+            {% if mfa_url_ %}
+                <li>
+                    <a href="{{ mfa_url_ }}" class="block text-blue-600 hover:underline">{% trans "Two-Factor Authentication" %}</a>
+                </li>
+            {% endif %}
+            {% url 'usersessions_list' as usersessions_list_url_ %}
+            {% if usersessions_list_url_ %}
+                <li>
+                    <a href="{{ usersessions_list_url_ }}" class="block text-blue-600 hover:underline">{% trans "Sessions" %}</a>
+                </li>
+            {% endif %}
+        </ul>
     </div>
 </div>
-
 {% endblock %}

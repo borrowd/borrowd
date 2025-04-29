@@ -1,12 +1,8 @@
 {% extends "base.html" %}
 
 {% block layout %}
-
-<div>
+<main class="flex-grow flex justify-center items-center bg-gray-100 py-8">
     {% block content %}
     {% endblock %}
-</div>
-
-{% include "includes/footer.html" %}
-
+</main>
 {% endblock %}

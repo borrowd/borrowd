@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css" />
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
+<body class="flex flex-col min-h-screen">
 
     {% include "includes/messages.html" %}
     {% include "includes/header.html" %}
@@ -16,5 +16,6 @@
     {% block layout %}
     {% endblock %}
 
+    {% include "includes/footer.html" %}
 </body>
 </html>
