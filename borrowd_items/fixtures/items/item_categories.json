@@ -1,0 +1,106 @@
+[
+    {
+        "model": "borrowd_items.ItemCategory",
+        "pk": 1,
+        "fields": {
+            "description": "Drills, saws, hammers, ladders, etc.",
+            "name": "Tools & Hardware"
+        }
+    },
+    {
+        "model": "borrowd_items.ItemCategory",
+        "pk": 2,
+        "fields": {
+            "description": "Tents, backpacks, sleeping bags, yoga mats, bikes, etc.",
+            "name": "Sports & Adventure"
+        }
+    },
+    {
+        "model": "borrowd_items.ItemCategory",
+        "pk": 3,
+        "fields": {
+            "description": "Blenders, slow cookers, steamers, vaccuum clearner, etc.",
+            "name": "Home & Kitchen Appliances"
+        }
+    },
+    {
+        "model": "borrowd_items.ItemCategory",
+        "pk": 4,
+        "fields": {
+            "description": "Folding chairs, folding tables, decorations, etc.",
+            "name": "Event & Party Supplies"
+        }
+    },
+    {
+        "model": "borrowd_items.ItemCategory",
+        "pk": 5,
+        "fields": {
+            "description": "Musical instruments, art supplies, sewing machines, etc.",
+            "name": "Hobbies & Crafts"
+        }
+    },
+    {
+        "model": "borrowd_items.ItemCategory",
+        "pk": 6,
+        "fields": {
+            "description": "Cameras, consoles, VR headsets, etc.",
+            "name": "Electronics & Tech"
+        }
+    },
+    {
+        "model": "borrowd_items.ItemCategory",
+        "pk": 7,
+        "fields": {
+            "description": "Strollers, carriers, toys, playpens, etc.",
+            "name": "Kid & Baby"
+        }
+    },
+    {
+        "model": "borrowd_items.ItemCategory",
+        "pk": 8,
+        "fields": {
+            "description": "Lawn mower, rakes, pruning tools, hoses, etc.",
+            "name": "Gardening & Yard"
+        }
+    },
+    {
+        "model": "borrowd_items.ItemCategory",
+        "pk": 9,
+        "fields": {
+            "description": "Decorations, heaters, costumes, fans, snow gear, etc.",
+            "name": "Seasonal & Holidays"
+        }
+    },
+    {
+        "model": "borrowd_items.ItemCategory",
+        "pk": 10,
+        "fields": {
+            "description": "Pet carriers, backpacks, trailers, etc.",
+            "name": "Pet Supplies"
+        }
+    },
+    {
+        "model": "borrowd_items.ItemCategory",
+        "pk": 11,
+        "fields": {
+            "description": "Projectors, shredders, printer, etc.",
+            "name": "Office & Work"
+        }
+    },
+    {
+        "model": "borrowd_items.ItemCategory",
+        "pk": 12,
+        "fields": {
+            "description": "Boardgames, books, magazines...",
+            "name": "Books, Games, & Media"
+        }
+    },
+    {
+        "model": "borrowd_items.ItemCategory",
+        "pk": 13,
+        "fields": {
+            "description": "Something else entirely!",
+            "name": "Other"
+        }
+    }
+]

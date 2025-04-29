@@ -10,7 +10,13 @@
         <img class="w-24 h-24 mb-4" src="{{ profile.profile_pic }}" alt="Profile Picture" />
         <h1 class="text-3xl font-bold text-gray-800">{{ profile.user.username }}</h1>
     </div>
-
+    <!-- User's Items -->
+    <div>
+        <ul>
+        {% for item in user_items %}
+        <li><a href="{{ item.get_absolute_url }}">{{ item.name }}</a></li>
+        {% endfor %}
+    </div>
     <!-- Settings Section -->
     <div class="mt-6">
         <h2 class="text-xl font-semibold text-gray-700 mb-4">{% trans "Settings" %}</h2>
