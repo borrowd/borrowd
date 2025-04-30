@@ -25,4 +25,5 @@ urlpatterns = [
     path("items/", include("borrowd_items.urls")),
     path("groups/", include("borrowd_groups.urls")),
     path("", include("borrowd_web.urls")),
+    path("__reload__/", include("django_browser_reload.urls")),
 ]

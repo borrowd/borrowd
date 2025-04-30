@@ -45,9 +45,11 @@ INSTALLED_APPS = [
     "borrowd_web",
     "borrowd_items",
     "borrowd_groups",
+    "django_browser_reload",
 ]
 
 MIDDLEWARE = [
+    "django_browser_reload.middleware.BrowserReloadMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
