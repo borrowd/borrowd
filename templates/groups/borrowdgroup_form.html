@@ -1,4 +1,4 @@
-{% extends "layouts/default.html" %}
+{% extends "groups/layouts/index.html" %}
 
 {% comment %}
     This template is used for both creating and editing.
@@ -7,13 +7,15 @@
 {% endcomment %}
 {% block head_title %}{% if not view.object.pk %}Create{% else %}Edit{% endif %} Group{% endblock %}
 
-{% block content %}
-<h1>{% if not view.object.pk %}Create{% else %}Edit{% endif %} Group</h1>
-<form method="post">
-    {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit">Save</button>
-    {% if form.instance.pk %}<a href="{% url 'borrowd_groups:group-detail' form.instance.pk %}">Cancel</a>{% endif %}
-    {% if form.instance.pk %}<a href="{% url 'borrowd_groups:group-delete' form.instance.pk %}">Delete</a>{% endif %}
-</form>
+{% block groups_content %}
+<c-box>
+    <c-h1>{% if not view.object.pk %}Create{% else %}Edit{% endif %} Group</c-h1>
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit">Save</button>
+        {% if form.instance.pk %}<a href="{% url 'borrowd_groups:group-detail' form.instance.pk %}">Cancel</a>{% endif %}
+        {% if form.instance.pk %}<a href="{% url 'borrowd_groups:group-delete' form.instance.pk %}">Delete</a>{% endif %}
+    </form>
+</c-box>
 {% endblock %}
