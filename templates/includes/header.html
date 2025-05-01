@@ -11,14 +11,14 @@
         <ul class="flex space-x-4 items-right items-center">
             {% if user.is_authenticated %}
                 <li>
-                    <a href="{% url 'profile' %}">Profile</a>
+                    <a class="hover:underline" href="{% url 'profile' %}">Profile</a>
                 </li>
-                {% url 'account_logout' as logout_url_ %}
-                {% if logout_url_ %}
-                    <li>
-                        <a href="{{ logout_url_ }}">{% trans "Sign Out" %}</a>
-                    </li>
-                {% endif %}
+            {% url 'account_logout' as logout_url_ %}
+            {% if logout_url_ %}
+                <li>
+                    <a class="hover:underline" href="{{ logout_url_ }}">{% trans "Sign Out" %}</a>
+                </li>
+            {% endif %}
             {% else %}
                 {% url 'account_request_login_code' as login_url_ %}
                 {% if login_url_ %}
