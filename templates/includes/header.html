@@ -23,13 +23,17 @@
                 {% url 'account_request_login_code' as login_url_ %}
                 {% if login_url_ %}
                     <li>
-                        <a href="{{ login_url_ }}">{% trans "Sign In" %}</a>
+                        <a class="hover:underline" href="{{ login_url_ }}">{% trans "Sign In" %}</a>
                     </li>
                 {% endif %}
                 {% url 'account_signup' as signup_url_ %}
                 {% if signup_url_ %}
                     <li>
-                        <c-signup-button />
+                        <c-button>
+                            <a href="{% url 'account_signup' %}" >
+                              Sign Up
+                            </a>
+                        </c-button>
                     </li>
                 {% endif %}
             {% endif %}
