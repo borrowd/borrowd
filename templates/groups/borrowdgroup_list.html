@@ -1,15 +1,19 @@
-{% extends "layouts/default.html" %}
+{% extends "groups/layout.html" %}
 
 {% block head_title %}Groups{% endblock %}
-{% block content %}
-<h1>Groups</h1>
-<ul>
-    {% for group in group_list %}
-        <li>
-            <a href="{% url 'borrowd_groups:group-detail' group.pk %}">{{ group.name }}</a>
-            <a href="{% url 'borrowd_groups:group-edit' group.pk %}">Edit</a>
-        </li>
-    {% endfor %}
-</ul>
-<a href="{% url 'borrowd_groups:group-create' %}">Create New Group</a>
+{% block groups_content %}
+<c-box>
+    <c-h1>Groups</c-h1>
+    <ul>
+        {% for group in group_list %}
+            <li>
+                <a href="{% url 'borrowd_groups:group-detail' group.pk %}">{{ group.name }}</a>
+                <a href="{% url 'borrowd_groups:group-edit' group.pk %}">Edit</a>
+            </li>
+        {% endfor %}
+    </ul>
+    <c-button>
+        <a href="{% url 'borrowd_groups:group-create' %}">Create New Group</a>
+    </c-button>
+</c-box>
 {% endblock %}
