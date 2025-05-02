@@ -21,6 +21,9 @@
                 <li>No members yet.</li>
             {% endfor %}
         </ul>
+        <c-button>
+            <a href="{% url 'borrowd_groups:group-edit' object.pk %}">Edit Group</a>
+        </c-button>
     </div>
 </c-box> 
 <script>

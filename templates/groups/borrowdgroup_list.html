@@ -4,12 +4,13 @@
 {% block groups_content %}
 <c-box>
     <c-h1>Groups</c-h1>
-    <ul>
-        {% for group in group_list %}
+    <ul class="list-disc list-inside mb-4">
+        {% for group in borrowdgroup_list %}
             <li>
-                <a href="{% url 'borrowd_groups:group-detail' group.pk %}">{{ group.name }}</a>
-                <a href="{% url 'borrowd_groups:group-edit' group.pk %}">Edit</a>
+                <a class="hover:underline text-blue-800" href="{% url 'borrowd_groups:group-detail' group.pk %}">{{ group.name }}</a>
             </li>
+            {% empty %}
+                <p>No groups found.</p>
         {% endfor %}
     </ul>
     <c-button>
