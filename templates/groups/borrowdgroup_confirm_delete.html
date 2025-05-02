@@ -1,12 +1,16 @@
-{% extends "layouts/default.html" %}
+{% extends "groups/layout.html" %}
 {% block head_title %}Delete Group{% endblock %}
 
-{% block content %}
-<h1>Confirm Deletion</h1>
-<p>Are you sure you want to delete "{{ object }}"?</p>
-<form method="post">
-    {% csrf_token %}
-    <button type="submit">Yes, delete</button>
-    <a href="{% url 'borrowd_groups:group-detail' group.pk %}">Cancel</a>
-</form>
+{% block groups_content %}
+<c-box>
+    <c-h1>Confirm Deletion</c-h1>
+    <p>Are you sure you want to delete "{{ object }}"?</p>
+    <form method="post">
+        {% csrf_token %}
+        <c-button danger type="submit">Yes, delete</c-button>
+        <c-button>
+            <a href="{% url 'borrowd_groups:group-detail' object.pk %}">Cancel</a>
+        </c-button>
+    </form>
+</c-box>
 {% endblock %}
