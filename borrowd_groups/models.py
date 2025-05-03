@@ -10,6 +10,7 @@ from django.db.models import (
     IntegerField,
     ManyToManyField,
     Model,
+    TextChoices,
     TextField,
 )
 from django.urls import reverse
@@ -65,6 +66,12 @@ class BorrowdGroup(Group):
         return reverse("borrowd_groups:group-detail", args=[self.pk])
 
 
+class MembershipStatus(TextChoices):
+    ACTIVE = ("active", "Active")
+    SUSPENDED = ("suspended", "Suspended")
+    BANNED = ("banned", "Banned")
+
+
 class Membership(Model):
     """
     A membership in a :class:`Group`. This is a custom many-to-many
@@ -90,6 +97,30 @@ class Membership(Model):
         on_delete=CASCADE,
     )
     is_moderator: BooleanField[Never, Never] = BooleanField(default=False)
+    joined_at: DateTimeField[Never, Never] = DateTimeField(
+        auto_now_add=True,
+        help_text="The date and time at which the user joined the group.",
+    )
+    status: TextField[MembershipStatus, str] = TextField(
+        choices=MembershipStatus.choices,
+        default=MembershipStatus.ACTIVE,
+        null=False,
+        blank=False,
+    )
+    status_changed_at: DateTimeField[Never, Never] = DateTimeField(
+        null=True,
+        blank=False,
+        help_text="The date and time at which the membership status was last updated.",
+    )
+    status_changed_reason: TextField[str, str] = TextField(
+        max_length=500,
+        null=True,
+        blank=False,
+        help_text=(
+            "The reason for which the status was last updated. "
+            "May be useful in unfortunate cases of suspension / banning."
+        ),
+    )
     trust_level: IntegerField[Never, Never] = IntegerField(
         choices=TrustLevel,
         help_text="The User's selected level of Trust for the given Group.",
