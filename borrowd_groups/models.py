@@ -65,6 +65,16 @@ class BorrowdGroup(Group):
     def get_absolute_url(self) -> str:
         return reverse("borrowd_groups:group-detail", args=[self.pk])
 
+    def add_user(self, user: BorrowdUser, trust_level: TrustLevel) -> "Membership":
+        """
+        Add a user to the group.
+        """
+        return Membership.objects.create(
+            user=user,
+            group=self,
+            trust_level=trust_level,
+        )
+
 
 class MembershipStatus(TextChoices):
     ACTIVE = ("active", "Active")
