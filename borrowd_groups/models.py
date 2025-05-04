@@ -75,6 +75,12 @@ class BorrowdGroup(Group):
             trust_level=trust_level,
         )
 
+    def remove_user(self, user: BorrowdUser) -> None:
+        """
+        Remove a user from the group.
+        """
+        Membership.objects.filter(user=user, group=self).delete()
+
 
 class MembershipStatus(TextChoices):
     ACTIVE = ("active", "Active")

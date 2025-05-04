@@ -5,7 +5,7 @@ from borrowd_groups.models import BorrowdGroup
 from borrowd_users.models import BorrowdUser
 
 
-class GroupMembershipTests(TestCase):
+class AddUsersToGroupsTests(TestCase):
     def test_users_only_in_added_groups(self) -> None:
         # Arrange
 
