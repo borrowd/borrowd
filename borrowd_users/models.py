@@ -1,9 +1,13 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.templatetags.static import static
+from guardian.mixins import GuardianUserMixin
+
+from borrowd_groups.mixins import BorrowdGroupPermissionMixin
 
 
-class BorrowdUser(AbstractUser):
+# No typing for django-guardian, so mypy doesn't like us subclassing.
+class BorrowdUser(AbstractUser, BorrowdGroupPermissionMixin, GuardianUserMixin):  # type: ignore[misc]
     groups = models.ManyToManyField(
         "borrowd_groups.BorrowdGroup",
         blank=True,

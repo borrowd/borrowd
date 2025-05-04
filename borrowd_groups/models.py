@@ -14,12 +14,15 @@ from django.db.models import (
     TextField,
 )
 from django.urls import reverse
+from guardian.mixins import GuardianGroupMixin
+from guardian.models import GroupObjectPermissionAbstract
 
 from borrowd.models import TrustLevel
 from borrowd_users.models import BorrowdUser
 
 
-class BorrowdGroup(Group):
+# No typing for django-guardian, so mypy doesn't like us subclassing.
+class BorrowdGroup(Group, GuardianGroupMixin):  # type: ignore[misc]
     """
     A group of users. This is a subclass of Django's built-in Group
     model. There is no clean and widely-accepted way of using a
@@ -141,3 +144,11 @@ class Membership(Model):
         choices=TrustLevel,
         help_text="The User's selected level of Trust for the given Group.",
     )
+
+
+# No typing for django-guardian, so mypy doesn't like us subclassing.
+class BorrowdGroupObjectPermission(GroupObjectPermissionAbstract):  # type: ignore[misc]
+    group: ForeignKey[BorrowdGroup] = ForeignKey(BorrowdGroup, on_delete=CASCADE)
+
+    class Meta(GroupObjectPermissionAbstract.Meta):  # type: ignore[misc]
+        abstract = False

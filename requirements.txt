@@ -13,6 +13,7 @@ django==5.2 \
     #   borrowd
     #   django-allauth
     #   django-cotton
+    #   django-guardian
 django-allauth==65.7.0 \
     --hash=sha256:eb060692150f39e1529893c2de5f9b46e1dab51153ff6cca7ad72c7c125259ea
     # via borrowd
@@ -23,6 +24,8 @@ django-cotton==2.0.3 \
 django-environ==0.12.0 \
     --hash=sha256:227dc891453dd5bde769c3449cf4a74b6f2ee8f7ab2361c93a07068f4179041a \
     --hash=sha256:92fb346a158abda07ffe6eb23135ce92843af06ecf8753f43adf9d2366dcc0ca
+    # via borrowd
+django-guardian @ git+https://github.com/django-guardian/django-guardian@e3dd3f3b47eebc1ef4a51f1ee327efad55d11b72
     # via borrowd
 pillow==11.1.0 \
     --hash=sha256:11633d58b6ee5733bde153a8dafd25e505ea3d32e261accd388827ee987baf65 \
