@@ -84,6 +84,20 @@ class BorrowdGroup(Group, GuardianGroupMixin):  # type: ignore[misc]
         """
         Membership.objects.filter(user=user, group=self).delete()
 
+    def update_user_membership(
+        self,
+        user: BorrowdUser,
+        trust_level: TrustLevel,
+        is_moderator: bool = False,
+    ) -> None:
+        """
+        Update a user's membership in the group.
+        """
+        membership: Membership = Membership.objects.get(user=user, group=self)
+        membership.trust_level = trust_level
+        membership.is_moderator = is_moderator
+        membership.save()
+
 
 class MembershipStatus(TextChoices):
     ACTIVE = ("active", "Active")
@@ -115,7 +129,7 @@ class Membership(Model):
         BorrowdGroup,
         on_delete=CASCADE,
     )
-    is_moderator: BooleanField[Never, Never] = BooleanField(default=False)
+    is_moderator: BooleanField[bool, bool] = BooleanField(default=False)
     joined_at: DateTimeField[Never, Never] = DateTimeField(
         auto_now_add=True,
         help_text="The date and time at which the user joined the group.",
@@ -140,7 +154,7 @@ class Membership(Model):
             "May be useful in unfortunate cases of suspension / banning."
         ),
     )
-    trust_level: IntegerField[Never, Never] = IntegerField(
+    trust_level: IntegerField[TrustLevel, int] = IntegerField(
         choices=TrustLevel,
         help_text="The User's selected level of Trust for the given Group.",
     )
