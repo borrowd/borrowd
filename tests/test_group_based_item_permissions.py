@@ -239,7 +239,7 @@ class GroupBasedItemPermissionsTests(TestCase):
         )
 
         # Assert
-        ## Check the group can see all three of these Items, given its High trust level
+        ## Check the group can only see item1, since it only has a LOW trust level
         self.assertTrue("view_this_item" in get_perms(group, item1))
         self.assertFalse("view_this_item" in get_perms(group, item2))
         self.assertFalse("view_this_item" in get_perms(group, item3))
