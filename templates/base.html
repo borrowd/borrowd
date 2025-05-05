@@ -7,8 +7,9 @@
     <title>{% block head_title %}{% endblock %} - Borrow'd 🦝</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css" />
     <script src="https://cdn.tailwindcss.com"></script>
+     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
 </head>
-<body class="flex flex-col min-h-screen">
+<body x-data class="flex flex-col min-h-screen">
 
     {% include "includes/messages.html" %}
     {% include "includes/header.html" %}

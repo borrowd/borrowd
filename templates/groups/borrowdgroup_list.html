@@ -1,0 +1,20 @@
+{% extends "groups/layout.html" %}
+
+{% block head_title %}Groups{% endblock %}
+{% block groups_content %}
+<c-box>
+    <c-h1>Groups</c-h1>
+    <ul class="list-disc list-inside mb-4">
+        {% for group in borrowdgroup_list %}
+            <li>
+                <a class="hover:underline text-blue-800" href="{% url 'borrowd_groups:group-detail' group.pk %}">{{ group.name }}</a>
+            </li>
+            {% empty %}
+                <p>No groups found.</p>
+        {% endfor %}
+    </ul>
+    <c-button>
+        <a href="{% url 'borrowd_groups:group-create' %}">Create New Group</a>
+    </c-button>
+</c-box>
+{% endblock %}
