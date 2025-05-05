@@ -15,7 +15,7 @@
         {% for field in form %}
         <div class="">
             {{ field.errors }}
-            <b>{{ field.label_tag }}</b> 
+            <b>{{ field.label_tag }}</b>
             <p class="help italic" id="{{ field.auto_id }}_helptext">
                 {{ field.help_text|safe }}
             </p>
@@ -32,8 +32,6 @@
                         Cancel
                     </a>
                 </c-button>
-            {% endif %}
-            {% if form.instance.pk %}
                 <c-button>
                     <a href="{% url 'borrowd_groups:group-delete' form.instance.pk %}">
                         Delete
