@@ -1,4 +1,4 @@
-{% extends "layouts/default.html" %}
+{% extends "items/layout.html" %}
 
 {% comment %}
     This template is used for both creating and editing.
@@ -7,13 +7,38 @@
 {% endcomment %}
 {% block head_title %}{% if not view.object.pk %}Create{% else %}Edit{% endif %} Item{% endblock %}
 
-{% block content %}
-<h1>{% if not view.object.pk %}Create{% else %}Edit{% endif %} Item</h1>
-<form method="post">
-    {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit">Save</button>
-    {% if form.instance.pk %}<a href="{% url 'item-detail' form.instance.pk %}">Cancel</a>{% endif %}
-    {% if form.instance.pk %}<a href="{% url 'item-delete' form.instance.pk %}">Delete</a>{% endif %}
-</form>
+{% block items_content %}
+<c-box>
+    <c-h1>{% if not view.object.pk %}Create{% else %}Edit{% endif %} Item</c-h1>
+    <form method="post" class="flex flex-col space-y-2">
+        {% csrf_token %}
+        {% for field in form %}
+        <div class="">
+            {{ field.errors }}
+            <b>{{ field.label_tag }}</b>
+            <p class="help italic" id="{{ field.auto_id }}_helptext">
+                {{ field.help_text|safe }}
+            </p>
+            <div class="border-2 border-gray-200 w-fit">{{ field }} </div>
+            {% if field.help_text %}
+            {% endif %}
+        </div>
+        {% endfor %}
+        <div class="flex gap-4">
+            <c-button type="submit">Save</c-button>
+            {% if form.instance.pk %}
+                <c-button>
+                    <a href="{% url 'item-detail' form.instance.pk %}">
+                        Cancel
+                    </a>
+                </c-button>
+                <c-button>
+                    <a href="{% url 'item-delete' form.instance.pk %}">
+                        Delete
+                    </a>
+                </c-button>
+            {% endif %}
+        </div>
+    </form>
+</c-box>
 {% endblock %}

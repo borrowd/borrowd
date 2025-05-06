@@ -9,6 +9,7 @@ from django.views.generic import (
     UpdateView,
 )
 
+from borrowd.models import TrustLevel
 from borrowd.util import BorrowdTemplateFinderMixin
 
 from .models import Item
@@ -20,6 +21,8 @@ class ItemCreateView(BorrowdTemplateFinderMixin, CreateView[Item, ModelForm[Item
 
     def form_valid(self, form: ModelForm[Item]) -> HttpResponse:
         form.instance.owner = self.request.user  # type: ignore[assignment]
+        # default trust level for now
+        form.instance.trust_level_required = TrustLevel.LOW
         return super().form_valid(form)
 
     def get_success_url(self) -> str:

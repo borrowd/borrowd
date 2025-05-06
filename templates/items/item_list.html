@@ -1,15 +1,21 @@
-{% extends "layouts/default.html" %}
+{% extends "items/layout.html" %}
 
 {% block head_title %}Items{% endblock %}
-{% block content %}
-<h1>Items</h1>
-<ul>
-    {% for item in item_list %}
-        <li>
-            <a href="{% url 'item-detail' item.pk %}">{{ item }}</a>
-            <a href="{% url 'item-edit' item.pk %}">Edit</a>
-        </li>
-    {% endfor %}
-</ul>
-<a href="{% url 'item-create' %}">Create New Item</a>
+{% block items_content %}
+<c-box>
+    <div class="flex justify-between items-center">
+        <c-h1>Items</c-h1>
+        <c-button>
+            <a href="{% url 'item-create' %}">Create New Item</a>
+        </c-button>
+    </div>
+    <ul class="list-disc divide-y-2 space-y-3 my-4">
+        {% for item in item_list %}
+            <li class="flex justify-between items-center mt-2 text-blue-700">
+                <a class="hover:underline" href="{% url 'item-detail' item.pk %}">{{ item }}</a>
+                <a class="hover:underline" href="{% url 'item-edit' item.pk %}">Edit</a>
+            </li>
+        {% endfor %}
+    </ul>
+</c-box>
 {% endblock %}
