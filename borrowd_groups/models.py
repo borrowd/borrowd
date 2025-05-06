@@ -10,15 +10,19 @@ from django.db.models import (
     IntegerField,
     ManyToManyField,
     Model,
+    TextChoices,
     TextField,
 )
 from django.urls import reverse
+from guardian.mixins import GuardianGroupMixin
+from guardian.models import GroupObjectPermissionAbstract
 
 from borrowd.models import TrustLevel
 from borrowd_users.models import BorrowdUser
 
 
-class BorrowdGroup(Group):
+# No typing for django-guardian, so mypy doesn't like us subclassing.
+class BorrowdGroup(Group, GuardianGroupMixin):  # type: ignore[misc]
     """
     A group of users. This is a subclass of Django's built-in Group
     model. There is no clean and widely-accepted way of using a
@@ -64,6 +68,42 @@ class BorrowdGroup(Group):
     def get_absolute_url(self) -> str:
         return reverse("borrowd_groups:group-detail", args=[self.pk])
 
+    def add_user(self, user: BorrowdUser, trust_level: TrustLevel) -> "Membership":
+        """
+        Add a user to the group.
+        """
+        return Membership.objects.create(
+            user=user,
+            group=self,
+            trust_level=trust_level,
+        )
+
+    def remove_user(self, user: BorrowdUser) -> None:
+        """
+        Remove a user from the group.
+        """
+        Membership.objects.filter(user=user, group=self).delete()
+
+    def update_user_membership(
+        self,
+        user: BorrowdUser,
+        trust_level: TrustLevel,
+        is_moderator: bool = False,
+    ) -> None:
+        """
+        Update a user's membership in the group.
+        """
+        membership: Membership = Membership.objects.get(user=user, group=self)
+        membership.trust_level = trust_level
+        membership.is_moderator = is_moderator
+        membership.save()
+
+
+class MembershipStatus(TextChoices):
+    ACTIVE = ("active", "Active")
+    SUSPENDED = ("suspended", "Suspended")
+    BANNED = ("banned", "Banned")
+
 
 class Membership(Model):
     """
@@ -89,8 +129,40 @@ class Membership(Model):
         BorrowdGroup,
         on_delete=CASCADE,
     )
-    is_moderator: BooleanField[Never, Never] = BooleanField(default=False)
-    trust_level: IntegerField[Never, Never] = IntegerField(
+    is_moderator: BooleanField[bool, bool] = BooleanField(default=False)
+    joined_at: DateTimeField[Never, Never] = DateTimeField(
+        auto_now_add=True,
+        help_text="The date and time at which the user joined the group.",
+    )
+    status: TextField[MembershipStatus, str] = TextField(
+        choices=MembershipStatus.choices,
+        default=MembershipStatus.ACTIVE,
+        null=False,
+        blank=False,
+    )
+    status_changed_at: DateTimeField[Never, Never] = DateTimeField(
+        null=True,
+        blank=False,
+        help_text="The date and time at which the membership status was last updated.",
+    )
+    status_changed_reason: TextField[str, str] = TextField(
+        max_length=500,
+        null=True,
+        blank=False,
+        help_text=(
+            "The reason for which the status was last updated. "
+            "May be useful in unfortunate cases of suspension / banning."
+        ),
+    )
+    trust_level: IntegerField[TrustLevel, int] = IntegerField(
         choices=TrustLevel,
         help_text="The User's selected level of Trust for the given Group.",
     )
+
+
+# No typing for django-guardian, so mypy doesn't like us subclassing.
+class BorrowdGroupObjectPermission(GroupObjectPermissionAbstract):  # type: ignore[misc]
+    group: ForeignKey[BorrowdGroup] = ForeignKey(BorrowdGroup, on_delete=CASCADE)
+
+    class Meta(GroupObjectPermissionAbstract.Meta):  # type: ignore[misc]
+        abstract = False

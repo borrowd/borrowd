@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     "borrowd_items",
     "borrowd_groups",
     "django_browser_reload",
+    "guardian",
 ]
 
 MIDDLEWARE = [
@@ -125,7 +126,12 @@ ACCOUNT_LOGIN_BY_CODE_ENABLED = True
 AUTHENTICATION_BACKENDS = [
     "django.contrib.auth.backends.ModelBackend",
     "allauth.account.auth_backends.AuthenticationBackend",
+    "guardian.backends.ObjectPermissionBackend",
 ]
+
+GUARDIAN_MONKEY_PATCH_USER = False
+GUARDIAN_MONKEY_PATCH_GROUP = False
+GUARDIAN_GROUP_OBJ_PERMS_MODEL = "borrowd_groups.BorrowdGroupObjectPermission"
 
 # Email
 

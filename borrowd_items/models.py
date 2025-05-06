@@ -1,6 +1,14 @@
-from django.db.models import CASCADE, SET_NULL, CharField, ForeignKey, Model
+from django.db.models import (
+    CASCADE,
+    SET_NULL,
+    CharField,
+    ForeignKey,
+    IntegerField,
+    Model,
+)
 from django.urls import reverse
 
+from borrowd.models import TrustLevel
 from borrowd_users.models import BorrowdUser
 
 
@@ -26,9 +34,41 @@ class Item(Model):
     category: ForeignKey[ItemCategory] = ForeignKey(
         ItemCategory, on_delete=SET_NULL, null=True, blank=False
     )
+    trust_level_required: IntegerField[TrustLevel, int] = IntegerField(
+        choices=TrustLevel,
+        help_text=(
+            "The minimum required Group trust level required for"
+            " this Item to be visible to and borrowable by members"
+            " of that Group."
+        ),
+    )
 
     def __str__(self) -> str:
         return self.name
 
     def get_absolute_url(self) -> str:
         return reverse("item-detail", args=[self.pk])
+
+    class Meta:
+        # Permissions using the naming conventon `*_this_*` are used
+        # for object-/record-level permissions: whereas the permission
+        # `view_item` would allow a user to view "any" Item, the
+        # permission `view_this_item` allows viewing a specific Item.
+        permissions = [
+            (
+                "view_this_item",
+                "Can view this item",
+            ),
+            (
+                "edit_this_item",
+                "Can edit this item",
+            ),
+            (
+                "delete_this_item",
+                "Can delete this item",
+            ),
+            (
+                "borrow_this_item",
+                "Can borrow this item",
+            ),
+        ]
