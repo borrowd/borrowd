@@ -16,12 +16,7 @@
         <div class="">
             {{ field.errors }}
             <b>{{ field.label_tag }}</b>
-            <p class="help italic" id="{{ field.auto_id }}_helptext">
-                {{ field.help_text|safe }}
-            </p>
             <div class="border-2 border-gray-200 w-fit">{{ field }} </div>
-            {% if field.help_text %}
-            {% endif %}
         </div>
         {% endfor %}
         <div class="flex gap-4">
