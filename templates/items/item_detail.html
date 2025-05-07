@@ -1,10 +1,12 @@
-{% extends "layouts/default.html" %}
+{% extends "items/layout.html" %}
 
 {% block head_title %}View Item{% endblock %}
-{% block content %}
-<h1>{{ object.name }}</h1>
-<p>{{ object.description }}</p>
-<a href="{% url 'item-list' %}">Back to list</a>
-<a href="{% url 'item-edit' object.pk %}">Edit</a>
-<a href="{% url 'item-delete' object.pk %}">Delete</a>
+{% block items_content %}
+<c-box>
+    <c-h1>{{ object.name }}</c-h1>
+    <p>{{ object.description }}</p>
+    <c-button><a href="{% url 'item-list' %}">Back to List</a></c-button>
+    <c-button><a href="{% url 'item-edit' object.pk %}">Edit</a></c-button>
+    <c-button><a href="{% url 'item-delete' object.pk %}">Delete</a></c-button>
+</c-box>
 {% endblock %}

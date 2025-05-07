@@ -21,7 +21,9 @@ class GroupCreateView(
 
     def form_valid(self, form):
         if self.request.user.is_authenticated:
-            form.instance.created_by_id = form.instance.updated_by_id = self.request.user.id
+            form.instance.created_by_id = form.instance.updated_by_id = (
+                self.request.user.id
+            )
         return super().form_valid(form)
 
     def get_success_url(self) -> str:
@@ -44,6 +46,7 @@ class GroupDetailView(BorrowdTemplateFinderMixin, DetailView[BorrowdGroup]):
 
 class GroupListView(BorrowdTemplateFinderMixin, ListView[BorrowdGroup]):
     model = BorrowdGroup
+
 
 class GroupUpdateView(
     BorrowdTemplateFinderMixin, UpdateView[BorrowdGroup, ModelForm[BorrowdGroup]]
