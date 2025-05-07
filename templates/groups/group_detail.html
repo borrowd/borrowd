@@ -30,17 +30,4 @@
         </c-button>
     </div>
 </c-box>
-<script>
-    function onShareClick(e) {
-        // todo: acquire real invite link
-        const inviteLink = '{{ request.build_absolute_uri }}';
-        navigator.clipboard.writeText(inviteLink)
-            .then(() => {
-                alert('Invite link copied to clipboard!');
-            })
-            .catch(err => {
-                console.error('Failed to copy text: ', err);
-            });
-    }
-</script>
 {% endblock %}

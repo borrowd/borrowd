@@ -48,7 +48,7 @@ class InviteSigner:
 
     @staticmethod
     def unsign_invite(signed: str, max_age: int = 60 * 60 * 24 * 7) -> GroupInvite:
-        expiry: int = settings.BORROWD_GROUP_INVITE_EXPIRY or max_age
+        expiry: int = settings.BORROWD_GROUP_INVITE_EXPIRY_SECONDS or max_age
         decoded = InviteSigner._signer.unsign_object(signed, max_age=expiry)
         return GroupInvite(*decoded)
 
