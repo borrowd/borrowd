@@ -163,6 +163,11 @@ STATIC_URL = "static/"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 #
+# Borrowd settings
+#
+BORROWD_GROUP_INVITE_EXPIRY = 60 * 60 * 24 * 7  # 1 week
+
+#
 # Shim for mypy to play nice with certain generic types
 #
 from django.db.models import (  # noqa: E402
