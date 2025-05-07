@@ -27,5 +27,5 @@ class BorrowdTemplateFinderMixin:
 
     def get_template_names(self) -> list[str]:
         app_name = self.model._meta.app_label.replace("borrowd_", "")
-        model_name = self.model.__name__.lower()
+        model_name = self.model.__name__.lower().replace("borrowd", "")
         return [f"{app_name}/{model_name}{self.template_name_suffix}.html"]
