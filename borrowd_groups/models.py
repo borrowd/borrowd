@@ -13,6 +13,7 @@ from django.db.models import (
     Model,
     TextChoices,
     TextField,
+    UniqueConstraint,
 )
 from django.urls import reverse
 from guardian.mixins import GuardianGroupMixin
@@ -225,7 +226,9 @@ class Membership(Model):
     )
 
     class Meta:
-        unique_together = (("user", "group"),)
+        constraints = [
+            UniqueConstraint(fields=["user", "group"], name="unique_membership")
+        ]
 
 
 # No typing for django-guardian, so mypy doesn't like us subclassing.
