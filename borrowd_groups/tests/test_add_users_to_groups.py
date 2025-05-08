@@ -1,7 +1,7 @@
 from django.test import TestCase
 
 from borrowd.models import TrustLevel
-from borrowd_groups import ExistingMemberException
+from borrowd_groups.exceptions import ExistingMemberException
 from borrowd_groups.models import BorrowdGroup
 from borrowd_users.models import BorrowdUser
 

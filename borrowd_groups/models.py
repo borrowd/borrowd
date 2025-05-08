@@ -20,7 +20,7 @@ from guardian.mixins import GuardianGroupMixin
 from guardian.models import GroupObjectPermissionAbstract
 
 from borrowd.models import TrustLevel
-from borrowd_groups import ExistingMemberException
+from borrowd_groups.exceptions import ExistingMemberException
 from borrowd_users.models import BorrowdUser
 
 

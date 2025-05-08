@@ -1,2 +1,0 @@
-class BorrowdException(Exception):
-    pass
