@@ -19,10 +19,7 @@ class AddUsersToGroupsTests(TestCase):
             ## Create a group
             group: BorrowdGroup = BorrowdGroup.objects.create(
                 name="Group", created_by=user1, updated_by=user1
-            )  # type: ignore[assignment]
-
-            ## First add user1 to the group (should succeed)
-            group.add_user(user1, trust_level=TrustLevel.MEDIUM)
+            )
 
             # Act
             ## Add user1 to the group
@@ -35,6 +32,7 @@ class AddUsersToGroupsTests(TestCase):
         user1 = BorrowdUser.objects.create(username="user1", password="password1")
         user2 = BorrowdUser.objects.create(username="user2", password="password2")
 
+        # Act
         ## Create groups
         # Unfortunately mypy is struggling here. It fails with:
         #   error: Incompatible types in assignment (expression has
@@ -42,16 +40,10 @@ class AddUsersToGroupsTests(TestCase):
         # Don't have time to chase down the specifics.
         group1: BorrowdGroup = BorrowdGroup.objects.create(
             name="Group 1", created_by=user1, updated_by=user1
-        )  # type: ignore
+        )
         group2: BorrowdGroup = BorrowdGroup.objects.create(
             name="Group 2", created_by=user2, updated_by=user2
-        )  # type: ignore
-
-        # Act
-
-        ## Add users to groups
-        group1.add_user(user1, trust_level=TrustLevel.HIGH)
-        group2.add_user(user2, TrustLevel.LOW)
+        )
 
         # Assert
 
@@ -77,11 +69,11 @@ class AddUsersToGroupsTests(TestCase):
         ## Create a group
         group: BorrowdGroup = BorrowdGroup.objects.create(
             name="Group", created_by=user1, updated_by=user1
-        )  # type: ignore
+        )
 
         # Act
         ## Add multiple users to the group
-        for user in [user1, user2, user3]:
+        for user in [user2, user3]:
             group.add_user(user, trust_level=TrustLevel.MEDIUM)
 
         # Assert
@@ -90,6 +82,7 @@ class AddUsersToGroupsTests(TestCase):
         self.assertEqual(set(group.users.all()), {user1, user2, user3})
 
         ## Each user is in the group
+        # User1 in Group by default as creator
         self.assertEqual(list(user1.groups.all()), [group])
         self.assertEqual(list(user2.groups.all()), [group])
         self.assertEqual(list(user3.groups.all()), [group])

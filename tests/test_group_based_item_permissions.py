@@ -28,7 +28,7 @@ class GroupBasedItemPermissionsTests(TestCase):
         ## Check if the owner can see the item
         self.assertTrue(owner.has_perm("view_this_item", item))
 
-    def test_owners_require_membership_to_groups_they_create(self) -> None:
+    def test_owners_have_automatic_membership_to_groups_they_create(self) -> None:
         # Arrange
         owner = self.owner
         ## Create a group and add the owner to it
@@ -36,24 +36,17 @@ class GroupBasedItemPermissionsTests(TestCase):
         # to infer the output of BorrowdGroup.create() correctly.
         group: BorrowdGroup = BorrowdGroup.objects.create(
             name="Test Group", created_by=owner, updated_by=owner
-        )  # type: ignore[assignment]
+        )
 
         ## Owner creates an Item
         item = Item.objects.create(
             name="Test Item", owner=owner, trust_level_required=TrustLevel.LOW
         )
 
+        # Act
         ## Create another user who is a member of the Group
         member = self.member
         group.add_user(member, trust_level=TrustLevel.LOW)
-
-        ## Check initial state: "member" cannot see owner's Item,
-        ## because owner is not yet a Member of the Group.
-        self.assertFalse(member.has_perm("view_this_item", item))
-
-        # Act
-        ## Create an item and assign it to the owner
-        group.add_user(owner, trust_level=TrustLevel.HIGH)
 
         # Assert
         ## Check if the group member can see the item
@@ -65,8 +58,7 @@ class GroupBasedItemPermissionsTests(TestCase):
         ## Create a group and add the owner to it
         group: BorrowdGroup = BorrowdGroup.objects.create(
             name="Test Group", created_by=owner, updated_by=owner
-        )  # type: ignore[assignment]
-        group.add_user(owner, trust_level=TrustLevel.HIGH)
+        )
 
         ## Create another user who is a member of the group
         member = self.member
@@ -90,8 +82,7 @@ class GroupBasedItemPermissionsTests(TestCase):
         ## Create a group and add the owner to it
         group: BorrowdGroup = BorrowdGroup.objects.create(
             name="Test Group", created_by=owner, updated_by=owner
-        )  # type: ignore[assignment]
-        group.add_user(owner, trust_level=TrustLevel.HIGH)
+        )
 
         ## Create an item and assign it to the owner
         item = Item.objects.create(
@@ -118,9 +109,11 @@ class GroupBasedItemPermissionsTests(TestCase):
 
         ## Create a group and add the owner to it
         group: BorrowdGroup = BorrowdGroup.objects.create(
-            name="Test Group", created_by=owner, updated_by=owner
-        )  # type: ignore[assignment]
-        group.add_user(owner, trust_level=TrustLevel.LOW)
+            name="Test Group",
+            created_by=owner,
+            updated_by=owner,
+            trust_level=TrustLevel.LOW,
+        )
 
         # Act
         ## Create another user who is a member of the group
@@ -140,8 +133,7 @@ class GroupBasedItemPermissionsTests(TestCase):
         ## Create a group and add the owner to it
         group: BorrowdGroup = BorrowdGroup.objects.create(
             name="Test Group", created_by=owner, updated_by=owner
-        )  # type: ignore[assignment]
-        group.add_user(owner, trust_level=TrustLevel.HIGH)
+        )
 
         ## Create an item and assign it to the owner
         item = Item.objects.create(
@@ -171,8 +163,7 @@ class GroupBasedItemPermissionsTests(TestCase):
         ## Create a group and add the owner to it
         group: BorrowdGroup = BorrowdGroup.objects.create(
             name="Test Group", created_by=owner, updated_by=owner
-        )  # type: ignore[assignment]
-        group.add_user(owner, trust_level=TrustLevel.HIGH)
+        )
         group.add_user(member, trust_level=TrustLevel.LOW)
 
         ## Create an item and assign it to the owner
@@ -195,8 +186,7 @@ class GroupBasedItemPermissionsTests(TestCase):
         ## Create a group and add the owner to it with a HIGH trust level
         group: BorrowdGroup = BorrowdGroup.objects.create(
             name="Test Group", created_by=owner, updated_by=owner
-        )  # type: ignore[assignment]
-        group.add_user(owner, trust_level=TrustLevel.HIGH)
+        )
 
         # Act
         ## Create an Items with low, med and high levels
@@ -222,9 +212,8 @@ class GroupBasedItemPermissionsTests(TestCase):
 
         ## Create a group and add the owner to it with a HIGH trust level
         group: BorrowdGroup = BorrowdGroup.objects.create(
-            name="Test Group", created_by=owner, updated_by=owner
-        )  # type: ignore[assignment]
-        group.add_user(owner, trust_level=TrustLevel.LOW)
+            name="Test Group", created_by=owner, updated_by=owner, trust_level=True
+        )
 
         # Act
         ## Create an Items with low, med and high levels
@@ -251,8 +240,7 @@ class GroupBasedItemPermissionsTests(TestCase):
         ## Create a group and add the owner to it with a HIGH trust level
         group: BorrowdGroup = BorrowdGroup.objects.create(
             name="Test Group", created_by=owner, updated_by=owner
-        )  # type: ignore[assignment]
-        group.add_user(owner, trust_level=TrustLevel.HIGH)
+        )
 
         ## Create an item with a HIGH trust level
         item = Item.objects.create(
@@ -276,9 +264,11 @@ class GroupBasedItemPermissionsTests(TestCase):
 
         ## Create a group and add the owner to it with a HIGH trust level
         group: BorrowdGroup = BorrowdGroup.objects.create(
-            name="Test Group", created_by=owner, updated_by=owner
-        )  # type: ignore[assignment]
-        group.add_user(owner, trust_level=TrustLevel.LOW)
+            name="Test Group",
+            created_by=owner,
+            updated_by=owner,
+            trust_level=TrustLevel.LOW,
+        )
 
         ## Create an item with a HIGH trust level
         item = Item.objects.create(

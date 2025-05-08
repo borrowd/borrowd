@@ -2,8 +2,37 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 from guardian.shortcuts import assign_perm, remove_perm
 
-from borrowd_groups.models import Membership
+from borrowd.models import TrustLevel
+from borrowd_groups.models import BorrowdGroup, Membership
 from borrowd_items.models import Item
+from borrowd_users.models import BorrowdUser
+
+
+@receiver(post_save, sender=BorrowdGroup)
+def set_moderator_on_group_creation(
+    sender: BorrowdGroup, instance: BorrowdGroup, created: bool, **kwargs: str
+) -> None:
+    """
+    When a Group is created, ensure the user that created it becomes
+    a member automatically, and is designated a moderator.
+    """
+    if not created:
+        return
+
+    group: BorrowdGroup = instance
+    # mypy error: Incompatible types in assignment (expression has type "_ST", variable has type "BorrowdUser")  [assignment]
+    creator: BorrowdUser = group.created_by  # type: ignore[assignment]
+    # By default, assume High trust for a Group which a user has
+    # created themselves.
+    trust_level: TrustLevel = (
+        getattr(group, "_temp_trust_level", None) or TrustLevel.HIGH
+    )
+
+    group.add_user(
+        user=creator,
+        trust_level=trust_level,
+        is_moderator=True,
+    )
 
 
 @receiver(post_save, sender=Membership)
