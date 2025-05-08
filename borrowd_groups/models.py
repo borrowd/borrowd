@@ -1,6 +1,6 @@
-from typing import Never  # Unfortunately needed for more mypy shenanigans
+from typing import Any, Never  # Unfortunately needed for more mypy shenanigans
 
-from django.contrib.auth.models import Group
+from django.contrib.auth.models import Group, GroupManager
 from django.db import IntegrityError
 from django.db.models import (
     CASCADE,
@@ -21,6 +21,40 @@ from guardian.models import GroupObjectPermissionAbstract
 from borrowd.models import TrustLevel
 from borrowd_groups import ExistingMemberException
 from borrowd_users.models import BorrowdUser
+
+
+class BorrowdGroupManager(GroupManager):
+    def create(
+        self,
+        **kwargs: Any,
+    ) -> "BorrowdGroup":
+        """
+        Custom create method in order to pass trust_level to the
+        Membership model, via signal, when creating a new group.
+        """
+        # Pop the "trust_level" out of the kwargs, if present, as the
+        # underlying model does not expect it.
+        trust_level: TrustLevel | None = kwargs.pop("trust_level", None)
+
+        # Manually create the BorrowdGroup object which we'll try to
+        # persist. This is the part which would fail if we passed
+        # unexpected args like "trust_level".
+        group: BorrowdGroup = BorrowdGroup(**kwargs)
+
+        # This instance property is not saved to the database, but
+        # is used in the post_save signal to set the trust level
+        # between the group and the user that created it.
+        setattr(group, "_temp_trust_level", trust_level)
+
+        # And finally, this is what triggers the post_save signal,
+        # and the instance that's received will have our special
+        # instance property as set above, which we only need at the
+        # point of creation. Of course, whenever this object is
+        # re-loaded from the database later, it will be "normal",
+        # i.e. no secret smuggled properties, just standard ones :)
+        group.save(using=self._db)
+
+        return group
 
 
 # No typing for django-guardian, so mypy doesn't like us subclassing.
@@ -66,6 +100,13 @@ class BorrowdGroup(Group, GuardianGroupMixin):  # type: ignore[misc]
         auto_now=True,
         help_text="The date and time at which the group was last updated.",
     )
+
+    # Override default manager to have custom `create()` method,
+    # which allows us to pass the trust level to the Membership
+    # model via the post_save signal.
+    # mypy error: Cannot override class variable (previously declared on base class "Group") with instance variable  [misc]
+    # ... but, this is a class variable, not an instance variable, right?
+    objects: BorrowdGroupManager = BorrowdGroupManager()  # type: ignore[misc]
 
     def get_absolute_url(self) -> str:
         return reverse("borrowd_groups:group-detail", args=[self.pk])
