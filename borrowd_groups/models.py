@@ -1,6 +1,7 @@
 from typing import Never  # Unfortunately needed for more mypy shenanigans
 
 from django.contrib.auth.models import Group
+from django.db import IntegrityError
 from django.db.models import (
     CASCADE,
     DO_NOTHING,
@@ -18,6 +19,7 @@ from guardian.mixins import GuardianGroupMixin
 from guardian.models import GroupObjectPermissionAbstract
 
 from borrowd.models import TrustLevel
+from borrowd_groups import ExistingMemberException
 from borrowd_users.models import BorrowdUser
 
 
@@ -68,15 +70,33 @@ class BorrowdGroup(Group, GuardianGroupMixin):  # type: ignore[misc]
     def get_absolute_url(self) -> str:
         return reverse("borrowd_groups:group-detail", args=[self.pk])
 
-    def add_user(self, user: BorrowdUser, trust_level: TrustLevel) -> "Membership":
+    def add_user(
+        self, user: BorrowdUser, trust_level: TrustLevel, is_moderator: bool = False
+    ) -> "Membership":
         """
         Add a user to the group.
         """
-        return Membership.objects.create(
-            user=user,
-            group=self,
-            trust_level=trust_level,
-        )
+        membership: Membership
+        # TODO: Should this simply be an .update_or_create() call?
+        # I'm opting _not_ at this point, because we should never
+        # logically be in a position where we're _trying_ to add
+        # a user to a Group they're already in: so if that happens,
+        # we should want to diagnose the situation that led us there.
+        # But, open to other opinions.
+        try:
+            membership = Membership.objects.create(
+                user=user,
+                group=self,
+                trust_level=trust_level,
+                is_moderator=is_moderator,
+            )
+        except IntegrityError as e:
+            if "UNIQUE" in str(e):
+                raise ExistingMemberException(
+                    (f"User '{user}' is already a member of group '{self}'")
+                ) from e
+
+        return membership
 
     def remove_user(self, user: BorrowdUser) -> None:
         """
@@ -162,6 +182,9 @@ class Membership(Model):
         choices=TrustLevel,
         help_text="The User's selected level of Trust for the given Group.",
     )
+
+    class Meta:
+        unique_together = (("user", "group"),)
 
 
 # No typing for django-guardian, so mypy doesn't like us subclassing.

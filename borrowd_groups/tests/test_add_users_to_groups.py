@@ -1,11 +1,33 @@
 from django.test import TestCase
 
 from borrowd.models import TrustLevel
+from borrowd_groups import ExistingMemberException
 from borrowd_groups.models import BorrowdGroup
 from borrowd_users.models import BorrowdUser
 
 
 class AddUsersToGroupsTests(TestCase):
+    def test_cannot_add_existing_members_to_group(self) -> None:
+        # Assert
+        ## The add_user call below should raise this exception
+        with self.assertRaises(ExistingMemberException):
+            # Arrange
+            ## Create users
+            user1 = BorrowdUser.objects.create_user(
+                username="user1", password="password1"
+            )
+            ## Create a group
+            group: BorrowdGroup = BorrowdGroup.objects.create(
+                name="Group", created_by=user1, updated_by=user1
+            )  # type: ignore[assignment]
+
+            ## First add user1 to the group (should succeed)
+            group.add_user(user1, trust_level=TrustLevel.MEDIUM)
+
+            # Act
+            ## Add user1 to the group
+            group.add_user(user1, trust_level=TrustLevel.MEDIUM)
+
     def test_users_only_in_added_groups(self) -> None:
         # Arrange
 
