@@ -87,15 +87,19 @@ class BorrowdGroup(Group, GuardianGroupMixin):  # type: ignore[misc]
     def update_user_membership(
         self,
         user: BorrowdUser,
-        trust_level: TrustLevel,
-        is_moderator: bool = False,
+        trust_level: TrustLevel | None = None,
+        is_moderator: bool | None = None,
     ) -> None:
         """
         Update a user's membership in the group.
         """
         membership: Membership = Membership.objects.get(user=user, group=self)
-        membership.trust_level = trust_level
-        membership.is_moderator = is_moderator
+
+        if trust_level is not None:
+            membership.trust_level = trust_level
+        if is_moderator is not None:
+            membership.is_moderator = is_moderator
+
         membership.save()
 
 
