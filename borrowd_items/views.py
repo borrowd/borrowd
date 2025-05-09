@@ -5,13 +5,14 @@ from django.views.generic import (
     CreateView,
     DeleteView,
     DetailView,
-    ListView,
     UpdateView,
 )
+from django_filters.views import FilterView
 
 from borrowd.models import TrustLevel
 from borrowd.util import BorrowdTemplateFinderMixin
 
+from .filters import ItemFilter
 from .models import Item
 
 
@@ -40,8 +41,11 @@ class ItemDetailView(BorrowdTemplateFinderMixin, DetailView[Item]):
     model = Item
 
 
-class ItemListView(BorrowdTemplateFinderMixin, ListView[Item]):
+# No typing for django_filter, so mypy doesn't like us subclassing.
+class ItemListView(BorrowdTemplateFinderMixin, FilterView):  # type: ignore[misc]
     model = Item
+    template_name_suffix = "_list"  # Reusing template from ListView
+    filterset_class = ItemFilter
 
 
 class ItemUpdateView(BorrowdTemplateFinderMixin, UpdateView[Item, ModelForm[Item]]):
