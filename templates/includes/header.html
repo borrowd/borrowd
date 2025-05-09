@@ -1,13 +1,23 @@
 {% load static %}
 {% load i18n %}
 <header class="flex justify-between items-center bg-white shadow-md p-4 pr-10">
-    <div id="header-logo" class="flex items-center space-x-2">
-        <a href="{% url 'index' %}" class="flex items-center space-x-2">
-            <img class="w-16" src="{% static 'favicon.png' %}" alt="Borrow'd's cute raccoon logo" />
-            <h2 class="text-2xl font-bold text-gray-700">Borrow'd</h2>
-        </a>
-    </div>
-    <nav>
+    <nav class="flex justify-between items-center w-full">
+        <div id="header-logo" class="flex items-center space-x-2">
+            <a href="{% url 'index' %}" class="flex items-center space-x-2">
+                <img class="w-16" src="{% static 'favicon.png' %}" alt="Borrow'd's cute raccoon logo" />
+                <h2 class="text-2xl font-bold text-gray-700">Borrow'd</h2>
+            </a>
+        </div>
+        {% if user.is_authenticated %}
+        <ul class="flex space-x-8 items-center">
+            <li>
+                <a class="hover:underline" href="{% url 'item-list' %}"><c-h1>Items</c-h1></a>
+            </li>
+            <li>
+                <a class="hover:underline" href="{% url 'borrowd_groups:group-list' %}"><c-h1>Groups</c-h1></a>
+            </li>
+        </ul>
+        {% endif %}
         <ul class="flex space-x-4 items-right items-center">
             {% if user.is_authenticated %}
                 <li>
