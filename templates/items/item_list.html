@@ -2,36 +2,41 @@
 
 {% block head_title %}Items{% endblock %}
 {% block items_content %}
-<c-box>
-    <div class="flex justify-between items-center">
-        <c-h1>Items</c-h1>
-        <c-button>
-            <a href="{% url 'item-create' %}">Create New Item</a>
-        </c-button>
-    </div>
-    <form method="get">
-        {{ filter.form.as_p }}
-        <input type="submit" value="Filter" class="bg-blue-500 text-white px-4 py-2 rounded">
-        {% comment %}
-        Only show the Clear button if filters are actually set.
-        This looks a bit awkward in order to account for empty filters,
-        i.e. `?category=&search=`
-        TODO: Replace this with Alpine.js logic later
-        when we're also using HTMX to avoid page reloads here.
-        {% endcomment %}
-        {% if not request.GET.values|join:"" == "" %}
-        <c-button>
-            <a href="{% url 'item-list' %}">Clear</a>
-        </c-button>
-        {% endif %}
-    </form>
-    <ul class="list-disc divide-y-2 space-y-3 my-4">
-        {% for item in item_list %}
-            <li class="flex justify-between items-center mt-2 text-blue-700">
-                <a class="hover:underline" href="{% url 'item-detail' item.pk %}">{{ item }}</a>
-                <a class="hover:underline" href="{% url 'item-edit' item.pk %}">Edit</a>
-            </li>
-        {% endfor %}
-    </ul>
-</c-box>
+<div class="flex flex-col space-y-4">
+    <c-box>
+        <div class="flex justify-between items-center">
+            <c-h1>Items</c-h1>
+            <c-button>
+                <a href="{% url 'item-create' %}">Create New Item</a>
+            </c-button>
+        </div>
+        <form method="get">
+            {{ filter.form.as_p }}
+            <input type="submit" value="Filter" class="bg-blue-500 text-white px-4 py-2 rounded">
+            {% comment %}
+            Only show the Clear button if filters are actually set.
+            This looks a bit awkward in order to account for empty filters,
+            i.e. `?category=&search=`
+            TODO: Replace this with Alpine.js logic later
+            when we're also using HTMX to avoid page reloads here.
+            {% endcomment %}
+            {% if not request.GET.values|join:"" == "" %}
+            <c-button>
+                <a href="{% url 'item-list' %}">Clear</a>
+            </c-button>
+            {% endif %}
+        </form>
+    </c-box>
+    <c-box>
+        <c-h2>Item List</c-h2>
+        <ul class="list-disc divide-y-2 space-y-3 my-4">
+            {% for item in item_list %}
+                <li class="flex justify-between items-center mt-2 text-blue-700">
+                    <a class="hover:underline" href="{% url 'item-detail' item.pk %}">{{ item }}</a>
+                    <a class="hover:underline" href="{% url 'item-edit' item.pk %}">Edit</a>
+                </li>
+            {% endfor %}
+        </ul>
+    </c-box>
+</div>
 {% endblock %}
