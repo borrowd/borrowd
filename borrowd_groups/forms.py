@@ -1,6 +1,25 @@
 from django import forms
 
 from borrowd.models import TrustLevel
+from borrowd_groups.models import BorrowdGroup
+
+
+class GroupCreateForm(forms.ModelForm[BorrowdGroup]):
+    trust_level = forms.ChoiceField(
+        choices=sorted(TrustLevel.choices, reverse=True),
+        required=True,
+        label="Your Trust Level with this Group",
+        initial=TrustLevel.HIGH,
+    )
+
+    class Meta:
+        model = BorrowdGroup
+        fields = [
+            "name",
+            "description",
+            "membership_requires_approval",
+            "trust_level",
+        ]
 
 
 class GroupJoinForm(forms.Form):

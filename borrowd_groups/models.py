@@ -1,6 +1,7 @@
-from typing import Never  # Unfortunately needed for more mypy shenanigans
+from typing import Any, Never  # Unfortunately needed for more mypy shenanigans
 
-from django.contrib.auth.models import Group
+from django.contrib.auth.models import Group, GroupManager
+from django.db import IntegrityError
 from django.db.models import (
     CASCADE,
     DO_NOTHING,
@@ -12,13 +13,49 @@ from django.db.models import (
     Model,
     TextChoices,
     TextField,
+    UniqueConstraint,
 )
 from django.urls import reverse
 from guardian.mixins import GuardianGroupMixin
 from guardian.models import GroupObjectPermissionAbstract
 
 from borrowd.models import TrustLevel
+from borrowd_groups.exceptions import ExistingMemberException
 from borrowd_users.models import BorrowdUser
+
+
+class BorrowdGroupManager(GroupManager):
+    def create(
+        self,
+        **kwargs: Any,
+    ) -> "BorrowdGroup":
+        """
+        Custom create method in order to pass trust_level to the
+        Membership model, via signal, when creating a new group.
+        """
+        # Pop the "trust_level" out of the kwargs, if present, as the
+        # underlying model does not expect it.
+        trust_level: TrustLevel | None = kwargs.pop("trust_level", None)
+
+        # Manually create the BorrowdGroup object which we'll try to
+        # persist. This is the part which would fail if we passed
+        # unexpected args like "trust_level".
+        group: BorrowdGroup = BorrowdGroup(**kwargs)
+
+        # This instance property is not saved to the database, but
+        # is used in the post_save signal to set the trust level
+        # between the group and the user that created it.
+        setattr(group, "_temp_trust_level", trust_level)
+
+        # And finally, this is what triggers the post_save signal,
+        # and the instance that's received will have our special
+        # instance property as set above, which we only need at the
+        # point of creation. Of course, whenever this object is
+        # re-loaded from the database later, it will be "normal",
+        # i.e. no secret smuggled properties, just standard ones :)
+        group.save(using=self._db)
+
+        return group
 
 
 # No typing for django-guardian, so mypy doesn't like us subclassing.
@@ -65,18 +102,43 @@ class BorrowdGroup(Group, GuardianGroupMixin):  # type: ignore[misc]
         help_text="The date and time at which the group was last updated.",
     )
 
+    # Override default manager to have custom `create()` method,
+    # which allows us to pass the trust level to the Membership
+    # model via the post_save signal.
+    # mypy error: Cannot override class variable (previously declared on base class "Group") with instance variable  [misc]
+    # ... but, this is a class variable, not an instance variable, right?
+    objects: BorrowdGroupManager = BorrowdGroupManager()  # type: ignore[misc]
+
     def get_absolute_url(self) -> str:
         return reverse("borrowd_groups:group-detail", args=[self.pk])
 
-    def add_user(self, user: BorrowdUser, trust_level: TrustLevel) -> "Membership":
+    def add_user(
+        self, user: BorrowdUser, trust_level: TrustLevel, is_moderator: bool = False
+    ) -> "Membership":
         """
         Add a user to the group.
         """
-        return Membership.objects.create(
-            user=user,
-            group=self,
-            trust_level=trust_level,
-        )
+        membership: Membership
+        # TODO: Should this simply be an .update_or_create() call?
+        # I'm opting _not_ at this point, because we should never
+        # logically be in a position where we're _trying_ to add
+        # a user to a Group they're already in: so if that happens,
+        # we should want to diagnose the situation that led us there.
+        # But, open to other opinions.
+        try:
+            membership = Membership.objects.create(
+                user=user,
+                group=self,
+                trust_level=trust_level,
+                is_moderator=is_moderator,
+            )
+        except IntegrityError as e:
+            if "UNIQUE" in str(e):
+                raise ExistingMemberException(
+                    (f"User '{user}' is already a member of group '{self}'")
+                ) from e
+
+        return membership
 
     def remove_user(self, user: BorrowdUser) -> None:
         """
@@ -87,15 +149,19 @@ class BorrowdGroup(Group, GuardianGroupMixin):  # type: ignore[misc]
     def update_user_membership(
         self,
         user: BorrowdUser,
-        trust_level: TrustLevel,
-        is_moderator: bool = False,
+        trust_level: TrustLevel | None = None,
+        is_moderator: bool | None = None,
     ) -> None:
         """
         Update a user's membership in the group.
         """
         membership: Membership = Membership.objects.get(user=user, group=self)
-        membership.trust_level = trust_level
-        membership.is_moderator = is_moderator
+
+        if trust_level is not None:
+            membership.trust_level = trust_level
+        if is_moderator is not None:
+            membership.is_moderator = is_moderator
+
         membership.save()
 
 
@@ -158,6 +224,11 @@ class Membership(Model):
         choices=TrustLevel,
         help_text="The User's selected level of Trust for the given Group.",
     )
+
+    class Meta:
+        constraints = [
+            UniqueConstraint(fields=["user", "group"], name="unique_membership")
+        ]
 
 
 # No typing for django-guardian, so mypy doesn't like us subclassing.

@@ -20,7 +20,7 @@ from django.views.generic import (
 
 from borrowd.util import BorrowdTemplateFinderMixin
 
-from .forms import GroupJoinForm
+from .forms import GroupCreateForm, GroupJoinForm
 from .models import BorrowdGroup, Membership
 
 GroupInvite = namedtuple("GroupInvite", ["group_id", "group_name"])
@@ -57,13 +57,19 @@ class GroupCreateView(
     BorrowdTemplateFinderMixin, CreateView[BorrowdGroup, ModelForm[BorrowdGroup]]
 ):
     model = BorrowdGroup
-    fields = ["name", "description", "membership_requires_approval"]
+    form_class = GroupCreateForm
 
     def form_valid(self, form: ModelForm[BorrowdGroup]) -> HttpResponse:
         if self.request.user.is_authenticated:
             form.instance.created_by_id = form.instance.updated_by_id = (
                 self.request.user.pk
             )
+
+        # This is a temporary property, only used in the post_save
+        # signal to set the trust level between the group and the
+        # user that created it.
+        setattr(form.instance, "_temp_trust_level", form.cleaned_data["trust_level"])
+
         return super().form_valid(form)
 
     def get_success_url(self) -> str:

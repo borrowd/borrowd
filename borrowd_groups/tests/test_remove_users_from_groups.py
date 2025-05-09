@@ -18,8 +18,7 @@ class RemoveUsersFromGroupsTests(TestCase):
         ## Create a group and add the user
         group: BorrowdGroup = BorrowdGroup.objects.create(
             name="Group", created_by=user, updated_by=user
-        )  # type: ignore
-        group.add_user(user, trust_level=TrustLevel.HIGH)
+        )
 
         # Act
         ## Remove the user from the group
@@ -41,8 +40,8 @@ class RemoveUsersFromGroupsTests(TestCase):
         ## Create a group and add all users
         group: BorrowdGroup = BorrowdGroup.objects.create(
             name="Group", created_by=user1, updated_by=user1
-        )  # type: ignore
-        for user in [user1, user2, user3]:
+        )
+        for user in [user2, user3]:
             group.add_user(user, trust_level=TrustLevel.MEDIUM)
 
         # Act
@@ -66,7 +65,7 @@ class RemoveUsersFromGroupsTests(TestCase):
         ## Create a group without adding the user
         group: BorrowdGroup = BorrowdGroup.objects.create(
             name="Group", created_by=user, updated_by=user
-        )  # type: ignore
+        )
 
         # Act
         ## Attempt to remove the user from the group
