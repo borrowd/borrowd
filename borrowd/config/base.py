@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     "borrowd_groups",
     "django_browser_reload",
     "guardian",
+    "django_filters",
 ]
 
 MIDDLEWARE = [

@@ -6,16 +6,23 @@ asgiref==3.8.1 \
     # via
     #   django
     #   django-allauth
+    #   django-browser-reload
 django==5.2 \
     --hash=sha256:1a47f7a7a3d43ce64570d350e008d2949abe8c7e21737b351b6a1611277c6d89 \
     --hash=sha256:91ceed4e3a6db5aedced65e3c8f963118ea9ba753fc620831c77074e620e7d83
     # via
     #   borrowd
     #   django-allauth
+    #   django-browser-reload
     #   django-cotton
+    #   django-filter
     #   django-guardian
 django-allauth==65.7.0 \
     --hash=sha256:eb060692150f39e1529893c2de5f9b46e1dab51153ff6cca7ad72c7c125259ea
+    # via borrowd
+django-browser-reload==1.18.0 \
+    --hash=sha256:c5f0b134723cbf2a0dc9ae1ee1d38e42db28fe23c74cdee613ba3ef286d04735 \
+    --hash=sha256:ed4cc2fb83c3bf6c30b54107a1a6736c0b896e62e4eba666d81005b9f2ecf6f8
     # via borrowd
 django-cotton==2.0.3 \
     --hash=sha256:53fc1d7756c3728ca9c76c1402758c6778147e0653b12cb3890a5f5e679125e4 \
@@ -24,6 +31,10 @@ django-cotton==2.0.3 \
 django-environ==0.12.0 \
     --hash=sha256:227dc891453dd5bde769c3449cf4a74b6f2ee8f7ab2361c93a07068f4179041a \
     --hash=sha256:92fb346a158abda07ffe6eb23135ce92843af06ecf8753f43adf9d2366dcc0ca
+    # via borrowd
+django-filter==25.1 \
+    --hash=sha256:1ec9eef48fa8da1c0ac9b411744b16c3f4c31176c867886e4c48da369c407153 \
+    --hash=sha256:4fa48677cf5857b9b1347fed23e355ea792464e0fe07244d1fdfb8a806215b80
     # via borrowd
 django-guardian @ git+https://github.com/django-guardian/django-guardian@e3dd3f3b47eebc1ef4a51f1ee327efad55d11b72
     # via borrowd
