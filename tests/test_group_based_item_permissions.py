@@ -285,3 +285,90 @@ class GroupBasedItemPermissionsTests(TestCase):
         # Assert
         ## Check that the group can no longer see the item
         self.assertTrue("view_this_item" in get_perms(group, item))
+
+    def test_item_visibility_revoked_when_group_deleted(self) -> None:
+        # Arrange
+        owner = self.owner
+        member = self.member
+
+        ## Create a group and add the member
+        group: BorrowdGroup = BorrowdGroup.objects.create(
+            name="Test Group", created_by=owner, updated_by=owner
+        )
+        group.add_user(member, trust_level=TrustLevel.LOW)
+
+        ## Create an item
+        item = Item.objects.create(
+            name="Test Item", owner=owner, trust_level_required=TrustLevel.LOW
+        )
+
+        # Assert initial visibility
+        self.assertTrue(member.has_perm("view_this_item", item))
+
+        # Act
+        ## Delete the group
+        group.delete()
+
+        # Assert
+        ## Check that the erstwhile group member can no longer see the item
+        self.assertFalse(member.has_perm("view_this_item", item))
+
+    def test_item_owner_still_sees_item_when_group_deleted(self) -> None:
+        # Arrange
+        owner = self.owner
+
+        ## Create a group (owner is automatically a member)
+        group: BorrowdGroup = BorrowdGroup.objects.create(
+            name="Test Group", created_by=owner, updated_by=owner
+        )
+
+        ## Create an item
+        item = Item.objects.create(
+            name="Test Item", owner=owner, trust_level_required=TrustLevel.LOW
+        )
+
+        # Assert initial visibility
+        self.assertTrue(owner.has_perm("view_this_item", item))
+
+        # Act
+        ## Delete the group
+        group.delete()
+
+        # Assert
+        ## Check that the erstwhile group member can no longer see the item
+        self.assertTrue(owner.has_perm("view_this_item", item))
+
+    def test_item_still_visible_if_another_group_remains(self) -> None:
+        # Arrange
+        owner = self.owner
+        member = self.member
+
+        ## Create a group and add the member
+        group1: BorrowdGroup = BorrowdGroup.objects.create(
+            name="Test Group1", created_by=owner, updated_by=owner
+        )
+        group1.add_user(member, trust_level=TrustLevel.LOW)
+
+        ## Same again with another group
+        group2: BorrowdGroup = BorrowdGroup.objects.create(
+            name="Test Group2", created_by=owner, updated_by=owner
+        )
+        group2.add_user(member, trust_level=TrustLevel.LOW)
+
+        ## Create an item
+        item = Item.objects.create(
+            name="Test Item", owner=owner, trust_level_required=TrustLevel.LOW
+        )
+
+        # Assert initial visibility
+        self.assertTrue(member.has_perm("view_this_item", item))
+
+        # Act
+        ## Delete the group
+        group1.delete()
+
+        # Assert
+        ## Member should still be able to see the item
+        ## because of group2
+        self.assertTrue(member.has_perm("view_this_item", item))
+        self.assertTrue("view_this_item" in get_perms(group2, item))
