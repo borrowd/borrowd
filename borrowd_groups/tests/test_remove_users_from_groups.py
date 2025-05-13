@@ -1,7 +1,7 @@
 from django.test import TestCase
 
 from borrowd.models import TrustLevel
-from borrowd_groups.models import BorrowdGroup
+from borrowd_groups.models import BorrowdGroup, Membership
 from borrowd_users.models import BorrowdUser
 
 
@@ -61,19 +61,15 @@ class RemoveUsersFromGroupsTests(TestCase):
         # Arrange
         ## Create a user
         user = BorrowdUser.objects.create_user(username="user1", password="password1")
+        other = BorrowdUser.objects.create_user(username="user2", password="password2")
 
         ## Create a group without adding the user
         group: BorrowdGroup = BorrowdGroup.objects.create(
             name="Group", created_by=user, updated_by=user
         )
 
-        # Act
-        ## Attempt to remove the user from the group
-        # TODO: Should this raise an exception?
-        group.remove_user(user)
-
         # Assert
-        ## The user is still not in the group
-        self.assertEqual(list(user.groups.all()), [])
-        ## The group still does not contain the user
-        self.assertEqual(list(group.users.all()), [])
+        ## Attempt to remove the user from the group
+        with self.assertRaises(Membership.DoesNotExist):
+            # Act
+            group.remove_user(other)

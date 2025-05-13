@@ -144,7 +144,7 @@ class BorrowdGroup(Group, GuardianGroupMixin):  # type: ignore[misc]
         """
         Remove a user from the group.
         """
-        Membership.objects.filter(user=user, group=self).delete()
+        Membership.objects.get(user=user, group=self).delete()
 
     def update_user_membership(
         self,
