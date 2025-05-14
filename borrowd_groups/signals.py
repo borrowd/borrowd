@@ -66,17 +66,20 @@ def _check_for_remaining_moderators(
 
 
 @receiver(post_save, sender=Membership)
-def refresh_item_permissions_on_membership_update(
+def refresh_permissions_on_membership_update(
     sender: Membership, instance: Membership, created: bool, **kwargs: str
 ) -> None:
     """
-    Refresh the permissions of items for the given group when a
-    user's membership in the group is updated.
+    Refresh the permissions of Items and Groups for the given Group
+    when a User's Membership in the Group is updated.
     """
-    # Get the user and group from the membership instance
+    #
+    # Handle Item permissions
+    #
     user = instance.user
     group = instance.group
     new_trust_level = instance.trust_level
+    membership = instance
 
     # Get all items associated with the group
     items_requiring_higher_trust = Item.objects.filter(
@@ -89,6 +92,24 @@ def refresh_item_permissions_on_membership_update(
     for perm in ["view_this_item"]:  # will have more later
         remove_perm(perm, group, items_requiring_higher_trust)
         assign_perm(perm, group, items_requiring_lower_trust)
+
+    #
+    # Handle Group permissions
+    #
+    member_perms = ["view_this_group"]
+    moderator_perms = [
+        "edit_this_group",
+        "delete_this_group",
+    ]
+    if membership.is_moderator:
+        member_perms += moderator_perms
+    else:
+        # Remove moderator permissions if the user is no longer a moderator
+        for perm in moderator_perms:
+            remove_perm(perm, user, group)
+
+    for perm in member_perms:
+        assign_perm(perm, user, group)
 
 
 @receiver(pre_delete, sender=Membership)
@@ -107,6 +128,18 @@ def pre_membership_delete(
     # Check the group will not be left without a Moderator
     #
     _check_for_remaining_moderators(user, group, **kwargs)
+
+    #
+    # Handle permissions removal
+    #
+    all_perms = [
+        "view_this_group",
+        "edit_this_group",
+        "delete_this_group",
+    ]
+    # Remove all permissions for the user on the group
+    for perm in all_perms:
+        remove_perm(perm, user, group)
 
 
 @receiver(pre_save, sender=Membership)
