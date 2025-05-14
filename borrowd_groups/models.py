@@ -155,6 +155,13 @@ class BorrowdGroup(Group, GuardianGroupMixin):  # type: ignore[misc]
 
         membership.save()
 
+    class Meta:
+        permissions = (
+            ("view_this_group", "Can view this Group"),
+            ("edit_this_group", "Can edit this Group"),
+            ("delete_this_group", "Can delete this Group"),
+        )
+
 
 class MembershipStatus(TextChoices):
     ACTIVE = ("active", "Active")
