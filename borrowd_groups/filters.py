@@ -4,16 +4,16 @@ from django.db.models import Q, QuerySet
 from django_filters import CharFilter, FilterSet
 from guardian.shortcuts import get_objects_for_user
 
-from .models import Item
+from .models import BorrowdGroup
 
 
 # No typing for django_filter, so mypy doesn't like us subclassing.
-class ItemFilter(FilterSet):  # type: ignore[misc]
+class GroupFilter(FilterSet):  # type: ignore[misc]
     search = CharFilter(label="Search", method="filter_by_search")
 
     def filter_by_search(
-        self, queryset: QuerySet[Item], name: str, value: Any
-    ) -> QuerySet[Item]:
+        self, queryset: QuerySet[BorrowdGroup], name: str, value: Any
+    ) -> QuerySet[BorrowdGroup]:
         if not value:
             return queryset
         return queryset.filter(
@@ -21,7 +21,7 @@ class ItemFilter(FilterSet):  # type: ignore[misc]
         )
 
     @property
-    def qs(self) -> QuerySet[Item]:
+    def qs(self) -> QuerySet[BorrowdGroup]:
         """
         Override the qs property to filter the queryset based on user
         permissions.
@@ -38,10 +38,10 @@ class ItemFilter(FilterSet):  # type: ignore[misc]
         closer to a "public API".
         """
         if not hasattr(self, "_qs"):
-            qs: QuerySet[Item] = get_objects_for_user(
+            qs: QuerySet[BorrowdGroup] = get_objects_for_user(
                 self.request.user,
-                "view_this_item",
-                klass=Item,
+                "view_this_group",
+                klass=BorrowdGroup,
                 with_superuser=False,
             )
             if self.is_bound:
@@ -52,5 +52,5 @@ class ItemFilter(FilterSet):  # type: ignore[misc]
         return self._qs
 
     class Meta:
-        model = Item
-        fields = ["category", "search"]
+        model = BorrowdGroup
+        fields = ["search"]
