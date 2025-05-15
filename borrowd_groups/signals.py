@@ -39,7 +39,7 @@ def set_moderator_on_group_creation(
     )
 
 
-def _check_for_remaining_moderators(
+def _raise_if_last_moderator(
     user: BorrowdUser, group: BorrowdGroup, **kwargs: Any
 ) -> None:
     """
@@ -127,7 +127,7 @@ def pre_membership_delete(
     #
     # Check the group will not be left without a Moderator
     #
-    _check_for_remaining_moderators(user, group, **kwargs)
+    _raise_if_last_moderator(user, group, **kwargs)
 
     #
     # Handle permissions removal
@@ -157,4 +157,4 @@ def pre_membership_save(
 
     # Check if the user is being added as a moderator
     if not membership.is_moderator:
-        _check_for_remaining_moderators(user, group, **kwargs)
+        _raise_if_last_moderator(user, group, **kwargs)
