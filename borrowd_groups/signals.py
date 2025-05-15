@@ -61,8 +61,13 @@ def _raise_if_last_moderator(
         ).exclude(user=user)
 
         if not other_moderators.exists():
-            # If there are no other moderators, assign the owner as a moderator
-            raise ModeratorRequiredException
+            # This error message applies whether the attempted action
+            # is removing the User from the Group, _or_ changing them
+            # to non-moderator status.
+            raise ModeratorRequiredException(
+                f"User '{user.username}' is the last moderator in"
+                f" Group '{group.name}': cannot remove."
+            )
 
 
 @receiver(post_save, sender=Membership)
