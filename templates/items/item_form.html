@@ -19,6 +19,31 @@
             <div class="border-2 border-gray-200 w-fit">{{ field }} </div>
         </div>
         {% endfor %}
+
+        {% if view.object.pk %}
+            <b>Photos:</b>
+            <c-gallery>
+            {% for photo in view.object.photos.all %}
+                <div>
+                    <c-photo src="{{ photo.image.url }}" 
+                        alt="{{ view.object.name }} Photo {{ forloop.counter }}" />
+                    <div class="p-1 flex justify-center">
+                        <c-button destructive>
+                            <a href="{% url 'itemphoto-delete' view.object.pk photo.pk %}">
+                                Delete
+                            </a>
+                        </c-button>
+                    </div>
+                </div>
+            {% endfor %}
+            </c-gallery>
+            <c-button>
+                <a href="{% url 'itemphoto-create' form.instance.pk %}">
+                    Add Photo
+                </a>
+            </c-button>
+        {% endif %}
+
         <div class="flex gap-4">
             <c-button type="submit">Save</c-button>
             {% if form.instance.pk %}

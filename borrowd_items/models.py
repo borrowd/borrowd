@@ -4,6 +4,7 @@ from django.db.models import (
     CharField,
     ForeignKey,
     IntegerField,
+    ImageField,
     Model,
 )
 from django.urls import reverse
@@ -72,3 +73,11 @@ class Item(Model):
                 "Can borrow this item",
             ),
         ]
+
+
+class ItemPhoto(Model):
+    item: ForeignKey[Item] = ForeignKey(Item, on_delete=CASCADE, related_name="photos")
+    image: ImageField = ImageField(upload_to="items", null=False, blank=False)
+
+    def __str__(self) -> str:
+        return f"Photo of {self.item.name}"

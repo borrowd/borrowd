@@ -5,6 +5,14 @@
 <c-box>
     <c-h1>{{ object.name }}</c-h1>
     <p>{{ object.description }}</p>
+
+    <c-gallery>
+    {% for photo in view.object.photos.all %}
+        <c-photo src="{{ photo.image.url }}" 
+            alt="{{ view.object.name }} Photo {{ forloop.counter }}" />
+    {% endfor %}
+    </c-gallery>
+
     <c-button><a href="{% url 'item-list' %}">Back to List</a></c-button>
     <c-button><a href="{% url 'item-edit' object.pk %}">Edit</a></c-button>
     <c-button><a href="{% url 'item-delete' object.pk %}">Delete</a></c-button>

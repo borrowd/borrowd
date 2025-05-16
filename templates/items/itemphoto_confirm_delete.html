@@ -1,0 +1,17 @@
+{% extends "items/layout.html" %}
+
+{% block head_title %}Delete Item Photo{% endblock %}
+{% block items_content %}
+<c-box>
+    <c-h1>Confirm Deletion</c-h1>
+    <p>Are you sure you want to delete "{{ object }}"?</p>
+    <div class="p-2">
+        <c-photo src="{{ object.image.url }}" alt="{{ object.item.name }} Photo" />
+    </div>
+    <form method="post">
+        {% csrf_token %}
+        <c-button danger type="submit">Yes, delete</c-button>
+        <c-button><a href="{% url 'item-edit' object.item.pk %}">Cancel</a></c-button>
+    </form>
+</c-box>
+{% endblock %}
