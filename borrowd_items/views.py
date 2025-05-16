@@ -66,7 +66,6 @@ class ItemPhotoCreateView(BorrowdTemplateFinderMixin, CreateView[ItemPhoto, Mode
         context = super().get_context_data(**kwargs)
         item_pk = self.kwargs["item_pk"]
         context["item_pk"] = item_pk
-        # context["item"] = Item.objects.get(pk=item_pk)
         return context
     
     def form_valid(self, form: ModelForm[ItemPhoto]) -> HttpResponse:
