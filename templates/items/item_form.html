@@ -29,7 +29,7 @@
                         <c-photo src="{{ photo.image.url }}" 
                             alt="{{ view.object.name }} Photo {{ forloop.counter }}" />
                         <div class="p-1 flex justify-center">
-                            <c-button destructive>
+                            <c-button>
                                 <a href="{% url 'itemphoto-delete' view.object.pk photo.pk %}">
                                     Delete
                                 </a>
