@@ -36,9 +36,6 @@ def assign_item_permissions(
         assign_perm("view_this_item", allowed_groups, instance)
 
 # Media files are not automatically deleted on model deletion in dev environment
-if settings.DEBUG:
-    @receiver(post_delete, sender=ItemPhoto)
-    def delete_media_files(sender, instance, **kwargs):
-        if instance.image:
-            if os.path.isfile(instance.image.path):
-                os.remove(instance.image.path)
+@receiver(post_delete, sender=ItemPhoto)
+def delete_media_files(sender, instance, **kwargs):
+    instance.image.delete(False)
