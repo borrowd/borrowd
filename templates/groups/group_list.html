@@ -2,19 +2,42 @@
 
 {% block head_title %}Groups{% endblock %}
 {% block groups_content %}
-<c-box>
-    <c-h1>Groups</c-h1>
-    <ul class="list-disc list-inside mb-4">
-        {% for group in borrowdgroup_list %}
-            <li>
-                <a class="hover:underline text-blue-800" href="{% url 'borrowd_groups:group-detail' group.pk %}">{{ group.name }}</a>
-            </li>
-            {% empty %}
-                <p>No groups found.</p>
-        {% endfor %}
-    </ul>
-    <c-button>
-        <a href="{% url 'borrowd_groups:group-create' %}">Create New Group</a>
-    </c-button>
-</c-box>
+<div class="flex flex-col space-y-4">
+    <c-box>
+        <div class="flex justify-between items-center">
+            <c-h1>Groups</c-h1>
+            <c-button>
+                <a href="{% url 'borrowd_groups:group-create' %}">Create New Group</a>
+            </c-button>
+        </div>
+        <form method="get">
+            {{ filter.form.as_p }}
+            <input type="submit" value="Filter" class="bg-blue-500 text-white px-4 py-2 rounded">
+            {% comment %}
+            Only show the Clear button if filters are actually set.
+            This looks a bit awkward in order to account for empty filters,
+            i.e. `?category=&search=`
+            TODO: Replace this with Alpine.js logic later
+            when we're also using HTMX to avoid page reloads here.
+            {% endcomment %}
+            {% if not request.GET.values|join:"" == "" %}
+            <c-button>
+                <a href="{% url 'borrowd_groups:group-list' %}">Clear</a>
+            </c-button>
+            {% endif %}
+        </form>
+    </c-box>
+    <c-box>
+        <c-h2>Groups List</c-h2>
+        <ul class="list-disc list-inside mb-4">
+            {% for group in borrowdgroup_list %}
+                <li>
+                    <a class="hover:underline text-blue-800" href="{% url 'borrowd_groups:group-detail' group.pk %}">{{ group.name }}</a>
+                </li>
+                {% empty %}
+                    <p>No groups found.</p>
+            {% endfor %}
+        </ul>
+    </c-box>
+</div>
 {% endblock %}

@@ -1,7 +1,6 @@
 from typing import Any, Never  # Unfortunately needed for more mypy shenanigans
 
 from django.contrib.auth.models import Group, GroupManager
-from django.db import IntegrityError
 from django.db.models import (
     CASCADE,
     DO_NOTHING,
@@ -118,25 +117,17 @@ class BorrowdGroup(Group, GuardianGroupMixin):  # type: ignore[misc]
         """
         Add a user to the group.
         """
-        membership: Membership
-        # TODO: Should this simply be an .update_or_create() call?
-        # I'm opting _not_ at this point, because we should never
-        # logically be in a position where we're _trying_ to add
-        # a user to a Group they're already in: so if that happens,
-        # we should want to diagnose the situation that led us there.
-        # But, open to other opinions.
-        try:
-            membership = Membership.objects.create(
-                user=user,
-                group=self,
-                trust_level=trust_level,
-                is_moderator=is_moderator,
+        if Membership.objects.filter(user=user, group=self).exists():
+            raise ExistingMemberException(
+                (f"User '{user}' is already a member of group '{self}'")
             )
-        except IntegrityError as e:
-            if "UNIQUE" in str(e):
-                raise ExistingMemberException(
-                    (f"User '{user}' is already a member of group '{self}'")
-                ) from e
+
+        membership: Membership = Membership.objects.create(
+            user=user,
+            group=self,
+            trust_level=trust_level,
+            is_moderator=is_moderator,
+        )
 
         return membership
 
@@ -144,7 +135,7 @@ class BorrowdGroup(Group, GuardianGroupMixin):  # type: ignore[misc]
         """
         Remove a user from the group.
         """
-        Membership.objects.filter(user=user, group=self).delete()
+        Membership.objects.get(user=user, group=self).delete()
 
     def update_user_membership(
         self,
@@ -163,6 +154,13 @@ class BorrowdGroup(Group, GuardianGroupMixin):  # type: ignore[misc]
             membership.is_moderator = is_moderator
 
         membership.save()
+
+    class Meta:
+        permissions = (
+            ("view_this_group", "Can view this Group"),
+            ("edit_this_group", "Can edit this Group"),
+            ("delete_this_group", "Can delete this Group"),
+        )
 
 
 class MembershipStatus(TextChoices):

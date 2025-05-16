@@ -13,13 +13,14 @@ from django.views.generic import (
     CreateView,
     DeleteView,
     DetailView,
-    ListView,
     UpdateView,
     View,
 )
+from django_filters.views import FilterView
 
 from borrowd.util import BorrowdTemplateFinderMixin
 
+from .filters import GroupFilter
 from .forms import GroupCreateForm, GroupJoinForm
 from .models import BorrowdGroup, Membership
 
@@ -202,8 +203,11 @@ class GroupJoinView(LoginRequiredMixin, View):
         return redirect("borrowd_groups:group-detail", pk=group.pk)
 
 
-class GroupListView(BorrowdTemplateFinderMixin, ListView[BorrowdGroup]):
+# No typing for django_filter, so mypy doesn't like us subclassing.
+class GroupListView(BorrowdTemplateFinderMixin, FilterView):  # type: ignore[misc]
     model = BorrowdGroup
+    template_name_suffix = "_list"  # Reusing template from ListView
+    filterset_class = GroupFilter
 
 
 class GroupUpdateView(
