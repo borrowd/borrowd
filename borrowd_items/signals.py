@@ -1,8 +1,11 @@
-from django.db.models.signals import post_save
+import os
+
+from django.conf import settings
+from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 from guardian.shortcuts import assign_perm
 
-from .models import Item
+from .models import Item, ItemPhoto
 
 
 @receiver(post_save, sender=Item)
@@ -31,3 +34,11 @@ def assign_item_permissions(
             membership__trust_level__gte=instance.trust_level_required
         )
         assign_perm("view_this_item", allowed_groups, instance)
+
+# Media files are not automatically deleted on model deletion in dev environment
+if settings.DEBUG:
+    @receiver(post_delete, sender=ItemPhoto)
+    def delete_media_files(sender, instance, **kwargs):
+        if instance.image:
+            if os.path.isfile(instance.image.path):
+                os.remove(instance.image.path)

@@ -22,21 +22,25 @@
 
         {% if view.object.pk %}
             <b>Photos:</b>
-            <c-gallery>
-            {% for photo in view.object.photos.all %}
-                <div>
-                    <c-photo src="{{ photo.image.url }}" 
-                        alt="{{ view.object.name }} Photo {{ forloop.counter }}" />
-                    <div class="p-1 flex justify-center">
-                        <c-button destructive>
-                            <a href="{% url 'itemphoto-delete' view.object.pk photo.pk %}">
-                                Delete
-                            </a>
-                        </c-button>
+            {% if view.object.photos.all %}
+                <c-gallery>
+                {% for photo in view.object.photos.all %}
+                    <div>
+                        <c-photo src="{{ photo.image.url }}" 
+                            alt="{{ view.object.name }} Photo {{ forloop.counter }}" />
+                        <div class="p-1 flex justify-center">
+                            <c-button destructive>
+                                <a href="{% url 'itemphoto-delete' view.object.pk photo.pk %}">
+                                    Delete
+                                </a>
+                            </c-button>
+                        </div>
                     </div>
-                </div>
-            {% endfor %}
-            </c-gallery>
+                {% endfor %}
+                </c-gallery>
+            {% else %}
+                <div class="mb-2">No photos</div>
+            {% endif %}
             <c-button>
                 <a href="{% url 'itemphoto-create' form.instance.pk %}">
                     Add Photo

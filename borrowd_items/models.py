@@ -76,6 +76,7 @@ class Item(Model):
 
 
 class ItemPhoto(Model):
+    # Not including owner as permissions/ownership should be inherited from Item
     item: ForeignKey[Item] = ForeignKey(Item, on_delete=CASCADE, related_name="photos")
     image: ImageField = ImageField(upload_to="items", null=False, blank=False)
 
