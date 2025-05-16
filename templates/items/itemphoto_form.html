@@ -1,9 +1,8 @@
 {% extends "items/layout.html" %}
 
 {% comment %}
-    This template is used for both creating and editing.
-    Checking `view.object.pk` is strangely the best way to check
-    if we are creating or editing.
+    This template could support editing if needed, however only the create flow
+    is used right now as the model only contains the image which just needs to be created and deleted.
 {% endcomment %}
 {% block head_title %}{% if not view.object.pk %}Upload{% else %}Edit{% endif %} Photo{% endblock %}
 

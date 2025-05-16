@@ -77,6 +77,8 @@ class Item(Model):
 
 class ItemPhoto(Model):
     # Not including owner as permissions/ownership should be inherited from Item
+    # Alt text could be a good additional field to support via user input
+    # Height/Width might also need to be stored by parsing image metadata on save
     item: ForeignKey[Item] = ForeignKey(Item, on_delete=CASCADE, related_name="photos")
     image: ImageField = ImageField(upload_to="items", null=False, blank=False)
 
