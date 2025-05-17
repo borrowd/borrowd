@@ -31,9 +31,12 @@
         <c-h2>Item List</c-h2>
         <ul class="list-disc divide-y-2 space-y-3 my-4">
             {% for item in item_list %}
-                <li class="flex justify-between items-center mt-2 text-blue-700">
+                <li class="flex items-center mt-2 text-blue-700">
+                    {% if item.photos.all.0 %}
+                        <img src="{{ item.photos.all.0.image.url }}" alt="{{ item.name }}" class="h-10 w-10 object-cover rounded mr-2 mt-2">
+                    {% endif %}
                     <a class="hover:underline" href="{% url 'item-detail' item.pk %}">{{ item }}</a>
-                    <a class="hover:underline" href="{% url 'item-edit' item.pk %}">Edit</a>
+                    <a class="hover:underline ml-auto" href="{% url 'item-edit' item.pk %}">Edit</a>
                 </li>
             {% endfor %}
         </ul>

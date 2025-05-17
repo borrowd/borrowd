@@ -1,0 +1,31 @@
+{% extends "items/layout.html" %}
+
+{% comment %}
+    This template could support editing if needed, however only the create flow
+    is used right now as the model only contains the image which just needs to be created and deleted.
+{% endcomment %}
+{% block head_title %}{% if not view.object.pk %}Upload{% else %}Edit{% endif %} Photo{% endblock %}
+
+{% block items_content %}
+<c-box>
+    <c-h1>{% if not view.object.pk %}Upload{% else %}Edit{% endif %} Photo</c-h1>
+    <form method="post" enctype="multipart/form-data" class="flex flex-col space-y-2">
+        {% csrf_token %}
+        {% for field in form %}
+        <div class="">
+            {{ field.errors }}
+            <b>{{ field.label_tag }}</b>
+            <div class="border-2 border-gray-200 w-fit">{{ field }} </div>
+        </div>
+        {% endfor %}
+        <div class="flex gap-4">
+            <c-button type="submit">Save</c-button>
+            <c-button>
+                <a href="{% url 'item-edit' item_pk %}">
+                    Cancel
+                </a>
+            </c-button>
+        </div>
+    </form>
+</c-box>
+{% endblock %}
