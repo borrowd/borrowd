@@ -1,5 +1,8 @@
+from typing import Optional
+
 from django.db.models import (
     CASCADE,
+    PROTECT,
     SET_NULL,
     CharField,
     ForeignKey,
@@ -7,6 +10,8 @@ from django.db.models import (
     IntegerChoices,
     IntegerField,
     Model,
+    Q,
+    QuerySet,
     TextChoices,
 )
 from django.urls import reverse
@@ -82,11 +87,38 @@ class Item(Model):
         help_text="The current status of the Item.",
     )
 
+    # Hint for mypy (actual field created from reverse relation)
+    transactions: QuerySet["Transaction"]
+
     def __str__(self) -> str:
         return self.name
 
     def get_absolute_url(self) -> str:
         return reverse("item-detail", args=[self.pk])
+
+    def get_current_transaction_for_user(
+        self, user: BorrowdUser
+    ) -> Optional["Transaction"]:
+        """
+        Returns the current Transaction involving this Item and the
+        given User, if any.
+        """
+        try:
+            # Using `get()` here because if there *is* a current
+            # Transaction involving this Item and this User, there
+            # should only be one.
+            return Transaction.objects.get(
+                Q(item=self)
+                & (Q(party1=user) | Q(party2=user))
+                & ~Q(
+                    status__in=[
+                        TransactionStatus.RETURNED,
+                        TransactionStatus.REJECTED,
+                    ]
+                )
+            )
+        except Transaction.DoesNotExist:
+            return None
 
     class Meta:
         # Permissions using the naming conventon `*_this_*` are used
@@ -124,3 +156,54 @@ class ItemPhoto(Model):
     def __str__(self) -> str:
         # error: "_ST" has no attribute "name"  [attr-defined]
         return f"Photo of {self.item.name}"  # type: ignore[attr-defined]
+
+
+class TransactionStatus(IntegerChoices):
+    """
+    Represents the status of a Transaction. This is used to track
+    the current state of a Transaction, and to determine which
+    actions are available to the user.
+    """
+
+    # Paranoia forcing to me to use value increments of at least 10,
+    # for when we later realize we need to add more in between...
+    REQUESTED = 10, "Requested"
+    REJECTED = 20, "Rejected"
+    ACCEPTED = 30, "Accepted"
+    COLLECTION_ASSERTED = 40, "Collection Asserted"
+    COLLECTED = 50, "Collected"
+    RETURN_ASSERTED = 60, "Return Asserted"
+    RETURNED = 70, "Returned"
+    CANCELLED = 80, "Cancelled"
+
+
+class Transaction(Model):
+    item: ForeignKey["Item"] = ForeignKey(
+        to="Item",
+        on_delete=PROTECT,
+        related_name="transactions",
+        help_text="The Item which is the subject of the Transaction.",
+    )
+    party1: ForeignKey[BorrowdUser] = ForeignKey(
+        to=BorrowdUser,
+        on_delete=PROTECT,
+        related_name="+",  # No reverse relation needed
+        help_text="The first party in the Transaction: 'lender', 'giver', 'owner', etc.",
+    )
+    party2: ForeignKey[BorrowdUser] = ForeignKey(
+        to=BorrowdUser,
+        on_delete=PROTECT,
+        related_name="+",  # No reverse relation needed
+        help_text="The second party in the Transaction: 'borrower', 'receiver', etc.",
+    )
+    status: IntegerField[TransactionStatus, int] = IntegerField(
+        choices=TransactionStatus.choices,
+        default=TransactionStatus.REQUESTED,
+        help_text="The current status of the Transaction.",
+    )
+    updated_by: ForeignKey[BorrowdUser] = ForeignKey(
+        to=BorrowdUser,
+        on_delete=PROTECT,
+        related_name="+",  # No reverse relation needed
+        help_text="The User who last updated the Transaction.",
+    )
