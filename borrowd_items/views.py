@@ -1,3 +1,5 @@
+from typing import Any
+
 from django.forms import ModelForm
 from django.http import HttpResponse
 from django.urls import reverse, reverse_lazy
@@ -58,26 +60,37 @@ class ItemUpdateView(BorrowdTemplateFinderMixin, UpdateView[Item, ModelForm[Item
         return reverse("item-detail", args=[self.object.pk])
 
 
-class ItemPhotoCreateView(BorrowdTemplateFinderMixin, CreateView[ItemPhoto, ModelForm[ItemPhoto]]):
+class ItemPhotoCreateView(
+    BorrowdTemplateFinderMixin, CreateView[ItemPhoto, ModelForm[ItemPhoto]]
+):
     model = ItemPhoto
     fields = ["image"]  # item set from URL params
-    
-    def get_context_data(self, **kwargs):
+
+    def get_context_data(self, **kwargs: str) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
         item_pk = self.kwargs["item_pk"]
         context["item_pk"] = item_pk
         return context
-    
+
     def form_valid(self, form: ModelForm[ItemPhoto]) -> HttpResponse:
         context = self.get_context_data()
         form.instance.item_id = context["item_pk"]
         return super().form_valid(form)
 
     def get_success_url(self) -> str:
-        return reverse("item-edit", args=[self.object.item.pk])
+        instance: ItemPhoto = self.object  # type: ignore[assignment]
+        if instance is None:
+            return
+        return reverse("item-edit", args=[instance.item_id])
 
-class ItemPhotoDeleteView(BorrowdTemplateFinderMixin, DeleteView[ItemPhoto, ModelForm[ItemPhoto]]):
+
+class ItemPhotoDeleteView(
+    BorrowdTemplateFinderMixin, DeleteView[ItemPhoto, ModelForm[ItemPhoto]]
+):
     model = ItemPhoto
 
     def get_success_url(self) -> str:
-        return reverse("item-edit", args=[self.object.item.pk])
+        instance: ItemPhoto = self.object
+        if instance is None:
+            return
+        return reverse("item-edit", args=[instance.item_id])

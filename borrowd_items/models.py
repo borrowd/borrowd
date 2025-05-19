@@ -3,8 +3,8 @@ from django.db.models import (
     SET_NULL,
     CharField,
     ForeignKey,
-    IntegerField,
     ImageField,
+    IntegerField,
     Model,
 )
 from django.urls import reverse
@@ -80,7 +80,9 @@ class ItemPhoto(Model):
     # Alt text could be a good additional field to support via user input
     # Height/Width might also need to be stored by parsing image metadata on save
     item: ForeignKey[Item] = ForeignKey(Item, on_delete=CASCADE, related_name="photos")
+    item_id: int  # hint for mypy
     image: ImageField = ImageField(upload_to="items", null=False, blank=False)
 
     def __str__(self) -> str:
-        return f"Photo of {self.item.name}"
+        # error: "_ST" has no attribute "name"  [attr-defined]
+        return f"Photo of {self.item.name}"  # type: ignore[attr-defined]
