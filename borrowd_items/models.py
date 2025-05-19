@@ -4,13 +4,32 @@ from django.db.models import (
     CharField,
     ForeignKey,
     ImageField,
+    IntegerChoices,
     IntegerField,
     Model,
+    TextChoices,
 )
 from django.urls import reverse
 
 from borrowd.models import TrustLevel
 from borrowd_users.models import BorrowdUser
+
+
+class ItemAction(TextChoices):
+    """
+    Represents the actions that can be performed on an Item.
+    This is used to determine which actions are available to the
+    user when viewing an Item.
+    """
+
+    REQUEST_ITEM = "request_item", "Request Item"
+    ACCEPT_REQUEST = "accept_request", "Accept Request"
+    REJECT_REQUEST = "reject_request", "Reject Request"
+    MARK_COLLECTED = "mark_collected", "Mark Collected"
+    CONFIRM_COLLECTED = "confirm_collected", "Confirm Collected"
+    MARK_RETURNED = "mark_returned", "Mark Returned"
+    CONFIRM_RETURNED = "confirm_returned", "Confirm Returned"
+    CANCEL_REQUEST = "cancel_request", "Cancel Request"
 
 
 class ItemCategory(Model):
@@ -23,6 +42,20 @@ class ItemCategory(Model):
     class Meta:
         verbose_name: str = "Item Category"
         verbose_name_plural: str = "Item Categories"
+
+
+class ItemStatus(IntegerChoices):
+    """
+    Represents the status of an Item. This is used to track the
+    current state of an Item, and to determine which actions are
+    available to the user.
+    """
+
+    # Paranoia forcing to me to use value increments of at least 10,
+    # for when we later realize we need to add more in between...
+    AVAILABLE = 10, "Available"
+    RESERVED = 20, "Reserved"
+    BORROWED = 30, "Borrowed"
 
 
 class Item(Model):
@@ -42,6 +75,11 @@ class Item(Model):
             " this Item to be visible to and borrowable by members"
             " of that Group."
         ),
+    )
+    status: IntegerField[ItemStatus, int] = IntegerField(
+        choices=ItemStatus.choices,
+        default=ItemStatus.AVAILABLE,
+        help_text="The current status of the Item.",
     )
 
     def __str__(self) -> str:
