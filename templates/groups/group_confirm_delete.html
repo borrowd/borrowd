@@ -8,9 +8,7 @@
     <form method="post">
         {% csrf_token %}
         <c-button danger type="submit">Yes, delete</c-button>
-        <c-button>
-            <a href="{% url 'borrowd_groups:group-detail' object.pk %}">Cancel</a>
-        </c-button>
+        <c-button-nav url="{% url 'borrowd_groups:group-detail' object.pk %}">Cancel</c-button-nav>
     </form>
 </c-box>
 {% endblock %}

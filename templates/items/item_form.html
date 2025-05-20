@@ -26,14 +26,12 @@
                 <c-gallery>
                 {% for photo in view.object.photos.all %}
                     <div>
-                        <c-photo src="{{ photo.image.url }}" 
+                        <c-photo src="{{ photo.image.url }}"
                             alt="{{ view.object.name }} Photo {{ forloop.counter }}" />
                         <div class="p-1 flex justify-center">
-                            <c-button>
-                                <a href="{% url 'itemphoto-delete' view.object.pk photo.pk %}">
-                                    Delete
-                                </a>
-                            </c-button>
+                            <c-button-nav url="{% url 'itemphoto-delete' view.object.pk photo.pk %}">
+                                Delete
+                            </c-button-nav>
                         </div>
                     </div>
                 {% endfor %}
@@ -41,26 +39,20 @@
             {% else %}
                 <div class="mb-2">No photos</div>
             {% endif %}
-            <c-button>
-                <a href="{% url 'itemphoto-create' form.instance.pk %}">
-                    Add Photo
-                </a>
-            </c-button>
+            <c-button-nav url="{% url 'itemphoto-create' form.instance.pk %}">
+                Add Photo
+            </c-button-nav>
         {% endif %}
 
         <div class="flex gap-4">
             <c-button type="submit">Save</c-button>
             {% if form.instance.pk %}
-                <c-button>
-                    <a href="{% url 'item-detail' form.instance.pk %}">
-                        Cancel
-                    </a>
-                </c-button>
-                <c-button>
-                    <a href="{% url 'item-delete' form.instance.pk %}">
-                        Delete
-                    </a>
-                </c-button>
+                <c-button-nav url="{% url 'item-detail' form.instance.pk %}">
+                    Cancel
+                </c-button-nav>
+                <c-button-nav url="{% url 'item-delete' form.instance.pk %}">
+                    Delete
+                </c-button-nav>
             {% endif %}
         </div>
     </form>

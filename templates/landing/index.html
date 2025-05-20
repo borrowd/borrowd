@@ -11,11 +11,9 @@
                 sustainable, collaborative economy.
             </p>
             <div class="mt-6">
-                <c-button>
-                    <a href="{% url 'account_signup' %}" >
-                        Sign Up
-                    </a>
-                </c-button>
+                <c-button-nav url="{% url 'account_signup' %}">
+                    Sign Up
+                </c-button-nav>
             </div>
         </div>
         <c-landing-img src="{% static 'landing/index/example-item-listing.png' %}" />

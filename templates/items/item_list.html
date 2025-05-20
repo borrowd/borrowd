@@ -6,9 +6,7 @@
     <c-box>
         <div class="flex justify-between items-center">
             <c-h1>Items</c-h1>
-            <c-button>
-                <a href="{% url 'item-create' %}">Create New Item</a>
-            </c-button>
+            <c-button-nav url="{% url 'item-create' %}">Create New Item</c-button-nav>
         </div>
         <form method="get">
             {{ filter.form.as_p }}
@@ -21,9 +19,7 @@
             when we're also using HTMX to avoid page reloads here.
             {% endcomment %}
             {% if not request.GET.values|join:"" == "" %}
-            <c-button>
-                <a href="{% url 'item-list' %}">Clear</a>
-            </c-button>
+            <c-button-nav url="{% url 'item-list' %}">Clear</c-button-nav>
             {% endif %}
         </form>
     </c-box>
