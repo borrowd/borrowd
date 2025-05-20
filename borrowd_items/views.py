@@ -1,6 +1,10 @@
+from typing import Any
+
 from django.forms import ModelForm
-from django.http import HttpResponse
+from django.http import HttpRequest, HttpResponse
+from django.shortcuts import render
 from django.urls import reverse, reverse_lazy
+from django.views.decorators.http import require_POST
 from django.views.generic import (
     CreateView,
     DeleteView,
@@ -11,9 +15,82 @@ from django_filters.views import FilterView
 
 from borrowd.models import TrustLevel
 from borrowd.util import BorrowdTemplateFinderMixin
+from borrowd_users.models import BorrowdUser
 
+from .exceptions import InvalidItemAction
 from .filters import ItemFilter
-from .models import Item, ItemPhoto
+from .models import Item, ItemAction, ItemPhoto
+
+
+@require_POST
+def borrow_item(request: HttpRequest, pk: int) -> HttpResponse:
+    """
+    Progress the borrowing flow for an Item.
+
+    This POST endpoint requires an `action` parameter, corresponding
+    to the py:class:`ItemAction` enum. Core logic is delegated to
+    :py:meth:`.models.Item.process_action` and
+    :py:meth:`.models.Item.get_actions_for`.
+
+    On success, after progressing the borrowing workflow - which may
+    entail updates to both the Item *and* associated an Transaction -
+    an updated set of action buttons are returned to the client as
+    HTML. This is intended to be used in conjunction with a
+    hypermedia library like HTMX, Alpine.js, Datastar, etc.
+
+    Raises:
+        InvalidItemAction: If the provided action is not valid for
+        the Item in question, for this particular user, for this
+        point in the workflow.
+
+    See Also:
+        :py:class:`~.models.ItemAction`: Enum of possible actions
+        that can be performed on an Item.
+
+    """
+    req_action = request.POST.get("action")
+    if req_action is None:
+        return HttpResponse("No action specified.", status=400)
+
+    # mypy complains that `request.user` is a AbstractBaseUser or
+    # AnonymousUser, but when I follow the code it looks like it's
+    # AbstractUser or AnonymousUser, which we *would* comply with
+    # here (BorrowdUser subclasses AbstractUser).
+    user: BorrowdUser = request.user  # type: ignore[assignment]
+
+    item = Item.objects.get(pk=pk)
+
+    # Not currently differentiating between viewing and borrowing
+    # permissions; assumed that if a user can "see" an item (and
+    # they're not the owner), then they can request to borrow it.
+    if not user.has_perm("view_this_item", item):
+        return HttpResponse(
+            "You do not have permission to borrow this item.", status=403
+        )
+
+    try:
+        item.process_action(user=user, action=ItemAction(req_action))
+    except InvalidItemAction as e:
+        return HttpResponse(str(e), status=400)
+    except Exception as e:
+        # This is maybe too much information to surface to end-users.
+        # Leaving in for dev, eventually should probably just log it.
+        return HttpResponse(
+            f"An error occurred while processing the action: {e}", status=500
+        )
+
+    next_actions = item.get_actions_for(user=user)
+
+    return render(
+        request,
+        template_name="components/item_action_buttons.html",
+        context={
+            "item": item,
+            "item_actions": next_actions,
+        },
+        content_type="text/html",
+        status=200,
+    )
 
 
 class ItemCreateView(BorrowdTemplateFinderMixin, CreateView[Item, ModelForm[Item]]):
@@ -40,6 +117,12 @@ class ItemDeleteView(BorrowdTemplateFinderMixin, DeleteView[Item, ModelForm[Item
 class ItemDetailView(BorrowdTemplateFinderMixin, DetailView[Item]):
     model = Item
 
+    def get_context_data(self, **kwargs: str) -> dict[str, Any]:
+        context = super().get_context_data(**kwargs)
+        user: BorrowdUser = self.request.user  # type: ignore[assignment]
+        context["action_options"] = self.object.get_actions_for(user=user)
+        return context
+
 
 # No typing for django_filter, so mypy doesn't like us subclassing.
 class ItemListView(BorrowdTemplateFinderMixin, FilterView):  # type: ignore[misc]
@@ -58,26 +141,37 @@ class ItemUpdateView(BorrowdTemplateFinderMixin, UpdateView[Item, ModelForm[Item
         return reverse("item-detail", args=[self.object.pk])
 
 
-class ItemPhotoCreateView(BorrowdTemplateFinderMixin, CreateView[ItemPhoto, ModelForm[ItemPhoto]]):
+class ItemPhotoCreateView(
+    BorrowdTemplateFinderMixin, CreateView[ItemPhoto, ModelForm[ItemPhoto]]
+):
     model = ItemPhoto
     fields = ["image"]  # item set from URL params
-    
-    def get_context_data(self, **kwargs):
+
+    def get_context_data(self, **kwargs: str) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
         item_pk = self.kwargs["item_pk"]
         context["item_pk"] = item_pk
         return context
-    
+
     def form_valid(self, form: ModelForm[ItemPhoto]) -> HttpResponse:
         context = self.get_context_data()
         form.instance.item_id = context["item_pk"]
         return super().form_valid(form)
 
     def get_success_url(self) -> str:
-        return reverse("item-edit", args=[self.object.item.pk])
+        instance: ItemPhoto = self.object  # type: ignore[assignment]
+        if instance is None:
+            return
+        return reverse("item-edit", args=[instance.item_id])
 
-class ItemPhotoDeleteView(BorrowdTemplateFinderMixin, DeleteView[ItemPhoto, ModelForm[ItemPhoto]]):
+
+class ItemPhotoDeleteView(
+    BorrowdTemplateFinderMixin, DeleteView[ItemPhoto, ModelForm[ItemPhoto]]
+):
     model = ItemPhoto
 
     def get_success_url(self) -> str:
-        return reverse("item-edit", args=[self.object.item.pk])
+        instance: ItemPhoto = self.object
+        if instance is None:
+            return
+        return reverse("item-edit", args=[instance.item_id])
