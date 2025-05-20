@@ -23,8 +23,9 @@ git clone git@github.com:borrowd/borrowd.git && cd borrowd/
 
 ```
 # This will automatically create a local Python virtual environment
-# at .venv
+# at .venv and setup the git pre-commit hook
 uv sync
+pre-commit install
 ```
 
 ### 4. Create local `.env` file
