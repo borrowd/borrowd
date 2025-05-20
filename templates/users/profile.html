@@ -52,6 +52,9 @@
                     <a href="{{ usersessions_list_url_ }}" class="block text-blue-600 hover:underline">{% trans "Sessions" %}</a>
                 </li>
             {% endif %}
+            <li>
+                <a href="{% url 'profile-edit' %}" class="block text-blue-600 hover:underline">{% trans "Edit Profile" %}</a>
+            </li>
         </ul>
     </div>
 </div>

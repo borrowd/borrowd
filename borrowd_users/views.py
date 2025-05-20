@@ -1,8 +1,16 @@
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.forms import ModelForm
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render
+from django.urls import reverse
+from django.views.generic import (
+    UpdateView,
+)
 
+from borrowd.util import BorrowdTemplateFinderMixin
 from borrowd_items.models import Item
+from borrowd_users.models import Profile
 
 
 @login_required
@@ -21,3 +29,13 @@ def profile_view(request: HttpRequest) -> HttpResponse:
     return render(
         request, "users/profile.html", {"profile": profile, "user_items": user_items}
     )
+
+class ProfileUpdateView(LoginRequiredMixin, BorrowdTemplateFinderMixin, UpdateView[Profile, ModelForm[Profile]]):
+    model = Profile
+    fields = ["image"]
+
+    def get_object(self, queryset=None) -> Profile:
+        return self.request.user.profile
+
+    def get_success_url(self) -> str:
+        return reverse("profile")
