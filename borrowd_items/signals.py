@@ -1,8 +1,8 @@
-from django.db.models.signals import post_save, post_delete
+from django.db.models.signals import post_save
 from django.dispatch import receiver
 from guardian.shortcuts import assign_perm
 
-from .models import Item, ItemPhoto
+from .models import Item
 
 
 @receiver(post_save, sender=Item)
