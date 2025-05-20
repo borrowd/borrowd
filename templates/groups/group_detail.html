@@ -3,13 +3,25 @@
 
 {% block groups_content %}
 <c-box>
+    {% if object.banner %}
+        <img src="{{ object.banner.url }}" alt="Group Banner Image" class="w-full max-h-[100px] mb-4">
+    {% endif %}
     <!-- Groups profile brief:
      - Details (name, description, profile image)
      - Members
      - Invite link
     -->
      <div class="flex flex-col h-full">
-        <c-h1>{{ object.name }}</c-h1>
+        <div class="flex">
+            {% if object.logo %}
+                <c-thumbnail src="{{ object.logo.url }}" alt="{{ object.name }} Logo" />
+                <span class="pl-2 flex items-center">
+                    <c-h1>{{ object.name }}</c-h1>
+                </span>
+            {% else %}
+                <c-h1>{{ object.name }}</c-h1>
+            {% endif %}
+        </div>
         <p class="text-gray-700 mb-4"><b>Description:</b> {{ object.description }}</p>
         <p class="text-gray-700 mb-4"><b>Membership requires approval:</b> {{ object.membership_requires_approval|yesno:"Yes,No" }}</p>
         <c-button>

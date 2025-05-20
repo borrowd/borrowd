@@ -32,6 +32,9 @@
         <ul class="list-disc list-inside mb-4">
             {% for group in borrowdgroup_list %}
                 <li>
+                    {% if group.logo %}
+                        <c-thumbnail src="{{ group.logo.url }}" alt="{{ group.name }} Logo" class="inline" />
+                    {% endif %}
                     <a class="hover:underline text-blue-800" href="{% url 'borrowd_groups:group-detail' group.pk %}">{{ group.name }}</a>
                 </li>
                 {% empty %}

@@ -7,6 +7,7 @@ from django.db.models import (
     BooleanField,
     DateTimeField,
     ForeignKey,
+    ImageField,
     IntegerField,
     ManyToManyField,
     Model,
@@ -66,6 +67,8 @@ class BorrowdGroup(Group, GuardianGroupMixin):  # type: ignore[misc]
     """
 
     description: TextField[Never, Never] = TextField(blank=True, null=True)
+    logo: ImageField = ImageField(upload_to="groups/logos", null=True, blank=True)
+    banner: ImageField = ImageField(upload_to="groups/banners", null=True, blank=True)
     membership_requires_approval: BooleanField[Never, Never] = BooleanField(
         default=True,
         help_text="If true, new members will require Moderator approval to join the group.",

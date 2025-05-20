@@ -17,6 +17,8 @@ class GroupCreateForm(forms.ModelForm[BorrowdGroup]):
         fields = [
             "name",
             "description",
+            "logo",
+            "banner",
             "membership_requires_approval",
             "trust_level",
         ]
