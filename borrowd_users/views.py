@@ -30,7 +30,12 @@ def profile_view(request: HttpRequest) -> HttpResponse:
         request, "users/profile.html", {"profile": profile, "user_items": user_items}
     )
 
-class ProfileUpdateView(LoginRequiredMixin, BorrowdTemplateFinderMixin, UpdateView[Profile, ModelForm[Profile]]):
+
+class ProfileUpdateView(
+    LoginRequiredMixin,
+    BorrowdTemplateFinderMixin,
+    UpdateView[Profile, ModelForm[Profile]],
+):
     model = Profile
     fields = ["image"]
 
