@@ -4,20 +4,19 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('borrowd_groups', '0007_alter_borrowdgroup_options'),
+        ("borrowd_groups", "0007_alter_borrowdgroup_options"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='borrowdgroup',
-            name='banner',
-            field=models.ImageField(blank=True, null=True, upload_to='groups/banners'),
+            model_name="borrowdgroup",
+            name="banner",
+            field=models.ImageField(blank=True, null=True, upload_to="groups/banners"),
         ),
         migrations.AddField(
-            model_name='borrowdgroup',
-            name='logo',
-            field=models.ImageField(blank=True, null=True, upload_to='groups/logos'),
+            model_name="borrowdgroup",
+            name="logo",
+            field=models.ImageField(blank=True, null=True, upload_to="groups/logos"),
         ),
     ]
