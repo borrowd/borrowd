@@ -31,8 +31,3 @@ def assign_item_permissions(
             membership__trust_level__gte=instance.trust_level_required
         )
         assign_perm("view_this_item", allowed_groups, instance)
-
-# Files are not automatically deleted on model instance deletion
-@receiver(post_delete, sender=ItemPhoto)
-def delete_media_files(sender, instance, **kwargs):
-    instance.image.delete(False)
