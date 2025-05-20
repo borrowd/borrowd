@@ -18,6 +18,9 @@
     <div class="mt-6">
         <c-h2>{% trans "Settings" %}</c-h2>
         <ul class="space-y-3">
+            <li>
+                <a href="{% url 'profile-edit' %}" class="block text-blue-600 hover:underline">{% trans "Edit Profile" %}</a>
+            </li>
             {% url 'account_email' as email_url_ %}
             {% if email_url_ %}
                 <li>
@@ -48,9 +51,6 @@
                     <a href="{{ usersessions_list_url_ }}" class="block text-blue-600 hover:underline">{% trans "Sessions" %}</a>
                 </li>
             {% endif %}
-            <li>
-                <a href="{% url 'profile-edit' %}" class="block text-blue-600 hover:underline">{% trans "Edit Profile" %}</a>
-            </li>
         </ul>
     </div>
 </div>
