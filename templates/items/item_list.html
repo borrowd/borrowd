@@ -29,7 +29,7 @@
             {% for item in item_list %}
                 <li class="flex items-center mt-2 text-blue-700">
                     {% if item.photos.all.0 %}
-                        <img src="{{ item.photos.all.0.image.url }}" alt="{{ item.name }}" class="h-10 w-10 object-cover rounded mr-2 mt-2">
+                        <c-thumbnail src="{{ item.photos.all.0.image.url }}" alt="{{ item.name }}" class="mr-2 mt-2" />
                     {% endif %}
                     <a class="hover:underline" href="{% url 'item-detail' item.pk %}">{{ item }}</a>
                     <a class="hover:underline ml-auto" href="{% url 'item-edit' item.pk %}">Edit</a>

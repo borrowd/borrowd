@@ -214,7 +214,7 @@ class GroupUpdateView(
     BorrowdTemplateFinderMixin, UpdateView[BorrowdGroup, ModelForm[BorrowdGroup]]
 ):
     model = BorrowdGroup
-    fields = ["name", "description", "membership_requires_approval"]
+    fields = ["name", "description", "logo", "banner", "membership_requires_approval"]
 
     def form_valid(self, form: ModelForm[BorrowdGroup]) -> HttpResponse:
         if self.request.user.is_authenticated:

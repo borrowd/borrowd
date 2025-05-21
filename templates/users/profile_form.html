@@ -1,0 +1,29 @@
+{% extends "layouts/default.html" %}
+{% load i18n %}
+
+{% block head_title  %}Edit profile{% endblock %}
+
+{% block content %}
+<div class="flex flex-col space-y-4 bg-white shadow-lg rounded-lg p-8 w-full max-w-2xl">
+    <c-profile-card :profile="profile" />
+
+    <c-h1>{% trans "Edit Profile" %}</c-h1>
+    <form method="post" enctype="multipart/form-data" class="flex flex-col space-y-2">
+        {% csrf_token %}
+        {% for field in form %}
+        <div class="">
+            {{ field.errors }}
+            <b>{{ field.label_tag }}</b>
+            <div class="border-2 border-gray-200 w-fit">{{ field }} </div>
+        </div>
+        {% endfor %}
+
+        <div class="flex gap-4 pt-5">
+            <c-button type="submit">{% trans "Save" %}</c-button>
+            <c-button>
+                <a href="{% url 'profile' %}">{% trans "Cancel" %}</a>
+            </c-button>
+        </div>
+    </form>
+</div>
+{% endblock %}

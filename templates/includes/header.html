@@ -20,6 +20,11 @@
         {% endif %}
         <ul class="flex space-x-4 items-right items-center">
             {% if user.is_authenticated %}
+                {% if user.profile.image %}
+                    <li>
+                        <c-thumbnail src="{{ user.profile.image.url }}" alt="Profile Picture" class="!rounded-full" />
+                    </li>
+                {% endif %}
                 <li>
                     <a class="hover:underline" href="{% url 'profile' %}">Profile</a>
                 </li>

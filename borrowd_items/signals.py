@@ -1,8 +1,8 @@
-from django.db.models.signals import post_save, post_delete
+from django.db.models.signals import post_save
 from django.dispatch import receiver
 from guardian.shortcuts import assign_perm
 
-from .models import Item, ItemPhoto
+from .models import Item
 
 
 @receiver(post_save, sender=Item)
@@ -31,8 +31,3 @@ def assign_item_permissions(
             membership__trust_level__gte=instance.trust_level_required
         )
         assign_perm("view_this_item", allowed_groups, instance)
-
-# Files are not automatically deleted on model instance deletion
-@receiver(post_delete, sender=ItemPhoto)
-def delete_media_files(sender, instance, **kwargs):
-    instance.image.delete(False)
