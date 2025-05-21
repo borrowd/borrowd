@@ -5,6 +5,10 @@
 <div class="flex flex-col space-y-4">
     <c-box>
         <div class="flex justify-between items-center">
+            <!-- todo: we'll want to distinguish between item browsing and item management. Browsing will exclude items you own or are currently borrowing.
+
+            IMO that's a totally separate page and this one will only ever exclude your managed items.
+            -->
             <c-h1>Items</c-h1>
             <c-button-nav url="{% url 'item-create' %}">Create New Item</c-button-nav>
         </div>
