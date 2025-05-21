@@ -8,13 +8,13 @@
 
     <c-gallery>
     {% for photo in view.object.photos.all %}
-        <c-photo src="{{ photo.image.url }}" 
+        <c-photo src="{{ photo.image.url }}"
             alt="{{ view.object.name }} Photo {{ forloop.counter }}" />
     {% endfor %}
     </c-gallery>
 
-    <c-button><a href="{% url 'item-list' %}">Back to List</a></c-button>
-    <c-button><a href="{% url 'item-edit' object.pk %}">Edit</a></c-button>
-    <c-button><a href="{% url 'item-delete' object.pk %}">Delete</a></c-button>
+    <c-button-nav url="{% url 'item-list' %}">Back to List</c-button-nav>
+    <c-button-nav url="{% url 'item-edit' object.pk %}">Edit</c-button-nav>
+    <c-button-nav url="{% url 'item-delete' object.pk %}">Delete</c-button-nav>
 </c-box>
 {% endblock %}

@@ -39,11 +39,9 @@
                 {% url 'account_signup' as signup_url_ %}
                 {% if signup_url_ %}
                     <li>
-                        <c-button>
-                            <a href="{% url 'account_signup' %}" >
-                              Sign Up
-                            </a>
-                        </c-button>
+                        <c-button-nav url="{% url 'account_signup' %}">
+                            Sign Up
+                        </c-button-nav>
                     </li>
                 {% endif %}
             {% endif %}

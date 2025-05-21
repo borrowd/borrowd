@@ -27,16 +27,12 @@
         <div class="flex gap-4">
             <c-button type="submit">Save</c-button>
             {% if form.instance.pk %}
-                <c-button>
-                    <a href="{% url 'borrowd_groups:group-detail' form.instance.pk %}">
-                        Cancel
-                    </a>
-                </c-button>
-                <c-button>
-                    <a href="{% url 'borrowd_groups:group-delete' form.instance.pk %}">
-                        Delete
-                    </a>
-                </c-button>
+                <c-button-nav url="{% url 'borrowd_groups:group-detail' form.instance.pk %}">
+                    Cancel
+                </c-button-nav>
+                <c-button-nav url="{% url 'borrowd_groups:group-delete' form.instance.pk %}">
+                    Delete
+                </c-button-nav>
             {% endif %}
         </div>
     </form>
