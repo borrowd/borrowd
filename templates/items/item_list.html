@@ -23,19 +23,13 @@
             {% endif %}
         </form>
     </c-box>
-    <c-box>
-        <c-h2>Item List</c-h2>
-        <ul class="list-disc divide-y-2 space-y-3 my-4">
+    <!-- todo: tabs for My Inventory vs. Browser? -->
+    <div class="flex flex-col space-y-4">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 bg-slate-400 p-4 rounded-lg">
             {% for item in item_list %}
-                <li class="flex items-center mt-2 text-blue-700">
-                    {% if item.photos.all.0 %}
-                        <c-thumbnail src="{{ item.photos.all.0.image.url }}" alt="{{ item.name }}" class="mr-2 mt-2" />
-                    {% endif %}
-                    <a class="hover:underline" href="{% url 'item-detail' item.pk %}">{{ item }}</a>
-                    <a class="hover:underline ml-auto" href="{% url 'item-edit' item.pk %}">Edit</a>
-                </li>
+                <c-item-box :item="{{ item }}" />
             {% endfor %}
-        </ul>
-    </c-box>
+        </div>
+    </div>
 </div>
 {% endblock %}
