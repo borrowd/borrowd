@@ -1,0 +1,20 @@
+{% load static %}
+
+<a href="{% url 'item-detail' item.pk %}" class="block no-underline">
+    <div class="bg-gray-100 shadow-md rounded-lg w-[300px] h-[300px] lg:w-[230px] lg:h-[230px] hover:-translate-y-2 transition-all duration-300 ease-in-out">
+        <div class="relative w-full h-full">
+            <!-- todo: map default images by item category (will require comprehensive default category images) -->
+            <img src="{{ item.photos.all.0.image.url|default:'/static/items/categories/logo-tools.png' }}" class="w-full h-1/2 object-cover" alt="{{ item.name|default:'Default item image' }}" />
+            <div class="flex flex-col py-4 px-3">
+                <!-- todo: deal with super long names -->
+                <div class="text-lg font-bold">{{item.name}}</div>
+                <div class="text-sm text-gray-500">Owned by {{ item.owner.username }}</div>
+            </div>
+            <!-- todo: chip component -->
+            <div class="absolute bottom-0 right-0 m-2">
+                <!-- todo: request/borrow/action flow -->
+                <div class="bg-green-400 rounded-2xl px-2 text-sm">{{item.get_status_display}}</div>
+            </div>
+        </div>
+    </div>
+</a>
