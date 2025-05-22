@@ -16,7 +16,7 @@ env = Env()
 
 # Load .env file if available
 # Some hosting environments may not require or expect a .env file
-# for platform.sh, we could remove the env.platform and instead set environment variables via the CLI/UI
+# for platform.sh, we could remove the env.platform and instead set environment variables via the CLI/UI and
 # its possible this may be the preferred approach down the road, so adding this check to prevent issues later
 env_file = Path(__file__).resolve().parent.parent.parent / ".env"
 if env_file.exists():

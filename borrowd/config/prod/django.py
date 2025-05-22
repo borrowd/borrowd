@@ -16,7 +16,7 @@ DEBUG = False
 
 # Helper function for decoding base64-encoded JSON variables.
 # There is a platform.sh helper package for reading config variables: https://github.com/platformsh/config-reader-python
-# but I didn't think it was worth adding another dependency at this point.
+# but not sure it is worth adding another dependency at this point.
 def decode(variable: str):  # type: ignore
     """Decodes a Platform.sh environment variable.
     Args:
