@@ -9,10 +9,15 @@ specific only to them.
 """
 
 from pathlib import Path
+
 from environ import Env
 
 env = Env()
 
-env.read_env(
-    Path(__file__).resolve().parent.parent.parent / ".env", parse_comments=True
-)
+# Load .env file if available
+# Some hosting environments may not require or expect a .env file
+# for platform.sh, we could remove the env.platform and instead set environment variables via the CLI/UI
+# its possible this may be the preferred approach down the road, so adding this check to prevent issues later
+env_file = Path(__file__).resolve().parent.parent.parent / ".env"
+if env_file.exists():
+    env.read_env(env_file, parse_comments=True)
