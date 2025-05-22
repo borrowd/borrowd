@@ -9,7 +9,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
      <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
 </head>
-<body x-data class="flex flex-col min-h-screen">
+<body x-data class="flex flex-col min-h-screen" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
 
     {% include "includes/messages.html" %}
     {% include "includes/header.html" %}
@@ -18,5 +18,6 @@
     {% endblock %}
 
     {% include "includes/footer.html" %}
+    <script src="https://unpkg.com/htmx.org@1.9.3"></script>
 </body>
 </html>
