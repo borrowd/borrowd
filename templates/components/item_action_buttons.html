@@ -1,5 +1,0 @@
-{% for action in item_actions %}
-    <button type="button" onclick="{% url 'item-borrow' item.pk %}">
-        {{ action.label }}
-    </button>
-{% endfor %}

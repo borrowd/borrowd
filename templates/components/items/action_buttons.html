@@ -1,0 +1,16 @@
+<ul>
+    {% for action in item_actions %}
+        <li>
+            <button
+                type="button"
+                hx-post="{% url 'item-borrow' item.pk %}"
+                hx-vals='{"action": "{{ action.name }}"}'
+                hx-trigger="click"
+                hx-swap="outerHTML"
+                hx-target="closest ul"
+            >
+                {{ action.label }}
+            </button>
+        </li>
+    {% endfor %}
+</ul>
