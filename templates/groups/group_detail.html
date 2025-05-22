@@ -2,15 +2,10 @@
 {% block head_title %}Group Details{% endblock %}
 
 {% block groups_content %}
-<c-box>
+<c-box class="mb-4">
     {% if object.banner %}
         <img src="{{ object.banner.url }}" alt="Group Banner Image" class="w-full max-h-[200px] mb-4">
     {% endif %}
-    <!-- Groups profile brief:
-     - Details (name, description, profile image)
-     - Members
-     - Invite link
-    -->
      <div class="flex flex-col h-full">
         <div class="flex">
             {% if object.logo %}
@@ -22,22 +17,26 @@
                 <c-h1>{{ object.name }}</c-h1>
             {% endif %}
         </div>
-        <p class="text-gray-700 mb-4"><b>Description:</b> {{ object.description }}</p>
-        <p class="text-gray-700 mb-4"><b>Membership requires approval:</b> {{ object.membership_requires_approval|yesno:"Yes,No" }}</p>
-        <c-button-nav url="{% url 'borrowd_groups:group-invite' object.pk %}">
-            Get Invite Link
-        </c-button-nav>
-        <c-h2>Members</c-h2>
-        <ul class="list-disc list-inside mb-4">
-            {% for member in object.users.all %}
-                <li>{{ member.username }}</li>
-            {% empty %}
-                <li>No members yet.</li>
-            {% endfor %}
-        </ul>
-        <c-button-nav url="{% url 'borrowd_groups:group-edit' object.pk %}">
-            Edit Group
-        </c-button-nav>
+        <p class="text-gray-700 mb-4">{{ object.description }}</p>
+        <p class="text-gray-500">{{ object.users.count }} members</p>
+        <div class="relative my-4 -mx-4 md:-mx-8">
+            <hr class="border-t border-gray-200 w-full">
+        </div>
+        <div>
+            <c-button-nav url="{% url 'borrowd_groups:group-invite' object.pk %}">
+                Get Invite Link
+            </c-button-nav>
+            <!-- only moderators can edit Group -->
+            {% if is_moderator %}
+            <c-button-nav url="{% url 'borrowd_groups:group-edit' object.pk %}">
+                Edit Group
+            </c-button-nav>
+            {% endif %}
+
+        </div>
     </div>
+</c-box>
+<c-box>
+    <c-groups.members-list :members="members_data" />
 </c-box>
 {% endblock %}

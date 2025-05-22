@@ -1,0 +1,24 @@
+<div class="flex items-center py-3 px-8">
+    <div class="member-avatar mr-3">
+      {% if member.profile_image %}
+      <img src="{{ member.profile_image.url }}" alt="{{ member.name }}" class="h-10 w-10 rounded-full object-cover">
+      {% else %}
+      <!-- Default to just a blank gray avatar circle for now -->
+      <div class="h-10 w-10 rounded-full bg-gray-200">
+      </div>
+      {% endif %}
+    </div>
+    <div class="flex-grow">
+      <div class="font-medium">{{ member.username }}</div>
+      <div class="text-sm text-gray-500">{{ member.role }}</div>
+    </div>
+    <!-- todo: member actions -->
+    <div>
+      <button class="text-gray-400 hover:text-gray-600 focus:outline-none">
+          <!-- super ugly, but draws a nice vertical 3-dot for now, will be replaced with proper icon library -->
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+          <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+        </svg>
+      </button>
+    </div>
+  </div>
