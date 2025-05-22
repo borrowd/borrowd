@@ -79,7 +79,7 @@ class RejectedFlowTest(SimpleTestCase):
         cls.borrower.delete()
         super().tearDownClass()
 
-    def test_010_borrower_action_options_initial_state(self) -> None:
+    def test_010_borrower_item_actions_initial_state(self) -> None:
         """
         Borrower's initial option is to Request Item.
         """
@@ -103,18 +103,18 @@ class RejectedFlowTest(SimpleTestCase):
         # mypy doesn't know that.
         if not hasattr(response, "context_data"):
             self.fail("Response should have context_data")
-        action_options = response.context_data["action_options"]
+        item_actions = response.context_data["item_actions"]
 
         #
         # Assert
         #
         ## Check if the owner can see the item
         self.assertTupleEqual(
-            action_options,
+            item_actions,
             (ItemAction.REQUEST_ITEM,),
         )
 
-    def test_020_lender_action_options_initial_state(self) -> None:
+    def test_020_lender_item_actions_initial_state(self) -> None:
         """
         Lender can't borrow their own item.
         """
@@ -138,13 +138,13 @@ class RejectedFlowTest(SimpleTestCase):
         # mypy doesn't know that.
         if not hasattr(response, "context_data"):
             self.fail("Response should have context_data")
-        action_options = response.context_data["action_options"]
+        item_actions = response.context_data["item_actions"]
 
         #
         # Assert
         #
         ## No action options for the lender at this point
-        self.assertTupleEqual(action_options, tuple())
+        self.assertTupleEqual(item_actions, tuple())
 
     def test_030_borrower_request_item_action(self) -> None:
         """
@@ -186,7 +186,7 @@ class RejectedFlowTest(SimpleTestCase):
             "Cancel Request",
         )
 
-    def test_040_lender_action_options_following_request(self) -> None:
+    def test_040_lender_item_actions_following_request(self) -> None:
         """
         Once Item is Requested, Lender can Accept or Reject.
         """
@@ -210,14 +210,14 @@ class RejectedFlowTest(SimpleTestCase):
         # mypy doesn't know that.
         if not hasattr(response, "context_data"):
             self.fail("Response should have context_data")
-        action_options = response.context_data["action_options"]
+        item_actions = response.context_data["item_actions"]
 
         #
         # Assert
         #
         ## Check if the owner can see the item
         self.assertTupleEqual(
-            action_options,
+            item_actions,
             (
                 ItemAction.ACCEPT_REQUEST,
                 ItemAction.REJECT_REQUEST,

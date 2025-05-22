@@ -5,6 +5,7 @@
 <c-box>
     <c-h1>{{ object.name }}</c-h1>
     <p>{{ object.description }}</p>
+    <c-items.action-buttons />
 
     <c-gallery>
     {% for photo in view.object.photos.all %}

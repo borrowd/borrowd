@@ -69,6 +69,7 @@ def borrow_item(request: HttpRequest, pk: int) -> HttpResponse:
         )
 
     try:
+        req_action = req_action.upper()
         item.process_action(user=user, action=ItemAction(req_action))
     except InvalidItemAction as e:
         return HttpResponse(str(e), status=400)
@@ -83,7 +84,7 @@ def borrow_item(request: HttpRequest, pk: int) -> HttpResponse:
 
     return render(
         request,
-        template_name="components/item_action_buttons.html",
+        template_name="components/items/action_buttons.html",
         context={
             "item": item,
             "item_actions": next_actions,
@@ -120,7 +121,7 @@ class ItemDetailView(BorrowdTemplateFinderMixin, DetailView[Item]):
     def get_context_data(self, **kwargs: str) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
         user: BorrowdUser = self.request.user  # type: ignore[assignment]
-        context["action_options"] = self.object.get_actions_for(user=user)
+        context["item_actions"] = self.object.get_actions_for(user=user)
         return context
 
 

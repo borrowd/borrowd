@@ -29,14 +29,14 @@ class ItemAction(TextChoices):
     user when viewing an Item.
     """
 
-    REQUEST_ITEM = "request_item", "Request Item"
-    ACCEPT_REQUEST = "accept_request", "Accept Request"
-    REJECT_REQUEST = "reject_request", "Reject Request"
-    MARK_COLLECTED = "mark_collected", "Mark Collected"
-    CONFIRM_COLLECTED = "confirm_collected", "Confirm Collected"
-    MARK_RETURNED = "mark_returned", "Mark Returned"
-    CONFIRM_RETURNED = "confirm_returned", "Confirm Returned"
-    CANCEL_REQUEST = "cancel_request", "Cancel Request"
+    REQUEST_ITEM = "REQUEST_ITEM", "Request Item"
+    ACCEPT_REQUEST = "ACCEPT_REQUEST", "Accept Request"
+    REJECT_REQUEST = "REJECT_REQUEST", "Reject Request"
+    MARK_COLLECTED = "MARK_COLLECTED", "Mark Collected"
+    CONFIRM_COLLECTED = "CONFIRM_COLLECTED", "Confirm Collected"
+    MARK_RETURNED = "MARK_RETURNED", "Mark Returned"
+    CONFIRM_RETURNED = "CONFIRM_RETURNED", "Confirm Returned"
+    CANCEL_REQUEST = "CANCEL_REQUEST", "Cancel Request"
 
 
 class ItemCategory(Model):
@@ -212,6 +212,7 @@ class Item(Model):
                     status__in=[
                         TransactionStatus.RETURNED,
                         TransactionStatus.REJECTED,
+                        TransactionStatus.CANCELLED,
                     ]
                 )
             )
