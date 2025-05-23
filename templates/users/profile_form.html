@@ -20,9 +20,9 @@
 
         <div class="flex gap-4 pt-5">
             <c-button type="submit">{% trans "Save" %}</c-button>
-            <c-button>
-                <a href="{% url 'profile' %}">{% trans "Cancel" %}</a>
-            </c-button>
+            <c-button-nav url="{% url 'profile' %}">
+                {% trans "Cancel" %}
+            </c-button-nav>
         </div>
     </form>
 </div>

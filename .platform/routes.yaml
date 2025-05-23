@@ -1,0 +1,11 @@
+# Each route describes how an incoming URL is going to be processed by Platform.sh.
+
+# standard route
+"https://www.{default}/":
+    type: upstream
+    upstream: "borrowd:http"
+
+# redirect non-www to www
+"https://{default}/":
+    type: redirect
+    to: "https://www.{default}/"
