@@ -9,7 +9,7 @@
             </a>
         </div>
         {% if user.is_authenticated %}
-        <ul class="flex space-x-8 items-center">
+        <ul class="flex flex-col md:flex-row text-center md:space-x-8 items-center">
             <li>
                 <a class="hover:underline" href="{% url 'item-list' %}"><c-h1>Items</c-h1></a>
             </li>
