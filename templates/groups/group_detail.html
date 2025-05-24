@@ -4,7 +4,9 @@
 {% block groups_content %}
 <c-box class="mb-4">
     {% if object.banner %}
-        <img src="{{ object.banner.url }}" alt="Group Banner Image" class="w-full max-h-[200px] mb-4">
+    <div class="-mx-4 md:-mx-8 -mt-4 md:-mt-8 mb-4"> <!-- this to counteract automatic c-box padding -->
+        <img src="{{ object.banner.url }}" alt="Group Banner Image" class="w-full max-h-[200px] object-cover rounded-t-lg">
+    </div>
     {% endif %}
      <div class="flex flex-col h-full">
         <div class="flex">
@@ -28,11 +30,10 @@
             </c-button-nav>
             <!-- only moderators can edit Group -->
             {% if is_moderator %}
-            <c-button-nav url="{% url 'borrowd_groups:group-edit' object.pk %}">
+            <c-button-nav url="{% url 'borrowd_groups:group-edit' object.pk %}" class="bg-orange-500 hover:bg-orange-600 text-white">
                 Edit Group
             </c-button-nav>
             {% endif %}
-
         </div>
     </div>
 </c-box>
