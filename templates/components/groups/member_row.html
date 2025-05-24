@@ -1,7 +1,7 @@
 <div class="flex items-center py-3 px-8">
     <div class="member-avatar mr-3">
       {% if member.profile_image %}
-      <c-avatar src="{{ member.profile_image.url }}" alt="{{ member.name }}" />
+      <c-avatar src="{{ member.profile_image.url }}" alt="{{ member.username }}" />
       {% else %}
       <!-- Default to just a blank gray avatar circle for now -->
       <div class="h-10 w-10 rounded-full bg-gray-200">
