@@ -18,7 +18,10 @@ class AddUsersToGroupsTests(TestCase):
             )
             ## Create a group
             group: BorrowdGroup = BorrowdGroup.objects.create(
-                name="Group", created_by=user1, updated_by=user1
+                name="Group",
+                created_by=user1,
+                updated_by=user1,
+                membership_requires_approval=False,
             )
 
             # Act
@@ -39,10 +42,16 @@ class AddUsersToGroupsTests(TestCase):
         #   type "Group", variable has type "BorrowdGroup")  [assignment]
         # Don't have time to chase down the specifics.
         group1: BorrowdGroup = BorrowdGroup.objects.create(
-            name="Group 1", created_by=user1, updated_by=user1
+            name="Group 1",
+            created_by=user1,
+            updated_by=user1,
+            membership_requires_approval=False,
         )
         group2: BorrowdGroup = BorrowdGroup.objects.create(
-            name="Group 2", created_by=user2, updated_by=user2
+            name="Group 2",
+            created_by=user2,
+            updated_by=user2,
+            membership_requires_approval=False,
         )
 
         # Assert
@@ -68,7 +77,10 @@ class AddUsersToGroupsTests(TestCase):
 
         ## Create a group
         group: BorrowdGroup = BorrowdGroup.objects.create(
-            name="Group", created_by=user1, updated_by=user1
+            name="Group",
+            created_by=user1,
+            updated_by=user1,
+            membership_requires_approval=False,
         )
 
         # Act

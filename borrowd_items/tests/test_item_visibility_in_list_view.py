@@ -95,6 +95,7 @@ class ItemListViewVisibilityTests(TestCase):
             created_by=owner,
             updated_by=owner,
             trust_level=TrustLevel.HIGH,
+            membership_requires_approval=False,
         )
         group.add_user(member, trust_level=TrustLevel.LOW)
 
@@ -148,6 +149,7 @@ class ItemListViewVisibilityTests(TestCase):
             created_by=owner,
             updated_by=owner,
             trust_level=TrustLevel.HIGH,
+            membership_requires_approval=False,
         )
         group.add_user(member, trust_level=TrustLevel.LOW)
 
@@ -212,6 +214,7 @@ class ItemListViewVisibilityTests(TestCase):
             created_by=owner,
             updated_by=owner,
             trust_level=TrustLevel.MEDIUM,
+            membership_requires_approval=False,
         )
         ## Member trusts the group a lot, although that doesn't matter
         ## for the purposes of this test.

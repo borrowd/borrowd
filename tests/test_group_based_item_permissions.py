@@ -32,10 +32,11 @@ class GroupBasedItemPermissionsTests(TestCase):
         # Arrange
         owner = self.owner
         ## Create a group and add the owner to it
-        # Not sure why mypy complains here; intellisense seems able
-        # to infer the output of BorrowdGroup.create() correctly.
         group: BorrowdGroup = BorrowdGroup.objects.create(
-            name="Test Group", created_by=owner, updated_by=owner
+            name="Test Group",
+            created_by=owner,
+            updated_by=owner,
+            membership_requires_approval=False,
         )
 
         ## Owner creates an Item
@@ -57,7 +58,10 @@ class GroupBasedItemPermissionsTests(TestCase):
         owner = self.owner
         ## Create a group and add the owner to it
         group: BorrowdGroup = BorrowdGroup.objects.create(
-            name="Test Group", created_by=owner, updated_by=owner
+            name="Test Group",
+            created_by=owner,
+            updated_by=owner,
+            membership_requires_approval=False,
         )
 
         ## Create another user who is a member of the group
@@ -81,7 +85,10 @@ class GroupBasedItemPermissionsTests(TestCase):
 
         ## Create a group and add the owner to it
         group: BorrowdGroup = BorrowdGroup.objects.create(
-            name="Test Group", created_by=owner, updated_by=owner
+            name="Test Group",
+            created_by=owner,
+            updated_by=owner,
+            membership_requires_approval=False,
         )
 
         ## Create an item and assign it to the owner
@@ -113,6 +120,7 @@ class GroupBasedItemPermissionsTests(TestCase):
             created_by=owner,
             updated_by=owner,
             trust_level=TrustLevel.LOW,
+            membership_requires_approval=False,
         )
 
         # Act
@@ -132,7 +140,10 @@ class GroupBasedItemPermissionsTests(TestCase):
 
         ## Create a group and add the owner to it
         group: BorrowdGroup = BorrowdGroup.objects.create(
-            name="Test Group", created_by=owner, updated_by=owner
+            name="Test Group",
+            created_by=owner,
+            updated_by=owner,
+            membership_requires_approval=False,
         )
 
         ## Create an item and assign it to the owner
@@ -162,7 +173,10 @@ class GroupBasedItemPermissionsTests(TestCase):
 
         ## Create a group and add the owner to it
         group: BorrowdGroup = BorrowdGroup.objects.create(
-            name="Test Group", created_by=owner, updated_by=owner
+            name="Test Group",
+            created_by=owner,
+            updated_by=owner,
+            membership_requires_approval=False,
         )
         group.add_user(member, trust_level=TrustLevel.LOW)
 
@@ -185,7 +199,10 @@ class GroupBasedItemPermissionsTests(TestCase):
 
         ## Create a group and add the owner to it with a HIGH trust level
         group: BorrowdGroup = BorrowdGroup.objects.create(
-            name="Test Group", created_by=owner, updated_by=owner
+            name="Test Group",
+            created_by=owner,
+            updated_by=owner,
+            membership_requires_approval=False,
         )
 
         # Act
@@ -212,7 +229,10 @@ class GroupBasedItemPermissionsTests(TestCase):
 
         ## Create a group and add the owner to it with a HIGH trust level
         group: BorrowdGroup = BorrowdGroup.objects.create(
-            name="Test Group", created_by=owner, updated_by=owner, trust_level=True
+            name="Test Group",
+            created_by=owner,
+            updated_by=owner,
+            trust_level=TrustLevel.LOW,
         )
 
         # Act
@@ -293,7 +313,9 @@ class GroupBasedItemPermissionsTests(TestCase):
 
         ## Create a group and add the member
         group: BorrowdGroup = BorrowdGroup.objects.create(
-            name="Test Group", created_by=owner, updated_by=owner
+            created_by=owner,
+            updated_by=owner,
+            membership_requires_approval=False,
         )
         group.add_user(member, trust_level=TrustLevel.LOW)
 
@@ -319,7 +341,10 @@ class GroupBasedItemPermissionsTests(TestCase):
 
         ## Create a group (owner is automatically a member)
         group: BorrowdGroup = BorrowdGroup.objects.create(
-            name="Test Group", created_by=owner, updated_by=owner
+            name="Test Group",
+            created_by=owner,
+            updated_by=owner,
+            membership_requires_approval=False,
         )
 
         ## Create an item
@@ -345,13 +370,19 @@ class GroupBasedItemPermissionsTests(TestCase):
 
         ## Create a group and add the member
         group1: BorrowdGroup = BorrowdGroup.objects.create(
-            name="Test Group1", created_by=owner, updated_by=owner
+            name="Test Group1",
+            created_by=owner,
+            updated_by=owner,
+            membership_requires_approval=False,
         )
         group1.add_user(member, trust_level=TrustLevel.LOW)
 
         ## Same again with another group
         group2: BorrowdGroup = BorrowdGroup.objects.create(
-            name="Test Group2", created_by=owner, updated_by=owner
+            name="Test Group2",
+            created_by=owner,
+            updated_by=owner,
+            membership_requires_approval=False,
         )
         group2.add_user(member, trust_level=TrustLevel.LOW)
 
