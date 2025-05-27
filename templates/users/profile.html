@@ -12,7 +12,7 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-4">
         {% for item in user_items %}
             {% load static %}
-            <c-item-box :item="{{ item }}" box_size='sm' />
+            <c-items.item-box :item="{{ item }}" box_size='sm' />
         {% endfor %}
         </div>
     </div>
