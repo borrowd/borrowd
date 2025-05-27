@@ -1,7 +1,16 @@
 {% load static %}
 
 <a href="{% url 'item-detail' item.pk %}" class="block no-underline">
-    <div class="bg-gray-100 shadow-md rounded-lg w-[300px] h-[300px] lg:w-[230px] lg:h-[230px] hover:-translate-y-2 transition-all duration-300 ease-in-out">
+    {% with box_size=box_size|default:'md' %} {# Define box_size with a default #}
+    <div class="bg-gray-100 shadow-md rounded-lg hover:-translate-y-2 transition-all duration-300 ease-in-out
+        {% if box_size == 'sm' %}
+            w-[200px] h-[250px]
+        {% elif box_size == 'lg' %}
+            w-[400px] h-[400px]
+        {% else %} {# Default to md #}
+            w-[300px] h-[300px] lg:w-[230px] lg:h-[230px]
+        {% endif %}
+    ">
         <div class="relative w-full h-full">
             <!-- todo: map default images by item category (will require comprehensive default category images) -->
             <img src="{{ item.photos.all.0.image.url|default:'/static/items/categories/logo-tools.png' }}" class="w-full h-1/2 object-cover" alt="{{ item.name|default:'Default item image' }}" />
@@ -17,4 +26,5 @@
             </div>
         </div>
     </div>
+    {% endwith %}
 </a>
