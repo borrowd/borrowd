@@ -9,46 +9,60 @@
     <!-- User's Items -->
     <div>
         <c-h2>Your Items</c-h2>
-        <ul class="list-disc list-inside space-y-3">
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
         {% for item in user_items %}
-            <li><a class="text-blue-700 hover:underline" href="{{ item.get_absolute_url }}">{{ item.name }}</a></li>
+            {% load static %}
+            <c-item-box :item="{{ item }}" />
         {% endfor %}
+        </div>
     </div>
     <!-- Settings Section -->
     <div class="mt-6">
         <c-h2>{% trans "Settings" %}</c-h2>
-        <ul class="space-y-3">
+        <ul class=" flex flex-row items-center gap-2">
             <li>
-                <a href="{% url 'profile-edit' %}" class="block text-blue-600 hover:underline">{% trans "Edit Profile" %}</a>
+                <c-button-nav url="{% url 'profile-edit' %}">
+                    {% trans "Edit Profile" %}
+                </c-button-nav>
             </li>
             {% url 'account_email' as email_url_ %}
             {% if email_url_ %}
                 <li>
-                    <a href="{{ email_url_ }}" class="block text-blue-600 hover:underline">{% trans "Change Email" %}</a>
+                    <c-button-nav url="{{ email_url_ }}">
+                        {% trans "Change Email" %}
+                    </c-button-nav>
                 </li>
             {% endif %}
             {% url 'account_change_password' as change_password_url_ %}
             {% if change_password_url_ %}
                 <li>
-                    <a href="{{ change_password_url_ }}" class="block text-blue-600 hover:underline">{% trans "Change Password" %}</a>
+                    <c-button-nav url="{{ change_password_url_ }}">
+                        {% trans "Change Password" %}
+                    </c-button-nav>
                 </li>
             {% endif %}
             {% url 'socialaccount_connections' as connections_url_ %}
             {% if connections_url_ %}
                 <li>
-                    <a href="{{ connections_url_ }}" class="block text-blue-600 hover:underline">{% trans "Account Connections" %}</a>
+                    <c-button-nav url="{{ connections_url_ }}">
+                        {% trans "Account Connections" %}
+                    </c-button-nav>
                 </li>
             {% endif %}
             {% url 'mfa_index' as mfa_url_ %}
             {% if mfa_url_ %}
                 <li>
-                    <a href="{{ mfa_url_ }}" class="block text-blue-600 hover:underline">{% trans "Two-Factor Authentication" %}</a>
+                    <c-button-nav url="{{ mfa_url_ }}">
+                        {% trans "Two-Factor Authentication" %}
+                    </c-button-nav>
                 </li>
             {% endif %}
             {% url 'usersessions_list' as usersessions_list_url_ %}
             {% if usersessions_list_url_ %}
                 <li>
-                    <a href="{{ usersessions_list_url_ }}" class="block text-blue-600 hover:underline">{% trans "Sessions" %}</a>
+                    <c-button-nav url="{{ usersessions_list_url_ }}">
+                        {% trans "Sessions" %}
+                    </c-button-nav>
                 </li>
             {% endif %}
         </ul>
