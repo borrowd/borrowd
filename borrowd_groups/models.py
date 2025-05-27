@@ -120,15 +120,22 @@ class BorrowdGroup(Group, GuardianGroupMixin):  # type: ignore[misc]
         """
         Add a user to the group.
         """
+        # TODO: Check for suspended, banned etc.
         if Membership.objects.filter(user=user, group=self).exists():
             raise ExistingMemberException(
                 (f"User '{user}' is already a member of group '{self}'")
             )
 
+        if self.membership_requires_approval:
+            default_status = MembershipStatus.PENDING
+        else:
+            default_status = MembershipStatus.ACTIVE
+
         membership: Membership = Membership.objects.create(
             user=user,
             group=self,
             trust_level=trust_level,
+            status=default_status,
             is_moderator=is_moderator,
         )
 
@@ -167,9 +174,11 @@ class BorrowdGroup(Group, GuardianGroupMixin):  # type: ignore[misc]
 
 
 class MembershipStatus(TextChoices):
-    ACTIVE = ("active", "Active")
-    SUSPENDED = ("suspended", "Suspended")
-    BANNED = ("banned", "Banned")
+    PENDING = ("PENDING", "Pending")
+    ACTIVE = ("ACTIVE", "Active")
+    SUSPENDED = ("SUSPENDED", "Suspended")
+    BANNED = ("BANNED", "Banned")
+    ENDED = ("ENDED", "Ended")
 
 
 class Membership(Model):
@@ -203,7 +212,6 @@ class Membership(Model):
     )
     status: TextField[MembershipStatus, str] = TextField(
         choices=MembershipStatus.choices,
-        default=MembershipStatus.ACTIVE,
         null=False,
         blank=False,
     )
