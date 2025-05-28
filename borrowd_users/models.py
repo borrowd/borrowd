@@ -8,14 +8,18 @@ from borrowd_groups.mixins import BorrowdGroupPermissionMixin
 
 # No typing for django-guardian, so mypy doesn't like us subclassing.
 class BorrowdUser(AbstractUser, BorrowdGroupPermissionMixin, GuardianUserMixin):  # type: ignore[misc]
-    groups = models.ManyToManyField(
-        "borrowd_groups.BorrowdGroup",
-        blank=True,
-        help_text="The groups this user belongs to.",
-        related_name="user_set",
-        related_query_name="user",
-        through="borrowd_groups.Membership",
-    )
+    """
+    Borrow'd's custom user model, extending Django's AbstractUser.
+
+    This class is currently _empty_. We originally created it in
+    order to specify a custom model for Group permissions, but we
+    have since moved away from that approach.
+
+    Still, keeping this custom user model in case we want to extend
+    it later.
+    """
+
+    pass
 
 
 class Profile(models.Model):

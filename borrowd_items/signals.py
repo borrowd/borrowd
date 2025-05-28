@@ -1,3 +1,4 @@
+from django.contrib.auth.models import Group
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from guardian.shortcuts import assign_perm
@@ -27,7 +28,10 @@ def assign_item_permissions(
         # mypy struggling a bit here again, even though intellisense
         # knows that Item.owner (BorrowedUser) does indeed have a
         # a Groups accessor.
-        allowed_groups = instance.owner.groups.filter(  # type: ignore[attr-defined]
+        allowed_borrowd_groups = instance.owner.borrowd_groups.filter(  # type: ignore[attr-defined]
             membership__trust_level__gte=instance.trust_level_required
+        )
+        allowed_groups = Group.objects.filter(
+            name__in=allowed_borrowd_groups.values_list("name", flat=True)
         )
         assign_perm("view_this_item", allowed_groups, instance)

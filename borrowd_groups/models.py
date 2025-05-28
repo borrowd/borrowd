@@ -1,14 +1,16 @@
 from typing import Any, Never  # Unfortunately needed for more mypy shenanigans
 
-from django.contrib.auth.models import Group, GroupManager
+from django.contrib.auth.models import Group
 from django.db.models import (
     CASCADE,
     DO_NOTHING,
     BooleanField,
+    CharField,
     DateTimeField,
     ForeignKey,
     ImageField,
     IntegerField,
+    Manager,
     ManyToManyField,
     Model,
     TextChoices,
@@ -16,15 +18,13 @@ from django.db.models import (
     UniqueConstraint,
 )
 from django.urls import reverse
-from guardian.mixins import GuardianGroupMixin
-from guardian.models import GroupObjectPermissionAbstract
 
 from borrowd.models import TrustLevel
 from borrowd_groups.exceptions import ExistingMemberException
 from borrowd_users.models import BorrowdUser
 
 
-class BorrowdGroupManager(GroupManager):
+class BorrowdGroupManager(Manager["BorrowdGroup"]):
     def create(
         self,
         **kwargs: Any,
@@ -58,14 +58,14 @@ class BorrowdGroupManager(GroupManager):
         return group
 
 
-# No typing for django-guardian, so mypy doesn't like us subclassing.
-class BorrowdGroup(Group, GuardianGroupMixin):  # type: ignore[misc]
+class BorrowdGroup(Model):
     """
     A group of users. This is a subclass of Django's built-in Group
     model. There is no clean and widely-accepted way of using a
     custom group model in Django, but this is a common way to start.
     """
 
+    name: CharField[str, str] = CharField(max_length=150, unique=True)
     description: TextField[Never, Never] = TextField(blank=True, null=True)
     logo: ImageField = ImageField(upload_to="groups/logos", null=True, blank=True)
     banner: ImageField = ImageField(upload_to="groups/banners", null=True, blank=True)
@@ -77,6 +77,8 @@ class BorrowdGroup(Group, GuardianGroupMixin):  # type: ignore[misc]
         BorrowdUser,
         blank=True,
         help_text="The users in this group.",
+        related_name="borrowd_groups",
+        related_query_name="borrowd_groups",
         through="borrowd_groups.Membership",
     )
     created_by: ForeignKey[BorrowdUser] = ForeignKey(
@@ -139,12 +141,17 @@ class BorrowdGroup(Group, GuardianGroupMixin):  # type: ignore[misc]
             is_moderator=is_moderator,
         )
 
+        perms_group = Group.objects.get(name=self.name)
+        user.groups.add(perms_group)
+
         return membership
 
     def remove_user(self, user: BorrowdUser) -> None:
         """
         Remove a user from the group.
         """
+        perms_group = Group.objects.get(name=self.name)
+        user.groups.remove(perms_group)
         Membership.objects.get(user=user, group=self).delete()
 
     def update_user_membership(
@@ -238,11 +245,3 @@ class Membership(Model):
         constraints = [
             UniqueConstraint(fields=["user", "group"], name="unique_membership")
         ]
-
-
-# No typing for django-guardian, so mypy doesn't like us subclassing.
-class BorrowdGroupObjectPermission(GroupObjectPermissionAbstract):  # type: ignore[misc]
-    group: ForeignKey[BorrowdGroup] = ForeignKey(BorrowdGroup, on_delete=CASCADE)
-
-    class Meta(GroupObjectPermissionAbstract.Meta):  # type: ignore[misc]
-        abstract = False

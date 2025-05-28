@@ -1,3 +1,4 @@
+from django.contrib.auth.models import Group
 from django.test import TestCase
 from guardian.shortcuts import get_perms
 
@@ -198,12 +199,13 @@ class GroupBasedItemPermissionsTests(TestCase):
         owner = self.owner
 
         ## Create a group and add the owner to it with a HIGH trust level
-        group: BorrowdGroup = BorrowdGroup.objects.create(
+        borrowd_group: BorrowdGroup = BorrowdGroup.objects.create(
             name="Test Group",
             created_by=owner,
             updated_by=owner,
             membership_requires_approval=False,
         )
+        perms_group = Group.objects.get(name=borrowd_group.name)
 
         # Act
         ## Create an Items with low, med and high levels
@@ -219,21 +221,22 @@ class GroupBasedItemPermissionsTests(TestCase):
 
         # Assert
         ## Check the group can see all three of these Items, given its High trust level
-        self.assertTrue("view_this_item" in get_perms(group, item1))
-        self.assertTrue("view_this_item" in get_perms(group, item2))
-        self.assertTrue("view_this_item" in get_perms(group, item3))
+        self.assertTrue("view_this_item" in get_perms(perms_group, item1))
+        self.assertTrue("view_this_item" in get_perms(perms_group, item2))
+        self.assertTrue("view_this_item" in get_perms(perms_group, item3))
 
     def test_item_not_visible_to_groups_with_lower_trust_level(self) -> None:
         # Arrange
         owner = self.owner
 
         ## Create a group and add the owner to it with a HIGH trust level
-        group: BorrowdGroup = BorrowdGroup.objects.create(
+        borrowd_group: BorrowdGroup = BorrowdGroup.objects.create(
             name="Test Group",
             created_by=owner,
             updated_by=owner,
             trust_level=TrustLevel.LOW,
         )
+        perms_group = Group.objects.get(name=borrowd_group.name)
 
         # Act
         ## Create an Items with low, med and high levels
@@ -249,18 +252,19 @@ class GroupBasedItemPermissionsTests(TestCase):
 
         # Assert
         ## Check the group can only see item1, since it only has a LOW trust level
-        self.assertTrue("view_this_item" in get_perms(group, item1))
-        self.assertFalse("view_this_item" in get_perms(group, item2))
-        self.assertFalse("view_this_item" in get_perms(group, item3))
+        self.assertTrue("view_this_item" in get_perms(perms_group, item1))
+        self.assertFalse("view_this_item" in get_perms(perms_group, item2))
+        self.assertFalse("view_this_item" in get_perms(perms_group, item3))
 
     def test_item_visibility_revoked_when_group_trust_lowered(self) -> None:
         # Arrange
         owner = self.owner
 
         ## Create a group and add the owner to it with a HIGH trust level
-        group: BorrowdGroup = BorrowdGroup.objects.create(
+        borrowd_group: BorrowdGroup = BorrowdGroup.objects.create(
             name="Test Group", created_by=owner, updated_by=owner
         )
+        perms_group = Group.objects.get(name=borrowd_group.name)
 
         ## Create an item with a HIGH trust level
         item = Item.objects.create(
@@ -268,27 +272,28 @@ class GroupBasedItemPermissionsTests(TestCase):
         )
 
         # Assert initial visibility
-        self.assertTrue("view_this_item" in get_perms(group, item))
+        self.assertTrue("view_this_item" in get_perms(perms_group, item))
 
         # Act
         ## Lower the group's trust level
-        group.update_user_membership(owner, TrustLevel.LOW)
+        borrowd_group.update_user_membership(owner, TrustLevel.LOW)
 
         # Assert
         ## Check that the group can no longer see the item
-        self.assertFalse("view_this_item" in get_perms(group, item))
+        self.assertFalse("view_this_item" in get_perms(perms_group, item))
 
     def test_item_visibility_granted_when_group_trust_raised(self) -> None:
         # Arrange
         owner = self.owner
 
         ## Create a group and add the owner to it with a HIGH trust level
-        group: BorrowdGroup = BorrowdGroup.objects.create(
+        borrowd_group: BorrowdGroup = BorrowdGroup.objects.create(
             name="Test Group",
             created_by=owner,
             updated_by=owner,
             trust_level=TrustLevel.LOW,
         )
+        perms_group = Group.objects.get(name=borrowd_group.name)
 
         ## Create an item with a HIGH trust level
         item = Item.objects.create(
@@ -296,15 +301,15 @@ class GroupBasedItemPermissionsTests(TestCase):
         )
 
         # Assert initial visibility
-        self.assertFalse("view_this_item" in get_perms(group, item))
+        self.assertFalse("view_this_item" in get_perms(perms_group, item))
 
         # Act
         ## Raise the group's trust level
-        group.update_user_membership(owner, TrustLevel.HIGH)
+        borrowd_group.update_user_membership(owner, TrustLevel.HIGH)
 
         # Assert
         ## Check that the group can no longer see the item
-        self.assertTrue("view_this_item" in get_perms(group, item))
+        self.assertTrue("view_this_item" in get_perms(perms_group, item))
 
     def test_item_visibility_revoked_when_group_deleted(self) -> None:
         # Arrange
@@ -402,4 +407,6 @@ class GroupBasedItemPermissionsTests(TestCase):
         ## Member should still be able to see the item
         ## because of group2
         self.assertTrue(member.has_perm("view_this_item", item))
-        self.assertTrue("view_this_item" in get_perms(group2, item))
+        self.assertTrue(
+            "view_this_item" in get_perms(Group.objects.get(name=group2.name), item)
+        )

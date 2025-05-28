@@ -32,7 +32,7 @@ class RemoveUsersFromGroupsTests(TestCase):
 
         # Assert
         ## The user is no longer in the group
-        self.assertEqual(list(member.groups.all()), [])
+        self.assertEqual(list(member.borrowd_groups.all()), [])
         ## The group no longer contains the user
         self.assertEqual(list(group.users.all()), [user])
 
@@ -62,8 +62,8 @@ class RemoveUsersFromGroupsTests(TestCase):
         ## Last remaining moderator is still in the group
         self.assertEqual(list(group.users.all()), [user3])
         ## Owner and second member no longer in the group
-        self.assertEqual(list(user1.groups.all()), [])
-        self.assertEqual(list(user2.groups.all()), [])
+        self.assertEqual(list(user1.borrowd_groups.all()), [])
+        self.assertEqual(list(user2.borrowd_groups.all()), [])
 
     def test_remove_user_not_in_group(self) -> None:
         # Arrange
