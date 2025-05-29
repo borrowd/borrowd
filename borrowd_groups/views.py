@@ -1,13 +1,15 @@
 from collections import namedtuple
-from typing import Any
+from typing import Any, cast
 
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.core.mail import send_mail
 from django.core.signing import SignatureExpired, TimestampSigner
 from django.forms import ModelForm
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
+from django.template.loader import render_to_string
 from django.urls import reverse, reverse_lazy
 from django.views.generic import (
     CreateView,
@@ -19,9 +21,10 @@ from django.views.generic import (
 from django_filters.views import FilterView
 
 from borrowd.util import BorrowdTemplateFinderMixin
+from borrowd_users.models import BorrowdUser
 
 from .filters import GroupFilter
-from .forms import GroupCreateForm, GroupJoinForm
+from .forms import GroupCreateForm, GroupInviteEmailFormSet, GroupJoinForm
 from .models import BorrowdGroup, Membership
 
 GroupInvite = namedtuple("GroupInvite", ["group_id", "group_name"])
@@ -103,7 +106,85 @@ class GroupInviteView(DetailView[BorrowdGroup]):
         context["join_url"] = self.request.build_absolute_uri(
             reverse("borrowd_groups:group-join", kwargs={"encoded": encoded})
         )
+        if self.request.method == "POST":
+            context["formset"] = GroupInviteEmailFormSet(self.request.POST)
+        else:
+            context["formset"] = GroupInviteEmailFormSet()
         return context
+
+    def _send_invitation_emails(
+        self,
+        user: BorrowdUser,
+        group: BorrowdGroup,
+        join_url: str,
+        email_recipients: list[str],
+    ) -> tuple[list[str], list[str]]:
+        """
+        Send group invitations from a specific user to all listed recipients
+        """
+        email_subject = f"Invitation to join {group.name} on Borrow'd"
+        email_msg = f"You've been invited to join {group.name} on Borrow'd. Click here to join: {join_url}"
+        email_body = render_to_string(
+            "groups/group_invite_email.html",
+            {
+                "group": group,
+                "join_url": join_url,
+                "sender": user,
+            },
+        )
+
+        failed_emails = []
+        successful_emails = []
+
+        for recipient in email_recipients:
+            try:
+                send_mail(
+                    subject=email_subject,
+                    message=email_msg,
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    recipient_list=[recipient],
+                    html_message=email_body,
+                    fail_silently=False,
+                )
+
+                successful_emails.append(recipient)
+            except Exception:
+                failed_emails.append(recipient)
+                continue
+
+        return (successful_emails, failed_emails)
+
+    def post(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
+        self.object = self.get_object()
+        context = self.get_context_data(**kwargs)
+        formset = context["formset"]
+
+        if formset.is_valid():
+            recipients = [
+                form.cleaned_data["email"] for form in formset if form.cleaned_data
+            ]
+
+            successful_emails, failed_emails = self._send_invitation_emails(
+                cast(BorrowdUser, request.user),
+                self.object,
+                context["join_url"],
+                recipients,
+            )
+
+            if failed_emails:
+                messages.error(
+                    request, f"Failed to send invitations to {', '.join(failed_emails)}"
+                )
+            if successful_emails:
+                messages.success(
+                    request, f"Invitation sent to {', '.join(successful_emails)}"
+                )
+
+            # Re-rendering template even on success in case user wants to share again
+            context["formset"] = GroupInviteEmailFormSet()
+            return render(request, self.template_name, context)
+
+        return render(request, self.template_name, context)
 
 
 class GroupJoinView(LoginRequiredMixin, View):

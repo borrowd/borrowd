@@ -1,0 +1,16 @@
+{
+    "configurations": [
+        {
+            "args": [
+                "runserver"
+            ],
+            "autoStartBrowser": false,
+            "django": true,
+            "name": "Python Debugger: Django",
+            "program": "${workspaceFolder}/manage.py",
+            "request": "launch",
+            "type": "debugpy"
+        }
+    ],
+    "version": "0.2.0"
+}

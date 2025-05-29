@@ -16,4 +16,5 @@ dependencies = [
     "pillow>=11.1.0",
     "psycopg[binary]>=3.1",
     "gunicorn>=23.0.0",
+    "typing-extensions>=4.13.2",
 ]

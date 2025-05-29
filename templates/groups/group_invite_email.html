@@ -1,0 +1,28 @@
+{% extends "layouts/email.html" %}
+
+{% block title %}Group Invitation{% endblock %}
+
+{% block header_title %}
+    You've Been Invited to Join {{ group.name }}
+{% endblock %}
+
+{% block content %}
+    <p>Hello,</p>
+
+    <p>{{ sender.get_full_name|default:sender.username }} has invited you to join the group "{{ group.name }}" on Borrow'd.</p>
+
+    <p>This group allows members to share items, track item loans, and stay organized together.</p>
+
+    <p>To accept this invitation and join the group, please click the button below:</p>
+
+    <p>
+        <a href="{{ join_url }}" class="button">Join Group</a>
+    </p>
+
+    <p>If the button doesn't work, you can copy and paste this link into your browser:</p>
+    <p>{{ join_url }}</p>
+{% endblock %}
+
+{% block footer_message %}
+    This invitation was sent to you by {{ sender.get_full_name|default:sender.username }}. If you believe this was sent in error, you can safely ignore this email.
+{% endblock %}

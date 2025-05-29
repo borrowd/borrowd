@@ -9,6 +9,30 @@
             {{ join_url}}
         </p>
         <c-button @click.prevent="onShareClick">Copy Link</c-button>
+        <div class="my-6 border-y-2 py-2">
+            <c-h2>Share by Email</c-h2>
+            <form method="POST">
+                {% csrf_token %}
+                {{ formset.management_form }}
+                {% comment %} Might be a good place for some JS to dynamically add additional inputs {% endcomment %}
+                {% for form in formset %}
+                    <div class="mb-4">
+                        {{ form.email.label_tag }}
+                        <input type="email" name="{{ form.email.html_name }}" id="{{ form.email.id_for_label }}"
+                            class="w-3/4 px-3 py-2 mt-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            value="{{ filter.form.email.value|default:'' }}"
+                            placeholder="Enter email address to share invite code...">
+                        {% for error in form.email.errors %}
+                            <div class="error">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                {% endfor %}
+                <c-button type="submit">Share</c-button>
+            </form>
+        </div>
+        <c-button-nav url="{% url 'borrowd_groups:group-detail' object.pk %}">
+            Cancel
+        </c-button-nav>
     </div>
 </c-box>
 <script>
