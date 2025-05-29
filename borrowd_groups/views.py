@@ -90,7 +90,7 @@ class GroupDeleteView(
 class GroupDetailView(BorrowdTemplateFinderMixin, DetailView[BorrowdGroup]):
     model = BorrowdGroup
 
-    def get_context_data(self, **kwargs: str) -> dict[str, Any]:
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
 
         group: BorrowdGroup = self.object
