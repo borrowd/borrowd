@@ -90,6 +90,31 @@ class GroupDeleteView(
 class GroupDetailView(BorrowdTemplateFinderMixin, DetailView[BorrowdGroup]):
     model = BorrowdGroup
 
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+        context = super().get_context_data(**kwargs)
+
+        group: BorrowdGroup = self.object
+
+        memberships = Membership.objects.filter(group=group).select_related("user")
+
+        members_data = []
+        for membership in memberships:
+            members_data.append(
+                {
+                    # For privacy just display username here? Or full name, mind you only users who have been invited to the group can see this
+                    "username": membership.user.username,  # type: ignore
+                    "profile_image": membership.user.profile.image,  # type: ignore
+                    "role": membership.is_moderator and "Moderator" or "Member",
+                }
+            )
+
+        context["members_data"] = members_data
+        if self.request.user.is_authenticated:
+            context["is_moderator"] = Membership.objects.filter(
+                user=self.request.user, group=group, is_moderator=True
+            ).exists()
+        return context
+
 
 # TODO: secure to Group members (not just logged-in users)
 class GroupInviteView(DetailView[BorrowdGroup]):

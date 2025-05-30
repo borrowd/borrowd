@@ -1,0 +1,17 @@
+<div>
+  <c-h2 class="border-b -mx-4 px-4 md:-mx-8 md:px-8 pb-4">Members ({{ members|length }})</c-h2>
+  <div class="-mx-4 md:-mx-8">
+    <div class="divide-y divide-gray-200">
+      {% for member in members %}
+        <c-groups.member-row :member="member" />
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- This shouldn't be possible right?  -->
+  {% if not members %}
+    <div class="empty-state py-6 text-center text-gray-500">
+      <p>No members in this group yet.</p>
+    </div>
+  {% endif %}
+</div>
