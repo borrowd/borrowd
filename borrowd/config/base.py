@@ -49,14 +49,13 @@ INSTALLED_APPS = [
     "borrowd_web",
     "borrowd_items",
     "borrowd_groups",
-    "django_browser_reload",
     "guardian",
     "django_filters",
+    "django_vite",
     "django_cleanup.apps.CleanupConfig",  # Must go last https://github.com/un1t/django-cleanup?tab=readme-ov-file#configuration
 ]
 
 MIDDLEWARE = [
-    "django_browser_reload.middleware.BrowserReloadMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -160,6 +159,7 @@ USE_TZ = True
 
 STATICFILES_DIRS = [
     BASE_DIR / "static",
+    BASE_DIR / "assets",
 ]
 STATIC_URL = "static/"
 

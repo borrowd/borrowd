@@ -1,4 +1,5 @@
 {% load static %}
+{% load django_vite %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -6,8 +7,9 @@
     <link rel="icon" type="image/png" href="{% static 'favicon.png' %}" />
     <title>{% block head_title %}{% endblock %} - Borrow'd 🦝</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css" />
-    <script src="https://cdn.tailwindcss.com"></script>
      <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
+    {% vite_hmr_client %}
+    {% vite_asset 'static/js/main.js' %}
 </head>
 <body x-data class="flex flex-col min-h-screen" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
 

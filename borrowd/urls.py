@@ -15,19 +15,20 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 
+from typing import List
+
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
-from django.urls import include, path
+from django.urls import URLPattern, URLResolver, include, path
 
-urlpatterns = [
+urlpatterns: List[URLPattern | URLResolver] = [
     path("admin/", admin.site.urls),
     path("accounts/", include("allauth.urls")),
     path("profile/", include("borrowd_users.urls")),
     path("items/", include("borrowd_items.urls")),
     path("groups/", include("borrowd_groups.urls")),
     path("", include("borrowd_web.urls")),
-    path("__reload__/", include("django_browser_reload.urls")),
 ]
 
 if settings.DEBUG:
