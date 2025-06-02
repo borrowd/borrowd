@@ -22,12 +22,15 @@ from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import URLPattern, URLResolver, include, path
 
+from borrowd_web.views import favicon
+
 urlpatterns: List[URLPattern | URLResolver] = [
     path("admin/", admin.site.urls),
     path("accounts/", include("allauth.urls")),
     path("profile/", include("borrowd_users.urls")),
     path("items/", include("borrowd_items.urls")),
     path("groups/", include("borrowd_groups.urls")),
+    path("favicon.ico", favicon, name="favicon"),
     path("", include("borrowd_web.urls")),
 ]
 

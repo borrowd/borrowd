@@ -9,12 +9,18 @@
     <!-- User's Items -->
     <div>
         <c-h2>Your Items</c-h2>
-        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-4">
-        {% for item in user_items %}
-            {% load static %}
-            <c-items.item-box :item="{{ item }}" box_size='sm' />
-        {% endfor %}
-        </div>
+        {% if user_items %}
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-4">
+            {% for item in user_items %}
+                {% load static %}
+                <c-items.item-box :item="{{ item }}" box_size='sm' />
+            {% endfor %}
+            </div>
+        {% else %}
+            <p class="text-gray-500">Looks like you haven't contributed any items yet.
+            You should <a href="{% url 'item-create' %}" class="text-[#2C51A1] hover:underline">
+            add one</a>!</p>
+        {% endif %}
     </div>
     <!-- Settings Section -->
     <div class="mt-6">

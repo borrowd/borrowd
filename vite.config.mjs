@@ -17,4 +17,9 @@ export default defineConfig({
   plugins: [
     tailwindcss(),
   ],
+  resolve: {
+    alias: {
+      '@': resolve(__dirname),
+    }
+  },
 })

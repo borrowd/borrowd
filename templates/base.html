@@ -4,14 +4,15 @@
 <html lang="en">
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="icon" type="image/png" href="{% static 'favicon.png' %}" />
+    <link rel="icon" href="/favicon.ico" sizes="32x32">
+    <link rel="icon" href="{% static 'icon.svg' %}" type="image/svg+xml">
     <title>{% block head_title %}{% endblock %} - Borrow'd 🦝</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css" />
      <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
     {% vite_hmr_client %}
     {% vite_asset 'static/js/main.js' %}
 </head>
-<body x-data class="flex flex-col min-h-screen" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+<body x-data class="flex flex-col justify-center min-h-screen bg-gray-100" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
 
     {% include "includes/messages.html" %}
     {% include "includes/header.html" %}
