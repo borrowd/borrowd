@@ -5,12 +5,22 @@
 This project uses [`uv`](https://docs.astral.sh/uv/) and
 [`pre-commit`](https://pre-commit.com/).
 
-### 1. Install `uv` and tools
+### 1. Install `uv`, `npm` and other tools
+
+Recommended: install `npm` via
+[`nvm`, Node Version Manager](https://github.com/nvm-sh/nvm?tab=readme-ov-file#installing-and-updating):
 
 ```
+# Python stuff
 curl -LsSf https://astral.sh/uv/install.sh | sh
 uv tool install ruff
 uv tool install pre-commit
+
+# Javascript stuff
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
+# Activate nvm by opening a new terminal or sourcing ~/.nvm/nvm.sh; then:
+nvm install stable
+nvm use stable  # after this, `which npm` should find a working npm version
 ```
 
 ### 2. Clone repo
@@ -25,7 +35,15 @@ git clone git@github.com:borrowd/borrowd.git && cd borrowd/
 # This will automatically create a local Python virtual environment
 # at .venv and setup the git pre-commit hook
 uv sync
+
+# This makes it so that the rules defined in .pre-commit-config.yaml
+# are automatically executed before a commit can be made. NB you can
+# also run them as a standalone command with `uvx pre-commit`.
 pre-commit install
+
+# This installs our frontend ecosystem dependencies: vite, its
+# tailwind plugin, etc.
+npm install
 ```
 
 ### 4. Create local `.env` file
@@ -44,10 +62,27 @@ are appropriate for local development.
 cp .env.example .env
 ```
 
-### 5. Django stuff
+### 5. Running the app
 
 Now all your tooling is installed, you're ready to fire up the
 Borrow'd app locally.
+
+There are two parts to this:
+1. Run the `vite` dev server, for hot reloading CSS / JS when updated
+2. Run the Django dev server, for serving the app
+
+You may find it most convenient to run these in two separate shell
+sessions.
+
+First, the `vite` part. This command, defined in `package.json`,
+simply runs the `vite` server, which you installed as a dependency
+with `npm install` back in step 3 above.
+
+```
+npm run dev
+```
+
+Then, the Python part (in a separate shell).
 
 Note that you don't _need_ to `activate` your Python `venv` to do
 this; `uv` provides a useful shorthand to automatically make use
@@ -61,6 +96,13 @@ uv run manage.py runserver
 
 At this point, your local Borrow'd checkout should be running at
 http://127.0.0.1:8000/.
+We are using [`django-vite`](https://pypi.org/project/django-vite/).
+This provides a template tag which, in dev mode, injects the
+necessary Javascript to connect to the `vite` server we started with
+`npm run dev`; that server is what watches our filesystem for changes
+requiring updates to JS or CSS (i.e. Tailwind) files. In prod, JS+CSS
+dependencies will have been bundled, so that template tag becomes a
+no-op.
 
 ## Working with tools via `uv`
 
@@ -111,6 +153,9 @@ can also help with reuse.
 The intention is to use a lightweight Javascript microframework for
 declarative interactivity where needed, e.g. [alpine.js](https://alpinejs.dev/)
 or [htmx](https://htmx.org/).
+
+We use [TailwindCSS](https://tailwindcss.com/), rolled-up and minified
+by [vite.js](https://vite.dev/).
 
 ## Users and Authentication
 
