@@ -23,17 +23,20 @@ def profile_view(request: HttpRequest) -> HttpResponse:
     user: BorrowdUser = request.user  # type: ignore[assignment]
     profile = user.profile
 
-    user_items = Item.objects.filter(owner=user)
-    lends = Transaction.get_current_lends_for_user(user)
+    requests_from_user = Transaction.get_borrow_requests_from_user(user)
+    requests_to_user = Transaction.get_borrow_requests_to_user(user)
     borrows = Transaction.get_current_borrows_for_user(user)
+    user_items = Item.objects.filter(owner=user)
+
     return render(
         request,
         "users/profile.html",
         {
             "profile": profile,
-            "user_items": user_items,
-            "lends": lends,
+            "requests_from_user": requests_from_user,
+            "requests_to_user": requests_to_user,
             "borrows": borrows,
+            "user_items": user_items,
         },
     )
 

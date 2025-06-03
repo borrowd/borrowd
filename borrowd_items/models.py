@@ -390,19 +390,45 @@ class Transaction(Model):
     )
 
     @staticmethod
-    def get_current_lends_for_user(user: BorrowdUser) -> QuerySet["Transaction"]:
+    def get_pending_transactions_for_user(user: BorrowdUser) -> QuerySet["Transaction"]:
         """
-        Returns the Items that are currently loaned to others by the given User.
+        Returns all Transactions that are currently pending for the given User.
+        This includes both requests to borrow Items and requests from the User
+        to borrow Items.
         """
         return Transaction.objects.filter(
-            Q(party1=user)
-            & ~Q(
+            Q(
                 status__in=[
-                    TransactionStatus.RETURNED,
-                    TransactionStatus.REJECTED,
-                    TransactionStatus.CANCELLED,
+                    TransactionStatus.REQUESTED,
+                    TransactionStatus.ACCEPTED,
                 ]
             )
+            # Considering transactions to confirm collection/return as pending requests also
+            | ~Q(updated_by=user)
+            & Q(
+                status__in=[
+                    TransactionStatus.COLLECTION_ASSERTED,
+                    TransactionStatus.RETURN_ASSERTED,
+                ]
+            )
+        )
+
+    @staticmethod
+    def get_borrow_requests_to_user(user: BorrowdUser) -> QuerySet["Transaction"]:
+        """
+        Returns other Users' requests to the given User to borrow Items.
+        """
+        return Transaction.get_pending_transactions_for_user(user).filter(
+            Q(party1=user)
+        )
+
+    @staticmethod
+    def get_borrow_requests_from_user(user: BorrowdUser) -> QuerySet["Transaction"]:
+        """
+        Returns requests from the given User to borrow from others.
+        """
+        return Transaction.get_pending_transactions_for_user(user).filter(
+            Q(party2=user)
         )
 
     @staticmethod
@@ -412,9 +438,14 @@ class Transaction(Model):
         """
         return Transaction.objects.filter(
             Q(party2=user)
+            # We could query on item__status=BORROWED, however in that case items marked 'Collection Asserted'
+            # would not appear as Borrowed until they were confirmed/marked as colledted by both parties
             & ~Q(
                 status__in=[
                     TransactionStatus.RETURNED,
+                    TransactionStatus.REQUESTED,
+                    # only considering it "Borrowed" once it has been collected, not just accepted
+                    TransactionStatus.ACCEPTED,
                     TransactionStatus.REJECTED,
                     TransactionStatus.CANCELLED,
                 ]

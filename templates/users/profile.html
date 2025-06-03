@@ -6,10 +6,11 @@
 {% block content %}
 <div class="flex flex-col space-y-4 bg-white shadow-lg rounded-lg p-8 w-full max-w-2xl">
     <c-profile-card :profile="profile" />
-    <!-- User's Items -->
+
+    <c-items.item-grid title='My Requests' :transactions="requests_from_user" box_size="sm" />
+    <c-items.item-grid title='Requests for Me' :transactions="requests_to_user" box_size="sm" />
+    <c-items.item-grid title='Borrowed' :transactions="borrows" box_size="sm" />
     <c-items.item-grid title='My Items' :items="user_items" box_size="sm" />
-    <c-items.item-grid title='My Lends' :transactions="lends" box_size="sm" />
-    <c-items.item-grid title='My Borrows' :transactions="borrows" box_size="sm" />
     <!-- Settings Section -->
     <div class="mt-6">
         <c-h2>{% trans "Settings" %}</c-h2>

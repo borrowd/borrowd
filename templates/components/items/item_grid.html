@@ -3,6 +3,11 @@
         <c-h2>{{title}}</c-h2>
     {% endif %}
     <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-4">
+    {% if not items and not transactions %}
+        <div class="col-span-full text-gray-500 py-4 pl-4">
+            <p>Nothing here yet</p>
+        </div>
+    {% endif %}
     {% for item in items %}
         {% load static %}
         <c-items.item-box pk="{{item.pk}}"
