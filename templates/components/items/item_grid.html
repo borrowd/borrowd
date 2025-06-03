@@ -1,0 +1,27 @@
+<div class="{{ class }}">
+    {% if title %}
+        <c-h2>{{title}}</c-h2>
+    {% endif %}
+    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-4">
+    {% for item in items %}
+        {% load static %}
+        <c-items.item-box pk="{{item.pk}}"
+            name="{{item.name}}"
+            owner="{{item.owner.username}}"
+            status="{{item.get_status_display}}"
+            image="{{item.photos.all.0.image.url}}"
+            box_size="{{ box_size }}"
+        />
+    {% endfor %}
+    {% for tx in transactions %}
+        {% load static %}
+        <c-items.item-box pk="{{ tx.item.pk }}"
+            name="{{ tx.item.name }}"
+            owner="{{ tx.item.owner.username }}"
+            image="{{ tx.item.photos.all.0.image.url }}"
+            status="{{ tx.get_status_display }}"
+            box_size="{{ box_size }}"
+        />
+    {% endfor %}
+    </div>
+</div>

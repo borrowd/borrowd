@@ -388,3 +388,35 @@ class Transaction(Model):
         related_name="+",  # No reverse relation needed
         help_text="The User who last updated the Transaction.",
     )
+
+    @staticmethod
+    def get_current_lends_for_user(user: BorrowdUser) -> QuerySet["Transaction"]:
+        """
+        Returns the Items that are currently loaned to others by the given User.
+        """
+        return Transaction.objects.filter(
+            Q(party1=user)
+            & ~Q(
+                status__in=[
+                    TransactionStatus.RETURNED,
+                    TransactionStatus.REJECTED,
+                    TransactionStatus.CANCELLED,
+                ]
+            )
+        )
+
+    @staticmethod
+    def get_current_borrows_for_user(user: BorrowdUser) -> QuerySet["Transaction"]:
+        """
+        Returns the Items the given User is currently borrowing from others.
+        """
+        return Transaction.objects.filter(
+            Q(party2=user)
+            & ~Q(
+                status__in=[
+                    TransactionStatus.RETURNED,
+                    TransactionStatus.REJECTED,
+                    TransactionStatus.CANCELLED,
+                ]
+            )
+        )

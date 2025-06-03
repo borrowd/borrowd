@@ -11,7 +11,7 @@ repos:
     rev: v1.15.0
     hooks:
     -   id: mypy
-        args: [--strict]
+        args: [--strict, --python-version=3.13]
         additional_dependencies: [
             pytest==8.3.3,
             sqlalchemy==2.0.36,
