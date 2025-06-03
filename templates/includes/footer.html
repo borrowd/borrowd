@@ -1,15 +1,52 @@
 {% load static %}
-  <footer class="bg-gray-50 py-8">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div class="flex justify-between items-center">
-        <img src="{% static 'favicon.png' %}" alt="Logo" class="h-12">
-        <div class="space-x-4">
-          {% comment %} <!-- TODO: contact page <a href="/contact" class="text-gray-600 hover:text-gray-900">Contact</a> --> {% endcomment %}
-          <a href="/" class="text-gray-600 hover:text-gray-900">Home</a>
+{% load i18n %}
+<footer class="bg-white shadow-md py-8 rounded-t-2xl">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-16">
+        <div class="flex flex-col items-center md:items-start">
+            <a href="{% url 'index' %}" class="flex items-center mb-4">
+                <img class="w-32" src="{% static 'borrowd-logo.svg' %}"
+                    alt="Borrow'd's logo, complete with friendly bumble bee" />
+            </a>
+            <p class="text-sm text-gray-500 text-center md:text-left">
+                Borrow and lend items within your trusted groups.
+            </p>
         </div>
-      </div>
-      <div class="mt-6 border-t border-gray-200 pt-6 text-center text-sm text-gray-500">
-        All rights reserved © 2025
-      </div>
+        <div class="flex flex-col items-center md:items-start col-span-2 md:col-span-1">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Navigation</h3>
+            <ul class="space-y-2 text-sm text-gray-600 text-center md:text-left">
+                <li><a href="/" class="hover:text-gray-900">Home</a></li>
+                {% if user.is_authenticated %}
+                <li><a href="{% url 'item-list' %}" class="hover:text-gray-900">Items</a></li>
+                <li><a href="{% url 'borrowd_groups:group-list' %}" class="hover:text-gray-900">Groups</a></li>
+                <li><a href="{% url 'profile' %}" class="hover:text-gray-900">Profile</a></li>
+                {% url 'account_logout' as logout_url_ %}
+                {% if logout_url_ %}
+                <li><a href="{{ logout_url_ }}" class="hover:text-gray-900">{% trans "Sign Out" %}</a></li>
+                {% endif %}
+                {% else %}
+                {% url 'account_request_login_code' as login_url_ %}
+                {% if login_url_ %}
+                <li><a href="{{ login_url_ }}" class="hover:text-gray-900">{% trans "Sign In" %}</a></li>
+                {% endif %}
+                {% url 'account_signup' as signup_url_ %}
+                {% if signup_url_ %}
+                <li><a href="{% url 'account_signup' %}" class="hover:text-gray-900">Sign Up</a></li>
+                {% endif %}
+                {% endif %}
+            </ul>
+        </div>
+        <div class="flex flex-col items-center md:items-start">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Connect</h3>
+            <div class="flex space-x-4">
+                <a href="https://github.com/borrowd" class="text-gray-600 hover:text-gray-900">
+                    <svg class="h-6 w-6" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path fill-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.418 2.867 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.701-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.54 2.341 1.092 2.91.835.092-.647.35-1.092.635-1.342-2.22-.253-4.555-1.113-4.555-4.924 0-1.092.39-1.983 1.029-2.675-.103-.253-.446-1.266.098-2.64c0 0 .84-.268 2.75 1.022A9.607 9.607 0 0112 6.87c.85.004 1.705.115 2.504.337 1.909-1.29 2.747-1.022 2.747-1.022.546 1.373.202 2.387.099 2.64a3.732 3.732 0 011.029 2.675c0 3.823-2.334 4.661-4.564 4.916.359.309.678.92.678 1.855 0 1.342-.012 2.417-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" clip-rule="evenodd" />
+                    </svg>
+                </a>
+            </div>
+        </div>
     </div>
-  </footer>
+    <div class="mt-8 text-center text-sm text-gray-500">
+        All rights reserved © Borrow'd 2025
+    </div>
+</footer>
