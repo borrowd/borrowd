@@ -1,23 +1,27 @@
 {% load static %}
 {% load i18n %}
-<header class="flex justify-between items-center bg-white shadow-md p-4 pr-10">
+<header class="flex justify-between items-center bg-white shadow-md p-4 pr-10 w-5xl mx-auto rounded-b-2xl">
     <nav class="flex justify-between items-center w-full">
-        <div id="header-logo" class="flex items-center space-x-2">
-            <a href="{% url 'index' %}" class="flex items-center space-x-2">
-                <img class="w-16" src="{% static 'favicon.png' %}" alt="Borrow'd's cute raccoon logo" />
-                <h2 class="text-2xl font-bold text-gray-700">Borrow'd</h2>
+        <ul class="flex flex-col md:flex-row text-center my-auto md:space-x-8 items-center ml-5">
+            {% if user.is_authenticated %}
+            <li>
+                <c-nav-menu-item href="{% url 'item-list' %}">
+                    Items
+                </c-nav-menu-item>
+            </li>
+            <li>
+                <c-nav-menu-item href="{% url 'borrowd_groups:group-list' %}">
+                    Groups
+                </c-nav-menu-item>
+            </li>
+            {% endif %}
+        </ul>
+        <div id="header-logo" class="flex items-center">
+            <a href="{% url 'index' %}" class="flex items-center">
+                <img class="w-48" src="{% static 'borrowd-logo.svg' %}"
+                    alt="Borrow'd's logo, complete with friendly bumble bee" />
             </a>
         </div>
-        {% if user.is_authenticated %}
-        <ul class="flex flex-col md:flex-row text-center md:space-x-8 items-center">
-            <li>
-                <a class="hover:underline" href="{% url 'item-list' %}"><c-h1>Items</c-h1></a>
-            </li>
-            <li>
-                <a class="hover:underline" href="{% url 'borrowd_groups:group-list' %}"><c-h1>Groups</c-h1></a>
-            </li>
-        </ul>
-        {% endif %}
         <ul class="flex space-x-4 items-right items-center">
             {% if user.is_authenticated %}
                 {% if user.profile.image %}
@@ -26,19 +30,25 @@
                     </li>
                 {% endif %}
                 <li>
-                    <a class="hover:underline" href="{% url 'profile' %}">Profile</a>
+                    <c-nav-menu-item href="{% url 'profile' %}">
+                        Profile
+                    </c-nav-menu-item>
                 </li>
             {% url 'account_logout' as logout_url_ %}
             {% if logout_url_ %}
                 <li>
-                    <a class="hover:underline" href="{{ logout_url_ }}">{% trans "Sign Out" %}</a>
+                    <c-nav-menu-item href="{{ logout_url_ }}">
+                        {% trans "Sign Out" %}
+                    </c-nav-menu-item>
                 </li>
             {% endif %}
             {% else %}
                 {% url 'account_request_login_code' as login_url_ %}
                 {% if login_url_ %}
                     <li>
-                        <a class="hover:underline" href="{{ login_url_ }}">{% trans "Sign In" %}</a>
+                        <c-nav-menu-item href="{{ login_url_ }}">
+                            {% trans "Sign In" %}
+                        </c-nav-menu-item>
                     </li>
                 {% endif %}
                 {% url 'account_signup' as signup_url_ %}
