@@ -68,21 +68,10 @@
                                         </div>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap">
-                                        {% if group.current_user_trust_level is not None %}
-                                            {% if group.current_user_trust_level == 3 %} {# Assuming 3 is High #}
-                                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
-                                                    High
-                                                </span>
-                                            {% elif group.current_user_trust_level == 2 %} {# Assuming 2 is Medium #}
-                                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                                        Medium
-                                                    </span>
-                                            {% elif group.current_user_trust_level == 1 %} {# Assuming 1 is Low #}
-                                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-pink-100 text-pink-800">
-                                                        Low
-                                                    </span>
-                                            {% endif %}
-                                        {% endif %}
+                                        {# TODO: This is hardcoded for now, needs to be updated to display the actual trust level #}
+                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                                            High
+                                        </span>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                         {{ group.users.count }}
