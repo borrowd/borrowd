@@ -1,4 +1,4 @@
-from typing import Any, Never  # Unfortunately needed for more mypy shenanigans
+from typing import Any  # Unfortunately needed for more mypy shenanigans
 
 from django.contrib.auth.models import Group, GroupManager
 from django.db.models import (
@@ -18,6 +18,7 @@ from django.db.models import (
 from django.urls import reverse
 from guardian.mixins import GuardianGroupMixin
 from guardian.models import GroupObjectPermissionAbstract
+from typing_extensions import Never
 
 from borrowd.models import TrustLevel
 from borrowd_groups.exceptions import ExistingMemberException
