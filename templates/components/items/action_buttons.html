@@ -1,16 +1,36 @@
-<ul>
+<div class="flex flex-wrap items-center space-x-2">
     {% for action in item_actions %}
-        <li>
+        {% if action.name == 'ACCEPT_REQUEST' or action.name == 'REJECT_REQUEST' %}
             <button
                 type="button"
                 hx-post="{% url 'item-borrow' item.pk %}"
                 hx-vals='{"action": "{{ action.name }}"}'
                 hx-trigger="click"
                 hx-swap="outerHTML"
-                hx-target="closest ul"
+                hx-target="closest div"
+                class="inline-block w-fit text-white font-medium py-2 px-4 rounded
+                {% if action.name == 'ACCEPT_REQUEST' %}bg-green-600 hover:bg-green-700
+                {% elif action.name == 'REJECT_REQUEST' %}bg-red-600 hover:bg-red-700
+                {% endif %}"
             >
                 {{ action.label }}
             </button>
-        </li>
+        {% else %}
+            <button
+                type="button"
+                hx-post="{% url 'item-borrow' item.pk %}"
+                hx-vals='{"action": "{{ action.name }}"}'
+                hx-trigger="click"
+                hx-swap="outerHTML"
+                hx-target="closest div"
+                class="inline-block w-fit text-white font-medium py-2 px-4 rounded
+                {% if action.name == 'REQUEST_ITEM' %}bg-orange-600 hover:bg-orange-700
+                {% elif action.name == 'CANCEL_REQUEST' %}bg-red-600 hover:bg-red-700
+                {% else %}bg-blue-600 hover:bg-blue-700
+                {% endif %}"
+            >
+                {{ action.label }}
+            </button>
+        {% endif %}
     {% endfor %}
-</ul>
+</div>
