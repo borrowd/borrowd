@@ -1,3 +1,4 @@
+{% load days_since %}
 <div class="{{ class }}">
     {% if title %}
         <c-h2>{{title}}</c-h2>
@@ -25,6 +26,11 @@
             owner="{{ tx.item.owner.username }}"
             image="{{ tx.item.photos.all.0.image.url }}"
             status="{{ tx.get_status_display }}"
+            label="{% if label_type == 'time' %}
+                     {{ tx.created_at|days_since }}
+                   {% comment %} {% elif label_type == 'date' %}
+                     {{ tx.date_created|date:'M d, Y' }} {% endcomment %}
+                   {% endif %}"
             box_size="{{ box_size }}"
         />
     {% endfor %}
