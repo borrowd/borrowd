@@ -1,10 +1,11 @@
-from typing import Iterable, Optional
+from typing import Iterable, Never, Optional
 
 from django.db.models import (
     CASCADE,
     PROTECT,
     SET_NULL,
     CharField,
+    DateTimeField,
     ForeignKey,
     ImageField,
     IntegerChoices,
@@ -387,6 +388,14 @@ class Transaction(Model):
         on_delete=PROTECT,
         related_name="+",  # No reverse relation needed
         help_text="The User who last updated the Transaction.",
+    )
+    created_at: DateTimeField[Never, Never] = DateTimeField(
+        auto_now_add=True,
+        help_text="When this Transaction was created.",
+    )
+    updated_at: DateTimeField[Never, Never] = DateTimeField(
+        auto_now=True,
+        help_text="When this Transaction was last updated.",
     )
 
     @staticmethod
