@@ -8,7 +8,7 @@
     <c-profile-card :profile="profile" />
 
     <c-items.item-grid title='My Requests' :transactions="requests_from_user" label_type="time" box_size="sm" />
-    <c-items.item-grid title='Requests for Me' :transactions="requests_to_user" box_size="sm" />
+    <c-items.item-grid title='Requests for Me' :transactions="requests_to_user" label_type="requested_by" box_size="sm" />
     <c-items.item-grid title='Borrowed' :transactions="borrowed" box_size="sm" />
     <c-items.item-grid title='My Items' :items="user_items" box_size="sm" />
     <!-- Settings Section -->
