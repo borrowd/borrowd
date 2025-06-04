@@ -19,6 +19,7 @@
             label="{% if label_type == 'i_borrower' and item.borrower %}
                         With {{ item.borrower.username|default:'' }}
                    {% endif %}"
+            label_color="{{ label_color }}"
             box_size="{{ box_size }}"
         />
     {% endfor %}
@@ -36,6 +37,7 @@
                    {% elif label_type == 'tx_borrower' %}
                         By {{ tx.party2.username }}
                    {% endif %}"
+            label_color="{{ label_color }}"
             box_size="{{ box_size }}"
         />
     {% endfor %}

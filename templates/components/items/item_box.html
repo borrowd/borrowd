@@ -1,5 +1,5 @@
 {% load static %}
-
+{% load label_colors %}
 <a href="{% url 'item-detail' pk %}" class="block no-underline">
     {% with box_size=box_size|default:'md' %} {# Define box_size with a default #}
     <div class="bg-gray-100 shadow-md rounded-lg hover:-translate-y-2 transition-all duration-300 ease-in-out
@@ -15,9 +15,9 @@
             <!-- todo: map default images by item category (will require comprehensive default category images) -->
             <img src="{{ image|default:'/static/items/categories/logo-tools.png' }}" class="w-full h-1/2 object-cover rounded" alt="{{ name|default:'Default item image' }}" />
             {% if label %}
-            <div class="bg-blue-500 text-white text-center py-1 px-2 -mt-7 relative z-10 text-sm font-medium w-full rounded-b-lg">
-                {{ label }}
-            </div>
+                <div class="{{label_color|label_bg_color}} {{label_color|label_text_color}} py-1 px-2 -mt-7 relative z-10 text-sm font-medium w-full rounded-b-lg">
+                    {{ label }}
+                </div>
             {% endif %}
             <div class="flex flex-col py-4 px-3">
                 <!-- todo: deal with super long names -->
