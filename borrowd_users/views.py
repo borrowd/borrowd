@@ -12,7 +12,7 @@ from django.views.generic import (
 )
 
 from borrowd.util import BorrowdTemplateFinderMixin
-from borrowd_items.models import Item, Transaction
+from borrowd_items.models import Item, ItemStatus, Transaction
 from borrowd_users.models import Profile
 
 from .models import BorrowdUser
@@ -27,6 +27,12 @@ def profile_view(request: HttpRequest) -> HttpResponse:
     requests_to_user = Transaction.get_borrow_requests_to_user(user)
     borrowed = Transaction.get_current_borrows_for_user(user)
     user_items = Item.objects.filter(owner=user)
+    # Add borrower info to user's items that are currently borrowed
+    for item in user_items:
+        if item.status == ItemStatus.BORROWED:
+            tx = item.get_current_transaction_for_user(user)
+            if tx:
+                item.borrower = tx.party2  # type: ignore[attr-defined]
 
     return render(
         request,

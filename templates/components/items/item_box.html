@@ -13,9 +13,9 @@
     ">
         <div class="relative w-full h-full">
             <!-- todo: map default images by item category (will require comprehensive default category images) -->
-            <img src="{{ image|default:'/static/items/categories/logo-tools.png' }}" class="w-full h-1/2 object-cover" alt="{{ name|default:'Default item image' }}" />
+            <img src="{{ image|default:'/static/items/categories/logo-tools.png' }}" class="w-full h-1/2 object-cover rounded" alt="{{ name|default:'Default item image' }}" />
             {% if label %}
-            <div class="bg-blue-500 text-white text-center py-1 px-2 relative z-10 text-sm font-medium w-full rounded-b-lg">
+            <div class="bg-blue-500 text-white text-center py-1 px-2 -mt-7 relative z-10 text-sm font-medium w-full rounded-b-lg">
                 {{ label }}
             </div>
             {% endif %}

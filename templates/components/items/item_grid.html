@@ -16,6 +16,9 @@
             owner="{{item.owner.username}}"
             status="{{item.get_status_display}}"
             image="{{item.photos.all.0.image.url}}"
+            label="{% if label_type == 'i_borrower' and item.borrower %}
+                        With {{ item.borrower.username|default:'' }}
+                   {% endif %}"
             box_size="{{ box_size }}"
         />
     {% endfor %}

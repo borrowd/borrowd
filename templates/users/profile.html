@@ -9,8 +9,8 @@
 
     <c-items.item-grid title='My Requests' :transactions="requests_from_user" label_type="tx_time" box_size="sm" />
     <c-items.item-grid title='Requests for Me' :transactions="requests_to_user" label_type="tx_borrower" box_size="sm" />
-    <c-items.item-grid title='Borrowed' :transactions="borrowed" label_type="" label_type="tx_owner" box_size="sm" />
-    <c-items.item-grid title='My Items' :items="user_items" box_size="sm" />
+    <c-items.item-grid title='Borrowed' :transactions="borrowed" label_type="tx_owner" box_size="sm" />
+    <c-items.item-grid title='My Items' :items="user_items" label_type="i_borrower" box_size="sm" />
     <!-- Settings Section -->
     <div class="mt-6">
         <c-h2>{% trans "Settings" %}</c-h2>
