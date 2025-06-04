@@ -25,7 +25,7 @@ def profile_view(request: HttpRequest) -> HttpResponse:
 
     requests_from_user = Transaction.get_borrow_requests_from_user(user)
     requests_to_user = Transaction.get_borrow_requests_to_user(user)
-    borrows = Transaction.get_current_borrows_for_user(user)
+    borrowed = Transaction.get_current_borrows_for_user(user)
     user_items = Item.objects.filter(owner=user)
 
     return render(
@@ -35,7 +35,7 @@ def profile_view(request: HttpRequest) -> HttpResponse:
             "profile": profile,
             "requests_from_user": requests_from_user,
             "requests_to_user": requests_to_user,
-            "borrows": borrows,
+            "borrowed": borrowed,
             "user_items": user_items,
         },
     )

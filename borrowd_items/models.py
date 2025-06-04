@@ -439,7 +439,7 @@ class Transaction(Model):
         return Transaction.objects.filter(
             Q(party2=user)
             # We could query on item__status=BORROWED, however in that case items marked 'Collection Asserted'
-            # would not appear as Borrowed until they were confirmed/marked as colledted by both parties
+            # would not appear as Borrowed until they were confirmed/marked as collected by both parties
             & ~Q(
                 status__in=[
                     TransactionStatus.RETURNED,
