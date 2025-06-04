@@ -135,7 +135,7 @@ def pre_membership_delete(
     _raise_if_last_moderator(user, group, **kwargs)
 
     #
-    # Handle permissions removal
+    # Handle Group removal
     #
     all_perms = [
         "view_this_group",
@@ -145,6 +145,13 @@ def pre_membership_delete(
     # Remove all permissions for the user on the group
     for perm in all_perms:
         remove_perm(perm, user, group)
+
+    #
+    # Handle Item removal
+    #
+    items_of_user = Item.objects.filter(owner=user)
+    for perm in ["view_this_item"]:  # will have more later
+        remove_perm(perm, group, items_of_user)
 
 
 @receiver(pre_save, sender=Membership)
