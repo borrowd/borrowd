@@ -1,10 +1,11 @@
-from typing import Iterable, Optional
+from typing import Iterable, Never, Optional
 
 from django.db.models import (
     CASCADE,
     PROTECT,
     SET_NULL,
     CharField,
+    DateTimeField,
     ForeignKey,
     ImageField,
     IntegerChoices,
@@ -388,6 +389,14 @@ class Transaction(Model):
         related_name="+",  # No reverse relation needed
         help_text="The User who last updated the Transaction.",
     )
+    created_at: DateTimeField[Never, Never] = DateTimeField(
+        auto_now_add=True,
+        help_text="When this Transaction was created.",
+    )
+    updated_at: DateTimeField[Never, Never] = DateTimeField(
+        auto_now=True,
+        help_text="When this Transaction was last updated.",
+    )
 
     @staticmethod
     def get_pending_transactions_for_user(user: BorrowdUser) -> QuerySet["Transaction"]:
@@ -439,7 +448,7 @@ class Transaction(Model):
         return Transaction.objects.filter(
             Q(party2=user)
             # We could query on item__status=BORROWED, however in that case items marked 'Collection Asserted'
-            # would not appear as Borrowed until they were confirmed/marked as colledted by both parties
+            # would not appear as Borrowed until they were confirmed/marked as collected by both parties
             & ~Q(
                 status__in=[
                     TransactionStatus.RETURNED,

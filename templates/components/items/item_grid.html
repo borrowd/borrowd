@@ -1,3 +1,4 @@
+{% load days_since %}
 <div class="{{ class }}">
     {% if title %}
         <c-h2>{{title}}</c-h2>
@@ -15,6 +16,10 @@
             owner="{{item.owner.username}}"
             status="{{item.get_status_display}}"
             image="{{item.photos.all.0.image.url}}"
+            label="{% if label_type == 'i_borrower' and item.borrower %}
+                        With {{ item.borrower.username|default:'' }}
+                   {% endif %}"
+            label_color="{{ label_color }}"
             box_size="{{ box_size }}"
         />
     {% endfor %}
@@ -25,6 +30,14 @@
             owner="{{ tx.item.owner.username }}"
             image="{{ tx.item.photos.all.0.image.url }}"
             status="{{ tx.get_status_display }}"
+            label="{% if label_type == 'tx_time' %}
+                        {{ tx.created_at|days_since }}
+                   {% elif label_type == 'tx_owner' %}
+                        From {{ tx.party1.username }}
+                   {% elif label_type == 'tx_borrower' %}
+                        By {{ tx.party2.username }}
+                   {% endif %}"
+            label_color="{{ label_color }}"
             box_size="{{ box_size }}"
         />
     {% endfor %}
