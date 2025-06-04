@@ -17,12 +17,16 @@
             owner="{{item.owner.username}}"
             status="{{item.get_status_display}}"
             image="{{item.photos.all.0.image.url}}"
-            label="{% if label_type == 'i_borrower' and item.borrower %}
-                        With {{ item.borrower.username|default:'' }}
-                   {% endif %}"
             label_color="{{ label_color }}"
             box_size="{{ box_size }}"
-        />
+        >
+            {% if label_type == 'i_borrower' and item.borrower %}
+                <c-slot name="label">
+                    <c-avatar src="{{item.borrower.profile.profile_pic}}" class="inline !h-7 !w-7" />
+                    With {{ item.borrower.username|default:'' }}
+                </c-slot>
+            {% endif %}
+        </c-items.item-box>
     {% endfor %}
     {% for tx in transactions %}
         {% load static %}
@@ -32,16 +36,24 @@
             owner="{{ tx.item.owner.username }}"
             image="{{ tx.item.photos.all.0.image.url }}"
             status="{{ tx.get_status_display }}"
-            label="{% if label_type == 'tx_time' %}
-                        {{ tx.created_at|days_since }}
-                   {% elif label_type == 'tx_owner' %}
-                        From {{ tx.party1.username }}
-                   {% elif label_type == 'tx_borrower' %}
-                        By {{ tx.party2.username }}
-                   {% endif %}"
             label_color="{{ label_color }}"
             box_size="{{ box_size }}"
-        />
+        >
+            {% if label_type %}
+            <c-slot name="label">
+                {% if label_type == 'tx_time' %}
+                    <c-avatar src="{% static 'icons/clock-4.svg' %}" class="inline !h-7 !w-7" />
+                    {{ tx.created_at|days_since }}
+                {% elif label_type == 'tx_owner' %}
+                    <c-avatar src="{{tx.party1.profile.profile_pic}}" class="inline !h-7 !w-7" />
+                    From {{ tx.party1.username }}
+                {% elif label_type == 'tx_borrower' %}
+                    <c-avatar src="{{tx.party2.profile.profile_pic}}" class="inline !h-7 !w-7" />
+                    By {{ tx.party2.username }}
+                {% endif %}
+            </c-slot>
+            {% endif %}
+        </c-items.item-box>
     {% endfor %}
     </div>
 </div>
