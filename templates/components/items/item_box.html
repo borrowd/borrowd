@@ -2,7 +2,7 @@
 {% load label_colors %}
 <a href="{% url 'item-detail' pk %}" class="block no-underline">
     {% with box_size=box_size|default:'md' %} {# Define box_size with a default #}
-    <div class="bg-gray-100 shadow-md rounded-lg hover:-translate-y-2 transition-all duration-300 ease-in-out
+    <div class="hover:-translate-y-2 transition-all duration-300 ease-in-out pb-5
         {% if box_size == 'sm' %}
             w-[200px] h-[250px]
         {% elif box_size == 'lg' %}
@@ -13,22 +13,23 @@
     ">
         <div class="relative w-full h-full">
             <!-- todo: map default images by item category (will require comprehensive default category images) -->
-            <img src="{{ image|default:'/static/items/categories/logo-tools.png' }}" class="w-full h-1/2 object-cover rounded" alt="{{ name|default:'Default item image' }}" />
+            <img src="{{ image|default:'/static/items/categories/logo-tools.png' }}" class="w-full h-3/4 object-cover rounded-lg" alt="{{ name|default:'Default item image' }}" />
             {% if label %}
                 <div class="{{label_color|label_bg_color}} {{label_color|label_text_color}} py-1 px-2 -mt-7 relative z-10 text-sm font-medium w-full rounded-b-lg">
                     {{ label }}
                 </div>
             {% endif %}
-            <div class="flex flex-col py-4 px-3">
+            <div class="flex flex-col py-2 px-3x">
                 <!-- todo: deal with super long names -->
-                <div class="text-lg font-bold">{{name}}</div>
-                <div class="text-sm text-gray-500">Owned by {{ owner }}</div>
+                <div class="text-md font-bold">{{name}}</div>
+                <div class="text-sm/5 text-ellipsis overflow-hidden text-gray-600 line-clamp-2">{{description}}</div>
+                {% comment %} <div class="text-sm text-gray-500">Owned by {{ owner }}</div> {% endcomment %}
             </div>
             <!-- todo: chip component -->
-            <div class="absolute bottom-0 right-0 m-2">
+            {% comment %} <div class="absolute bottom-0 right-0 m-2">
                 <!-- todo: request/borrow/action flow -->
                 <div class="bg-green-400 rounded-2xl px-2 text-sm">{{ status }}</div>
-            </div>
+            </div> {% endcomment %}
         </div>
     </div>
     {% endwith %}
