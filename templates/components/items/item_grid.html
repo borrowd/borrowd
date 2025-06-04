@@ -26,10 +26,12 @@
             owner="{{ tx.item.owner.username }}"
             image="{{ tx.item.photos.all.0.image.url }}"
             status="{{ tx.get_status_display }}"
-            label="{% if label_type == 'time' %}
+            label="{% if label_type == 'tx_time' %}
                         {{ tx.created_at|days_since }}
-                   {% elif label_type == 'requested_by' %}
-                        {{ tx.party2.username }}
+                   {% elif label_type == 'tx_owner' %}
+                        From {{ tx.party1.username }}
+                   {% elif label_type == 'tx_borrower' %}
+                        By {{ tx.party2.username }}
                    {% endif %}"
             box_size="{{ box_size }}"
         />

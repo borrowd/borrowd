@@ -7,9 +7,9 @@
 <div class="flex flex-col space-y-4 bg-white shadow-lg rounded-lg p-8 w-full max-w-2xl">
     <c-profile-card :profile="profile" />
 
-    <c-items.item-grid title='My Requests' :transactions="requests_from_user" label_type="time" box_size="sm" />
-    <c-items.item-grid title='Requests for Me' :transactions="requests_to_user" label_type="requested_by" box_size="sm" />
-    <c-items.item-grid title='Borrowed' :transactions="borrowed" box_size="sm" />
+    <c-items.item-grid title='My Requests' :transactions="requests_from_user" label_type="tx_time" box_size="sm" />
+    <c-items.item-grid title='Requests for Me' :transactions="requests_to_user" label_type="tx_borrower" box_size="sm" />
+    <c-items.item-grid title='Borrowed' :transactions="borrowed" label_type="" label_type="tx_owner" box_size="sm" />
     <c-items.item-grid title='My Items' :items="user_items" box_size="sm" />
     <!-- Settings Section -->
     <div class="mt-6">
