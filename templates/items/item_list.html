@@ -45,13 +45,7 @@
             </div>
         </form>
         <c-divider />
-        <div class="flex flex-col space-y-4 mt-6">
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 place-items-center">
-                {% for item in item_list %}
-                <c-items.item-box :item="{{ item }}" />
-                {% endfor %}
-            </div>
-        </div>
+        <c-items.item-grid :items="item_list" class="flex flex-col space-y-4 mt-6" />
     </c-box>
 </div>
 {% endblock %}

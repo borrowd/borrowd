@@ -6,16 +6,11 @@
 {% block content %}
 <div class="flex flex-col space-y-4 bg-white shadow-lg rounded-lg p-8 w-full max-w-2xl">
     <c-profile-card :profile="profile" />
-    <!-- User's Items -->
-    <div>
-        <c-h2>Your Items</c-h2>
-        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-4">
-        {% for item in user_items %}
-            {% load static %}
-            <c-items.item-box :item="{{ item }}" box_size='sm' />
-        {% endfor %}
-        </div>
-    </div>
+
+    <c-items.item-grid title='My Requests' :transactions="requests_from_user" box_size="sm" />
+    <c-items.item-grid title='Requests for Me' :transactions="requests_to_user" box_size="sm" />
+    <c-items.item-grid title='Borrowed' :transactions="borrows" box_size="sm" />
+    <c-items.item-grid title='My Items' :items="user_items" box_size="sm" />
     <!-- Settings Section -->
     <div class="mt-6">
         <c-h2>{% trans "Settings" %}</c-h2>

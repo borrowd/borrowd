@@ -17,6 +17,9 @@ class BorrowdUser(AbstractUser, BorrowdGroupPermissionMixin, GuardianUserMixin):
         through="borrowd_groups.Membership",
     )
 
+    # Hint for mypy (actual field created from reverse relation)
+    profile: "Profile"
+
 
 class Profile(models.Model):
     user: models.OneToOneField[BorrowdUser] = models.OneToOneField(
