@@ -1,0 +1,11 @@
+{
+  "static/js/main.js": {
+    "file": "build/test-CvpqQ2bi.js",
+    "name": "test",
+    "src": "static/js/main.js",
+    "isEntry": true,
+    "css": [
+      "build/test-zD0uzuzo.css"
+    ]
+  }
+}
