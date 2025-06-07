@@ -229,9 +229,9 @@ class GroupJoinView(LoginRequiredMixin, View):
 
 
 # No typing for django_filter, so mypy doesn't like us subclassing.
-class GroupListView(BorrowdTemplateFinderMixin, FilterView):  # type: ignore[misc]
-    model = BorrowdGroup
-    template_name_suffix = "_list"  # Reusing template from ListView
+class GroupListView(FilterView):  # type: ignore[misc]
+    template_name = "groups/group_list.html"
+    model = Membership
     filterset_class = GroupFilter
 
 

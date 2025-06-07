@@ -2,9 +2,8 @@ from typing import Any
 
 from django.db.models import Q, QuerySet
 from django_filters import CharFilter, FilterSet
-from guardian.shortcuts import get_objects_for_user
 
-from .models import BorrowdGroup
+from .models import Membership
 
 
 # No typing for django_filter, so mypy doesn't like us subclassing.
@@ -12,16 +11,16 @@ class GroupFilter(FilterSet):  # type: ignore[misc]
     search = CharFilter(label="Search", method="filter_by_search")
 
     def filter_by_search(
-        self, queryset: QuerySet[BorrowdGroup], name: str, value: Any
-    ) -> QuerySet[BorrowdGroup]:
+        self, queryset: QuerySet[Membership], name: str, value: Any
+    ) -> QuerySet[Membership]:
         if not value:
             return queryset
         return queryset.filter(
-            Q(name__icontains=value) | Q(description__icontains=value)
+            Q(group__name__icontains=value) | Q(group__description__icontains=value)
         )
 
     @property
-    def qs(self) -> QuerySet[BorrowdGroup]:
+    def qs(self) -> QuerySet[Membership]:
         """
         Override the qs property to filter the queryset based on user
         permissions.
@@ -38,11 +37,10 @@ class GroupFilter(FilterSet):  # type: ignore[misc]
         closer to a "public API".
         """
         if not hasattr(self, "_qs"):
-            qs: QuerySet[BorrowdGroup] = get_objects_for_user(
-                self.request.user,
-                "view_this_group",
-                klass=BorrowdGroup,
-                with_superuser=False,
+            qs: QuerySet[Membership] = Membership.objects.select_related(
+                "group"
+            ).filter(
+                user=self.request.user,
             )
             if self.is_bound:
                 # ensure form validation before filtering
@@ -52,5 +50,5 @@ class GroupFilter(FilterSet):  # type: ignore[misc]
         return self._qs
 
     class Meta:
-        model = BorrowdGroup
+        model = Membership
         fields = ["search"]

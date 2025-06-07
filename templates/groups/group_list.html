@@ -51,30 +51,32 @@
                             </tr>
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-200">
-                            {% for group in borrowdgroup_list %}
+                            {% for membership in object_list %}
                                 <tr>
                                     <td class="px-6 py-4 whitespace-nowrap">
                                         <div class="flex items-center">
-                                            {% if group.logo %}
+                                            {% if membership.group.logo %}
                                                 <div class="flex-shrink-0 h-10 w-10">
-                                                    <img class="h-10 w-10 rounded-full object-cover" src="{{ group.logo.url }}" alt="{{ group.name }} Logo">
+                                                    <img class="h-10 w-10 rounded-full object-cover"
+                                                        src="{{ membership.group.logo.url }}"
+                                                        alt="{{ membership.group.name }} Logo">
                                                 </div>
                                             {% endif %}
                                             <div class="ml-4">
                                                 <div class="text-sm font-medium text-gray-900">
-                                                    <a class="hover:underline text-blue-800" href="{% url 'borrowd_groups:group-detail' group.pk %}">{{ group.name }}</a>
+                                                    <a class="hover:underline text-blue-800"
+                                                        href="{% url 'borrowd_groups:group-detail' membership.group.pk %}">
+                                                        {{ membership.group.name }}
+                                                    </a>
                                                 </div>
                                             </div>
                                         </div>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap">
-                                        {# TODO: This is hardcoded for now, needs to be updated to display the actual trust level #}
-                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
-                                            High
-                                        </span>
+                                        <c-trust-pill level="{{ membership.get_trust_level_display }}" />
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                        {{ group.users.count }}
+                                        {{ membership.group.users.count }}
                                     </td>
                                 </tr>
                             {% empty %}
