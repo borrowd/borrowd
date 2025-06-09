@@ -152,6 +152,35 @@ class GroupBasedItemPermissionsTests(TestCase):
         ## Check if the group member can still see the item
         self.assertFalse(member.has_perm("view_this_item", item))
 
+    def test_item_not_visible_to_group_owner_on_leaving_group(self) -> None:
+        # Arrange
+        moderator = self.owner
+        member = self.member
+
+        ## Create a group
+        group: BorrowdGroup = BorrowdGroup.objects.create(
+            name="Test Group", created_by=moderator, updated_by=moderator
+        )
+
+        ## Create an item, owned by *Member*
+        item = Item.objects.create(
+            name="Test Item", owner=member, trust_level_required=TrustLevel.LOW
+        )
+
+        # Act
+        ## Add the member to the group
+        group.add_user(member, trust_level=TrustLevel.LOW)
+
+        # Assert
+        ## Check if the group Moderator can see the item
+        self.assertTrue(moderator.has_perm("view_this_item", item))
+
+        ## Remove the member from the group
+        group.remove_user(member)
+
+        ## Confirm the group Moderator can no longer see the item
+        self.assertFalse(moderator.has_perm("view_this_item", item))
+
     def test_item_not_visible_to_non_members(self) -> None:
         # Arrange
         owner = self.owner
