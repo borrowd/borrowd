@@ -1,0 +1,27 @@
+{% if level|lower == 'high' %}
+<span class="px-2 inline-flex text-xs
+    leading-5 font-semibold rounded-full
+    bg-borrowd-fern-300
+    text-borrowd-fern-600">
+{% elif level|lower == 'medium' %}
+<span class="px-2 inline-flex text-xs
+    leading-5 font-semibold rounded-full
+    bg-borrowd-honey-300
+    text-borrowd-honey-600">
+{% elif level|lower == 'low' %}
+<span class="px-2 inline-flex text-xs
+    leading-5 font-semibold rounded-full
+    bg-borrowd-plum-300
+    text-borrowd-plum-600">
+{% else %}
+<span class="px-2 inline-flex text-xs
+    leading-5 font-semibold rounded-full
+    bg-borrowd-indigo-300
+    text-borrowd-indigo-600">
+{% endif %}
+    {% if slot %}
+        {{ slot }}
+    {% else %}
+        {{ level }}
+    {% endif %}
+</span>
