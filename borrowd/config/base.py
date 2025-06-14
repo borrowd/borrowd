@@ -32,6 +32,11 @@ DEBUG = False
 
 ALLOWED_HOSTS: list[str] = []
 
+#
+# Borrowd settings
+#
+BORROWD_GROUP_INVITE_EXPIRY_SECONDS: int = 60 * 60 * 24 * 7  # 1 week
+BORROWD_USE_LOCAL_BUNDLING = env("BORROWD_USE_LOCAL_BUNDLING", default=False)
 
 # Application definition
 
@@ -49,14 +54,15 @@ INSTALLED_APPS = [
     "borrowd_web",
     "borrowd_items",
     "borrowd_groups",
-    "django_browser_reload",
     "guardian",
     "django_filters",
     "django_cleanup.apps.CleanupConfig",  # Must go last https://github.com/un1t/django-cleanup?tab=readme-ov-file#configuration
 ]
 
+if not BORROWD_USE_LOCAL_BUNDLING:
+    INSTALLED_APPS.insert(-1, "django_browser_reload")
+
 MIDDLEWARE = [
-    "django_browser_reload.middleware.BrowserReloadMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -66,6 +72,8 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "allauth.account.middleware.AccountMiddleware",
 ]
+if not BORROWD_USE_LOCAL_BUNDLING:
+    MIDDLEWARE.insert(0, "django_browser_reload.middleware.BrowserReloadMiddleware")
 
 ROOT_URLCONF = "borrowd.urls"
 
@@ -168,11 +176,6 @@ MEDIA_URL = "/media/"
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
-
-#
-# Borrowd settings
-#
-BORROWD_GROUP_INVITE_EXPIRY_SECONDS: int = 60 * 60 * 24 * 7  # 1 week
 
 #
 # Shim for mypy to play nice with certain generic types
