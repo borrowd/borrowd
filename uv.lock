@@ -24,6 +24,7 @@ dependencies = [
     { name = "django-environ" },
     { name = "django-filter" },
     { name = "django-guardian" },
+    { name = "django-vite" },
     { name = "gunicorn" },
     { name = "pillow" },
     { name = "psycopg", extra = ["binary"] },
@@ -39,6 +40,7 @@ requires-dist = [
     { name = "django-environ", specifier = ">=0.12.0" },
     { name = "django-filter", specifier = ">=25.1" },
     { name = "django-guardian", specifier = ">=3.0.0" },
+    { name = "django-vite", specifier = ">=3.1.0" },
     { name = "gunicorn", specifier = ">=23.0.0" },
     { name = "pillow", specifier = ">=11.1.0" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.1" },
@@ -133,6 +135,18 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/30/82/2c76cdf77eae3cb0c3df394686daf8f84bcd604c0da7a26fa19f5fe74ed4/django_guardian-3.0.0.tar.gz", hash = "sha256:0c79d55c4af2cfc14fbd19539846a1ebfed2a38198b7697e0f5177b7f654e1cd", size = 79895, upload-time = "2025-05-07T19:33:23.328Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/a5/81/a2f3d3245d1f4cf446d78863526fba0b1b140d60784095a5cc2d4e8ac709/django_guardian-3.0.0-py3-none-any.whl", hash = "sha256:f3ebe3cc7f486e267041b780c3429ad5db72c909df40c2f74adb1b059582a3cd", size = 112672, upload-time = "2025-05-07T19:33:21.719Z" },
+]
+
+[[package]]
+name = "django-vite"
+version = "3.1.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "django" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/23/fe/4be07f538bbf9bf8bf73b045552ec2a1b4fba67e3176abb30490b643368e/django_vite-3.1.0.tar.gz", hash = "sha256:8b4ffe4a9fa81ff568bfb195e74dde8694aaf13fd4b656ae60bf59cce08b85e8", size = 25434, upload-time = "2025-02-23T15:32:07.914Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/30/59/7df4b1077fa41b43b4e542696d75138dbb86a65f44248c607b3e0f1014ce/django_vite-3.1.0-py3-none-any.whl", hash = "sha256:4e46572bd6b1ce70784be129205dc2ffcbc7a3c19fea50bebfb72b327bbde5fc", size = 23579, upload-time = "2025-02-23T15:32:06.603Z" },
 ]
 
 [[package]]
