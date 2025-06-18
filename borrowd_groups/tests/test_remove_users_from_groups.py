@@ -19,7 +19,10 @@ class RemoveUsersFromGroupsTests(TestCase):
 
         ## Create a group and add the user
         group: BorrowdGroup = BorrowdGroup.objects.create(
-            name="Group", created_by=user, updated_by=user
+            name="Group",
+            created_by=user,
+            updated_by=user,
+            membership_requires_approval=False,
         )
         group.add_user(member, trust_level=TrustLevel.LOW)
 
@@ -29,7 +32,7 @@ class RemoveUsersFromGroupsTests(TestCase):
 
         # Assert
         ## The user is no longer in the group
-        self.assertEqual(list(member.groups.all()), [])
+        self.assertEqual(list(member.borrowd_groups.all()), [])
         ## The group no longer contains the user
         self.assertEqual(list(group.users.all()), [user])
 
@@ -42,7 +45,10 @@ class RemoveUsersFromGroupsTests(TestCase):
 
         ## Create a group and add all users
         group: BorrowdGroup = BorrowdGroup.objects.create(
-            name="Group", created_by=user1, updated_by=user1
+            name="Group",
+            created_by=user1,
+            updated_by=user1,
+            membership_requires_approval=False,
         )
         for user in [user2, user3]:
             group.add_user(user, is_moderator=True, trust_level=TrustLevel.MEDIUM)
@@ -56,8 +62,8 @@ class RemoveUsersFromGroupsTests(TestCase):
         ## Last remaining moderator is still in the group
         self.assertEqual(list(group.users.all()), [user3])
         ## Owner and second member no longer in the group
-        self.assertEqual(list(user1.groups.all()), [])
-        self.assertEqual(list(user2.groups.all()), [])
+        self.assertEqual(list(user1.borrowd_groups.all()), [])
+        self.assertEqual(list(user2.borrowd_groups.all()), [])
 
     def test_remove_user_not_in_group(self) -> None:
         # Arrange
@@ -67,7 +73,10 @@ class RemoveUsersFromGroupsTests(TestCase):
 
         ## Create a group without adding the user
         group: BorrowdGroup = BorrowdGroup.objects.create(
-            name="Group", created_by=user, updated_by=user
+            name="Group",
+            created_by=user,
+            updated_by=user,
+            membership_requires_approval=False,
         )
 
         # Assert
