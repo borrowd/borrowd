@@ -1,5 +1,6 @@
 {% load i18n %}
 {% load static %}
+{% load django_vite %}
 <!DOCTYPE html>
 <html>
     <head>
@@ -12,7 +13,12 @@
         {% block extra_head %}
         {% endblock extra_head %}
         <link rel="icon" type="image/png" href="{% static 'favicon.png' %}" />
-        <script src="https://cdn.tailwindcss.com"></script>
+        {% if use_local_bundling %}
+            {% vite_hmr_client %}
+            {% vite_asset 'static/js/main.js' %}
+        {% else %}
+            <script src="https://cdn.tailwindcss.com"></script>
+        {% endif %}
     </head>
     <body>
         {% block body %}

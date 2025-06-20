@@ -56,6 +56,7 @@ INSTALLED_APPS = [
     "borrowd_groups",
     "guardian",
     "django_filters",
+    "django_vite",
     "django_cleanup.apps.CleanupConfig",  # Must go last https://github.com/un1t/django-cleanup?tab=readme-ov-file#configuration
 ]
 
@@ -166,6 +167,11 @@ USE_TZ = True
 STATICFILES_DIRS = [
     BASE_DIR / "static",
 ]
+if BORROWD_USE_LOCAL_BUNDLING:
+    STATICFILES_DIRS += [
+        BASE_DIR / "build/",
+    ]
+
 STATIC_URL = "static/"
 
 # Media files settings
