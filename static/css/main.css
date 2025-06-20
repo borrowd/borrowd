@@ -1,5 +1,13 @@
 @import "tailwindcss";
 
+@font-face {
+    font-family: "Roboto Slab";
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url("$fonts/RobotoSlab-Regular.ttf")
+}
+
 @theme {
     --color-borrowd-indigo-300: #d9e1f4;
     --color-borrowd-indigo-600: #2c51a1;
