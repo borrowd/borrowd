@@ -1,0 +1,21 @@
+@import "tailwindcss";
+
+@font-face {
+    font-family: "Roboto Slab";
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url("$fonts/RobotoSlab-Regular.ttf")
+}
+
+@theme {
+    --color-borrowd-indigo-300: #d9e1f4;
+    --color-borrowd-indigo-600: #2c51a1;
+    --color-borrowd-honey-300: #fdf7e1;
+    --color-borrowd-honey-600: #b97c21;
+    --color-borrowd-plum-300: #f0d7eb;
+    --color-borrowd-plum-600: #73325b;
+    --color-borrowd-fern-300: #ebf7ed;
+    --color-borrowd-fern-600: #537533;
+    --font-roboto-slab: "Roboto Slab", "serif";
+}
