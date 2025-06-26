@@ -42,7 +42,7 @@
             {% if label_type %}
             <c-slot name="label">
                 {% if label_type == 'tx_time' %}
-                    <c-avatar src="{% static 'icons/clock-4.svg' %}" class="inline !h-7 !w-7" />
+                    <c-avatar src="{% static 'icons/handshake.svg' %}" class="inline !h-7 !w-7" />
                     {{ tx.created_at|days_since }}
                 {% elif label_type == 'tx_owner' %}
                     <c-avatar src="{{tx.party1.profile.profile_pic}}" class="inline !h-7 !w-7" />
