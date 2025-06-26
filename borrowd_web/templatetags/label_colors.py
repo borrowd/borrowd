@@ -8,16 +8,18 @@ register = template.Library()
 @register.filter
 def label_bg_color(color: str) -> str:
     return {
-        "blue": "bg-blue-100",
-        "green": "bg-green-100",
-        "red": "bg-red-100",
-    }.get(color, "bg-blue-100")
+        "blue": "bg-borrowd-indigo-300",
+        "green": "bg-borrowd-fern-300",
+        "red": "bg-borrowd-plum-300",
+        "yellow": "bg-borrowd-honey-300",
+    }.get(color, "bg-borrowd-indigo-300")
 
 
 @register.filter
 def label_text_color(color: str) -> str:
     return {
-        "blue": "text-blue-600",
-        "green": "text-green-600",
-        "red": "text-red-600",
-    }.get(color, "text-blue-600")
+        "blue": "text-borrowd-indigo-600",
+        "green": "text-borrowd-fern-600",
+        "red": "text-borrowd-plum-600",
+        "yellow": "text-borrowd-honey-600",
+    }.get(color, "text-borrowd-indigo-600")
