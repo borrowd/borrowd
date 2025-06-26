@@ -43,5 +43,5 @@ class Profile(models.Model):
         try:
             pic = self.image.url
         except Exception:
-            pic = static("icons/circle-user-round.svg")
+            pic = static("icons/account-circle.svg")
         return pic
