@@ -1,6 +1,5 @@
 import base64
 import json
-import os
 import sys
 
 from environ import ImproperlyConfigured
@@ -45,10 +44,6 @@ if env("PLATFORM_APPLICATION_NAME") is not None:
         ".platformsh.site",
     ]
 
-    # Redefine the static root based on the platform.sh directory
-    # See https://docs.djangoproject.com/en/5.2/ref/settings/#static-root
-    STATIC_ROOT = os.path.join(env("PLATFORM_APP_DIR"), "staticfiles")
-
     # PLATFORM_PROJECT_ENTROPY is unique to your project
     # Use it to define define Django's SECRET_KEY
     # See https://docs.djangoproject.com/en/5.2/ref/settings/#secret-key
@@ -88,15 +83,29 @@ else:
     raise ImproperlyConfigured(
         "PLATFORM_APPLICATION_NAME is not set. This is not a platform.sh environment."
     )
+#################################################################################
 
 # Media storage
-# will need to add media storage settings for cloud provider
-# e.g. using django-storages[google]
 # Security considerations: https://docs.djangoproject.com/en/5.2/topics/security/#user-uploaded-content-security
-# MEDIA_ROOT = ''
-# MEDIA_URL = "https://storage.googleapis.com/<your-bucket-name>/media/"
-# STORAGES = {
-#     "default": {
-#         "BACKEND": "storages.backends.gcloud.GoogleCloudStorage"
-#     }
-# }
+STORAGES = {
+    "default": {
+        "BACKEND": "storages.backends.s3.S3Storage",
+        "OPTIONS": {
+            "bucket_name": "borrowd-media",
+            "default_acl": "public-read",
+            "file_overwrite": False,
+            "region_name": "us-east-2",
+            "endpoint_url": "https://s3.us-east-2.wasabisys.com",
+        },
+    },
+    "staticfiles": {
+        "BACKEND": "storages.backends.s3.S3Storage",
+        "OPTIONS": {
+            "bucket_name": "borrowd-static",
+            "default_acl": "public-read",
+            "file_overwrite": True,
+            "region_name": "us-east-2",
+            "endpoint_url": "https://s3.us-east-2.wasabisys.com",
+        },
+    },
+}
