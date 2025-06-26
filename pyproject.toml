@@ -17,4 +17,5 @@ dependencies = [
     "psycopg[binary]>=3.1",
     "gunicorn>=23.0.0",
     "django-vite>=3.1.0",
+    "django-storages[s3]>=1.14.6",
 ]
