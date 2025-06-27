@@ -135,10 +135,6 @@ AUTHENTICATION_BACKENDS = [
     "guardian.backends.ObjectPermissionBackend",
 ]
 
-GUARDIAN_MONKEY_PATCH_USER = False
-GUARDIAN_MONKEY_PATCH_GROUP = False
-GUARDIAN_GROUP_OBJ_PERMS_MODEL = "borrowd_groups.BorrowdGroupObjectPermission"
-
 # Email
 
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"

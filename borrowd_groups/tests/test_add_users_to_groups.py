@@ -18,7 +18,10 @@ class AddUsersToGroupsTests(TestCase):
             )
             ## Create a group
             group: BorrowdGroup = BorrowdGroup.objects.create(
-                name="Group", created_by=user1, updated_by=user1
+                name="Group",
+                created_by=user1,
+                updated_by=user1,
+                membership_requires_approval=False,
             )
 
             # Act
@@ -38,26 +41,32 @@ class AddUsersToGroupsTests(TestCase):
         #   error: Incompatible types in assignment (expression has
         #   type "Group", variable has type "BorrowdGroup")  [assignment]
         # Don't have time to chase down the specifics.
-        group1: BorrowdGroup = BorrowdGroup.objects.create(
-            name="Group 1", created_by=user1, updated_by=user1
+        borrowd_group1: BorrowdGroup = BorrowdGroup.objects.create(
+            name="Group 1",
+            created_by=user1,
+            updated_by=user1,
+            membership_requires_approval=False,
         )
-        group2: BorrowdGroup = BorrowdGroup.objects.create(
-            name="Group 2", created_by=user2, updated_by=user2
+        borrowd_group2: BorrowdGroup = BorrowdGroup.objects.create(
+            name="Group 2",
+            created_by=user2,
+            updated_by=user2,
+            membership_requires_approval=False,
         )
 
         # Assert
 
         ## user1 is only in group1
-        self.assertEqual(list(user1.groups.all()), [group1])
+        self.assertEqual(list(user1.borrowd_groups.all()), [borrowd_group1])
 
         ## user2 is only in group2
-        self.assertEqual(list(user2.groups.all()), [group2])
+        self.assertEqual(list(user2.borrowd_groups.all()), [borrowd_group2])
 
         ## group1 contains only user1
-        self.assertEqual(list(group1.users.all()), [user1])
+        self.assertEqual(list(borrowd_group1.users.all()), [user1])
 
         ## group2 contains only user2
-        self.assertEqual(list(group2.users.all()), [user2])
+        self.assertEqual(list(borrowd_group2.users.all()), [user2])
 
     def test_add_multiple_users_to_group(self) -> None:
         # Arrange
@@ -68,7 +77,10 @@ class AddUsersToGroupsTests(TestCase):
 
         ## Create a group
         group: BorrowdGroup = BorrowdGroup.objects.create(
-            name="Group", created_by=user1, updated_by=user1
+            name="Group",
+            created_by=user1,
+            updated_by=user1,
+            membership_requires_approval=False,
         )
 
         # Act
@@ -83,6 +95,6 @@ class AddUsersToGroupsTests(TestCase):
 
         ## Each user is in the group
         # User1 in Group by default as creator
-        self.assertEqual(list(user1.groups.all()), [group])
-        self.assertEqual(list(user2.groups.all()), [group])
-        self.assertEqual(list(user3.groups.all()), [group])
+        self.assertEqual(list(user1.borrowd_groups.all()), [group])
+        self.assertEqual(list(user2.borrowd_groups.all()), [group])
+        self.assertEqual(list(user3.borrowd_groups.all()), [group])
