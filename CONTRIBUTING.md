@@ -73,6 +73,42 @@ The example file contains default values which are appropriate for
 local development, but you can tweak the values in your own `.env`
 to your liking.
 
+#### Env vars
+
+* `BORROWD_USE_LOCAL_BUNDLING`
+
+_Required: No_
+_Default: False_
+
+Specifies whether or not to use `vite` for local serving of JS/CSS
+assets in dev. Also required for prod (where we can't rely on CDNs to
+serve our static assets).
+
+* `DJANGO_SECRET_KEY`
+
+_Required: either this OR the subsequent var_
+
+Long, high-entropy, secret string for Django to use for cryptography
+operations.
+
+* `DJANGO_SECRET_KEY_VAR_NAME`
+
+_Required: either this OR the previous var_
+
+An alternative to `DJANGO_SECRET_KEY`. The _name_ of _another_ env
+var in which is specified a long, high-entropy, secret string for
+Django to use for cryptography operations.
+
+Either this var _or_ `DJANGO_SECRET_KEY` must be set. If this var is
+set, then the value of `DJANGO_SECRET_KEY` will be ignored.
+
+* `DJANGO_SETTINGS_MODULE`
+
+_Required: Yes_
+_Default: None_
+
+Module path to the desired django config file to load.
+
 ### 5. Running the app
 
 Now all your tooling is installed, you're ready to fire up the
