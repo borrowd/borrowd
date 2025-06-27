@@ -5,6 +5,7 @@
 *.pot
 db.sqlite3
 media
+staticfiles/
 
 # Backup files
 *.bak
@@ -38,6 +39,9 @@ wheels/
 # Installer logs
 pip-log.txt
 pip-delete-this-directory.txt
+
+# Javascript
+node_modules/
 
 # Virtual environments
 .env
