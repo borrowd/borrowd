@@ -23,3 +23,13 @@ def label_text_color(color: str) -> str:
         "red": "text-borrowd-plum-600",
         "yellow": "text-borrowd-honey-600",
     }.get(color, "text-borrowd-indigo-600")
+
+
+@register.filter
+def status_to_label_color(status: str) -> str:
+    """Convert an item status to an appropriate label color."""
+    return {
+        "available": "green",
+        "reserved": "yellow",
+        "borrowed": "red",
+    }.get(status.lower(), "blue")

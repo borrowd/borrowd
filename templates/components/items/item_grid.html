@@ -19,6 +19,7 @@
             image="{{item.photos.all.0.image.url}}"
             label_color="{{ label_color }}"
             box_size="{{ box_size }}"
+            show_status="{{ show_status }}"
         >
             {% if label_type == 'i_borrower' and item.borrower %}
                 <c-slot name="label">
@@ -38,6 +39,7 @@
             status="{{ tx.get_status_display }}"
             label_color="{{ label_color }}"
             box_size="{{ box_size }}"
+            show_status="{{ show_status }}"
         >
             {% if label_type %}
             <c-slot name="label">
