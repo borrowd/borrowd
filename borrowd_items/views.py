@@ -84,7 +84,7 @@ def borrow_item(request: HttpRequest, pk: int) -> HttpResponse:
 
     return render(
         request,
-        template_name="components/items/action_buttons.html",
+        template_name="components/items/action_buttons_with_status.html",
         context={
             "item": item,
             "item_actions": next_actions,

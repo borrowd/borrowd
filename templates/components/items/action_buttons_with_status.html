@@ -1,0 +1,128 @@
+<!--
+    Originally these were properly separate components but when apart Alpine wouldn't properly pick up the htmx swap so styling would lag behind.
+  -->
+<div id="action-status-container" class="flex flex-col items-center my-2 mx-8 gap-2">
+    <div
+        x-data="itemActionStatus(
+                [{% for action in item_actions %}
+                    '{{ action.name }}'
+                    {% if not forloop.last %},
+                    {% endif %}
+                {% endfor %}],
+                {{ user.pk }},
+                {{ item.owner.pk }}
+            )"
+        class="w-full flex flex-col items-center gap-2">
+
+        <!-- Status Box -->
+        <!-- Non-owners will always have an action or status
+            - Don't show anything if item is owned by user and there's nothing to be done
+         -->
+        {% if item.owner.pk != user.pk or item_actions %}
+        <div class="my-4 p-3 border rounded-lg" :class="statusInfo.classes">
+            <div class="flex items-center">
+                <!-- TODO: design team info icon -->
+                <svg class="w-10 h-10 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
+                </svg>
+                <span x-text="statusInfo.text"></span>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Action Buttons -->
+        <div class="flex flex-wrap items-center space-x-2">
+            {% for action in item_actions %}
+                {% if action.name == 'ACCEPT_REQUEST' or action.name == 'REJECT_REQUEST' %}
+                    <button
+                        type="button"
+                        hx-post="{% url 'item-borrow' item.pk %}"
+                        hx-vals='{"action": "{{ action.name }}"}'
+                        hx-trigger="click"
+                        hx-swap="innerHTML"
+                        hx-target="#action-status-container"
+                        class="inline-block w-fit text-white font-medium py-2 px-4 rounded
+                        {% if action.name == 'ACCEPT_REQUEST' %}bg-green-600 hover:bg-green-700
+                        {% elif action.name == 'REJECT_REQUEST' %}bg-red-600 hover:bg-red-700
+                        {% endif %}"
+                    >
+                        {{ action.label }}
+                    </button>
+                {% else %}
+                    <button
+                        type="button"
+                        hx-post="{% url 'item-borrow' item.pk %}"
+                        hx-vals='{"action": "{{ action.name }}"}'
+                        hx-trigger="click"
+                        hx-swap="innerHTML"
+                        hx-target="#action-status-container"
+                        class="inline-block w-fit text-white font-medium py-2 px-4 rounded
+                        {% if action.name == 'REQUEST_ITEM' %}bg-orange-600 hover:bg-orange-700
+                        {% elif action.name == 'CANCEL_REQUEST' %}bg-red-600 hover:bg-red-700
+                        {% else %}bg-blue-600 hover:bg-blue-700
+                        {% endif %}"
+                    >
+                        {{ action.label }}
+                    </button>
+                {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<script>
+function itemActionStatus(actions, userId, ownerId) {
+    return {
+        actions: actions,
+        get isOwner() {
+            return userId === ownerId;
+        },
+        get statusInfo() {
+            const classes = 'bg-blue-50 border-blue-200 text-blue-800';
+            let text = 'No actions available';
+
+            // Owner-specific status messages
+            if (this.isOwner) {
+                if (this.actions.includes('ACCEPT_REQUEST')) {
+                    text = 'Someone has requested to borrow this item!'; //todo: username of requester
+                } else if (this.actions.includes('MARK_COLLECTED') && this.actions.includes('CANCEL_REQUEST')) {
+                    text = 'You\'ve accepted a borrow request, please mark the item as Collected when you\'ve given it to the borrower.';
+                } else if (this.actions.includes('CONFIRM_COLLECTED')) {
+                    text = 'Borrower marked item as collected, confirm you have lent it.';
+                }  else if (this.actions.includes('MARK_RETURNED')) {
+                    text = 'You are currently lending this item. Mark it as returned when you have received it back.';
+                } else if (this.actions.includes('CONFIRM_RETURNED')) {
+                    text = 'Lender marked item as returned, confirm you have received it back.';
+                } else {
+                    text = 'This is your item';
+                }
+            } else {
+                // Non-owner status messages
+                //todo: waiting on owner to Confirm Collected & Confirm Returned
+                if (this.actions.length === 1 && this.actions.includes('CANCEL_REQUEST')) {
+                    text = 'Requested to borrow, waiting on owner response...';
+                } else if (this.actions.includes('CANCEL_REQUEST')) {
+                    text = 'Owner accepted request, mark Collected when you have received the item.';
+                } else if (this.actions.includes('CONFIRM_COLLECTED')) {
+                    text = 'Owner marked item as collected, confirm you have received it.';
+                } else if (this.actions.includes('REQUEST_ITEM')) {
+                    text = 'Available to request!';
+                } else if (this.actions.includes('MARK_RETURNED')) {
+                    text = 'You are currently borrowing this item. Mark it as returned when you have returned it to the owner.';
+                } else if (this.actions.includes('CONFIRM_RETURNED')) {
+                    text = 'Owner marked item as returned, confirm you have given it back.';
+                } else if (this.actions.includes('RETURN_ITEM')) {
+                    text = 'Currently borrowed - return when done';
+                } else {
+                    text = 'Not available for borrowing';
+                }
+            }
+
+            return {
+                text: text,
+                classes: classes
+            };
+        }
+    };
+}
+</script>

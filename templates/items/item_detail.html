@@ -2,20 +2,48 @@
 
 {% block head_title %}View Item{% endblock %}
 {% block items_content %}
-<c-box>
+<c-box class="relative flex flex-col items-center">
+    <div class="w-full flex">
+        <c-button-nav variant="outlined" url="{% url 'item-list' %}"><span>&larr;</span> Back to List</c-button-nav>
+
+        {% if user.is_authenticated and object.owner == user %}
+        <c-button-nav class="flex items-center ml-auto bg-orange-600 hover:bg-orange-700 text-white"
+        url="{% url 'item-edit' object.pk %}">
+            <span class="inline-block mr-2 fill-white">{% include "icons/handyman.svg" %}</span>
+            Manage
+        </c-button-nav>
+        {% endif %}
+    </div>
     <c-h1>{{ object.name }}</c-h1>
-    <p>{{ object.description }}</p>
-    <c-items.action-buttons />
 
     <c-gallery>
-    {% for photo in view.object.photos.all %}
+        {% for photo in view.object.photos.all %}
         <c-photo src="{{ photo.image.url }}"
-            alt="{{ view.object.name }} Photo {{ forloop.counter }}" />
-    {% endfor %}
+        alt="{{ view.object.name }} Photo {{ forloop.counter }}" />
+        {% endfor %}
     </c-gallery>
 
-    <c-button-nav url="{% url 'item-list' %}">Back to List</c-button-nav>
-    <c-button-nav url="{% url 'item-edit' object.pk %}">Edit</c-button-nav>
-    <c-button-nav url="{% url 'item-delete' object.pk %}">Delete</c-button-nav>
+    <c-items.action-buttons-with-status
+        :item-actions="item_actions"
+        :is-owner="user.is_authenticated && object.owner == user"
+    ></c-items.action-buttons-with-status>
+
+    <div class="flex flex-col w-3/4 bg-gray-100 p-4 rounded-lg mt-6 border-2 border-gray-300">
+        <c-h2>Description</c-h2>
+        <p>{{ object.description }}</p>
+    </div>
 </c-box>
+
+<!-- REMOVE, JUST FOR DEBUGGING -->
+ <c-box class="mt-12 !bg-gray-400">
+    <c-h1>Debugging Info</c-h1>
+    <p>Object Name: {{ object.name }}</p>
+    <p>Object Description: {{ object.description }}</p>
+    <p>Object Photos Count: {{ object.photos.count }}</p>
+    <p>Object Owner: {{ object.owner.username }}</p>
+    <p>Object Category: {{ object.category }}</p>
+    <p>Item Actions: {{ item_actions|join:", " }}</p>
+    <p>User: {{ user.username }}</p>
+    <p>Is Authenticated: {{ user.is_authenticated }}</p>
+ </c-box>
 {% endblock %}
