@@ -91,7 +91,7 @@ STORAGES = {
     "default": {
         "BACKEND": "storages.backends.s3.S3Storage",
         "OPTIONS": {
-            "bucket_name": "borrowd-media-dev-us-west-1",
+            "bucket_name": "borrowd-media-prod-us-west-1",
             "default_acl": "public-read",
             "file_overwrite": False,
             "region_name": "us-west-1",
@@ -101,7 +101,7 @@ STORAGES = {
     "staticfiles": {
         "BACKEND": "storages.backends.s3.S3Storage",
         "OPTIONS": {
-            "bucket_name": "borrowd-media-dev-us-west-1",
+            "bucket_name": "borrowd-media-prod-us-west-1",
             "default_acl": "public-read",
             "file_overwrite": True,
             "region_name": "us-west-1",
