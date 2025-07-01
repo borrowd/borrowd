@@ -1,0 +1,32 @@
+{
+    "author": "",
+    "bugs": {
+        "url": "https://github.com/borrowd/borrowd/issues"
+    },
+    "dependencies": {
+        "@tailwindcss/vite": "^4.1.8",
+        "tailwindcss": "^4.1.8"
+    },
+    "description": "Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) to get started!",
+    "devDependencies": {
+        "vite": "^6.3.5"
+    },
+    "directories": {
+        "test": "tests"
+    },
+    "homepage": "https://github.com/borrowd/borrowd#readme",
+    "keywords": [],
+    "license": "AGPL",
+    "main": "static/js/main.js",
+    "name": "borrowd",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/borrowd/borrowd.git"
+    },
+    "scripts": {
+        "build": "vite build",
+        "dev": "vite"
+    },
+    "type": "commonjs",
+    "version": "1.0.0"
+}

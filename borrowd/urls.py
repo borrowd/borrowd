@@ -32,8 +32,12 @@ urlpatterns: List[URLPattern | URLResolver] = [
     path("groups/", include("borrowd_groups.urls")),
     path("favicon.ico", favicon, name="favicon"),
     path("", include("borrowd_web.urls")),
-    path("__reload__/", include("django_browser_reload.urls")),
 ]
+
+if not settings.BORROWD_USE_LOCAL_BUNDLING:
+    urlpatterns += [
+        path("__reload__/", include("django_browser_reload.urls")),
+    ]
 
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

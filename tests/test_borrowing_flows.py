@@ -58,6 +58,7 @@ class RejectedFlowTest(SimpleTestCase):
             created_by=cls.lender,
             updated_by=cls.lender,
             trust_level=TrustLevel.HIGH,
+            membership_requires_approval=False,
         )
         cls.group.add_user(cls.borrower, trust_level=TrustLevel.HIGH)
         cls.item = Item.objects.create(

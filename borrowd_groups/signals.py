@@ -1,5 +1,6 @@
 from typing import Any
 
+from django.contrib.auth.models import Group
 from django.db.models.query import QuerySet
 from django.db.models.signals import post_save, pre_delete, pre_save
 from django.dispatch import receiver
@@ -10,6 +11,17 @@ from borrowd_groups.exceptions import ModeratorRequiredException
 from borrowd_groups.models import BorrowdGroup, Membership
 from borrowd_items.models import Item
 from borrowd_users.models import BorrowdUser
+
+
+@receiver(post_save, sender=BorrowdGroup)
+def create_perms_group_on_borrowd_group_creation(
+    sender: BorrowdGroup, instance: BorrowdGroup, created: bool, **kwargs: str
+) -> None:
+    # Only run this logic on instance creation
+    if not created:
+        return
+
+    Group.objects.create(name=instance.name)
 
 
 @receiver(post_save, sender=BorrowdGroup)
@@ -82,7 +94,9 @@ def refresh_permissions_on_membership_update(
     # Handle Item permissions
     #
     user = instance.user
-    group = instance.group
+    borrowd_group = instance.group
+    # error: "_ST" has no attribute "name"  [attr-defined]
+    group = Group.objects.get(name=borrowd_group.name)  # type: ignore[attr-defined]
     new_trust_level = instance.trust_level
     membership = instance
 
@@ -111,10 +125,20 @@ def refresh_permissions_on_membership_update(
     else:
         # Remove moderator permissions if the user is no longer a moderator
         for perm in moderator_perms:
-            remove_perm(perm, user, group)
+            remove_perm(perm, user, borrowd_group)
 
     for perm in member_perms:
-        assign_perm(perm, user, group)
+        assign_perm(perm, user, borrowd_group)
+
+
+@receiver(pre_delete, sender=BorrowdGroup)
+def borrowd_group_pre_delete_remove_perms_group(
+    sender: BorrowdGroup, instance: BorrowdGroup, **kwargs: Any
+) -> None:
+    # Use get() as there should always be exactly one; see
+    # `create_perms_group_on_borrowd_group_creation()` above.
+    group = Group.objects.get(name=instance.name)
+    group.delete()
 
 
 @receiver(pre_delete, sender=Membership)
@@ -127,12 +151,12 @@ def pre_membership_delete(
     """
     membership = instance
     user: BorrowdUser = membership.user  # type: ignore[assignment]
-    group: BorrowdGroup = membership.group  # type: ignore[assignment]
+    borrowd_group: BorrowdGroup = membership.group  # type: ignore[assignment]
 
     #
     # Check the group will not be left without a Moderator
     #
-    _raise_if_last_moderator(user, group, **kwargs)
+    _raise_if_last_moderator(user, borrowd_group, **kwargs)
 
     #
     # Handle Group removal
@@ -144,7 +168,7 @@ def pre_membership_delete(
     ]
     # Remove all permissions for the user on the group
     for perm in all_perms:
-        remove_perm(perm, user, group)
+        remove_perm(perm, user, borrowd_group)
 
     #
     # Handle Item removal
