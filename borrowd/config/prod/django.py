@@ -5,7 +5,6 @@ import sys
 from environ import ImproperlyConfigured
 
 from ..base import *  # noqa: F403
-from ..base import BASE_DIR  # explicitly import what we need
 from ..env import env
 
 DEBUG = False
@@ -110,7 +109,7 @@ STORAGES = {
         },
     },
 }
-STATIC_ROOT = BASE_DIR / "staticfiles"
+STATIC_ROOT = BASE_DIR / "staticfiles"  # noqa: F405
 DJANGO_VITE = {
     "default": {
         "dev_mode": DEBUG,
