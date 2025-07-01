@@ -5,6 +5,7 @@ import sys
 from environ import ImproperlyConfigured
 
 from ..base import *  # noqa: F403
+from ..base import BASE_DIR  # explicitly import what we need
 from ..env import env
 
 DEBUG = False
@@ -108,4 +109,11 @@ STORAGES = {
             "endpoint_url": "https://s3.us-west-1.wasabisys.com",
         },
     },
+}
+STATIC_ROOT = BASE_DIR / "staticfiles"
+DJANGO_VITE = {
+    "default": {
+        "dev_mode": DEBUG,
+        "manifest_path": BASE_DIR / "build" / "manifest.json",  # noqa: F405
+    }
 }
