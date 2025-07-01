@@ -56,7 +56,6 @@ INSTALLED_APPS = [
     "borrowd_groups",
     "guardian",
     "django_filters",
-    "django_vite",
     "django_cleanup.apps.CleanupConfig",  # Must go last https://github.com/un1t/django-cleanup?tab=readme-ov-file#configuration
 ]
 
