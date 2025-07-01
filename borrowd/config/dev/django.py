@@ -1,9 +1,8 @@
 from ..base import *  # noqa: F403
-from ..base import BASE_DIR  # explicitly import what we need
 
 DEBUG = True
 
-STATIC_ROOT = BASE_DIR / "staticfiles"
+STATIC_ROOT = BASE_DIR / "staticfiles"  # noqa: F405
 DJANGO_VITE = {
     "default": {
         "dev_mode": DEBUG,
