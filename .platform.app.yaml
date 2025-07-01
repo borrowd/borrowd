@@ -103,7 +103,7 @@ hooks:
     pip install -r requirements.txt
 
     # Collect static assets
-    python manage.py collectstatic
+    python manage.py collectstatic --noinput
 
   # The deploy hook is run after the app container has been started, but before it has started accepting requests.
   # More information: https://docs.platform.sh/create-apps/hooks/hooks-comparison.html#deploy-hook
