@@ -1,3 +1,4 @@
+from ..base import *  # noqa: F403
 from ..base import BASE_DIR  # explicitly import what we need
 
 DEBUG = True
