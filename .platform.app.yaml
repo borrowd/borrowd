@@ -102,6 +102,10 @@ hooks:
     # Install dependencies
     pip install -r requirements.txt
 
+    # For vite
+    npm install
+    npm run build
+
     # Collect static assets
     python manage.py collectstatic --noinput
 
