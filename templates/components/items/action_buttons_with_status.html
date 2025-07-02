@@ -10,15 +10,12 @@
                     {% endif %}
                 {% endfor %}],
                 {{ user.pk }},
-                {{ item.owner.pk }}
+                {{ item.owner.pk }},
+                {{ item.status }}
             )"
         class="w-full flex flex-col items-center gap-2">
 
         <!-- Status Box -->
-        <!-- Non-owners will always have an action or status
-            - Don't show anything if item is owned by user and there's nothing to be done
-         -->
-        {% if item.owner.pk != user.pk or item_actions %}
         <div class="my-4 p-3 border rounded-lg" :class="statusInfo.classes">
             <div class="flex items-center">
                 <!-- TODO: design team info icon -->
@@ -28,7 +25,6 @@
                 <span x-text="statusInfo.text"></span>
             </div>
         </div>
-        {% endif %}
 
         <!-- Action Buttons -->
         <div class="flex flex-wrap items-center space-x-2">
@@ -71,12 +67,13 @@
 </div>
 
 <script>
-function itemActionStatus(actions, userId, ownerId) {
+function itemActionStatus(actions, userId, ownerId, itemStatus) {
     return {
         actions: actions,
         get isOwner() {
             return userId === ownerId;
         },
+        // get isBorrower()
         get statusInfo() {
             const classes = 'bg-blue-50 border-blue-200 text-blue-800';
             let text = 'No actions available';
@@ -92,13 +89,16 @@ function itemActionStatus(actions, userId, ownerId) {
                 }  else if (this.actions.includes('MARK_RETURNED')) {
                     text = 'You are currently lending this item. Mark it as returned when you have received it back.';
                 } else if (this.actions.includes('CONFIRM_RETURNED')) {
-                    text = 'Lender marked item as returned, confirm you have received it back.';
+                    text = 'Borrower marked item as returned, confirm you have received it back.';
+                } else if (itemStatus === 20) {
+                    text = 'You\'ve marked this item as reserved, waiting for Borrower to confirm collected.';
+                }else if (itemStatus === 30) {
+                    text = 'Waiting for Borrower to confirm returned.';
                 } else {
-                    text = 'This is your item';
+                    text = 'This is your item and it is available for borrowing.';
                 }
-            } else {
-                // Non-owner status messages
-                //todo: waiting on owner to Confirm Collected & Confirm Returned
+            } else { // else if (isBorrower)
+                //todo: pass along current borrower and use here to distinguish b/w non-owner borrower and rest of users
                 if (this.actions.length === 1 && this.actions.includes('CANCEL_REQUEST')) {
                     text = 'Requested to borrow, waiting on owner response...';
                 } else if (this.actions.includes('CANCEL_REQUEST')) {
@@ -113,10 +113,14 @@ function itemActionStatus(actions, userId, ownerId) {
                     text = 'Owner marked item as returned, confirm you have given it back.';
                 } else if (this.actions.includes('RETURN_ITEM')) {
                     text = 'Currently borrowed - return when done';
+                } else if (this.actions.length === 0 && itemStatus === 20 ) { // surely there's a way to do this without hardcoding the status code... I'd like to do ItemStatus.RESERVED please!
+                    text = 'You\'re currently borrowing this item!';
+                }  else if (this.actions.length === 0 && itemStatus === 30 ) {
+                    text = 'Waiting owner confirmation of returned item.';
                 } else {
                     text = 'Not available for borrowing';
                 }
-            }
+            } // else is nonborrower user...
 
             return {
                 text: text,
