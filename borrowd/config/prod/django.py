@@ -1,5 +1,6 @@
 import base64
 import json
+import os
 import sys
 
 from environ import ImproperlyConfigured
@@ -98,21 +99,18 @@ STORAGES = {
             "endpoint_url": "https://s3.us-west-1.wasabisys.com",
         },
     },
+    # Vite would require some extra setup to use S3 for static files
     "staticfiles": {
-        "BACKEND": "storages.backends.s3.S3Storage",
-        "OPTIONS": {
-            "bucket_name": "borrowd-media-prod-us-west-1",
-            "default_acl": "public-read",
-            "file_overwrite": True,
-            "region_name": "us-west-1",
-            "endpoint_url": "https://s3.us-west-1.wasabisys.com",
-        },
+        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
     },
 }
-STATIC_ROOT = BASE_DIR / "staticfiles"  # noqa: F405
+
+# Redefine the static root based on the platform.sh directory
+# See https://docs.djangoproject.com/en/5.2/ref/settings/#static-root
+STATIC_ROOT = os.path.join(env("PLATFORM_APP_DIR"), "staticfiles")
 DJANGO_VITE = {
     "default": {
-        "dev_mode": DEBUG,
+        "dev_mode": False,
         "manifest_path": BASE_DIR / "build" / "manifest.json",  # noqa: F405
     }
 }
