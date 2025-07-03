@@ -81,13 +81,17 @@ def borrow_item(request: HttpRequest, pk: int) -> HttpResponse:
         )
 
     next_actions = item.get_actions_for(user=user)
+    current_borrower = item.get_current_borrower()
+    requesting_user = item.get_requesting_user()
 
     return render(
         request,
-        template_name="components/items/action_buttons.html",
+        template_name="components/items/action_buttons_with_status.html",
         context={
             "item": item,
             "item_actions": next_actions,
+            "current_borrower": current_borrower,
+            "requesting_user": requesting_user,
         },
         content_type="text/html",
         status=200,
@@ -122,6 +126,8 @@ class ItemDetailView(BorrowdTemplateFinderMixin, DetailView[Item]):
         context = super().get_context_data(**kwargs)
         user: BorrowdUser = self.request.user  # type: ignore[assignment]
         context["item_actions"] = self.object.get_actions_for(user=user)
+        context["current_borrower"] = self.object.get_current_borrower()
+        context["requesting_user"] = self.object.get_requesting_user()
         return context
 
 
