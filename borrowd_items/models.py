@@ -195,6 +195,71 @@ class Item(Model):
                 f"Unexpected Transaction status '{current_tx.status}' for Item '{self}' and User '{user}'"
             )
 
+    def get_requesting_user(self) -> Optional[BorrowdUser]:
+        """
+        Returns the User who has requested to borrow this Item, if any.
+        This is specifically for items in REQUESTED status.
+        """
+        try:
+            transaction = Transaction.objects.get(
+                Q(item=self) & Q(status=TransactionStatus.REQUESTED)
+            )
+            # party2 is the requestor
+            return transaction.party2  # type: ignore[return-value]
+        except Transaction.DoesNotExist:
+            return None
+        except Transaction.MultipleObjectsReturned:
+            # Return the most recent request (for now)
+            txn: Optional["Transaction"] = (
+                Transaction.objects.filter(
+                    Q(item=self) & Q(status=TransactionStatus.REQUESTED)
+                )
+                .order_by("-created_at")
+                .first()
+            )
+            return txn.party2 if txn else None  # type: ignore[return-value]
+
+    def get_current_borrower(self) -> Optional[BorrowdUser]:
+        """
+        Returns the User who is currently borrowing this Item, if any.
+        """
+        # Look for an active transaction where the item is borrowed or reserved
+        try:
+            transaction = Transaction.objects.get(
+                Q(item=self)
+                & Q(
+                    status__in=[
+                        TransactionStatus.ACCEPTED,
+                        TransactionStatus.COLLECTION_ASSERTED,
+                        TransactionStatus.COLLECTED,
+                        TransactionStatus.RETURN_ASSERTED,
+                    ]
+                )
+            )
+            # party2 is the borrower
+            return transaction.party2  # type: ignore[return-value]
+        except Transaction.DoesNotExist:
+            return None
+        except Transaction.MultipleObjectsReturned:
+            # This shouldn't happen with proper business logic, but just in case
+            # return the most recent one
+            txn: Optional["Transaction"] = (
+                Transaction.objects.filter(
+                    Q(item=self)
+                    & Q(
+                        status__in=[
+                            TransactionStatus.ACCEPTED,
+                            TransactionStatus.COLLECTION_ASSERTED,
+                            TransactionStatus.COLLECTED,
+                            TransactionStatus.RETURN_ASSERTED,
+                        ]
+                    )
+                )
+                .order_by("-updated_at")
+                .first()
+            )
+            return txn.party2 if txn else None  # type: ignore[return-value]
+
     def get_current_transaction_for_user(
         self, user: BorrowdUser
     ) -> Optional["Transaction"]:

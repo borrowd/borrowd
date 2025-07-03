@@ -14,24 +14,26 @@
         </c-button-nav>
         {% endif %}
     </div>
-    <c-h1>{{ object.name }}</c-h1>
+    <div class="flex flex-col w-3/4 items-center">
+        <c-h1>{{ object.name }}</c-h1>
 
-    <c-gallery>
-        {% for photo in view.object.photos.all %}
-        <c-photo src="{{ photo.image.url }}"
-        alt="{{ view.object.name }} Photo {{ forloop.counter }}" />
-        {% endfor %}
-    </c-gallery>
+        <c-gallery>
+            {% for photo in view.object.photos.all %}
+            <c-photo src="{{ photo.image.url }}"
+            alt="{{ view.object.name }} Photo {{ forloop.counter }}" />
+            {% endfor %}
+        </c-gallery>
 
-    <c-items.action-buttons-with-status
-        :item-actions="item_actions"
-        :is-owner="user.is_authenticated && object.owner == user"
-        :item-status="object.status"
-    ></c-items.action-buttons-with-status>
+        <c-items.action-buttons-with-status
+            :item-actions="item_actions"
+            :is-owner="user.is_authenticated && object.owner == user"
+            :item-status="object.status"
+        ></c-items.action-buttons-with-status>
 
-    <div class="flex flex-col w-3/4 bg-gray-100 p-4 rounded-lg mt-6 border-2 border-gray-300">
-        <c-h2>Description</c-h2>
-        <p>{{ object.description }}</p>
+        <div class="flex flex-col bg-gray-100 p-4 rounded-lg mt-6 border-2 border-gray-300">
+            <c-h2>Description</c-h2>
+            <p>{{ object.description }}</p>
+        </div>
     </div>
 </c-box>
 

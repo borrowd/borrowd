@@ -1,7 +1,7 @@
 <!--
     Originally these were properly separate components but when apart Alpine wouldn't properly pick up the htmx swap so styling would lag behind.
   -->
-<div id="action-status-container" class="flex flex-col items-center my-2 mx-8 gap-2">
+<div id="action-status-container" class="flex flex-col items-center my-2 gap-2">
     <div
         x-data="itemActionStatus(
                 [{% for action in item_actions %}
@@ -11,9 +11,19 @@
                 {% endfor %}],
                 {{ user.pk }},
                 {{ item.owner.pk }},
-                {{ item.status }}
+                {{ item.status }},
+                {% if current_borrower %}
+                    { id: {{ current_borrower.pk }}, username: '{{ current_borrower.username }}' }
+                {% else %}
+                    null
+                {% endif %},
+                {% if requesting_user %}
+                    { id: {{ requesting_user.pk }}, username: '{{ requesting_user.username }}' }
+                {% else %}
+                    null
+                {% endif %}
             )"
-        class="w-full flex flex-col items-center gap-2">
+        class="flex flex-col items-center gap-2">
 
         <!-- Status Box -->
         <div class="my-4 p-3 border rounded-lg" :class="statusInfo.classes">
@@ -67,60 +77,71 @@
 </div>
 
 <script>
-function itemActionStatus(actions, userId, ownerId, itemStatus) {
+function itemActionStatus(actions, userId, ownerId, itemStatus, currentBorrower, requestingUser) {
     return {
         actions: actions,
         get isOwner() {
             return userId === ownerId;
         },
-        // get isBorrower()
+        get isBorrower() {
+            return currentBorrower && userId === currentBorrower.id;
+        },
         get statusInfo() {
             const classes = 'bg-blue-50 border-blue-200 text-blue-800';
             let text = 'No actions available';
 
+            // Determine the relevant user's name for status messages
+            const requesterName = requestingUser?.username || 'Someone';
+            const borrowerName = currentBorrower?.username || 'Borrower';
+
             // Owner-specific status messages
             if (this.isOwner) {
                 if (this.actions.includes('ACCEPT_REQUEST')) {
-                    text = 'Someone has requested to borrow this item!'; //todo: username of requester
+                    text = `${requesterName} has requested to borrow this item!`;
                 } else if (this.actions.includes('MARK_COLLECTED') && this.actions.includes('CANCEL_REQUEST')) {
-                    text = 'You\'ve accepted a borrow request, please mark the item as Collected when you\'ve given it to the borrower.';
+                    text = `You've accepted ${borrowerName}'s borrow request, please mark the item as Collected when you've given it to them.`;
                 } else if (this.actions.includes('CONFIRM_COLLECTED')) {
-                    text = 'Borrower marked item as collected, confirm you have lent it.';
+                    text = `${borrowerName} marked item as collected, confirm you have lent it.`;
                 }  else if (this.actions.includes('MARK_RETURNED')) {
-                    text = 'You are currently lending this item. Mark it as returned when you have received it back.';
+                    text = `You are currently lending this item to ${borrowerName}. Mark it as returned when you have received it back.`;
                 } else if (this.actions.includes('CONFIRM_RETURNED')) {
-                    text = 'Borrower marked item as returned, confirm you have received it back.';
-                } else if (itemStatus === 20) {
-                    text = 'You\'ve marked this item as reserved, waiting for Borrower to confirm collected.';
-                }else if (itemStatus === 30) {
-                    text = 'Waiting for Borrower to confirm returned.';
+                    text = `${borrowerName} marked item as returned, confirm you have received it back.`;
+                } else if (itemStatus === 20) { // todo: can we pass these along as a constant from backend
+                    text = `You've marked this item as reserved, waiting for ${borrowerName} to confirm collected.`;
+                } else if (itemStatus === 30) {
+                    text = `Waiting for ${borrowerName} to confirm returned.`;
                 } else {
                     text = 'This is your item and it is available for borrowing.';
                 }
-            } else { // else if (isBorrower)
-                //todo: pass along current borrower and use here to distinguish b/w non-owner borrower and rest of users
-                if (this.actions.length === 1 && this.actions.includes('CANCEL_REQUEST')) {
-                    text = 'Requested to borrow, waiting on owner response...';
-                } else if (this.actions.includes('CANCEL_REQUEST')) {
+            } else if (this.isBorrower) { // Deliberately obscuring owner's name here for privacy to reject
+                if (this.actions.includes('CANCEL_REQUEST')) {
                     text = 'Owner accepted request, mark Collected when you have received the item.';
                 } else if (this.actions.includes('CONFIRM_COLLECTED')) {
                     text = 'Owner marked item as collected, confirm you have received it.';
-                } else if (this.actions.includes('REQUEST_ITEM')) {
-                    text = 'Available to request!';
                 } else if (this.actions.includes('MARK_RETURNED')) {
                     text = 'You are currently borrowing this item. Mark it as returned when you have returned it to the owner.';
                 } else if (this.actions.includes('CONFIRM_RETURNED')) {
                     text = 'Owner marked item as returned, confirm you have given it back.';
                 } else if (this.actions.includes('RETURN_ITEM')) {
                     text = 'Currently borrowed - return when done';
-                } else if (this.actions.length === 0 && itemStatus === 20 ) { // surely there's a way to do this without hardcoding the status code... I'd like to do ItemStatus.RESERVED please!
+                } else if (this.actions.length === 0 && itemStatus === 20 ) {
                     text = 'You\'re currently borrowing this item!';
                 }  else if (this.actions.length === 0 && itemStatus === 30 ) {
                     text = 'Waiting owner confirmation of returned item.';
                 } else {
                     text = 'Not available for borrowing';
                 }
-            } // else is nonborrower user...
+            } else {
+                // Non-owner, non-borrower user
+                if (this.actions.length === 1 && this.actions.includes('CANCEL_REQUEST')) {
+                    text = 'Requested to borrow, waiting on owner response...';
+                }
+                else if (this.actions.includes('REQUEST_ITEM')) {
+                    text = 'Available to request!';
+                } else {
+                    text = 'Not available for borrowing';
+                }
+            }
 
             return {
                 text: text,
