@@ -1,0 +1,5282 @@
+- model: auth.permission
+  pk: 1
+  fields:
+    name: Can add log entry
+    content_type: 1
+    codename: add_logentry
+- model: auth.permission
+  pk: 2
+  fields:
+    name: Can change log entry
+    content_type: 1
+    codename: change_logentry
+- model: auth.permission
+  pk: 3
+  fields:
+    name: Can delete log entry
+    content_type: 1
+    codename: delete_logentry
+- model: auth.permission
+  pk: 4
+  fields:
+    name: Can view log entry
+    content_type: 1
+    codename: view_logentry
+- model: auth.permission
+  pk: 5
+  fields:
+    name: Can add permission
+    content_type: 2
+    codename: add_permission
+- model: auth.permission
+  pk: 6
+  fields:
+    name: Can change permission
+    content_type: 2
+    codename: change_permission
+- model: auth.permission
+  pk: 7
+  fields:
+    name: Can delete permission
+    content_type: 2
+    codename: delete_permission
+- model: auth.permission
+  pk: 8
+  fields:
+    name: Can view permission
+    content_type: 2
+    codename: view_permission
+- model: auth.permission
+  pk: 9
+  fields:
+    name: Can add group
+    content_type: 3
+    codename: add_group
+- model: auth.permission
+  pk: 10
+  fields:
+    name: Can change group
+    content_type: 3
+    codename: change_group
+- model: auth.permission
+  pk: 11
+  fields:
+    name: Can delete group
+    content_type: 3
+    codename: delete_group
+- model: auth.permission
+  pk: 12
+  fields:
+    name: Can view group
+    content_type: 3
+    codename: view_group
+- model: auth.permission
+  pk: 13
+  fields:
+    name: Can add content type
+    content_type: 4
+    codename: add_contenttype
+- model: auth.permission
+  pk: 14
+  fields:
+    name: Can change content type
+    content_type: 4
+    codename: change_contenttype
+- model: auth.permission
+  pk: 15
+  fields:
+    name: Can delete content type
+    content_type: 4
+    codename: delete_contenttype
+- model: auth.permission
+  pk: 16
+  fields:
+    name: Can view content type
+    content_type: 4
+    codename: view_contenttype
+- model: auth.permission
+  pk: 17
+  fields:
+    name: Can add session
+    content_type: 5
+    codename: add_session
+- model: auth.permission
+  pk: 18
+  fields:
+    name: Can change session
+    content_type: 5
+    codename: change_session
+- model: auth.permission
+  pk: 19
+  fields:
+    name: Can delete session
+    content_type: 5
+    codename: delete_session
+- model: auth.permission
+  pk: 20
+  fields:
+    name: Can view session
+    content_type: 5
+    codename: view_session
+- model: auth.permission
+  pk: 21
+  fields:
+    name: Can add user
+    content_type: 6
+    codename: add_borrowduser
+- model: auth.permission
+  pk: 22
+  fields:
+    name: Can change user
+    content_type: 6
+    codename: change_borrowduser
+- model: auth.permission
+  pk: 23
+  fields:
+    name: Can delete user
+    content_type: 6
+    codename: delete_borrowduser
+- model: auth.permission
+  pk: 24
+  fields:
+    name: Can view user
+    content_type: 6
+    codename: view_borrowduser
+- model: auth.permission
+  pk: 25
+  fields:
+    name: Can add profile
+    content_type: 7
+    codename: add_profile
+- model: auth.permission
+  pk: 26
+  fields:
+    name: Can change profile
+    content_type: 7
+    codename: change_profile
+- model: auth.permission
+  pk: 27
+  fields:
+    name: Can delete profile
+    content_type: 7
+    codename: delete_profile
+- model: auth.permission
+  pk: 28
+  fields:
+    name: Can view profile
+    content_type: 7
+    codename: view_profile
+- model: auth.permission
+  pk: 29
+  fields:
+    name: Can add email address
+    content_type: 8
+    codename: add_emailaddress
+- model: auth.permission
+  pk: 30
+  fields:
+    name: Can change email address
+    content_type: 8
+    codename: change_emailaddress
+- model: auth.permission
+  pk: 31
+  fields:
+    name: Can delete email address
+    content_type: 8
+    codename: delete_emailaddress
+- model: auth.permission
+  pk: 32
+  fields:
+    name: Can view email address
+    content_type: 8
+    codename: view_emailaddress
+- model: auth.permission
+  pk: 33
+  fields:
+    name: Can add email confirmation
+    content_type: 9
+    codename: add_emailconfirmation
+- model: auth.permission
+  pk: 34
+  fields:
+    name: Can change email confirmation
+    content_type: 9
+    codename: change_emailconfirmation
+- model: auth.permission
+  pk: 35
+  fields:
+    name: Can delete email confirmation
+    content_type: 9
+    codename: delete_emailconfirmation
+- model: auth.permission
+  pk: 36
+  fields:
+    name: Can view email confirmation
+    content_type: 9
+    codename: view_emailconfirmation
+- model: auth.permission
+  pk: 37
+  fields:
+    name: Can add Item Category
+    content_type: 10
+    codename: add_itemcategory
+- model: auth.permission
+  pk: 38
+  fields:
+    name: Can change Item Category
+    content_type: 10
+    codename: change_itemcategory
+- model: auth.permission
+  pk: 39
+  fields:
+    name: Can delete Item Category
+    content_type: 10
+    codename: delete_itemcategory
+- model: auth.permission
+  pk: 40
+  fields:
+    name: Can view Item Category
+    content_type: 10
+    codename: view_itemcategory
+- model: auth.permission
+  pk: 41
+  fields:
+    name: Can add item
+    content_type: 11
+    codename: add_item
+- model: auth.permission
+  pk: 42
+  fields:
+    name: Can change item
+    content_type: 11
+    codename: change_item
+- model: auth.permission
+  pk: 43
+  fields:
+    name: Can delete item
+    content_type: 11
+    codename: delete_item
+- model: auth.permission
+  pk: 44
+  fields:
+    name: Can view item
+    content_type: 11
+    codename: view_item
+- model: auth.permission
+  pk: 45
+  fields:
+    name: Can view this item
+    content_type: 11
+    codename: view_this_item
+- model: auth.permission
+  pk: 46
+  fields:
+    name: Can edit this item
+    content_type: 11
+    codename: edit_this_item
+- model: auth.permission
+  pk: 47
+  fields:
+    name: Can delete this item
+    content_type: 11
+    codename: delete_this_item
+- model: auth.permission
+  pk: 48
+  fields:
+    name: Can borrow this item
+    content_type: 11
+    codename: borrow_this_item
+- model: auth.permission
+  pk: 49
+  fields:
+    name: Can add item photo
+    content_type: 12
+    codename: add_itemphoto
+- model: auth.permission
+  pk: 50
+  fields:
+    name: Can change item photo
+    content_type: 12
+    codename: change_itemphoto
+- model: auth.permission
+  pk: 51
+  fields:
+    name: Can delete item photo
+    content_type: 12
+    codename: delete_itemphoto
+- model: auth.permission
+  pk: 52
+  fields:
+    name: Can view item photo
+    content_type: 12
+    codename: view_itemphoto
+- model: auth.permission
+  pk: 53
+  fields:
+    name: Can add transaction
+    content_type: 13
+    codename: add_transaction
+- model: auth.permission
+  pk: 54
+  fields:
+    name: Can change transaction
+    content_type: 13
+    codename: change_transaction
+- model: auth.permission
+  pk: 55
+  fields:
+    name: Can delete transaction
+    content_type: 13
+    codename: delete_transaction
+- model: auth.permission
+  pk: 56
+  fields:
+    name: Can view transaction
+    content_type: 13
+    codename: view_transaction
+- model: auth.permission
+  pk: 57
+  fields:
+    name: Can add borrowd group
+    content_type: 14
+    codename: add_borrowdgroup
+- model: auth.permission
+  pk: 58
+  fields:
+    name: Can change borrowd group
+    content_type: 14
+    codename: change_borrowdgroup
+- model: auth.permission
+  pk: 59
+  fields:
+    name: Can delete borrowd group
+    content_type: 14
+    codename: delete_borrowdgroup
+- model: auth.permission
+  pk: 60
+  fields:
+    name: Can view borrowd group
+    content_type: 14
+    codename: view_borrowdgroup
+- model: auth.permission
+  pk: 61
+  fields:
+    name: Can view this Group
+    content_type: 14
+    codename: view_this_group
+- model: auth.permission
+  pk: 62
+  fields:
+    name: Can edit this Group
+    content_type: 14
+    codename: edit_this_group
+- model: auth.permission
+  pk: 63
+  fields:
+    name: Can delete this Group
+    content_type: 14
+    codename: delete_this_group
+- model: auth.permission
+  pk: 64
+  fields:
+    name: Can add membership
+    content_type: 15
+    codename: add_membership
+- model: auth.permission
+  pk: 65
+  fields:
+    name: Can change membership
+    content_type: 15
+    codename: change_membership
+- model: auth.permission
+  pk: 66
+  fields:
+    name: Can delete membership
+    content_type: 15
+    codename: delete_membership
+- model: auth.permission
+  pk: 67
+  fields:
+    name: Can view membership
+    content_type: 15
+    codename: view_membership
+- model: auth.permission
+  pk: 68
+  fields:
+    name: Can add borrowd group object permission
+    content_type: 16
+    codename: add_borrowdgroupobjectpermission
+- model: auth.permission
+  pk: 69
+  fields:
+    name: Can change borrowd group object permission
+    content_type: 16
+    codename: change_borrowdgroupobjectpermission
+- model: auth.permission
+  pk: 70
+  fields:
+    name: Can delete borrowd group object permission
+    content_type: 16
+    codename: delete_borrowdgroupobjectpermission
+- model: auth.permission
+  pk: 71
+  fields:
+    name: Can view borrowd group object permission
+    content_type: 16
+    codename: view_borrowdgroupobjectpermission
+- model: auth.permission
+  pk: 72
+  fields:
+    name: Can add group object permission
+    content_type: 17
+    codename: add_groupobjectpermission
+- model: auth.permission
+  pk: 73
+  fields:
+    name: Can change group object permission
+    content_type: 17
+    codename: change_groupobjectpermission
+- model: auth.permission
+  pk: 74
+  fields:
+    name: Can delete group object permission
+    content_type: 17
+    codename: delete_groupobjectpermission
+- model: auth.permission
+  pk: 75
+  fields:
+    name: Can view group object permission
+    content_type: 17
+    codename: view_groupobjectpermission
+- model: auth.permission
+  pk: 76
+  fields:
+    name: Can add user object permission
+    content_type: 18
+    codename: add_userobjectpermission
+- model: auth.permission
+  pk: 77
+  fields:
+    name: Can change user object permission
+    content_type: 18
+    codename: change_userobjectpermission
+- model: auth.permission
+  pk: 78
+  fields:
+    name: Can delete user object permission
+    content_type: 18
+    codename: delete_userobjectpermission
+- model: auth.permission
+  pk: 79
+  fields:
+    name: Can view user object permission
+    content_type: 18
+    codename: view_userobjectpermission
+- model: auth.group
+  pk: 1
+  fields:
+    name: Hanwell Borrowers
+    permissions: []
+- model: auth.group
+  pk: 2
+  fields:
+    name: Sewing Group
+    permissions: []
+- model: auth.group
+  pk: 3
+  fields:
+    name: Ealing Borrowers
+    permissions: []
+- model: auth.group
+  pk: 4
+  fields:
+    name: Super Best Friends
+    permissions: []
+- model: auth.group
+  pk: 5
+  fields:
+    name: Minimalist Exchange
+    permissions: []
+- model: contenttypes.contenttype
+  pk: 1
+  fields:
+    app_label: admin
+    model: logentry
+- model: contenttypes.contenttype
+  pk: 2
+  fields:
+    app_label: auth
+    model: permission
+- model: contenttypes.contenttype
+  pk: 3
+  fields:
+    app_label: auth
+    model: group
+- model: contenttypes.contenttype
+  pk: 4
+  fields:
+    app_label: contenttypes
+    model: contenttype
+- model: contenttypes.contenttype
+  pk: 5
+  fields:
+    app_label: sessions
+    model: session
+- model: contenttypes.contenttype
+  pk: 6
+  fields:
+    app_label: borrowd_users
+    model: borrowduser
+- model: contenttypes.contenttype
+  pk: 7
+  fields:
+    app_label: borrowd_users
+    model: profile
+- model: contenttypes.contenttype
+  pk: 8
+  fields:
+    app_label: account
+    model: emailaddress
+- model: contenttypes.contenttype
+  pk: 9
+  fields:
+    app_label: account
+    model: emailconfirmation
+- model: contenttypes.contenttype
+  pk: 10
+  fields:
+    app_label: borrowd_items
+    model: itemcategory
+- model: contenttypes.contenttype
+  pk: 11
+  fields:
+    app_label: borrowd_items
+    model: item
+- model: contenttypes.contenttype
+  pk: 12
+  fields:
+    app_label: borrowd_items
+    model: itemphoto
+- model: contenttypes.contenttype
+  pk: 13
+  fields:
+    app_label: borrowd_items
+    model: transaction
+- model: contenttypes.contenttype
+  pk: 14
+  fields:
+    app_label: borrowd_groups
+    model: borrowdgroup
+- model: contenttypes.contenttype
+  pk: 15
+  fields:
+    app_label: borrowd_groups
+    model: membership
+- model: contenttypes.contenttype
+  pk: 16
+  fields:
+    app_label: borrowd_groups
+    model: borrowdgroupobjectpermission
+- model: contenttypes.contenttype
+  pk: 17
+  fields:
+    app_label: guardian
+    model: groupobjectpermission
+- model: contenttypes.contenttype
+  pk: 18
+  fields:
+    app_label: guardian
+    model: userobjectpermission
+- model: sessions.session
+  pk: 1de28aoukext8jgjr266pu060zq6tmoz
+  fields:
+    session_data: .eJxVjk1uwyAQhe8yawthhoDxqu01osoaxiBbtaEqWEoV5e6NU2-8G72fb94diDlvqQ601SmkOjPVOadhDXXKY4H-eof_G3rgPAZogCr0rdWu1V0rlUBnO2VdA2GleXnGypbSrxiDfws3Wr-XIDiv8Phs4PVl2Er4GeYdqFo4iZ74K6TdoWXZZXHME6_MYRfxfhr7cbROqInK9OREy96i9hgvGFFFYmVNa9xF-sgdOR0lYme1wZEwkmTHjFpJachYFSQ8_gCkfmBI:1uNFKA:CCwr9g-steUgz8P-OXWW8eJHw6dSlCHmpAWrMvpeuIM
+    expire_date: 2025-06-19 18:28:22.480963+00:00
+- model: sessions.session
+  pk: 9mfjyfknab63snc5383sbvvnhpjrmlty
+  fields:
+    session_data: .eJxVjt1uhCAQhd9lrg0BxFnxqu1rNI0ZYIy0Cs2KSZvNvnvZrTfeTc7PN-cG5H3eUxlpLzOnEj2VmNO4cplz2GB4v8H_DQP4HBgaoAKDuhirjEXZCqn1pUfVAK8Ulxq7_lISn5xC3l184R9avxcWPq9w_2jg-WncN76O8QHt4KQ58l-1Wg1alocsjoXimTnsTbye9r4drRNqpm2uHGeMckpPiGHSOmDo63JCw62eXKep9dw7iYhtZ02Q2nqWHo2XnVO9chbufwLCYX4:1uNFiN:27pIKQnI6zffXXhVbUTBGbC-9XgHq9xhEs7FhR3iB_w
+    expire_date: 2025-06-19 18:53:23.101950+00:00
+- model: sessions.session
+  pk: bi8uywvaxvvu8t7ycc2zzybyg557i3fx
+  fields:
+    session_data: .eJxVTs1uhCAQfpc5GwIIVDx1-xpNY4ZhjLYKzYpJm82-e9mtFzOXyfd_AyTKeyoD7mXiVGbCMuc0rFymHDfo32_w_0MPlCNDA1igVy9WeVtPiVZaqboGeMV5qarrLybxySnmPcyv_IPr98KC8gr3jwaeRcO-8XWYH5kWTlhA-qrWSuCyPGBxDBRPzUFv4nKa-3a4TlETblPNCcaooPToXBy1ji52Xhl0hls9BquxJe6CdM611psotSeW5AxJG1Sngof7H8C1YU0:1uZ2il:AZh2OCs5jFQisM8Dowb0qro_i9MSnyE6cqsIPa8og-A
+    expire_date: 2025-07-22 07:26:31.347974+00:00
+- model: sessions.session
+  pk: dglb112fwrxuvmii8k3rxk1jjfzluwoi
+  fields:
+    session_data: .eJxVjs1qwzAQhN9lz0bI-qksn5q-RilmtdogUVsqsQyFkHdv4vri2zAz--3cAYnqVtqEW0tcWiZsuZZp4ZZqXGH8vMO_hhGoRoYOsMHYO-Ol0723wvbOKmk64AXz_KzhnNdaBCUshW_v_IvLz8yC6gKPrw72V9O28m3KL6qCkxeQvrnEnTO_bHFMFHvniFdxOQ3-OK5OqIRrenK8j-QCSs_aX4NFjcoZExz1UumeNWnrB8nD1ag4aHTBOh2MCkGTtW-W4PEHcZViEA:1uMvpz:pECOJBcgf6_8MwwRP-7849rOevFhlIhC6gcHUVPoBA4
+    expire_date: 2025-06-18 21:39:55.557953+00:00
+- model: sessions.session
+  pk: glfdc6m2y45pzhkslbs8rtdbg3y1mdur
+  fields:
+    session_data: .eJxVjMEOgyAQRP-Fc2MAYaPe2h8hy7JEUoqJQi9N_73aePE4b2beRyDR0kp1b15TTBwcvzBlMZWW8004bHV2bePVpSAmYcWFeaQnl6PAnA_cnbruvznrrbvviUtNhDUt5XG-LqoZt3n3eGOUVzoChKh1gDCMyiAY7nX0VmNPPHgJAL0dTZB6JJYEhqT1alB-FN8feFJHQw:1uNAt9:ppXpFRg4_Kgttzt7RIx6yK16w7TpWz7SWH4CWsPS1Xk
+    expire_date: 2025-06-19 13:44:11.006433+00:00
+- model: borrowd_users.borrowduser
+  pk: 1
+  fields:
+    password: '!Iz0iX08H7DuTfxOyUBCc2w4fWa5TIMNDD24pwBr0'
+    last_login: null
+    is_superuser: false
+    username: AnonymousUser
+    first_name: ''
+    last_name: ''
+    email: ''
+    is_staff: false
+    is_active: true
+    date_joined: 2025-06-04 06:45:26.671006+00:00
+    user_permissions: []
+- model: borrowd_users.borrowduser
+  pk: 2
+  fields:
+    password: pbkdf2_sha256$1000000$c8bcm76loNETXbBhjW4LNf$Jl9wj2Z//vjWpmS/UMK4XRA1ji45ltLVUHNSEP+7EEA=
+    last_login: 2025-06-05 13:42:38.815450+00:00
+    is_superuser: false
+    username: alison.channer
+    first_name: ''
+    last_name: ''
+    email: alison.channer@example.com
+    is_staff: false
+    is_active: true
+    date_joined: 2025-06-04 06:50:25.633312+00:00
+    user_permissions: []
+- model: borrowd_users.borrowduser
+  pk: 3
+  fields:
+    password: pbkdf2_sha256$1000000$qRJMzYrBC5KH4MWL3GxyGx$cy6aoY85f5u9wRYx5zmHj7JErzgvjDH20PN+MHwVIfQ=
+    last_login: 2025-06-04 07:43:27.145908+00:00
+    is_superuser: false
+    username: kath.wardle
+    first_name: ''
+    last_name: ''
+    email: kath.wardle@example.com
+    is_staff: false
+    is_active: true
+    date_joined: 2025-06-04 07:11:24.490734+00:00
+    user_permissions: []
+- model: borrowd_users.borrowduser
+  pk: 4
+  fields:
+    password: pbkdf2_sha256$1000000$zbvymUUjS66ldaSNshqKVc$C3cQ3BQ32bTiuAZV79gucWA63aquUU2H23988X8S5qI=
+    last_login: 2025-06-05 13:40:26.578472+00:00
+    is_superuser: false
+    username: edna.saleem
+    first_name: ''
+    last_name: ''
+    email: edna.saleem@example.com
+    is_staff: false
+    is_active: true
+    date_joined: 2025-06-05 13:40:25.831532+00:00
+    user_permissions: []
+- model: borrowd_users.borrowduser
+  pk: 5
+  fields:
+    password: pbkdf2_sha256$1000000$s7lDoyysQtmEHS42fAilnI$z3GV3JkMOsSNR4b5Y0BcxuS/osxLBSlCch+adfsQh2A=
+    last_login: 2025-07-08 07:26:31.337602+00:00
+    is_superuser: false
+    username: ryan.jendoubi
+    first_name: ''
+    last_name: ''
+    email: ryan.jendoubi@example.com
+    is_staff: false
+    is_active: true
+    date_joined: 2025-06-05 13:44:10.260465+00:00
+    user_permissions: []
+- model: borrowd_users.borrowduser
+  pk: 6
+  fields:
+    password: pbkdf2_sha256$1000000$IoiPmT8wGPeJ5APjwAidNN$4IFdP/bSThgF017EJAHdu4OyREx7/j9G3wCsxMQBp5w=
+    last_login: 2025-06-05 14:04:48.718017+00:00
+    is_superuser: false
+    username: jill.conway
+    first_name: ''
+    last_name: ''
+    email: jill.conway@example.com
+    is_staff: false
+    is_active: true
+    date_joined: 2025-06-05 14:04:47.977352+00:00
+    user_permissions: []
+- model: borrowd_users.borrowduser
+  pk: 7
+  fields:
+    password: pbkdf2_sha256$1000000$N6wb1Kt1zRzxTTPRABzGk5$EtS5nKpVbcRBgy8INZ6ZZQaSJug53nX0q7SC+184xbA=
+    last_login: 2025-06-05 14:16:47.232638+00:00
+    is_superuser: false
+    username: hardial.chakraborty
+    first_name: ''
+    last_name: ''
+    email: hardial.chakraborty@example.com
+    is_staff: false
+    is_active: true
+    date_joined: 2025-06-05 14:16:46.469902+00:00
+    user_permissions: []
+- model: borrowd_users.borrowduser
+  pk: 8
+  fields:
+    password: pbkdf2_sha256$1000000$NVkLIbfJ6VaDXLy3dR7OjJ$LN+7VJDpRPQvgy/8/PQyK7n54GdC6119/YbY579zhgw=
+    last_login: 2025-06-05 15:46:14.780701+00:00
+    is_superuser: false
+    username: john.lemon
+    first_name: ''
+    last_name: ''
+    email: john.lemon@example.com
+    is_staff: false
+    is_active: true
+    date_joined: 2025-06-05 14:28:36.163664+00:00
+    user_permissions: []
+- model: borrowd_users.borrowduser
+  pk: 9
+  fields:
+    password: pbkdf2_sha256$1000000$33TTHvViiLtWSmaGpNLjFJ$mRcPT1hyuyJyBGfDeDNYysHPKoa6Vol7PNimzmKL9Qg=
+    last_login: 2025-06-05 14:44:11.856640+00:00
+    is_superuser: false
+    username: mary.schneiderman
+    first_name: ''
+    last_name: ''
+    email: mary.schneiderman@example.com
+    is_staff: false
+    is_active: true
+    date_joined: 2025-06-05 14:44:11.130669+00:00
+    user_permissions: []
+- model: borrowd_users.borrowduser
+  pk: 10
+  fields:
+    password: pbkdf2_sha256$1000000$8HUCV7AYmaV9LuqsCdZVa1$yKOLvmwGBH7zIVU4s0+gnf6gQ/MlD4qzmkWWigrA0Dk=
+    last_login: 2025-06-05 14:54:28.841348+00:00
+    is_superuser: false
+    username: edith.robinson
+    first_name: ''
+    last_name: ''
+    email: edith.robinson@example.com
+    is_staff: false
+    is_active: true
+    date_joined: 2025-06-05 14:54:28.106296+00:00
+    user_permissions: []
+- model: borrowd_users.borrowduser
+  pk: 11
+  fields:
+    password: pbkdf2_sha256$1000000$xZN0shPB3Q9NaUStuw8L2H$Aw8Bc2x5y0d/NR0VmrJ2lYojMBnJK/7qwJZr9kg+p/k=
+    last_login: 2025-06-05 15:22:46.951560+00:00
+    is_superuser: false
+    username: andrea.vourou
+    first_name: ''
+    last_name: ''
+    email: andrea.vourou@example.com
+    is_staff: false
+    is_active: true
+    date_joined: 2025-06-05 15:08:12.055738+00:00
+    user_permissions: []
+- model: borrowd_users.borrowduser
+  pk: 12
+  fields:
+    password: pbkdf2_sha256$1000000$veTcWQ5OmAtllOjeS5aSYr$htXpMJfd2befpf5G+UfiO3jwGO3js3YoQre+ldxIuiI=
+    last_login: 2025-06-05 15:23:34.705540+00:00
+    is_superuser: false
+    username: sade.quadri
+    first_name: ''
+    last_name: ''
+    email: sade.quadri@example.com
+    is_staff: false
+    is_active: true
+    date_joined: 2025-06-05 15:17:39.300180+00:00
+    user_permissions: []
+- model: borrowd_users.borrowduser
+  pk: 13
+  fields:
+    password: pbkdf2_sha256$1000000$hQKT6Ae4qofgLf8hVXnnBs$ubBXTnFmRvvmNM4zAaVW+TJaAFrNSDV8QWOSp6ZDdhI=
+    last_login: 2025-06-05 15:24:56.375646+00:00
+    is_superuser: false
+    username: dean.cornelius
+    first_name: ''
+    last_name: ''
+    email: dean.cornelius@example.com
+    is_staff: false
+    is_active: true
+    date_joined: 2025-06-05 15:24:55.621093+00:00
+    user_permissions: []
+- model: borrowd_users.borrowduser
+  pk: 14
+  fields:
+    password: pbkdf2_sha256$1000000$92CyaYVtot0Sank4dAIx0d$uOprYyTtu5q6nW54EWinMWP3VfoJJkcBAOKr8f57c90=
+    last_login: 2025-06-05 15:31:57.122002+00:00
+    is_superuser: false
+    username: paul.bright
+    first_name: ''
+    last_name: ''
+    email: paul.bright@example.com
+    is_staff: false
+    is_active: true
+    date_joined: 2025-06-05 15:31:56.375858+00:00
+    user_permissions: []
+- model: borrowd_users.borrowduser
+  pk: 15
+  fields:
+    password: pbkdf2_sha256$1000000$0k6eKwZ9L4JJfPqvHfZmBP$ygB44Au7a2N5JJgkNnHZjgkXFXBjUQEwshmzgdDRoBY=
+    last_login: 2025-06-05 15:37:15.703218+00:00
+    is_superuser: false
+    username: alex.whysall
+    first_name: ''
+    last_name: ''
+    email: alex.whysall@example.com
+    is_staff: false
+    is_active: true
+    date_joined: 2025-06-05 15:37:14.966247+00:00
+    user_permissions: []
+- model: borrowd_users.borrowduser
+  pk: 16
+  fields:
+    password: pbkdf2_sha256$1000000$CmtIRkZu1UsvarwHeIZkxO$YT+eYlhnyZ3vtRDbLJNLP56KgbbANdVgWp+jqyu/kjw=
+    last_login: 2025-06-05 15:46:46.404423+00:00
+    is_superuser: false
+    username: josh.farrier
+    first_name: ''
+    last_name: ''
+    email: josh.farrier@example.com
+    is_staff: false
+    is_active: true
+    date_joined: 2025-06-05 15:44:31.398745+00:00
+    user_permissions: []
+- model: borrowd_users.borrowduser
+  pk: 17
+  fields:
+    password: pbkdf2_sha256$1000000$CfdyR5KBNmLXdWnJzIMayN$WbraZuJb0NX2XnBn0bYQsJwjx0HXppPwkffCISC6CBQ=
+    last_login: 2025-06-05 15:52:13.272813+00:00
+    is_superuser: false
+    username: ahmed.choudhury
+    first_name: ''
+    last_name: ''
+    email: ahmed.choudhury@example.com
+    is_staff: false
+    is_active: true
+    date_joined: 2025-06-05 15:52:12.489738+00:00
+    user_permissions: []
+- model: borrowd_users.borrowduser
+  pk: 18
+  fields:
+    password: pbkdf2_sha256$1000000$9lHMybw5KiK6v3XFJzkOZT$eO2hBqYDhklSB9jYOc6ledSajTk6KWitBGgVCcgOP64=
+    last_login: 2025-06-05 16:01:56.480400+00:00
+    is_superuser: false
+    username: ernest.beg
+    first_name: ''
+    last_name: ''
+    email: ernest.beg@example.com
+    is_staff: false
+    is_active: true
+    date_joined: 2025-06-05 16:01:55.719401+00:00
+    user_permissions: []
+- model: borrowd_users.borrowduser
+  pk: 19
+  fields:
+    password: pbkdf2_sha256$1000000$K2E1sPRjT1xyCF4HEVLk7h$MVXe9C0EFep8PtN286/YXkGcwCJRFL3vcGhcVfoiljA=
+    last_login: 2025-06-05 16:21:10.386464+00:00
+    is_superuser: false
+    username: reggy.young
+    first_name: ''
+    last_name: ''
+    email: reggy.young@example.com
+    is_staff: false
+    is_active: true
+    date_joined: 2025-06-05 16:21:09.602315+00:00
+    user_permissions: []
+- model: borrowd_users.borrowduser
+  pk: 20
+  fields:
+    password: pbkdf2_sha256$1000000$a3cjhKVXz9rF6kWxvbEAL9$iMnc29PhZKCD3vR+TyA7bg9PscvP3wyVBo2YrpyI2m0=
+    last_login: 2025-06-05 16:56:57.396739+00:00
+    is_superuser: false
+    username: zahra.hussain
+    first_name: ''
+    last_name: ''
+    email: zahra.hussain@example.com
+    is_staff: false
+    is_active: true
+    date_joined: 2025-06-05 16:56:56.655514+00:00
+    user_permissions: []
+- model: borrowd_users.borrowduser
+  pk: 21
+  fields:
+    password: pbkdf2_sha256$1000000$Z2zzDCm5Ux8KsWXnatOlCw$8m1hb7kKb17dNN8ZkHYtbyagimeAyAwPK/Ao2fuF5M4=
+    last_login: 2025-06-05 18:28:22.464165+00:00
+    is_superuser: false
+    username: sunny.deb
+    first_name: ''
+    last_name: ''
+    email: sunny.deb@example.com
+    is_staff: false
+    is_active: true
+    date_joined: 2025-06-05 17:20:37.088619+00:00
+    user_permissions: []
+- model: borrowd_users.borrowduser
+  pk: 22
+  fields:
+    password: pbkdf2_sha256$1000000$4d73OGPjlC8vjJDevN5RY9$GROvyAw0Wqj9jDEVhwrNdTKXYd2Z7rR2eM6s3RCuPYw=
+    last_login: 2025-06-05 17:27:28.759167+00:00
+    is_superuser: false
+    username: ji.duschinsky
+    first_name: ''
+    last_name: ''
+    email: ji.duschinsky@example.com
+    is_staff: false
+    is_active: true
+    date_joined: 2025-06-05 17:27:27.987423+00:00
+    user_permissions: []
+- model: borrowd_users.borrowduser
+  pk: 23
+  fields:
+    password: pbkdf2_sha256$1000000$tiihbvs9VSf5Ey4kG0VPKe$DeCB3P7TnBT4H5dj5k0tsSzaDW3a1/amI2q/6LSW51s=
+    last_login: 2025-06-05 17:31:48.328786+00:00
+    is_superuser: false
+    username: mohammed.sandhu
+    first_name: ''
+    last_name: ''
+    email: mohammed.sandhu@example.com
+    is_staff: false
+    is_active: true
+    date_joined: 2025-06-05 17:31:47.522810+00:00
+    user_permissions: []
+- model: borrowd_users.borrowduser
+  pk: 24
+  fields:
+    password: pbkdf2_sha256$1000000$QL0QLAgj2rZrpWEY3rPRCM$GCoRHLeL9yazmqmLxbOtwoTVX93mv09uv+lFYgaFTHI=
+    last_login: 2025-06-05 17:36:14.173711+00:00
+    is_superuser: false
+    username: tia.hornby
+    first_name: ''
+    last_name: ''
+    email: tia.hornby@example.com
+    is_staff: false
+    is_active: true
+    date_joined: 2025-06-05 17:36:13.386375+00:00
+    user_permissions: []
+- model: borrowd_users.borrowduser
+  pk: 25
+  fields:
+    password: pbkdf2_sha256$1000000$GNwUG86bdg4G4C2xtfaRC9$aHYGqZUQUS/sAQNKNioZFLbeYJVAKxZWQRUbZgPEglw=
+    last_login: 2025-06-05 17:40:02.936210+00:00
+    is_superuser: false
+    username: brian.roberts
+    first_name: ''
+    last_name: ''
+    email: brian.roberts@example.com
+    is_staff: false
+    is_active: true
+    date_joined: 2025-06-05 17:40:02.167199+00:00
+    user_permissions: []
+- model: borrowd_users.borrowduser
+  pk: 26
+  fields:
+    password: pbkdf2_sha256$1000000$Xo5LvGAf8oV9eLTWGkuedx$8nF0TTxUZIIJDhqhxBMe7WWGWd2tfqTStZohZLOAQ/I=
+    last_login: 2025-07-08 07:25:11.612073+00:00
+    is_superuser: true
+    username: admin
+    first_name: ''
+    last_name: ''
+    email: admin@domain.com
+    is_staff: true
+    is_active: true
+    date_joined: 2025-07-08 07:24:53.844570+00:00
+    user_permissions: []
+- model: borrowd_users.profile
+  pk: 1
+  fields:
+    user: 1
+    image: ''
+    display_name: ''
+- model: borrowd_users.profile
+  pk: 2
+  fields:
+    user: 2
+    image: ''
+    display_name: ''
+- model: borrowd_users.profile
+  pk: 3
+  fields:
+    user: 3
+    image: ''
+    display_name: ''
+- model: borrowd_users.profile
+  pk: 4
+  fields:
+    user: 4
+    image: profile_pics/f_8.jpg
+    display_name: ''
+- model: borrowd_users.profile
+  pk: 5
+  fields:
+    user: 5
+    image: profile_pics/117843_new_smaller.jpg
+    display_name: ''
+- model: borrowd_users.profile
+  pk: 6
+  fields:
+    user: 6
+    image: profile_pics/f_7.jpg
+    display_name: ''
+- model: borrowd_users.profile
+  pk: 7
+  fields:
+    user: 7
+    image: profile_pics/m_7.jpg
+    display_name: ''
+- model: borrowd_users.profile
+  pk: 8
+  fields:
+    user: 8
+    image: profile_pics/m_16.jpg
+    display_name: ''
+- model: borrowd_users.profile
+  pk: 9
+  fields:
+    user: 9
+    image: profile_pics/f_21.jpg
+    display_name: ''
+- model: borrowd_users.profile
+  pk: 10
+  fields:
+    user: 10
+    image: profile_pics/f_4.jpg
+    display_name: ''
+- model: borrowd_users.profile
+  pk: 11
+  fields:
+    user: 11
+    image: profile_pics/f_19.jpg
+    display_name: ''
+- model: borrowd_users.profile
+  pk: 12
+  fields:
+    user: 12
+    image: profile_pics/o_2.jpg
+    display_name: ''
+- model: borrowd_users.profile
+  pk: 13
+  fields:
+    user: 13
+    image: profile_pics/f_3.jpg
+    display_name: ''
+- model: borrowd_users.profile
+  pk: 14
+  fields:
+    user: 14
+    image: profile_pics/m_1.jpg
+    display_name: ''
+- model: borrowd_users.profile
+  pk: 15
+  fields:
+    user: 15
+    image: profile_pics/m_20.jpg
+    display_name: ''
+- model: borrowd_users.profile
+  pk: 16
+  fields:
+    user: 16
+    image: profile_pics/m_2.jpg
+    display_name: ''
+- model: borrowd_users.profile
+  pk: 17
+  fields:
+    user: 17
+    image: profile_pics/m_15.jpg
+    display_name: ''
+- model: borrowd_users.profile
+  pk: 18
+  fields:
+    user: 18
+    image: profile_pics/m_12.jpg
+    display_name: ''
+- model: borrowd_users.profile
+  pk: 19
+  fields:
+    user: 19
+    image: profile_pics/m_5.jpg
+    display_name: ''
+- model: borrowd_users.profile
+  pk: 20
+  fields:
+    user: 20
+    image: profile_pics/f_9.jpg
+    display_name: ''
+- model: borrowd_users.profile
+  pk: 21
+  fields:
+    user: 21
+    image: profile_pics/f_5.jpg
+    display_name: ''
+- model: borrowd_users.profile
+  pk: 22
+  fields:
+    user: 22
+    image: profile_pics/f_14.jpg
+    display_name: ''
+- model: borrowd_users.profile
+  pk: 23
+  fields:
+    user: 23
+    image: profile_pics/m_3.jpg
+    display_name: ''
+- model: borrowd_users.profile
+  pk: 24
+  fields:
+    user: 24
+    image: profile_pics/f_1.jpg
+    display_name: ''
+- model: borrowd_users.profile
+  pk: 25
+  fields:
+    user: 25
+    image: profile_pics/m_17.jpg
+    display_name: ''
+- model: borrowd_users.profile
+  pk: 26
+  fields:
+    user: 26
+    image: ''
+    display_name: ''
+- model: account.emailaddress
+  pk: 1
+  fields:
+    user: 2
+    email: alison.channer@example.com
+    verified: true
+    primary: true
+- model: account.emailaddress
+  pk: 2
+  fields:
+    user: 3
+    email: kath.wardle@example.com
+    verified: true
+    primary: true
+- model: account.emailaddress
+  pk: 3
+  fields:
+    user: 4
+    email: edna.saleem@example.com
+    verified: false
+    primary: true
+- model: account.emailaddress
+  pk: 4
+  fields:
+    user: 5
+    email: ryan.jendoubi@example.com
+    verified: true
+    primary: true
+- model: account.emailaddress
+  pk: 5
+  fields:
+    user: 6
+    email: jill.conway@example.com
+    verified: false
+    primary: true
+- model: account.emailaddress
+  pk: 6
+  fields:
+    user: 7
+    email: hardial.chakraborty@example.com
+    verified: false
+    primary: true
+- model: account.emailaddress
+  pk: 7
+  fields:
+    user: 8
+    email: john.lemon@example.com
+    verified: true
+    primary: true
+- model: account.emailaddress
+  pk: 8
+  fields:
+    user: 9
+    email: mary.schneiderman@example.com
+    verified: false
+    primary: true
+- model: account.emailaddress
+  pk: 9
+  fields:
+    user: 10
+    email: edith.robinson@example.com
+    verified: false
+    primary: true
+- model: account.emailaddress
+  pk: 10
+  fields:
+    user: 11
+    email: andrea.vourou@example.com
+    verified: true
+    primary: true
+- model: account.emailaddress
+  pk: 11
+  fields:
+    user: 12
+    email: sade.quadri@example.com
+    verified: true
+    primary: true
+- model: account.emailaddress
+  pk: 12
+  fields:
+    user: 13
+    email: dean.cornelius@example.com
+    verified: false
+    primary: true
+- model: account.emailaddress
+  pk: 13
+  fields:
+    user: 14
+    email: paul.bright@example.com
+    verified: false
+    primary: true
+- model: account.emailaddress
+  pk: 14
+  fields:
+    user: 15
+    email: alex.whysall@example.com
+    verified: false
+    primary: true
+- model: account.emailaddress
+  pk: 15
+  fields:
+    user: 16
+    email: josh.farrier@example.com
+    verified: true
+    primary: true
+- model: account.emailaddress
+  pk: 16
+  fields:
+    user: 17
+    email: ahmed.choudhury@example.com
+    verified: false
+    primary: true
+- model: account.emailaddress
+  pk: 17
+  fields:
+    user: 18
+    email: ernest.beg@example.com
+    verified: false
+    primary: true
+- model: account.emailaddress
+  pk: 18
+  fields:
+    user: 19
+    email: reggy.young@example.com
+    verified: false
+    primary: true
+- model: account.emailaddress
+  pk: 19
+  fields:
+    user: 20
+    email: zahra.hussain@example.com
+    verified: false
+    primary: true
+- model: account.emailaddress
+  pk: 20
+  fields:
+    user: 21
+    email: sunny.deb@example.com
+    verified: true
+    primary: true
+- model: account.emailaddress
+  pk: 21
+  fields:
+    user: 22
+    email: ji.duschinsky@example.com
+    verified: false
+    primary: true
+- model: account.emailaddress
+  pk: 22
+  fields:
+    user: 23
+    email: mohammed.sandhu@example.com
+    verified: false
+    primary: true
+- model: account.emailaddress
+  pk: 23
+  fields:
+    user: 24
+    email: tia.hornby@example.com
+    verified: false
+    primary: true
+- model: account.emailaddress
+  pk: 24
+  fields:
+    user: 25
+    email: brian.roberts@example.com
+    verified: false
+    primary: true
+- model: borrowd_items.itemcategory
+  pk: 1
+  fields:
+    name: Tools & Hardware
+    description: Drills, saws, hammers, ladders, etc.
+- model: borrowd_items.itemcategory
+  pk: 2
+  fields:
+    name: Sports & Adventure
+    description: Tents, backpacks, sleeping bags, yoga mats, bikes, etc.
+- model: borrowd_items.itemcategory
+  pk: 3
+  fields:
+    name: Home & Kitchen Appliances
+    description: Blenders, slow cookers, steamers, vaccuum clearner, etc.
+- model: borrowd_items.itemcategory
+  pk: 4
+  fields:
+    name: Event & Party Supplies
+    description: Folding chairs, folding tables, decorations, etc.
+- model: borrowd_items.itemcategory
+  pk: 5
+  fields:
+    name: Hobbies & Crafts
+    description: Musical instruments, art supplies, sewing machines, etc.
+- model: borrowd_items.itemcategory
+  pk: 6
+  fields:
+    name: Electronics & Tech
+    description: Cameras, consoles, VR headsets, etc.
+- model: borrowd_items.itemcategory
+  pk: 7
+  fields:
+    name: Kid & Baby
+    description: Strollers, carriers, toys, playpens, etc.
+- model: borrowd_items.itemcategory
+  pk: 8
+  fields:
+    name: Gardening & Yard
+    description: Lawn mower, rakes, pruning tools, hoses, etc.
+- model: borrowd_items.itemcategory
+  pk: 9
+  fields:
+    name: Seasonal & Holidays
+    description: Decorations, heaters, costumes, fans, snow gear, etc.
+- model: borrowd_items.itemcategory
+  pk: 10
+  fields:
+    name: Pet Supplies
+    description: Pet carriers, backpacks, trailers, etc.
+- model: borrowd_items.itemcategory
+  pk: 11
+  fields:
+    name: Office & Work
+    description: Projectors, shredders, printer, etc.
+- model: borrowd_items.itemcategory
+  pk: 12
+  fields:
+    name: Books, Games, & Media
+    description: Boardgames, books, magazines...
+- model: borrowd_items.itemcategory
+  pk: 13
+  fields:
+    name: Other
+    description: Something else entirely!
+- model: borrowd_items.item
+  pk: 1
+  fields:
+    name: Lawnmower
+    description: Very reliable
+    owner: 3
+    category: 8
+    trust_level_required: 1
+    status: 10
+- model: borrowd_items.item
+  pk: 2
+  fields:
+    name: Cooler box
+    description: Great for road trips
+    owner: 3
+    category: 4
+    trust_level_required: 1
+    status: 10
+- model: borrowd_items.item
+  pk: 3
+  fields:
+    name: Party lights
+    description: For a chill house party vibe
+    owner: 3
+    category: 4
+    trust_level_required: 1
+    status: 10
+- model: borrowd_items.item
+  pk: 4
+  fields:
+    name: Picnic set
+    description: Bring the party, without wasteful paper plates and cups!
+    owner: 2
+    category: 4
+    trust_level_required: 1
+    status: 10
+- model: borrowd_items.item
+  pk: 5
+  fields:
+    name: Mop system
+    description: It'll wipe the floor with you.
+    owner: 2
+    category: 1
+    trust_level_required: 1
+    status: 10
+- model: borrowd_items.item
+  pk: 6
+  fields:
+    name: Pasta roller
+    description: Roll with the lunches.
+    owner: 2
+    category: 3
+    trust_level_required: 1
+    status: 10
+- model: borrowd_items.item
+  pk: 7
+  fields:
+    name: Air mattress
+    description: Nice and comfy.
+    owner: 4
+    category: 3
+    trust_level_required: 1
+    status: 10
+- model: borrowd_items.item
+  pk: 8
+  fields:
+    name: Ball point pen
+    description: Reliable!
+    owner: 4
+    category: 5
+    trust_level_required: 1
+    status: 10
+- model: borrowd_items.item
+  pk: 9
+  fields:
+    name: Camp chair
+    description: Weird name for a camp...
+    owner: 6
+    category: 2
+    trust_level_required: 1
+    status: 10
+- model: borrowd_items.item
+  pk: 10
+  fields:
+    name: Speaker
+    description: Portable boom!
+    owner: 6
+    category: 4
+    trust_level_required: 1
+    status: 10
+- model: borrowd_items.item
+  pk: 11
+  fields:
+    name: Yoga ball
+    description: Bouncy.
+    owner: 6
+    category: 2
+    trust_level_required: 1
+    status: 10
+- model: borrowd_items.item
+  pk: 12
+  fields:
+    name: Wheelbarrow
+    description: For moving things.
+    owner: 6
+    category: 1
+    trust_level_required: 1
+    status: 10
+- model: borrowd_items.item
+  pk: 13
+  fields:
+    name: Vacuum
+    description: Slorpy.
+    owner: 6
+    category: 1
+    trust_level_required: 1
+    status: 10
+- model: borrowd_items.item
+  pk: 14
+  fields:
+    name: Air mattress
+    description: With built-in pump.
+    owner: 7
+    category: 3
+    trust_level_required: 1
+    status: 10
+- model: borrowd_items.item
+  pk: 15
+  fields:
+    name: Skateboard
+    description: Ollie ollie!
+    owner: 7
+    category: 2
+    trust_level_required: 1
+    status: 10
+- model: borrowd_items.item
+  pk: 16
+  fields:
+    name: Drill
+    description: But what you really want is the hole
+    owner: 7
+    category: 1
+    trust_level_required: 1
+    status: 10
+- model: borrowd_items.item
+  pk: 17
+  fields:
+    name: Folding table
+    description: Not too heavy.
+    owner: 7
+    category: 4
+    trust_level_required: 1
+    status: 10
+- model: borrowd_items.item
+  pk: 18
+  fields:
+    name: Wheelbarrow
+    description: Load shifting
+    owner: 8
+    category: 1
+    trust_level_required: 1
+    status: 10
+- model: borrowd_items.item
+  pk: 19
+  fields:
+    name: Yoga / pregnancy ball
+    description: Served us well!
+    owner: 8
+    category: 7
+    trust_level_required: 1
+    status: 10
+- model: borrowd_items.item
+  pk: 20
+  fields:
+    name: Disco ball
+    description: YES! It needs more outings!
+    owner: 9
+    category: 4
+    trust_level_required: 1
+    status: 10
+- model: borrowd_items.item
+  pk: 21
+  fields:
+    name: Soccer ball
+    description: It's called a Football here.
+    owner: 9
+    category: 2
+    trust_level_required: 1
+    status: 10
+- model: borrowd_items.item
+  pk: 22
+  fields:
+    name: Fondue set
+    description: Cheese not included.
+    owner: 9
+    category: 3
+    trust_level_required: 1
+    status: 10
+- model: borrowd_items.item
+  pk: 23
+  fields:
+    name: Folding table
+    description: Holds a lot of nosh
+    owner: 9
+    category: 4
+    trust_level_required: 1
+    status: 10
+- model: borrowd_items.item
+  pk: 24
+  fields:
+    name: Folding table
+    description: Tabular.
+    owner: 10
+    category: 11
+    trust_level_required: 1
+    status: 10
+- model: borrowd_items.item
+  pk: 25
+  fields:
+    name: Stud finder
+    description: Effective.
+    owner: 10
+    category: 1
+    trust_level_required: 1
+    status: 10
+- model: borrowd_items.item
+  pk: 26
+  fields:
+    name: Yoga ball
+    description: Maintain your balance!
+    owner: 10
+    category: 2
+    trust_level_required: 1
+    status: 10
+- model: borrowd_items.item
+  pk: 27
+  fields:
+    name: Wheelbarrow
+    description: Wheelie good.
+    owner: 11
+    category: 1
+    trust_level_required: 1
+    status: 10
+- model: borrowd_items.item
+  pk: 28
+  fields:
+    name: Football
+    description: Some people call it a soccer ball.
+    owner: 11
+    category: 2
+    trust_level_required: 1
+    status: 10
+- model: borrowd_items.item
+  pk: 29
+  fields:
+    name: Disco ball
+    description: Fabness
+    owner: 12
+    category: 4
+    trust_level_required: 1
+    status: 10
+- model: borrowd_items.item
+  pk: 30
+  fields:
+    name: Shovel
+    description: But what you really want is the hole
+    owner: 12
+    category: 1
+    trust_level_required: 1
+    status: 10
+- model: borrowd_items.item
+  pk: 31
+  fields:
+    name: Portable grill
+    description: Smokin'.
+    owner: 13
+    category: 4
+    trust_level_required: 1
+    status: 10
+- model: borrowd_items.item
+  pk: 32
+  fields:
+    name: Fondue set
+    description: Fondon't you miss it!
+    owner: 13
+    category: 3
+    trust_level_required: 1
+    status: 10
+- model: borrowd_items.item
+  pk: 33
+  fields:
+    name: Outdoor chair
+    description: Comfy.
+    owner: 14
+    category: 8
+    trust_level_required: 1
+    status: 10
+- model: borrowd_items.item
+  pk: 34
+  fields:
+    name: Vacuum
+    description: More powerful than it looks!
+    owner: 14
+    category: 1
+    trust_level_required: 1
+    status: 10
+- model: borrowd_items.item
+  pk: 35
+  fields:
+    name: Drill
+    description: Baby drill.
+    owner: 15
+    category: 1
+    trust_level_required: 1
+    status: 10
+- model: borrowd_items.item
+  pk: 36
+  fields:
+    name: Shovel
+    description: Hardy!
+    owner: 15
+    category: 1
+    trust_level_required: 1
+    status: 10
+- model: borrowd_items.item
+  pk: 37
+  fields:
+    name: Stud finder
+    description: Finds stud, also wires and pipes.
+    owner: 15
+    category: 1
+    trust_level_required: 1
+    status: 10
+- model: borrowd_items.item
+  pk: 38
+  fields:
+    name: Spanner set
+    description: Flexible!
+    owner: 15
+    category: 1
+    trust_level_required: 1
+    status: 10
+- model: borrowd_items.item
+  pk: 39
+  fields:
+    name: Air mattress
+    description: Bouncy, with a velvet finish.
+    owner: 16
+    category: 3
+    trust_level_required: 1
+    status: 10
+- model: borrowd_items.item
+  pk: 40
+  fields:
+    name: Camp chair
+    description: Let's go!
+    owner: 16
+    category: 2
+    trust_level_required: 1
+    status: 10
+- model: borrowd_items.item
+  pk: 41
+  fields:
+    name: Pressure washer
+    description: For washing under pressure.
+    owner: 16
+    category: 8
+    trust_level_required: 1
+    status: 10
+- model: borrowd_items.item
+  pk: 42
+  fields:
+    name: Projector
+    description: I project a good time ahead!
+    owner: 16
+    category: 6
+    trust_level_required: 1
+    status: 10
+- model: borrowd_items.item
+  pk: 43
+  fields:
+    name: Speaker
+    description: Speak, I charge you!
+    owner: 17
+    category: 6
+    trust_level_required: 1
+    status: 10
+- model: borrowd_items.item
+  pk: 44
+  fields:
+    name: Hoover
+    description: It's super effective.
+    owner: 17
+    category: 3
+    trust_level_required: 1
+    status: 10
+- model: borrowd_items.item
+  pk: 45
+  fields:
+    name: Vacuum cleaner
+    description: Cleanliness is next to Godliness.
+    owner: 18
+    category: 3
+    trust_level_required: 1
+    status: 10
+- model: borrowd_items.item
+  pk: 46
+  fields:
+    name: Pressure washer
+    description: High power!
+    owner: 18
+    category: 1
+    trust_level_required: 1
+    status: 10
+- model: borrowd_items.item
+  pk: 47
+  fields:
+    name: Tent
+    description: The last resort!
+    owner: 18
+    category: 2
+    trust_level_required: 1
+    status: 10
+- model: borrowd_items.item
+  pk: 48
+  fields:
+    name: Pressure washer
+    description: Fwoosh!
+    owner: 19
+    category: 8
+    trust_level_required: 1
+    status: 10
+- model: borrowd_items.item
+  pk: 49
+  fields:
+    name: Badminton set
+    description: Fore!
+    owner: 19
+    category: 2
+    trust_level_required: 1
+    status: 10
+- model: borrowd_items.item
+  pk: 50
+  fields:
+    name: Drill
+    description: A nice drill.
+    owner: 19
+    category: 1
+    trust_level_required: 1
+    status: 10
+- model: borrowd_items.item
+  pk: 51
+  fields:
+    name: Soldering iron
+    description: Very clever!
+    owner: 20
+    category: 1
+    trust_level_required: 1
+    status: 10
+- model: borrowd_items.item
+  pk: 52
+  fields:
+    name: Projector
+    description: Let's pop some corn!
+    owner: 20
+    category: 3
+    trust_level_required: 1
+    status: 10
+- model: borrowd_items.item
+  pk: 53
+  fields:
+    name: Tent
+    description: Let's go!
+    owner: 20
+    category: 2
+    trust_level_required: 1
+    status: 10
+- model: borrowd_items.item
+  pk: 54
+  fields:
+    name: Pasta roller
+    description: Bon apetito!
+    owner: 20
+    category: 3
+    trust_level_required: 1
+    status: 10
+- model: borrowd_items.item
+  pk: 55
+  fields:
+    name: Speaker
+    description: Muzak for your space
+    owner: 21
+    category: 6
+    trust_level_required: 1
+    status: 10
+- model: borrowd_items.item
+  pk: 56
+  fields:
+    name: Shovel
+    description: You dig it?
+    owner: 21
+    category: 8
+    trust_level_required: 1
+    status: 10
+- model: borrowd_items.item
+  pk: 57
+  fields:
+    name: Broom
+    description: Shake shake shake the room.
+    owner: 21
+    category: 8
+    trust_level_required: 1
+    status: 10
+- model: borrowd_items.item
+  pk: 58
+  fields:
+    name: Tennis ball
+    description: The most crucial part!
+    owner: 21
+    category: 2
+    trust_level_required: 1
+    status: 10
+- model: borrowd_items.item
+  pk: 59
+  fields:
+    name: Drill
+    description: This is not a drill!
+    owner: 22
+    category: 1
+    trust_level_required: 1
+    status: 10
+- model: borrowd_items.item
+  pk: 60
+  fields:
+    name: Shovel
+    description: For coal only
+    owner: 22
+    category: 1
+    trust_level_required: 1
+    status: 10
+- model: borrowd_items.item
+  pk: 61
+  fields:
+    name: Tent
+    description: This is a TENTative offer.
+    owner: 22
+    category: 2
+    trust_level_required: 1
+    status: 10
+- model: borrowd_items.item
+  pk: 62
+  fields:
+    name: Drill
+    description: For the dual-wielders out there!
+    owner: 22
+    category: 1
+    trust_level_required: 1
+    status: 10
+- model: borrowd_items.item
+  pk: 63
+  fields:
+    name: Air mattress
+    description: You like, you borrow, bring back nice ok?
+    owner: 23
+    category: 3
+    trust_level_required: 1
+    status: 10
+- model: borrowd_items.item
+  pk: 64
+  fields:
+    name: Soldering iron
+    description: To fix the air mattress
+    owner: 23
+    category: 1
+    trust_level_required: 1
+    status: 10
+- model: borrowd_items.item
+  pk: 65
+  fields:
+    name: Broom
+    description: An entire cleaning system for a whole team!
+    owner: 23
+    category: 1
+    trust_level_required: 1
+    status: 10
+- model: borrowd_items.item
+  pk: 66
+  fields:
+    name: Mop system
+    description: And speaking of systems...
+    owner: 23
+    category: 3
+    trust_level_required: 1
+    status: 10
+- model: borrowd_items.item
+  pk: 67
+  fields:
+    name: Wheelbarrow
+    description: Barrow for your wheels
+    owner: 24
+    category: 1
+    trust_level_required: 1
+    status: 10
+- model: borrowd_items.item
+  pk: 68
+  fields:
+    name: Speaker
+    description: Loud and clear
+    owner: 24
+    category: 6
+    trust_level_required: 1
+    status: 10
+- model: borrowd_items.item
+  pk: 69
+  fields:
+    name: Garden grill
+    description: Summer's here!
+    owner: 24
+    category: 8
+    trust_level_required: 1
+    status: 10
+- model: borrowd_items.item
+  pk: 70
+  fields:
+    name: Drill
+    description: Can't have enough drills
+    owner: 25
+    category: 1
+    trust_level_required: 1
+    status: 10
+- model: borrowd_items.item
+  pk: 71
+  fields:
+    name: Skateboard
+    description: Don't scratch it!
+    owner: 25
+    category: 2
+    trust_level_required: 1
+    status: 10
+- model: borrowd_items.item
+  pk: 72
+  fields:
+    name: Tent
+    description: How do you inTENT to use it?
+    owner: 25
+    category: 2
+    trust_level_required: 1
+    status: 10
+- model: borrowd_items.item
+  pk: 73
+  fields:
+    name: Projector
+    description: Light it up!
+    owner: 5
+    category: 6
+    trust_level_required: 1
+    status: 10
+- model: borrowd_items.item
+  pk: 74
+  fields:
+    name: Broom
+    description: Fundamentals
+    owner: 5
+    category: 8
+    trust_level_required: 1
+    status: 10
+- model: borrowd_items.item
+  pk: 75
+  fields:
+    name: Camp chair
+    description: This one time, at chair camp...
+    owner: 5
+    category: 2
+    trust_level_required: 1
+    status: 30
+- model: borrowd_items.itemphoto
+  pk: 1
+  fields:
+    item: 1
+    image: items/lawnmower-1.png
+- model: borrowd_items.itemphoto
+  pk: 2
+  fields:
+    item: 2
+    image: items/cooler-box.jpg
+- model: borrowd_items.itemphoto
+  pk: 3
+  fields:
+    item: 3
+    image: items/party-lights.jpg
+- model: borrowd_items.itemphoto
+  pk: 4
+  fields:
+    item: 4
+    image: items/picnic-set.png
+- model: borrowd_items.itemphoto
+  pk: 5
+  fields:
+    item: 5
+    image: items/mop-system.jpg
+- model: borrowd_items.itemphoto
+  pk: 6
+  fields:
+    item: 6
+    image: items/pasta-roller.jpg
+- model: borrowd_items.itemphoto
+  pk: 7
+  fields:
+    item: 7
+    image: items/air-mattress-1.jpg
+- model: borrowd_items.itemphoto
+  pk: 8
+  fields:
+    item: 8
+    image: items/ball-point-1.jpg
+- model: borrowd_items.itemphoto
+  pk: 9
+  fields:
+    item: 9
+    image: items/camp-chair-1.jpg
+- model: borrowd_items.itemphoto
+  pk: 10
+  fields:
+    item: 10
+    image: items/speaker-1.jpg
+- model: borrowd_items.itemphoto
+  pk: 11
+  fields:
+    item: 11
+    image: items/yoga-ball-1.jpg
+- model: borrowd_items.itemphoto
+  pk: 12
+  fields:
+    item: 12
+    image: items/wheelbarrow-1.jpg
+- model: borrowd_items.itemphoto
+  pk: 13
+  fields:
+    item: 13
+    image: items/vacuum-2.jpg
+- model: borrowd_items.itemphoto
+  pk: 14
+  fields:
+    item: 14
+    image: items/air-mattress-2.jpg
+- model: borrowd_items.itemphoto
+  pk: 15
+  fields:
+    item: 15
+    image: items/skateboard-1.jpg
+- model: borrowd_items.itemphoto
+  pk: 16
+  fields:
+    item: 16
+    image: items/drill-1.jpg
+- model: borrowd_items.itemphoto
+  pk: 17
+  fields:
+    item: 17
+    image: items/folding-table-3.jpg
+- model: borrowd_items.itemphoto
+  pk: 18
+  fields:
+    item: 18
+    image: items/wheelbarrow-2.jpg
+- model: borrowd_items.itemphoto
+  pk: 19
+  fields:
+    item: 19
+    image: items/yoga-ball-2.jpg
+- model: borrowd_items.itemphoto
+  pk: 20
+  fields:
+    item: 20
+    image: items/disco-ball-2.jpg
+- model: borrowd_items.itemphoto
+  pk: 21
+  fields:
+    item: 21
+    image: items/soccer-ball-1.jpg
+- model: borrowd_items.itemphoto
+  pk: 22
+  fields:
+    item: 22
+    image: items/fondue-set-2.jpg
+- model: borrowd_items.itemphoto
+  pk: 23
+  fields:
+    item: 23
+    image: items/folding-table-1.jpg
+- model: borrowd_items.itemphoto
+  pk: 24
+  fields:
+    item: 24
+    image: items/folding-table-2.jpg
+- model: borrowd_items.itemphoto
+  pk: 25
+  fields:
+    item: 25
+    image: items/stud-finder-2.jpg
+- model: borrowd_items.itemphoto
+  pk: 26
+  fields:
+    item: 26
+    image: items/yoga-ball-4.jpg
+- model: borrowd_items.itemphoto
+  pk: 27
+  fields:
+    item: 27
+    image: items/wheelbarrow-4.jpg
+- model: borrowd_items.itemphoto
+  pk: 28
+  fields:
+    item: 28
+    image: items/soccer-ball-2.jpg
+- model: borrowd_items.itemphoto
+  pk: 29
+  fields:
+    item: 29
+    image: items/disco-ball-1.jpg
+- model: borrowd_items.itemphoto
+  pk: 30
+  fields:
+    item: 30
+    image: items/shovel-1.jpg
+- model: borrowd_items.itemphoto
+  pk: 31
+  fields:
+    item: 31
+    image: items/portable-grill-2.jpg
+- model: borrowd_items.itemphoto
+  pk: 32
+  fields:
+    item: 32
+    image: items/fondue-set-1.jpg
+- model: borrowd_items.itemphoto
+  pk: 33
+  fields:
+    item: 33
+    image: items/camp-chair-3.jpg
+- model: borrowd_items.itemphoto
+  pk: 34
+  fields:
+    item: 34
+    image: items/vacuum-1.jpg
+- model: borrowd_items.itemphoto
+  pk: 35
+  fields:
+    item: 35
+    image: items/drill-5.png
+- model: borrowd_items.itemphoto
+  pk: 36
+  fields:
+    item: 36
+    image: items/shovel-4.jpg
+- model: borrowd_items.itemphoto
+  pk: 37
+  fields:
+    item: 37
+    image: items/stud-finder-1.jpg
+- model: borrowd_items.itemphoto
+  pk: 38
+  fields:
+    item: 38
+    image: items/spanner-set-1.jpeg
+- model: borrowd_items.itemphoto
+  pk: 39
+  fields:
+    item: 39
+    image: items/air-mattress-3.jpg
+- model: borrowd_items.itemphoto
+  pk: 40
+  fields:
+    item: 40
+    image: items/camp-chair-2.jpg
+- model: borrowd_items.itemphoto
+  pk: 41
+  fields:
+    item: 41
+    image: items/pressure-washer-2.jpg
+- model: borrowd_items.itemphoto
+  pk: 42
+  fields:
+    item: 42
+    image: items/projector-1.jpg
+- model: borrowd_items.itemphoto
+  pk: 43
+  fields:
+    item: 43
+    image: items/speaker-2.jpg
+- model: borrowd_items.itemphoto
+  pk: 44
+  fields:
+    item: 44
+    image: items/vacuum-4.jpg
+- model: borrowd_items.itemphoto
+  pk: 45
+  fields:
+    item: 45
+    image: items/vacuum-3.jpg
+- model: borrowd_items.itemphoto
+  pk: 46
+  fields:
+    item: 46
+    image: items/pressure-washer-3.jpg
+- model: borrowd_items.itemphoto
+  pk: 47
+  fields:
+    item: 47
+    image: items/tent-1.jpg
+- model: borrowd_items.itemphoto
+  pk: 48
+  fields:
+    item: 48
+    image: items/pressure-washer-1.jpg
+- model: borrowd_items.itemphoto
+  pk: 49
+  fields:
+    item: 49
+    image: items/badminton-set-1.jpeg
+- model: borrowd_items.itemphoto
+  pk: 50
+  fields:
+    item: 50
+    image: items/drill-3.jpg
+- model: borrowd_items.itemphoto
+  pk: 51
+  fields:
+    item: 51
+    image: items/soldering-iron-1.jpg
+- model: borrowd_items.itemphoto
+  pk: 52
+  fields:
+    item: 52
+    image: items/projector-2.jpg
+- model: borrowd_items.itemphoto
+  pk: 53
+  fields:
+    item: 53
+    image: items/tent-2.jpg
+- model: borrowd_items.itemphoto
+  pk: 54
+  fields:
+    item: 54
+    image: items/pasta-roller-2.jpeg
+- model: borrowd_items.itemphoto
+  pk: 55
+  fields:
+    item: 55
+    image: items/speaker-4.jpg
+- model: borrowd_items.itemphoto
+  pk: 56
+  fields:
+    item: 56
+    image: items/shovel-2.png
+- model: borrowd_items.itemphoto
+  pk: 57
+  fields:
+    item: 57
+    image: items/broom-1.jpg
+- model: borrowd_items.itemphoto
+  pk: 58
+  fields:
+    item: 58
+    image: items/tennis-ball-1.jpg
+- model: borrowd_items.itemphoto
+  pk: 59
+  fields:
+    item: 59
+    image: items/drill-4.jpg
+- model: borrowd_items.itemphoto
+  pk: 60
+  fields:
+    item: 60
+    image: items/shovel-3.jpg
+- model: borrowd_items.itemphoto
+  pk: 61
+  fields:
+    item: 61
+    image: items/tent-2_vt6UDuS.jpg
+- model: borrowd_items.itemphoto
+  pk: 62
+  fields:
+    item: 62
+    image: items/drill-6.jpg
+- model: borrowd_items.itemphoto
+  pk: 63
+  fields:
+    item: 63
+    image: items/air-mattress-4.jpg
+- model: borrowd_items.itemphoto
+  pk: 64
+  fields:
+    item: 64
+    image: items/soldering-iron-2.jpg
+- model: borrowd_items.itemphoto
+  pk: 65
+  fields:
+    item: 65
+    image: items/broom-2.jpg
+- model: borrowd_items.itemphoto
+  pk: 66
+  fields:
+    item: 66
+    image: items/mop-system_YwopZvQ.jpg
+- model: borrowd_items.itemphoto
+  pk: 67
+  fields:
+    item: 67
+    image: items/wheelbarrow-3.jpg
+- model: borrowd_items.itemphoto
+  pk: 68
+  fields:
+    item: 68
+    image: items/speaker-3.jpg
+- model: borrowd_items.itemphoto
+  pk: 69
+  fields:
+    item: 69
+    image: items/portable-grill-1.png
+- model: borrowd_items.itemphoto
+  pk: 70
+  fields:
+    item: 70
+    image: items/drill-3_JFsoBk3.jpg
+- model: borrowd_items.itemphoto
+  pk: 71
+  fields:
+    item: 71
+    image: items/skateboard-2.jpg
+- model: borrowd_items.itemphoto
+  pk: 72
+  fields:
+    item: 72
+    image: items/tent-3.jpg
+- model: borrowd_items.itemphoto
+  pk: 73
+  fields:
+    item: 73
+    image: items/projector.jpeg
+- model: borrowd_items.itemphoto
+  pk: 74
+  fields:
+    item: 74
+    image: items/broom-3.jpg
+- model: borrowd_items.itemphoto
+  pk: 75
+  fields:
+    item: 75
+    image: items/camp-chair-4.jpg
+- model: borrowd_items.transaction
+  pk: 1
+  fields:
+    item: 4
+    party1: 2
+    party2: 3
+    status: 10
+    updated_by: 3
+    created_at: 2025-06-04 22:33:01.268570+00:00
+    updated_at: 2025-06-04 22:33:01.268613+00:00
+- model: borrowd_items.transaction
+  pk: 2
+  fields:
+    item: 75
+    party1: 5
+    party2: 25
+    status: 50
+    updated_by: 5
+    created_at: 2025-06-05 18:26:27.162603+00:00
+    updated_at: 2025-06-05 18:27:11.704499+00:00
+- model: borrowd_items.transaction
+  pk: 3
+  fields:
+    item: 73
+    party1: 5
+    party2: 21
+    status: 10
+    updated_by: 21
+    created_at: 2025-06-05 18:28:37.634955+00:00
+    updated_at: 2025-06-05 18:28:37.634998+00:00
+- model: borrowd_items.transaction
+  pk: 4
+  fields:
+    item: 21
+    party1: 9
+    party2: 5
+    status: 10
+    updated_by: 5
+    created_at: 2025-06-05 20:01:43.250591+00:00
+    updated_at: 2025-06-05 20:01:43.250629+00:00
+- model: borrowd_groups.borrowdgroup
+  pk: 1
+  fields:
+    name: Hanwell Borrowers
+    description: Borrow'd group for the Hanwell area.
+    logo: groups/logos/logo-hanwell-borrowers.png
+    banner: groups/banners/hanwell-broadway-cropped.jpg
+    membership_requires_approval: true
+    created_by: 2
+    created_at: 2025-06-04 07:09:55.890213+00:00
+    updated_by: 2
+    updated_at: 2025-06-04 07:09:55.890286+00:00
+- model: borrowd_groups.borrowdgroup
+  pk: 2
+  fields:
+    name: Sewing Group
+    description: Some people say we're amazing, but we're really sew-sew.
+    logo: groups/logos/sewing-group-logo.png
+    banner: groups/banners/sewing-group-banner.jpg
+    membership_requires_approval: true
+    created_by: 3
+    created_at: 2025-06-04 07:21:15.084153+00:00
+    updated_by: 3
+    updated_at: 2025-06-04 07:21:15.084184+00:00
+- model: borrowd_groups.borrowdgroup
+  pk: 3
+  fields:
+    name: Ealing Borrowers
+    description: Borrow'd Group for Ealing Broadway and nearby areas. Join us!
+    logo: groups/logos/ealing-borrowers-logo.png
+    banner: groups/banners/ealing-borrowers-banner-town-hall.jpg
+    membership_requires_approval: true
+    created_by: 5
+    created_at: 2025-06-05 13:48:42.873464+00:00
+    updated_by: 5
+    updated_at: 2025-06-05 13:48:42.873500+00:00
+- model: borrowd_groups.borrowdgroup
+  pk: 4
+  fields:
+    name: Super Best Friends
+    description: So Friends! Such Super!
+    logo: groups/logos/super-best-friends-logo.jpg
+    banner: groups/banners/super-best-friends-banner.jpg
+    membership_requires_approval: true
+    created_by: 8
+    created_at: 2025-06-05 14:35:10.076541+00:00
+    updated_by: 8
+    updated_at: 2025-06-05 14:35:10.076585+00:00
+- model: borrowd_groups.borrowdgroup
+  pk: 5
+  fields:
+    name: Minimalist Exchange
+    description: We have everything we need! No more stuff! Zero to landfill.
+    logo: groups/logos/minimalist-exchange-logo.png
+    banner: groups/banners/minimalist-exchange-banner.jpg
+    membership_requires_approval: true
+    created_by: 11
+    created_at: 2025-06-05 15:13:25.015080+00:00
+    updated_by: 11
+    updated_at: 2025-06-05 15:13:25.015124+00:00
+- model: borrowd_groups.membership
+  pk: 1
+  fields:
+    user: 2
+    group: 1
+    is_moderator: true
+    joined_at: 2025-06-04 07:09:55.907790+00:00
+    status: active
+    status_changed_at: null
+    status_changed_reason: null
+    trust_level: 2
+- model: borrowd_groups.membership
+  pk: 2
+  fields:
+    user: 3
+    group: 2
+    is_moderator: true
+    joined_at: 2025-06-04 07:21:15.106633+00:00
+    status: active
+    status_changed_at: null
+    status_changed_reason: null
+    trust_level: 3
+- model: borrowd_groups.membership
+  pk: 7
+  fields:
+    user: 4
+    group: 3
+    is_moderator: true
+    joined_at: 2025-06-05 13:49:07.290052+00:00
+    status: active
+    status_changed_at: null
+    status_changed_reason: null
+    trust_level: 2
+- model: borrowd_groups.membership
+  pk: 8
+  fields:
+    user: 6
+    group: 3
+    is_moderator: false
+    joined_at: 2025-06-05 14:07:12.049559+00:00
+    status: active
+    status_changed_at: null
+    status_changed_reason: null
+    trust_level: 1
+- model: borrowd_groups.membership
+  pk: 9
+  fields:
+    user: 7
+    group: 3
+    is_moderator: false
+    joined_at: 2025-06-05 14:19:26.626334+00:00
+    status: active
+    status_changed_at: null
+    status_changed_reason: null
+    trust_level: 1
+- model: borrowd_groups.membership
+  pk: 10
+  fields:
+    user: 8
+    group: 4
+    is_moderator: true
+    joined_at: 2025-06-05 14:35:10.091843+00:00
+    status: active
+    status_changed_at: null
+    status_changed_reason: null
+    trust_level: 3
+- model: borrowd_groups.membership
+  pk: 11
+  fields:
+    user: 9
+    group: 3
+    is_moderator: false
+    joined_at: 2025-06-05 14:45:00.445567+00:00
+    status: active
+    status_changed_at: null
+    status_changed_reason: null
+    trust_level: 3
+- model: borrowd_groups.membership
+  pk: 12
+  fields:
+    user: 10
+    group: 3
+    is_moderator: false
+    joined_at: 2025-06-05 14:55:47.909344+00:00
+    status: active
+    status_changed_at: null
+    status_changed_reason: null
+    trust_level: 1
+- model: borrowd_groups.membership
+  pk: 13
+  fields:
+    user: 11
+    group: 5
+    is_moderator: true
+    joined_at: 2025-06-05 15:13:25.029048+00:00
+    status: active
+    status_changed_at: null
+    status_changed_reason: null
+    trust_level: 3
+- model: borrowd_groups.membership
+  pk: 14
+  fields:
+    user: 12
+    group: 5
+    is_moderator: false
+    joined_at: 2025-06-05 15:23:42.048966+00:00
+    status: active
+    status_changed_at: null
+    status_changed_reason: null
+    trust_level: 3
+- model: borrowd_groups.membership
+  pk: 15
+  fields:
+    user: 13
+    group: 5
+    is_moderator: false
+    joined_at: 2025-06-05 15:26:56.036081+00:00
+    status: active
+    status_changed_at: null
+    status_changed_reason: null
+    trust_level: 3
+- model: borrowd_groups.membership
+  pk: 16
+  fields:
+    user: 14
+    group: 3
+    is_moderator: false
+    joined_at: 2025-06-05 15:32:32.349813+00:00
+    status: active
+    status_changed_at: null
+    status_changed_reason: null
+    trust_level: 3
+- model: borrowd_groups.membership
+  pk: 17
+  fields:
+    user: 15
+    group: 5
+    is_moderator: false
+    joined_at: 2025-06-05 15:38:06.902904+00:00
+    status: active
+    status_changed_at: null
+    status_changed_reason: null
+    trust_level: 3
+- model: borrowd_groups.membership
+  pk: 18
+  fields:
+    user: 16
+    group: 4
+    is_moderator: false
+    joined_at: 2025-06-05 15:46:53.612207+00:00
+    status: active
+    status_changed_at: null
+    status_changed_reason: null
+    trust_level: 3
+- model: borrowd_groups.membership
+  pk: 19
+  fields:
+    user: 17
+    group: 3
+    is_moderator: false
+    joined_at: 2025-06-05 15:53:07.192143+00:00
+    status: active
+    status_changed_at: null
+    status_changed_reason: null
+    trust_level: 1
+- model: borrowd_groups.membership
+  pk: 20
+  fields:
+    user: 18
+    group: 3
+    is_moderator: false
+    joined_at: 2025-06-05 16:06:05.043669+00:00
+    status: active
+    status_changed_at: null
+    status_changed_reason: null
+    trust_level: 3
+- model: borrowd_groups.membership
+  pk: 21
+  fields:
+    user: 18
+    group: 5
+    is_moderator: false
+    joined_at: 2025-06-05 16:06:15.744143+00:00
+    status: active
+    status_changed_at: null
+    status_changed_reason: null
+    trust_level: 3
+- model: borrowd_groups.membership
+  pk: 22
+  fields:
+    user: 19
+    group: 3
+    is_moderator: false
+    joined_at: 2025-06-05 16:51:56.882828+00:00
+    status: active
+    status_changed_at: null
+    status_changed_reason: null
+    trust_level: 1
+- model: borrowd_groups.membership
+  pk: 23
+  fields:
+    user: 20
+    group: 5
+    is_moderator: false
+    joined_at: 2025-06-05 16:58:31.704552+00:00
+    status: active
+    status_changed_at: null
+    status_changed_reason: null
+    trust_level: 2
+- model: borrowd_groups.membership
+  pk: 24
+  fields:
+    user: 21
+    group: 4
+    is_moderator: false
+    joined_at: 2025-06-05 17:21:56.073956+00:00
+    status: active
+    status_changed_at: null
+    status_changed_reason: null
+    trust_level: 3
+- model: borrowd_groups.membership
+  pk: 25
+  fields:
+    user: 22
+    group: 3
+    is_moderator: false
+    joined_at: 2025-06-05 17:28:09.637947+00:00
+    status: active
+    status_changed_at: null
+    status_changed_reason: null
+    trust_level: 3
+- model: borrowd_groups.membership
+  pk: 26
+  fields:
+    user: 23
+    group: 3
+    is_moderator: false
+    joined_at: 2025-06-05 17:32:38.143410+00:00
+    status: active
+    status_changed_at: null
+    status_changed_reason: null
+    trust_level: 1
+- model: borrowd_groups.membership
+  pk: 27
+  fields:
+    user: 23
+    group: 5
+    is_moderator: false
+    joined_at: 2025-06-05 17:32:46.865956+00:00
+    status: active
+    status_changed_at: null
+    status_changed_reason: null
+    trust_level: 3
+- model: borrowd_groups.membership
+  pk: 28
+  fields:
+    user: 24
+    group: 3
+    is_moderator: false
+    joined_at: 2025-06-05 17:36:40.379299+00:00
+    status: active
+    status_changed_at: null
+    status_changed_reason: null
+    trust_level: 2
+- model: borrowd_groups.membership
+  pk: 29
+  fields:
+    user: 25
+    group: 5
+    is_moderator: false
+    joined_at: 2025-06-05 17:41:11.134125+00:00
+    status: active
+    status_changed_at: null
+    status_changed_reason: null
+    trust_level: 3
+- model: borrowd_groups.membership
+  pk: 30
+  fields:
+    user: 5
+    group: 4
+    is_moderator: false
+    joined_at: 2025-06-05 17:47:11.536506+00:00
+    status: active
+    status_changed_at: null
+    status_changed_reason: null
+    trust_level: 3
+- model: borrowd_groups.membership
+  pk: 31
+  fields:
+    user: 5
+    group: 5
+    is_moderator: false
+    joined_at: 2025-06-05 17:47:59.159144+00:00
+    status: active
+    status_changed_at: null
+    status_changed_reason: null
+    trust_level: 2
+- model: borrowd_groups.membership
+  pk: 32
+  fields:
+    user: 5
+    group: 3
+    is_moderator: false
+    joined_at: 2025-06-05 19:59:35.852596+00:00
+    status: active
+    status_changed_at: null
+    status_changed_reason: null
+    trust_level: 1
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 1
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '1'
+    group: 2
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 2
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '2'
+    group: 2
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 3
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '3'
+    group: 2
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 4
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '4'
+    group: 1
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 5
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '5'
+    group: 1
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 6
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '6'
+    group: 1
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 10
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '7'
+    group: 3
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 11
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '8'
+    group: 3
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 12
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '9'
+    group: 3
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 13
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '10'
+    group: 3
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 14
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '11'
+    group: 3
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 15
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '12'
+    group: 3
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 16
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '13'
+    group: 3
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 17
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '14'
+    group: 3
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 18
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '15'
+    group: 3
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 19
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '16'
+    group: 3
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 20
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '17'
+    group: 3
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 21
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '18'
+    group: 4
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 22
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '19'
+    group: 4
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 23
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '20'
+    group: 3
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 24
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '21'
+    group: 3
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 25
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '22'
+    group: 3
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 26
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '23'
+    group: 3
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 27
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '24'
+    group: 3
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 28
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '25'
+    group: 3
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 29
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '26'
+    group: 3
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 30
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '27'
+    group: 5
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 31
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '28'
+    group: 5
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 32
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '29'
+    group: 5
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 33
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '30'
+    group: 5
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 34
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '31'
+    group: 5
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 35
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '32'
+    group: 5
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 36
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '33'
+    group: 3
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 37
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '34'
+    group: 3
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 38
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '35'
+    group: 5
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 39
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '36'
+    group: 5
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 40
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '37'
+    group: 5
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 41
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '38'
+    group: 5
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 42
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '39'
+    group: 4
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 43
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '40'
+    group: 4
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 44
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '41'
+    group: 4
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 45
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '42'
+    group: 4
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 46
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '43'
+    group: 3
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 47
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '44'
+    group: 3
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 48
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '45'
+    group: 3
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 49
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '45'
+    group: 5
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 50
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '46'
+    group: 3
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 51
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '46'
+    group: 5
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 52
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '47'
+    group: 3
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 53
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '47'
+    group: 5
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 54
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '48'
+    group: 3
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 55
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '49'
+    group: 3
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 56
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '50'
+    group: 3
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 57
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '51'
+    group: 5
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 58
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '52'
+    group: 5
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 59
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '53'
+    group: 5
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 60
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '54'
+    group: 5
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 61
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '55'
+    group: 4
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 62
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '56'
+    group: 4
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 63
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '57'
+    group: 4
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 64
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '58'
+    group: 4
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 65
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '59'
+    group: 3
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 66
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '60'
+    group: 3
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 67
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '61'
+    group: 3
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 68
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '62'
+    group: 3
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 69
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '63'
+    group: 3
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 70
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '63'
+    group: 5
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 71
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '64'
+    group: 3
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 72
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '64'
+    group: 5
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 73
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '65'
+    group: 3
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 74
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '65'
+    group: 5
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 75
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '66'
+    group: 3
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 76
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '66'
+    group: 5
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 77
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '67'
+    group: 3
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 78
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '68'
+    group: 3
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 79
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '69'
+    group: 3
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 80
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '70'
+    group: 5
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 81
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '71'
+    group: 5
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 82
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '72'
+    group: 5
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 83
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '73'
+    group: 4
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 85
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '74'
+    group: 4
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 87
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '75'
+    group: 4
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 89
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '73'
+    group: 5
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 90
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '74'
+    group: 5
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 91
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '75'
+    group: 5
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 92
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '73'
+    group: 3
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 93
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '74'
+    group: 3
+- model: borrowd_groups.borrowdgroupobjectpermission
+  pk: 94
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '75'
+    group: 3
+- model: guardian.userobjectpermission
+  pk: 1
+  fields:
+    permission: 61
+    content_type: 14
+    object_pk: '1'
+    user: 2
+- model: guardian.userobjectpermission
+  pk: 2
+  fields:
+    permission: 62
+    content_type: 14
+    object_pk: '1'
+    user: 2
+- model: guardian.userobjectpermission
+  pk: 3
+  fields:
+    permission: 63
+    content_type: 14
+    object_pk: '1'
+    user: 2
+- model: guardian.userobjectpermission
+  pk: 4
+  fields:
+    permission: 61
+    content_type: 14
+    object_pk: '2'
+    user: 3
+- model: guardian.userobjectpermission
+  pk: 5
+  fields:
+    permission: 62
+    content_type: 14
+    object_pk: '2'
+    user: 3
+- model: guardian.userobjectpermission
+  pk: 6
+  fields:
+    permission: 63
+    content_type: 14
+    object_pk: '2'
+    user: 3
+- model: guardian.userobjectpermission
+  pk: 7
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '1'
+    user: 3
+- model: guardian.userobjectpermission
+  pk: 8
+  fields:
+    permission: 46
+    content_type: 11
+    object_pk: '1'
+    user: 3
+- model: guardian.userobjectpermission
+  pk: 9
+  fields:
+    permission: 47
+    content_type: 11
+    object_pk: '1'
+    user: 3
+- model: guardian.userobjectpermission
+  pk: 10
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '2'
+    user: 3
+- model: guardian.userobjectpermission
+  pk: 11
+  fields:
+    permission: 46
+    content_type: 11
+    object_pk: '2'
+    user: 3
+- model: guardian.userobjectpermission
+  pk: 12
+  fields:
+    permission: 47
+    content_type: 11
+    object_pk: '2'
+    user: 3
+- model: guardian.userobjectpermission
+  pk: 13
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '3'
+    user: 3
+- model: guardian.userobjectpermission
+  pk: 14
+  fields:
+    permission: 46
+    content_type: 11
+    object_pk: '3'
+    user: 3
+- model: guardian.userobjectpermission
+  pk: 15
+  fields:
+    permission: 47
+    content_type: 11
+    object_pk: '3'
+    user: 3
+- model: guardian.userobjectpermission
+  pk: 16
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '4'
+    user: 2
+- model: guardian.userobjectpermission
+  pk: 17
+  fields:
+    permission: 46
+    content_type: 11
+    object_pk: '4'
+    user: 2
+- model: guardian.userobjectpermission
+  pk: 18
+  fields:
+    permission: 47
+    content_type: 11
+    object_pk: '4'
+    user: 2
+- model: guardian.userobjectpermission
+  pk: 19
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '5'
+    user: 2
+- model: guardian.userobjectpermission
+  pk: 20
+  fields:
+    permission: 46
+    content_type: 11
+    object_pk: '5'
+    user: 2
+- model: guardian.userobjectpermission
+  pk: 21
+  fields:
+    permission: 47
+    content_type: 11
+    object_pk: '5'
+    user: 2
+- model: guardian.userobjectpermission
+  pk: 22
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '6'
+    user: 2
+- model: guardian.userobjectpermission
+  pk: 23
+  fields:
+    permission: 46
+    content_type: 11
+    object_pk: '6'
+    user: 2
+- model: guardian.userobjectpermission
+  pk: 24
+  fields:
+    permission: 47
+    content_type: 11
+    object_pk: '6'
+    user: 2
+- model: guardian.userobjectpermission
+  pk: 31
+  fields:
+    permission: 61
+    content_type: 14
+    object_pk: '3'
+    user: 4
+- model: guardian.userobjectpermission
+  pk: 32
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '7'
+    user: 4
+- model: guardian.userobjectpermission
+  pk: 33
+  fields:
+    permission: 46
+    content_type: 11
+    object_pk: '7'
+    user: 4
+- model: guardian.userobjectpermission
+  pk: 34
+  fields:
+    permission: 47
+    content_type: 11
+    object_pk: '7'
+    user: 4
+- model: guardian.userobjectpermission
+  pk: 35
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '8'
+    user: 4
+- model: guardian.userobjectpermission
+  pk: 36
+  fields:
+    permission: 46
+    content_type: 11
+    object_pk: '8'
+    user: 4
+- model: guardian.userobjectpermission
+  pk: 37
+  fields:
+    permission: 47
+    content_type: 11
+    object_pk: '8'
+    user: 4
+- model: guardian.userobjectpermission
+  pk: 38
+  fields:
+    permission: 61
+    content_type: 14
+    object_pk: '3'
+    user: 6
+- model: guardian.userobjectpermission
+  pk: 39
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '9'
+    user: 6
+- model: guardian.userobjectpermission
+  pk: 40
+  fields:
+    permission: 46
+    content_type: 11
+    object_pk: '9'
+    user: 6
+- model: guardian.userobjectpermission
+  pk: 41
+  fields:
+    permission: 47
+    content_type: 11
+    object_pk: '9'
+    user: 6
+- model: guardian.userobjectpermission
+  pk: 42
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '10'
+    user: 6
+- model: guardian.userobjectpermission
+  pk: 43
+  fields:
+    permission: 46
+    content_type: 11
+    object_pk: '10'
+    user: 6
+- model: guardian.userobjectpermission
+  pk: 44
+  fields:
+    permission: 47
+    content_type: 11
+    object_pk: '10'
+    user: 6
+- model: guardian.userobjectpermission
+  pk: 45
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '11'
+    user: 6
+- model: guardian.userobjectpermission
+  pk: 46
+  fields:
+    permission: 46
+    content_type: 11
+    object_pk: '11'
+    user: 6
+- model: guardian.userobjectpermission
+  pk: 47
+  fields:
+    permission: 47
+    content_type: 11
+    object_pk: '11'
+    user: 6
+- model: guardian.userobjectpermission
+  pk: 48
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '12'
+    user: 6
+- model: guardian.userobjectpermission
+  pk: 49
+  fields:
+    permission: 46
+    content_type: 11
+    object_pk: '12'
+    user: 6
+- model: guardian.userobjectpermission
+  pk: 50
+  fields:
+    permission: 47
+    content_type: 11
+    object_pk: '12'
+    user: 6
+- model: guardian.userobjectpermission
+  pk: 51
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '13'
+    user: 6
+- model: guardian.userobjectpermission
+  pk: 52
+  fields:
+    permission: 46
+    content_type: 11
+    object_pk: '13'
+    user: 6
+- model: guardian.userobjectpermission
+  pk: 53
+  fields:
+    permission: 47
+    content_type: 11
+    object_pk: '13'
+    user: 6
+- model: guardian.userobjectpermission
+  pk: 54
+  fields:
+    permission: 61
+    content_type: 14
+    object_pk: '3'
+    user: 7
+- model: guardian.userobjectpermission
+  pk: 55
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '14'
+    user: 7
+- model: guardian.userobjectpermission
+  pk: 56
+  fields:
+    permission: 46
+    content_type: 11
+    object_pk: '14'
+    user: 7
+- model: guardian.userobjectpermission
+  pk: 57
+  fields:
+    permission: 47
+    content_type: 11
+    object_pk: '14'
+    user: 7
+- model: guardian.userobjectpermission
+  pk: 58
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '15'
+    user: 7
+- model: guardian.userobjectpermission
+  pk: 59
+  fields:
+    permission: 46
+    content_type: 11
+    object_pk: '15'
+    user: 7
+- model: guardian.userobjectpermission
+  pk: 60
+  fields:
+    permission: 47
+    content_type: 11
+    object_pk: '15'
+    user: 7
+- model: guardian.userobjectpermission
+  pk: 61
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '16'
+    user: 7
+- model: guardian.userobjectpermission
+  pk: 62
+  fields:
+    permission: 46
+    content_type: 11
+    object_pk: '16'
+    user: 7
+- model: guardian.userobjectpermission
+  pk: 63
+  fields:
+    permission: 47
+    content_type: 11
+    object_pk: '16'
+    user: 7
+- model: guardian.userobjectpermission
+  pk: 64
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '17'
+    user: 7
+- model: guardian.userobjectpermission
+  pk: 65
+  fields:
+    permission: 46
+    content_type: 11
+    object_pk: '17'
+    user: 7
+- model: guardian.userobjectpermission
+  pk: 66
+  fields:
+    permission: 47
+    content_type: 11
+    object_pk: '17'
+    user: 7
+- model: guardian.userobjectpermission
+  pk: 67
+  fields:
+    permission: 61
+    content_type: 14
+    object_pk: '4'
+    user: 8
+- model: guardian.userobjectpermission
+  pk: 68
+  fields:
+    permission: 62
+    content_type: 14
+    object_pk: '4'
+    user: 8
+- model: guardian.userobjectpermission
+  pk: 69
+  fields:
+    permission: 63
+    content_type: 14
+    object_pk: '4'
+    user: 8
+- model: guardian.userobjectpermission
+  pk: 70
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '18'
+    user: 8
+- model: guardian.userobjectpermission
+  pk: 71
+  fields:
+    permission: 46
+    content_type: 11
+    object_pk: '18'
+    user: 8
+- model: guardian.userobjectpermission
+  pk: 72
+  fields:
+    permission: 47
+    content_type: 11
+    object_pk: '18'
+    user: 8
+- model: guardian.userobjectpermission
+  pk: 73
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '19'
+    user: 8
+- model: guardian.userobjectpermission
+  pk: 74
+  fields:
+    permission: 46
+    content_type: 11
+    object_pk: '19'
+    user: 8
+- model: guardian.userobjectpermission
+  pk: 75
+  fields:
+    permission: 47
+    content_type: 11
+    object_pk: '19'
+    user: 8
+- model: guardian.userobjectpermission
+  pk: 76
+  fields:
+    permission: 61
+    content_type: 14
+    object_pk: '3'
+    user: 9
+- model: guardian.userobjectpermission
+  pk: 77
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '20'
+    user: 9
+- model: guardian.userobjectpermission
+  pk: 78
+  fields:
+    permission: 46
+    content_type: 11
+    object_pk: '20'
+    user: 9
+- model: guardian.userobjectpermission
+  pk: 79
+  fields:
+    permission: 47
+    content_type: 11
+    object_pk: '20'
+    user: 9
+- model: guardian.userobjectpermission
+  pk: 80
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '21'
+    user: 9
+- model: guardian.userobjectpermission
+  pk: 81
+  fields:
+    permission: 46
+    content_type: 11
+    object_pk: '21'
+    user: 9
+- model: guardian.userobjectpermission
+  pk: 82
+  fields:
+    permission: 47
+    content_type: 11
+    object_pk: '21'
+    user: 9
+- model: guardian.userobjectpermission
+  pk: 83
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '22'
+    user: 9
+- model: guardian.userobjectpermission
+  pk: 84
+  fields:
+    permission: 46
+    content_type: 11
+    object_pk: '22'
+    user: 9
+- model: guardian.userobjectpermission
+  pk: 85
+  fields:
+    permission: 47
+    content_type: 11
+    object_pk: '22'
+    user: 9
+- model: guardian.userobjectpermission
+  pk: 86
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '23'
+    user: 9
+- model: guardian.userobjectpermission
+  pk: 87
+  fields:
+    permission: 46
+    content_type: 11
+    object_pk: '23'
+    user: 9
+- model: guardian.userobjectpermission
+  pk: 88
+  fields:
+    permission: 47
+    content_type: 11
+    object_pk: '23'
+    user: 9
+- model: guardian.userobjectpermission
+  pk: 89
+  fields:
+    permission: 61
+    content_type: 14
+    object_pk: '3'
+    user: 10
+- model: guardian.userobjectpermission
+  pk: 90
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '24'
+    user: 10
+- model: guardian.userobjectpermission
+  pk: 91
+  fields:
+    permission: 46
+    content_type: 11
+    object_pk: '24'
+    user: 10
+- model: guardian.userobjectpermission
+  pk: 92
+  fields:
+    permission: 47
+    content_type: 11
+    object_pk: '24'
+    user: 10
+- model: guardian.userobjectpermission
+  pk: 93
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '25'
+    user: 10
+- model: guardian.userobjectpermission
+  pk: 94
+  fields:
+    permission: 46
+    content_type: 11
+    object_pk: '25'
+    user: 10
+- model: guardian.userobjectpermission
+  pk: 95
+  fields:
+    permission: 47
+    content_type: 11
+    object_pk: '25'
+    user: 10
+- model: guardian.userobjectpermission
+  pk: 96
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '26'
+    user: 10
+- model: guardian.userobjectpermission
+  pk: 97
+  fields:
+    permission: 46
+    content_type: 11
+    object_pk: '26'
+    user: 10
+- model: guardian.userobjectpermission
+  pk: 98
+  fields:
+    permission: 47
+    content_type: 11
+    object_pk: '26'
+    user: 10
+- model: guardian.userobjectpermission
+  pk: 99
+  fields:
+    permission: 61
+    content_type: 14
+    object_pk: '5'
+    user: 11
+- model: guardian.userobjectpermission
+  pk: 100
+  fields:
+    permission: 62
+    content_type: 14
+    object_pk: '5'
+    user: 11
+- model: guardian.userobjectpermission
+  pk: 101
+  fields:
+    permission: 63
+    content_type: 14
+    object_pk: '5'
+    user: 11
+- model: guardian.userobjectpermission
+  pk: 102
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '27'
+    user: 11
+- model: guardian.userobjectpermission
+  pk: 103
+  fields:
+    permission: 46
+    content_type: 11
+    object_pk: '27'
+    user: 11
+- model: guardian.userobjectpermission
+  pk: 104
+  fields:
+    permission: 47
+    content_type: 11
+    object_pk: '27'
+    user: 11
+- model: guardian.userobjectpermission
+  pk: 105
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '28'
+    user: 11
+- model: guardian.userobjectpermission
+  pk: 106
+  fields:
+    permission: 46
+    content_type: 11
+    object_pk: '28'
+    user: 11
+- model: guardian.userobjectpermission
+  pk: 107
+  fields:
+    permission: 47
+    content_type: 11
+    object_pk: '28'
+    user: 11
+- model: guardian.userobjectpermission
+  pk: 108
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '29'
+    user: 12
+- model: guardian.userobjectpermission
+  pk: 109
+  fields:
+    permission: 46
+    content_type: 11
+    object_pk: '29'
+    user: 12
+- model: guardian.userobjectpermission
+  pk: 110
+  fields:
+    permission: 47
+    content_type: 11
+    object_pk: '29'
+    user: 12
+- model: guardian.userobjectpermission
+  pk: 111
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '30'
+    user: 12
+- model: guardian.userobjectpermission
+  pk: 112
+  fields:
+    permission: 46
+    content_type: 11
+    object_pk: '30'
+    user: 12
+- model: guardian.userobjectpermission
+  pk: 113
+  fields:
+    permission: 47
+    content_type: 11
+    object_pk: '30'
+    user: 12
+- model: guardian.userobjectpermission
+  pk: 114
+  fields:
+    permission: 61
+    content_type: 14
+    object_pk: '5'
+    user: 12
+- model: guardian.userobjectpermission
+  pk: 115
+  fields:
+    permission: 61
+    content_type: 14
+    object_pk: '5'
+    user: 13
+- model: guardian.userobjectpermission
+  pk: 116
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '31'
+    user: 13
+- model: guardian.userobjectpermission
+  pk: 117
+  fields:
+    permission: 46
+    content_type: 11
+    object_pk: '31'
+    user: 13
+- model: guardian.userobjectpermission
+  pk: 118
+  fields:
+    permission: 47
+    content_type: 11
+    object_pk: '31'
+    user: 13
+- model: guardian.userobjectpermission
+  pk: 119
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '32'
+    user: 13
+- model: guardian.userobjectpermission
+  pk: 120
+  fields:
+    permission: 46
+    content_type: 11
+    object_pk: '32'
+    user: 13
+- model: guardian.userobjectpermission
+  pk: 121
+  fields:
+    permission: 47
+    content_type: 11
+    object_pk: '32'
+    user: 13
+- model: guardian.userobjectpermission
+  pk: 122
+  fields:
+    permission: 61
+    content_type: 14
+    object_pk: '3'
+    user: 14
+- model: guardian.userobjectpermission
+  pk: 123
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '33'
+    user: 14
+- model: guardian.userobjectpermission
+  pk: 124
+  fields:
+    permission: 46
+    content_type: 11
+    object_pk: '33'
+    user: 14
+- model: guardian.userobjectpermission
+  pk: 125
+  fields:
+    permission: 47
+    content_type: 11
+    object_pk: '33'
+    user: 14
+- model: guardian.userobjectpermission
+  pk: 126
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '34'
+    user: 14
+- model: guardian.userobjectpermission
+  pk: 127
+  fields:
+    permission: 46
+    content_type: 11
+    object_pk: '34'
+    user: 14
+- model: guardian.userobjectpermission
+  pk: 128
+  fields:
+    permission: 47
+    content_type: 11
+    object_pk: '34'
+    user: 14
+- model: guardian.userobjectpermission
+  pk: 129
+  fields:
+    permission: 61
+    content_type: 14
+    object_pk: '5'
+    user: 15
+- model: guardian.userobjectpermission
+  pk: 130
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '35'
+    user: 15
+- model: guardian.userobjectpermission
+  pk: 131
+  fields:
+    permission: 46
+    content_type: 11
+    object_pk: '35'
+    user: 15
+- model: guardian.userobjectpermission
+  pk: 132
+  fields:
+    permission: 47
+    content_type: 11
+    object_pk: '35'
+    user: 15
+- model: guardian.userobjectpermission
+  pk: 133
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '36'
+    user: 15
+- model: guardian.userobjectpermission
+  pk: 134
+  fields:
+    permission: 46
+    content_type: 11
+    object_pk: '36'
+    user: 15
+- model: guardian.userobjectpermission
+  pk: 135
+  fields:
+    permission: 47
+    content_type: 11
+    object_pk: '36'
+    user: 15
+- model: guardian.userobjectpermission
+  pk: 136
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '37'
+    user: 15
+- model: guardian.userobjectpermission
+  pk: 137
+  fields:
+    permission: 46
+    content_type: 11
+    object_pk: '37'
+    user: 15
+- model: guardian.userobjectpermission
+  pk: 138
+  fields:
+    permission: 47
+    content_type: 11
+    object_pk: '37'
+    user: 15
+- model: guardian.userobjectpermission
+  pk: 139
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '38'
+    user: 15
+- model: guardian.userobjectpermission
+  pk: 140
+  fields:
+    permission: 46
+    content_type: 11
+    object_pk: '38'
+    user: 15
+- model: guardian.userobjectpermission
+  pk: 141
+  fields:
+    permission: 47
+    content_type: 11
+    object_pk: '38'
+    user: 15
+- model: guardian.userobjectpermission
+  pk: 142
+  fields:
+    permission: 61
+    content_type: 14
+    object_pk: '4'
+    user: 16
+- model: guardian.userobjectpermission
+  pk: 143
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '39'
+    user: 16
+- model: guardian.userobjectpermission
+  pk: 144
+  fields:
+    permission: 46
+    content_type: 11
+    object_pk: '39'
+    user: 16
+- model: guardian.userobjectpermission
+  pk: 145
+  fields:
+    permission: 47
+    content_type: 11
+    object_pk: '39'
+    user: 16
+- model: guardian.userobjectpermission
+  pk: 146
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '40'
+    user: 16
+- model: guardian.userobjectpermission
+  pk: 147
+  fields:
+    permission: 46
+    content_type: 11
+    object_pk: '40'
+    user: 16
+- model: guardian.userobjectpermission
+  pk: 148
+  fields:
+    permission: 47
+    content_type: 11
+    object_pk: '40'
+    user: 16
+- model: guardian.userobjectpermission
+  pk: 149
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '41'
+    user: 16
+- model: guardian.userobjectpermission
+  pk: 150
+  fields:
+    permission: 46
+    content_type: 11
+    object_pk: '41'
+    user: 16
+- model: guardian.userobjectpermission
+  pk: 151
+  fields:
+    permission: 47
+    content_type: 11
+    object_pk: '41'
+    user: 16
+- model: guardian.userobjectpermission
+  pk: 152
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '42'
+    user: 16
+- model: guardian.userobjectpermission
+  pk: 153
+  fields:
+    permission: 46
+    content_type: 11
+    object_pk: '42'
+    user: 16
+- model: guardian.userobjectpermission
+  pk: 154
+  fields:
+    permission: 47
+    content_type: 11
+    object_pk: '42'
+    user: 16
+- model: guardian.userobjectpermission
+  pk: 155
+  fields:
+    permission: 61
+    content_type: 14
+    object_pk: '3'
+    user: 17
+- model: guardian.userobjectpermission
+  pk: 156
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '43'
+    user: 17
+- model: guardian.userobjectpermission
+  pk: 157
+  fields:
+    permission: 46
+    content_type: 11
+    object_pk: '43'
+    user: 17
+- model: guardian.userobjectpermission
+  pk: 158
+  fields:
+    permission: 47
+    content_type: 11
+    object_pk: '43'
+    user: 17
+- model: guardian.userobjectpermission
+  pk: 159
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '44'
+    user: 17
+- model: guardian.userobjectpermission
+  pk: 160
+  fields:
+    permission: 46
+    content_type: 11
+    object_pk: '44'
+    user: 17
+- model: guardian.userobjectpermission
+  pk: 161
+  fields:
+    permission: 47
+    content_type: 11
+    object_pk: '44'
+    user: 17
+- model: guardian.userobjectpermission
+  pk: 162
+  fields:
+    permission: 61
+    content_type: 14
+    object_pk: '3'
+    user: 18
+- model: guardian.userobjectpermission
+  pk: 163
+  fields:
+    permission: 61
+    content_type: 14
+    object_pk: '5'
+    user: 18
+- model: guardian.userobjectpermission
+  pk: 164
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '45'
+    user: 18
+- model: guardian.userobjectpermission
+  pk: 165
+  fields:
+    permission: 46
+    content_type: 11
+    object_pk: '45'
+    user: 18
+- model: guardian.userobjectpermission
+  pk: 166
+  fields:
+    permission: 47
+    content_type: 11
+    object_pk: '45'
+    user: 18
+- model: guardian.userobjectpermission
+  pk: 167
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '46'
+    user: 18
+- model: guardian.userobjectpermission
+  pk: 168
+  fields:
+    permission: 46
+    content_type: 11
+    object_pk: '46'
+    user: 18
+- model: guardian.userobjectpermission
+  pk: 169
+  fields:
+    permission: 47
+    content_type: 11
+    object_pk: '46'
+    user: 18
+- model: guardian.userobjectpermission
+  pk: 170
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '47'
+    user: 18
+- model: guardian.userobjectpermission
+  pk: 171
+  fields:
+    permission: 46
+    content_type: 11
+    object_pk: '47'
+    user: 18
+- model: guardian.userobjectpermission
+  pk: 172
+  fields:
+    permission: 47
+    content_type: 11
+    object_pk: '47'
+    user: 18
+- model: guardian.userobjectpermission
+  pk: 173
+  fields:
+    permission: 61
+    content_type: 14
+    object_pk: '3'
+    user: 19
+- model: guardian.userobjectpermission
+  pk: 174
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '48'
+    user: 19
+- model: guardian.userobjectpermission
+  pk: 175
+  fields:
+    permission: 46
+    content_type: 11
+    object_pk: '48'
+    user: 19
+- model: guardian.userobjectpermission
+  pk: 176
+  fields:
+    permission: 47
+    content_type: 11
+    object_pk: '48'
+    user: 19
+- model: guardian.userobjectpermission
+  pk: 177
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '49'
+    user: 19
+- model: guardian.userobjectpermission
+  pk: 178
+  fields:
+    permission: 46
+    content_type: 11
+    object_pk: '49'
+    user: 19
+- model: guardian.userobjectpermission
+  pk: 179
+  fields:
+    permission: 47
+    content_type: 11
+    object_pk: '49'
+    user: 19
+- model: guardian.userobjectpermission
+  pk: 180
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '50'
+    user: 19
+- model: guardian.userobjectpermission
+  pk: 181
+  fields:
+    permission: 46
+    content_type: 11
+    object_pk: '50'
+    user: 19
+- model: guardian.userobjectpermission
+  pk: 182
+  fields:
+    permission: 47
+    content_type: 11
+    object_pk: '50'
+    user: 19
+- model: guardian.userobjectpermission
+  pk: 183
+  fields:
+    permission: 61
+    content_type: 14
+    object_pk: '5'
+    user: 20
+- model: guardian.userobjectpermission
+  pk: 184
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '51'
+    user: 20
+- model: guardian.userobjectpermission
+  pk: 185
+  fields:
+    permission: 46
+    content_type: 11
+    object_pk: '51'
+    user: 20
+- model: guardian.userobjectpermission
+  pk: 186
+  fields:
+    permission: 47
+    content_type: 11
+    object_pk: '51'
+    user: 20
+- model: guardian.userobjectpermission
+  pk: 187
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '52'
+    user: 20
+- model: guardian.userobjectpermission
+  pk: 188
+  fields:
+    permission: 46
+    content_type: 11
+    object_pk: '52'
+    user: 20
+- model: guardian.userobjectpermission
+  pk: 189
+  fields:
+    permission: 47
+    content_type: 11
+    object_pk: '52'
+    user: 20
+- model: guardian.userobjectpermission
+  pk: 190
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '53'
+    user: 20
+- model: guardian.userobjectpermission
+  pk: 191
+  fields:
+    permission: 46
+    content_type: 11
+    object_pk: '53'
+    user: 20
+- model: guardian.userobjectpermission
+  pk: 192
+  fields:
+    permission: 47
+    content_type: 11
+    object_pk: '53'
+    user: 20
+- model: guardian.userobjectpermission
+  pk: 193
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '54'
+    user: 20
+- model: guardian.userobjectpermission
+  pk: 194
+  fields:
+    permission: 46
+    content_type: 11
+    object_pk: '54'
+    user: 20
+- model: guardian.userobjectpermission
+  pk: 195
+  fields:
+    permission: 47
+    content_type: 11
+    object_pk: '54'
+    user: 20
+- model: guardian.userobjectpermission
+  pk: 196
+  fields:
+    permission: 61
+    content_type: 14
+    object_pk: '4'
+    user: 21
+- model: guardian.userobjectpermission
+  pk: 197
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '55'
+    user: 21
+- model: guardian.userobjectpermission
+  pk: 198
+  fields:
+    permission: 46
+    content_type: 11
+    object_pk: '55'
+    user: 21
+- model: guardian.userobjectpermission
+  pk: 199
+  fields:
+    permission: 47
+    content_type: 11
+    object_pk: '55'
+    user: 21
+- model: guardian.userobjectpermission
+  pk: 200
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '56'
+    user: 21
+- model: guardian.userobjectpermission
+  pk: 201
+  fields:
+    permission: 46
+    content_type: 11
+    object_pk: '56'
+    user: 21
+- model: guardian.userobjectpermission
+  pk: 202
+  fields:
+    permission: 47
+    content_type: 11
+    object_pk: '56'
+    user: 21
+- model: guardian.userobjectpermission
+  pk: 203
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '57'
+    user: 21
+- model: guardian.userobjectpermission
+  pk: 204
+  fields:
+    permission: 46
+    content_type: 11
+    object_pk: '57'
+    user: 21
+- model: guardian.userobjectpermission
+  pk: 205
+  fields:
+    permission: 47
+    content_type: 11
+    object_pk: '57'
+    user: 21
+- model: guardian.userobjectpermission
+  pk: 206
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '58'
+    user: 21
+- model: guardian.userobjectpermission
+  pk: 207
+  fields:
+    permission: 46
+    content_type: 11
+    object_pk: '58'
+    user: 21
+- model: guardian.userobjectpermission
+  pk: 208
+  fields:
+    permission: 47
+    content_type: 11
+    object_pk: '58'
+    user: 21
+- model: guardian.userobjectpermission
+  pk: 209
+  fields:
+    permission: 61
+    content_type: 14
+    object_pk: '3'
+    user: 22
+- model: guardian.userobjectpermission
+  pk: 210
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '59'
+    user: 22
+- model: guardian.userobjectpermission
+  pk: 211
+  fields:
+    permission: 46
+    content_type: 11
+    object_pk: '59'
+    user: 22
+- model: guardian.userobjectpermission
+  pk: 212
+  fields:
+    permission: 47
+    content_type: 11
+    object_pk: '59'
+    user: 22
+- model: guardian.userobjectpermission
+  pk: 213
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '60'
+    user: 22
+- model: guardian.userobjectpermission
+  pk: 214
+  fields:
+    permission: 46
+    content_type: 11
+    object_pk: '60'
+    user: 22
+- model: guardian.userobjectpermission
+  pk: 215
+  fields:
+    permission: 47
+    content_type: 11
+    object_pk: '60'
+    user: 22
+- model: guardian.userobjectpermission
+  pk: 216
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '61'
+    user: 22
+- model: guardian.userobjectpermission
+  pk: 217
+  fields:
+    permission: 46
+    content_type: 11
+    object_pk: '61'
+    user: 22
+- model: guardian.userobjectpermission
+  pk: 218
+  fields:
+    permission: 47
+    content_type: 11
+    object_pk: '61'
+    user: 22
+- model: guardian.userobjectpermission
+  pk: 219
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '62'
+    user: 22
+- model: guardian.userobjectpermission
+  pk: 220
+  fields:
+    permission: 46
+    content_type: 11
+    object_pk: '62'
+    user: 22
+- model: guardian.userobjectpermission
+  pk: 221
+  fields:
+    permission: 47
+    content_type: 11
+    object_pk: '62'
+    user: 22
+- model: guardian.userobjectpermission
+  pk: 222
+  fields:
+    permission: 61
+    content_type: 14
+    object_pk: '3'
+    user: 23
+- model: guardian.userobjectpermission
+  pk: 223
+  fields:
+    permission: 61
+    content_type: 14
+    object_pk: '5'
+    user: 23
+- model: guardian.userobjectpermission
+  pk: 224
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '63'
+    user: 23
+- model: guardian.userobjectpermission
+  pk: 225
+  fields:
+    permission: 46
+    content_type: 11
+    object_pk: '63'
+    user: 23
+- model: guardian.userobjectpermission
+  pk: 226
+  fields:
+    permission: 47
+    content_type: 11
+    object_pk: '63'
+    user: 23
+- model: guardian.userobjectpermission
+  pk: 227
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '64'
+    user: 23
+- model: guardian.userobjectpermission
+  pk: 228
+  fields:
+    permission: 46
+    content_type: 11
+    object_pk: '64'
+    user: 23
+- model: guardian.userobjectpermission
+  pk: 229
+  fields:
+    permission: 47
+    content_type: 11
+    object_pk: '64'
+    user: 23
+- model: guardian.userobjectpermission
+  pk: 230
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '65'
+    user: 23
+- model: guardian.userobjectpermission
+  pk: 231
+  fields:
+    permission: 46
+    content_type: 11
+    object_pk: '65'
+    user: 23
+- model: guardian.userobjectpermission
+  pk: 232
+  fields:
+    permission: 47
+    content_type: 11
+    object_pk: '65'
+    user: 23
+- model: guardian.userobjectpermission
+  pk: 233
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '66'
+    user: 23
+- model: guardian.userobjectpermission
+  pk: 234
+  fields:
+    permission: 46
+    content_type: 11
+    object_pk: '66'
+    user: 23
+- model: guardian.userobjectpermission
+  pk: 235
+  fields:
+    permission: 47
+    content_type: 11
+    object_pk: '66'
+    user: 23
+- model: guardian.userobjectpermission
+  pk: 236
+  fields:
+    permission: 61
+    content_type: 14
+    object_pk: '3'
+    user: 24
+- model: guardian.userobjectpermission
+  pk: 237
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '67'
+    user: 24
+- model: guardian.userobjectpermission
+  pk: 238
+  fields:
+    permission: 46
+    content_type: 11
+    object_pk: '67'
+    user: 24
+- model: guardian.userobjectpermission
+  pk: 239
+  fields:
+    permission: 47
+    content_type: 11
+    object_pk: '67'
+    user: 24
+- model: guardian.userobjectpermission
+  pk: 240
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '68'
+    user: 24
+- model: guardian.userobjectpermission
+  pk: 241
+  fields:
+    permission: 46
+    content_type: 11
+    object_pk: '68'
+    user: 24
+- model: guardian.userobjectpermission
+  pk: 242
+  fields:
+    permission: 47
+    content_type: 11
+    object_pk: '68'
+    user: 24
+- model: guardian.userobjectpermission
+  pk: 243
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '69'
+    user: 24
+- model: guardian.userobjectpermission
+  pk: 244
+  fields:
+    permission: 46
+    content_type: 11
+    object_pk: '69'
+    user: 24
+- model: guardian.userobjectpermission
+  pk: 245
+  fields:
+    permission: 47
+    content_type: 11
+    object_pk: '69'
+    user: 24
+- model: guardian.userobjectpermission
+  pk: 246
+  fields:
+    permission: 61
+    content_type: 14
+    object_pk: '5'
+    user: 25
+- model: guardian.userobjectpermission
+  pk: 247
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '70'
+    user: 25
+- model: guardian.userobjectpermission
+  pk: 248
+  fields:
+    permission: 46
+    content_type: 11
+    object_pk: '70'
+    user: 25
+- model: guardian.userobjectpermission
+  pk: 249
+  fields:
+    permission: 47
+    content_type: 11
+    object_pk: '70'
+    user: 25
+- model: guardian.userobjectpermission
+  pk: 250
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '71'
+    user: 25
+- model: guardian.userobjectpermission
+  pk: 251
+  fields:
+    permission: 46
+    content_type: 11
+    object_pk: '71'
+    user: 25
+- model: guardian.userobjectpermission
+  pk: 252
+  fields:
+    permission: 47
+    content_type: 11
+    object_pk: '71'
+    user: 25
+- model: guardian.userobjectpermission
+  pk: 253
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '72'
+    user: 25
+- model: guardian.userobjectpermission
+  pk: 254
+  fields:
+    permission: 46
+    content_type: 11
+    object_pk: '72'
+    user: 25
+- model: guardian.userobjectpermission
+  pk: 255
+  fields:
+    permission: 47
+    content_type: 11
+    object_pk: '72'
+    user: 25
+- model: guardian.userobjectpermission
+  pk: 256
+  fields:
+    permission: 61
+    content_type: 14
+    object_pk: '4'
+    user: 5
+- model: guardian.userobjectpermission
+  pk: 257
+  fields:
+    permission: 61
+    content_type: 14
+    object_pk: '5'
+    user: 5
+- model: guardian.userobjectpermission
+  pk: 258
+  fields:
+    permission: 62
+    content_type: 14
+    object_pk: '3'
+    user: 4
+- model: guardian.userobjectpermission
+  pk: 259
+  fields:
+    permission: 63
+    content_type: 14
+    object_pk: '3'
+    user: 4
+- model: guardian.userobjectpermission
+  pk: 260
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '73'
+    user: 5
+- model: guardian.userobjectpermission
+  pk: 261
+  fields:
+    permission: 46
+    content_type: 11
+    object_pk: '73'
+    user: 5
+- model: guardian.userobjectpermission
+  pk: 262
+  fields:
+    permission: 47
+    content_type: 11
+    object_pk: '73'
+    user: 5
+- model: guardian.userobjectpermission
+  pk: 263
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '74'
+    user: 5
+- model: guardian.userobjectpermission
+  pk: 264
+  fields:
+    permission: 46
+    content_type: 11
+    object_pk: '74'
+    user: 5
+- model: guardian.userobjectpermission
+  pk: 265
+  fields:
+    permission: 47
+    content_type: 11
+    object_pk: '74'
+    user: 5
+- model: guardian.userobjectpermission
+  pk: 266
+  fields:
+    permission: 45
+    content_type: 11
+    object_pk: '75'
+    user: 5
+- model: guardian.userobjectpermission
+  pk: 267
+  fields:
+    permission: 46
+    content_type: 11
+    object_pk: '75'
+    user: 5
+- model: guardian.userobjectpermission
+  pk: 268
+  fields:
+    permission: 47
+    content_type: 11
+    object_pk: '75'
+    user: 5
+- model: guardian.userobjectpermission
+  pk: 269
+  fields:
+    permission: 61
+    content_type: 14
+    object_pk: '3'
+    user: 5

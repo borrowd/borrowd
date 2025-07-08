@@ -1,0 +1,632 @@
+- model: auth.permission
+  pk: 1
+  fields:
+    name: Can add log entry
+    content_type: 1
+    codename: add_logentry
+- model: auth.permission
+  pk: 2
+  fields:
+    name: Can change log entry
+    content_type: 1
+    codename: change_logentry
+- model: auth.permission
+  pk: 3
+  fields:
+    name: Can delete log entry
+    content_type: 1
+    codename: delete_logentry
+- model: auth.permission
+  pk: 4
+  fields:
+    name: Can view log entry
+    content_type: 1
+    codename: view_logentry
+- model: auth.permission
+  pk: 5
+  fields:
+    name: Can add permission
+    content_type: 2
+    codename: add_permission
+- model: auth.permission
+  pk: 6
+  fields:
+    name: Can change permission
+    content_type: 2
+    codename: change_permission
+- model: auth.permission
+  pk: 7
+  fields:
+    name: Can delete permission
+    content_type: 2
+    codename: delete_permission
+- model: auth.permission
+  pk: 8
+  fields:
+    name: Can view permission
+    content_type: 2
+    codename: view_permission
+- model: auth.permission
+  pk: 9
+  fields:
+    name: Can add group
+    content_type: 3
+    codename: add_group
+- model: auth.permission
+  pk: 10
+  fields:
+    name: Can change group
+    content_type: 3
+    codename: change_group
+- model: auth.permission
+  pk: 11
+  fields:
+    name: Can delete group
+    content_type: 3
+    codename: delete_group
+- model: auth.permission
+  pk: 12
+  fields:
+    name: Can view group
+    content_type: 3
+    codename: view_group
+- model: auth.permission
+  pk: 13
+  fields:
+    name: Can add content type
+    content_type: 4
+    codename: add_contenttype
+- model: auth.permission
+  pk: 14
+  fields:
+    name: Can change content type
+    content_type: 4
+    codename: change_contenttype
+- model: auth.permission
+  pk: 15
+  fields:
+    name: Can delete content type
+    content_type: 4
+    codename: delete_contenttype
+- model: auth.permission
+  pk: 16
+  fields:
+    name: Can view content type
+    content_type: 4
+    codename: view_contenttype
+- model: auth.permission
+  pk: 17
+  fields:
+    name: Can add session
+    content_type: 5
+    codename: add_session
+- model: auth.permission
+  pk: 18
+  fields:
+    name: Can change session
+    content_type: 5
+    codename: change_session
+- model: auth.permission
+  pk: 19
+  fields:
+    name: Can delete session
+    content_type: 5
+    codename: delete_session
+- model: auth.permission
+  pk: 20
+  fields:
+    name: Can view session
+    content_type: 5
+    codename: view_session
+- model: auth.permission
+  pk: 21
+  fields:
+    name: Can add user
+    content_type: 6
+    codename: add_borrowduser
+- model: auth.permission
+  pk: 22
+  fields:
+    name: Can change user
+    content_type: 6
+    codename: change_borrowduser
+- model: auth.permission
+  pk: 23
+  fields:
+    name: Can delete user
+    content_type: 6
+    codename: delete_borrowduser
+- model: auth.permission
+  pk: 24
+  fields:
+    name: Can view user
+    content_type: 6
+    codename: view_borrowduser
+- model: auth.permission
+  pk: 25
+  fields:
+    name: Can add profile
+    content_type: 7
+    codename: add_profile
+- model: auth.permission
+  pk: 26
+  fields:
+    name: Can change profile
+    content_type: 7
+    codename: change_profile
+- model: auth.permission
+  pk: 27
+  fields:
+    name: Can delete profile
+    content_type: 7
+    codename: delete_profile
+- model: auth.permission
+  pk: 28
+  fields:
+    name: Can view profile
+    content_type: 7
+    codename: view_profile
+- model: auth.permission
+  pk: 29
+  fields:
+    name: Can add email address
+    content_type: 8
+    codename: add_emailaddress
+- model: auth.permission
+  pk: 30
+  fields:
+    name: Can change email address
+    content_type: 8
+    codename: change_emailaddress
+- model: auth.permission
+  pk: 31
+  fields:
+    name: Can delete email address
+    content_type: 8
+    codename: delete_emailaddress
+- model: auth.permission
+  pk: 32
+  fields:
+    name: Can view email address
+    content_type: 8
+    codename: view_emailaddress
+- model: auth.permission
+  pk: 33
+  fields:
+    name: Can add email confirmation
+    content_type: 9
+    codename: add_emailconfirmation
+- model: auth.permission
+  pk: 34
+  fields:
+    name: Can change email confirmation
+    content_type: 9
+    codename: change_emailconfirmation
+- model: auth.permission
+  pk: 35
+  fields:
+    name: Can delete email confirmation
+    content_type: 9
+    codename: delete_emailconfirmation
+- model: auth.permission
+  pk: 36
+  fields:
+    name: Can view email confirmation
+    content_type: 9
+    codename: view_emailconfirmation
+- model: auth.permission
+  pk: 37
+  fields:
+    name: Can add Item Category
+    content_type: 10
+    codename: add_itemcategory
+- model: auth.permission
+  pk: 38
+  fields:
+    name: Can change Item Category
+    content_type: 10
+    codename: change_itemcategory
+- model: auth.permission
+  pk: 39
+  fields:
+    name: Can delete Item Category
+    content_type: 10
+    codename: delete_itemcategory
+- model: auth.permission
+  pk: 40
+  fields:
+    name: Can view Item Category
+    content_type: 10
+    codename: view_itemcategory
+- model: auth.permission
+  pk: 41
+  fields:
+    name: Can add item
+    content_type: 11
+    codename: add_item
+- model: auth.permission
+  pk: 42
+  fields:
+    name: Can change item
+    content_type: 11
+    codename: change_item
+- model: auth.permission
+  pk: 43
+  fields:
+    name: Can delete item
+    content_type: 11
+    codename: delete_item
+- model: auth.permission
+  pk: 44
+  fields:
+    name: Can view item
+    content_type: 11
+    codename: view_item
+- model: auth.permission
+  pk: 45
+  fields:
+    name: Can view this item
+    content_type: 11
+    codename: view_this_item
+- model: auth.permission
+  pk: 46
+  fields:
+    name: Can edit this item
+    content_type: 11
+    codename: edit_this_item
+- model: auth.permission
+  pk: 47
+  fields:
+    name: Can delete this item
+    content_type: 11
+    codename: delete_this_item
+- model: auth.permission
+  pk: 48
+  fields:
+    name: Can borrow this item
+    content_type: 11
+    codename: borrow_this_item
+- model: auth.permission
+  pk: 49
+  fields:
+    name: Can add item photo
+    content_type: 12
+    codename: add_itemphoto
+- model: auth.permission
+  pk: 50
+  fields:
+    name: Can change item photo
+    content_type: 12
+    codename: change_itemphoto
+- model: auth.permission
+  pk: 51
+  fields:
+    name: Can delete item photo
+    content_type: 12
+    codename: delete_itemphoto
+- model: auth.permission
+  pk: 52
+  fields:
+    name: Can view item photo
+    content_type: 12
+    codename: view_itemphoto
+- model: auth.permission
+  pk: 53
+  fields:
+    name: Can add transaction
+    content_type: 13
+    codename: add_transaction
+- model: auth.permission
+  pk: 54
+  fields:
+    name: Can change transaction
+    content_type: 13
+    codename: change_transaction
+- model: auth.permission
+  pk: 55
+  fields:
+    name: Can delete transaction
+    content_type: 13
+    codename: delete_transaction
+- model: auth.permission
+  pk: 56
+  fields:
+    name: Can view transaction
+    content_type: 13
+    codename: view_transaction
+- model: auth.permission
+  pk: 57
+  fields:
+    name: Can add borrowd group
+    content_type: 14
+    codename: add_borrowdgroup
+- model: auth.permission
+  pk: 58
+  fields:
+    name: Can change borrowd group
+    content_type: 14
+    codename: change_borrowdgroup
+- model: auth.permission
+  pk: 59
+  fields:
+    name: Can delete borrowd group
+    content_type: 14
+    codename: delete_borrowdgroup
+- model: auth.permission
+  pk: 60
+  fields:
+    name: Can view borrowd group
+    content_type: 14
+    codename: view_borrowdgroup
+- model: auth.permission
+  pk: 61
+  fields:
+    name: Can view this Group
+    content_type: 14
+    codename: view_this_group
+- model: auth.permission
+  pk: 62
+  fields:
+    name: Can edit this Group
+    content_type: 14
+    codename: edit_this_group
+- model: auth.permission
+  pk: 63
+  fields:
+    name: Can delete this Group
+    content_type: 14
+    codename: delete_this_group
+- model: auth.permission
+  pk: 64
+  fields:
+    name: Can add membership
+    content_type: 15
+    codename: add_membership
+- model: auth.permission
+  pk: 65
+  fields:
+    name: Can change membership
+    content_type: 15
+    codename: change_membership
+- model: auth.permission
+  pk: 66
+  fields:
+    name: Can delete membership
+    content_type: 15
+    codename: delete_membership
+- model: auth.permission
+  pk: 67
+  fields:
+    name: Can view membership
+    content_type: 15
+    codename: view_membership
+- model: auth.permission
+  pk: 68
+  fields:
+    name: Can add group object permission
+    content_type: 16
+    codename: add_groupobjectpermission
+- model: auth.permission
+  pk: 69
+  fields:
+    name: Can change group object permission
+    content_type: 16
+    codename: change_groupobjectpermission
+- model: auth.permission
+  pk: 70
+  fields:
+    name: Can delete group object permission
+    content_type: 16
+    codename: delete_groupobjectpermission
+- model: auth.permission
+  pk: 71
+  fields:
+    name: Can view group object permission
+    content_type: 16
+    codename: view_groupobjectpermission
+- model: auth.permission
+  pk: 72
+  fields:
+    name: Can add user object permission
+    content_type: 17
+    codename: add_userobjectpermission
+- model: auth.permission
+  pk: 73
+  fields:
+    name: Can change user object permission
+    content_type: 17
+    codename: change_userobjectpermission
+- model: auth.permission
+  pk: 74
+  fields:
+    name: Can delete user object permission
+    content_type: 17
+    codename: delete_userobjectpermission
+- model: auth.permission
+  pk: 75
+  fields:
+    name: Can view user object permission
+    content_type: 17
+    codename: view_userobjectpermission
+- model: auth.group
+  pk: 1
+  fields:
+    name: foogroup
+    permissions: []
+- model: contenttypes.contenttype
+  pk: 1
+  fields:
+    app_label: admin
+    model: logentry
+- model: contenttypes.contenttype
+  pk: 2
+  fields:
+    app_label: auth
+    model: permission
+- model: contenttypes.contenttype
+  pk: 3
+  fields:
+    app_label: auth
+    model: group
+- model: contenttypes.contenttype
+  pk: 4
+  fields:
+    app_label: contenttypes
+    model: contenttype
+- model: contenttypes.contenttype
+  pk: 5
+  fields:
+    app_label: sessions
+    model: session
+- model: contenttypes.contenttype
+  pk: 6
+  fields:
+    app_label: borrowd_users
+    model: borrowduser
+- model: contenttypes.contenttype
+  pk: 7
+  fields:
+    app_label: borrowd_users
+    model: profile
+- model: contenttypes.contenttype
+  pk: 8
+  fields:
+    app_label: account
+    model: emailaddress
+- model: contenttypes.contenttype
+  pk: 9
+  fields:
+    app_label: account
+    model: emailconfirmation
+- model: contenttypes.contenttype
+  pk: 10
+  fields:
+    app_label: borrowd_items
+    model: itemcategory
+- model: contenttypes.contenttype
+  pk: 11
+  fields:
+    app_label: borrowd_items
+    model: item
+- model: contenttypes.contenttype
+  pk: 12
+  fields:
+    app_label: borrowd_items
+    model: itemphoto
+- model: contenttypes.contenttype
+  pk: 13
+  fields:
+    app_label: borrowd_items
+    model: transaction
+- model: contenttypes.contenttype
+  pk: 14
+  fields:
+    app_label: borrowd_groups
+    model: borrowdgroup
+- model: contenttypes.contenttype
+  pk: 15
+  fields:
+    app_label: borrowd_groups
+    model: membership
+- model: contenttypes.contenttype
+  pk: 16
+  fields:
+    app_label: guardian
+    model: groupobjectpermission
+- model: contenttypes.contenttype
+  pk: 17
+  fields:
+    app_label: guardian
+    model: userobjectpermission
+- model: sessions.session
+  pk: fdy5o1yw991qovdbzu3d8jeuywrr9dmy
+  fields:
+    session_data: .eJxVjkFuhTAMRO_iNYpCSEjNqu01qgo5sRFRIZFKWH39uxd-2bCzZ8bP8wCKsey5jrTXWXJNkWoqeVylzoU3GL4e8D_DALGwQANUYWi9M7q1xmmFaLBF04CslJYjRrym_M7lWLOKZYXndwOvB-O-ye-YTpaBmxYo_kg-DVqWU1ZXMfXKXPamPm41P6-rG2qmbT44E-noxTvSKNbanpG9m8Rjhx1NaEPPfeh18CZ0OnZushoZjbBntK59g-cfNQ5eMg:1uZGwN:SrvvbJ-01L3zXJWcyek6GrsNgXTybUyjxkUtCn_Cj34
+    expire_date: 2025-07-22 22:37:31.079977+00:00
+- model: borrowd_users.borrowduser
+  pk: 1
+  fields:
+    password: '!8c2WlXFvOMSVW9GXywmCTreAkWkUBdiTvPL2bkxz'
+    last_login: null
+    is_superuser: false
+    username: AnonymousUser
+    first_name: ''
+    last_name: ''
+    email: ''
+    is_staff: false
+    is_active: true
+    date_joined: 2025-07-08 17:50:10.269561+00:00
+    groups: []
+    user_permissions: []
+- model: borrowd_users.borrowduser
+  pk: 2
+  fields:
+    password: pbkdf2_sha256$1000000$FgNVq23o6aYyoribPbhwTX$X/W7uite0/+DFqjSlRPy3Fsnvluxjj/MLnpAm9puPpI=
+    last_login: 2025-07-08 22:37:31.059921+00:00
+    is_superuser: true
+    username: admin
+    first_name: ''
+    last_name: ''
+    email: admin@domain.com
+    is_staff: true
+    is_active: true
+    date_joined: 2025-07-08 22:36:35.624791+00:00
+    groups:
+    - 1
+    user_permissions: []
+- model: borrowd_users.profile
+  pk: 1
+  fields:
+    user: 1
+    image: ''
+    display_name: ''
+- model: borrowd_users.profile
+  pk: 2
+  fields:
+    user: 2
+    image: ''
+    display_name: ''
+- model: borrowd_groups.borrowdgroup
+  pk: 1
+  fields:
+    name: foogroup
+    description: groop
+    logo: ''
+    banner: ''
+    membership_requires_approval: true
+    created_by: 2
+    created_at: 2025-07-08 22:37:56.785130+00:00
+    updated_by: 2
+    updated_at: 2025-07-08 22:37:56.785233+00:00
+- model: borrowd_groups.membership
+  pk: 1
+  fields:
+    user: 2
+    group: 1
+    is_moderator: true
+    joined_at: 2025-07-08 22:37:56.823187+00:00
+    status: PENDING
+    status_changed_at: null
+    status_changed_reason: null
+    trust_level: 2
+- model: guardian.userobjectpermission
+  pk: 1
+  fields:
+    permission: 61
+    content_type: 14
+    object_pk: '1'
+    user: 2
+- model: guardian.userobjectpermission
+  pk: 2
+  fields:
+    permission: 62
+    content_type: 14
+    object_pk: '1'
+    user: 2
+- model: guardian.userobjectpermission
+  pk: 3
+  fields:
+    permission: 63
+    content_type: 14
+    object_pk: '1'
+    user: 2
