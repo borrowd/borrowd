@@ -27,6 +27,7 @@ django==5.2.1 \
     #   django-cotton
     #   django-filter
     #   django-guardian
+    #   django-storages
     #   django-vite
     #   django-storages
 django-allauth==65.8.0 \
@@ -55,6 +56,10 @@ django-filter==25.1 \
 django-guardian==3.0.0 \
     --hash=sha256:0c79d55c4af2cfc14fbd19539846a1ebfed2a38198b7697e0f5177b7f654e1cd \
     --hash=sha256:f3ebe3cc7f486e267041b780c3429ad5db72c909df40c2f74adb1b059582a3cd
+    # via borrowd
+django-storages==1.14.6 \
+    --hash=sha256:11b7b6200e1cb5ffcd9962bd3673a39c7d6a6109e8096f0e03d46fab3d3aabd9 \
+    --hash=sha256:7a25ce8f4214f69ac9c7ce87e2603887f7ae99326c316bc8d2d75375e09341c9
     # via borrowd
 django-vite==3.1.0 \
     --hash=sha256:4e46572bd6b1ce70784be129205dc2ffcbc7a3c19fea50bebfb72b327bbde5fc \
