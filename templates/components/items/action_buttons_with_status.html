@@ -1,12 +1,11 @@
 <!--
     Originally these were properly separate components but when apart Alpine wouldn't properly pick up the htmx swap so styling would lag behind.
   -->
-<div id="action-status-container" class="flex flex-col items-center my-2 gap-2">
-    <div class="flex flex-col items-center gap-2">
-
+<div id="action-status-container" class="flex flex-col items-center my-2 gap-2 w-full">
+    <div class="flex flex-col items-center gap-4 w-full">
         <!-- Status Box -->
-        <div class="my-4 p-3 border rounded-lg bg-blue-50 border-blue-200 text-blue-800">
-            <div class="flex items-center">
+        <div class="p-3 border rounded-lg bg-borrowd-indigo-300 text-borrowd-indigo-600 w-full">
+            <div class="flex items-center justify-center">
                 <!-- TODO: design team info icon -->
                 <svg class="w-10 h-10 mr-2" fill="currentColor" viewBox="0 0 20 20">
                     <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
@@ -16,6 +15,7 @@
         </div>
 
         <!-- Action Buttons -->
+        {% load button_styles %}
         <div class="flex flex-wrap items-center space-x-2">
             {% for action in action_context.actions %}
                 <button
@@ -25,11 +25,11 @@
                     hx-trigger="click"
                     hx-swap="innerHTML"
                     hx-target="#action-status-container"
-                    class="inline-block w-fit text-white font-medium py-2 px-4 rounded
-                    {% if action.name == 'ACCEPT_REQUEST' %}bg-green-600 hover:bg-green-700
-                    {% elif action.name == 'REJECT_REQUEST' or action.name == 'CANCEL_REQUEST' %}bg-red-600 hover:bg-red-700
-                    {% elif action.name == 'REQUEST_ITEM' %}bg-orange-600 hover:bg-orange-700
-                    {% else %}bg-blue-600 hover:bg-blue-700
+                    class="inline-block w-fit font-medium py-2 px-4 rounded transition-colors duration-200 border-2
+                    {% if action.name == 'ACCEPT_REQUEST' %}{{ 'green'|button_bg_color }} {{ 'green'|button_text_color }} {{ 'green'|button_border_color }}
+                    {% elif action.name == 'REJECT_REQUEST' or action.name == 'CANCEL_REQUEST' %}{{ 'red'|button_bg_color }} {{ 'red'|button_text_color }} {{ 'red'|button_border_color }}
+                    {% elif action.name == 'REQUEST_ITEM' %}{{ 'green'|button_bg_color }} {{ 'green'|button_text_color }} {{ 'green'|button_border_color }}
+                    {% else %}{{ 'blue'|button_bg_color }} {{ 'blue'|button_text_color }} {{ 'blue'|button_border_color }}
                     {% endif %}"
                 >
                     {{ action.label }}

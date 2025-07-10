@@ -2,12 +2,13 @@
 
 {% block head_title %}View Item{% endblock %}
 {% block items_content %}
+{% load button_styles %}
 <c-box class="relative flex flex-col items-center">
     <div class="w-full flex">
-        <c-button-nav variant="outlined" url="{% url 'item-list' %}"><span>&larr;</span> Back to List</c-button-nav>
+        <c-button-nav color="blue" url="{% url 'item-list' %}"><span>&larr;</span> Back to List</c-button-nav>
 
         {% if user.is_authenticated and object.owner == user %}
-        <c-button-nav class="flex items-center ml-auto bg-orange-600 hover:bg-orange-700 text-white"
+        <c-button-nav class="flex items-center ml-auto" color="yellow"
         url="{% url 'item-edit' object.pk %}">
             <span class="inline-block mr-2 fill-white">{% include "icons/handyman.svg" %}</span>
             Manage
@@ -27,14 +28,10 @@
         <c-items.action-buttons-with-status
             :action-context="action_context"
         ></c-items.action-buttons-with-status>
-
-        <div class="flex flex-col bg-gray-100 p-4 rounded-lg mt-6 border-2 border-gray-300">
-            <c-h2>Description</c-h2>
-            <p>{{ object.description }}</p>
-        </div>
     </div>
-</c-box>
-<c-box class="mt-6">
-    {% debug %}
+    <div class="flex flex-col bg-borrowd-indigo-300/50 p-4 rounded-lg">
+        <c-h2>Description</c-h2>
+        <p>{{ object.description }}</p>
+    </div>
 </c-box>
 {% endblock %}
