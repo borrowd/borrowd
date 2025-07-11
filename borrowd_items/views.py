@@ -80,14 +80,14 @@ def borrow_item(request: HttpRequest, pk: int) -> HttpResponse:
             f"An error occurred while processing the action: {e}", status=500
         )
 
-    next_actions = item.get_actions_for(user=user)
+    action_context = item.get_action_context_for(user=user)
 
     return render(
         request,
-        template_name="components/items/action_buttons.html",
+        template_name="components/items/action_buttons_with_status.html",
         context={
             "item": item,
-            "item_actions": next_actions,
+            "action_context": action_context,
         },
         content_type="text/html",
         status=200,
@@ -121,7 +121,8 @@ class ItemDetailView(BorrowdTemplateFinderMixin, DetailView[Item]):
     def get_context_data(self, **kwargs: str) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
         user: BorrowdUser = self.request.user  # type: ignore[assignment]
-        context["item_actions"] = self.object.get_actions_for(user=user)
+        action_context = self.object.get_action_context_for(user=user)
+        context["action_context"] = action_context
         return context
 
 

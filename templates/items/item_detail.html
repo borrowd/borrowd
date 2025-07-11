@@ -2,20 +2,36 @@
 
 {% block head_title %}View Item{% endblock %}
 {% block items_content %}
-<c-box>
-    <c-h1>{{ object.name }}</c-h1>
-    <p>{{ object.description }}</p>
-    <c-items.action-buttons />
+{% load button_styles %}
+<c-box class="relative flex flex-col items-center">
+    <div class="w-full flex">
+        <c-button-nav color="blue" url="{% url 'item-list' %}"><span>&larr;</span> Back to List</c-button-nav>
 
-    <c-gallery>
-    {% for photo in view.object.photos.all %}
-        <c-photo src="{{ photo.image.url }}"
+        {% if user.is_authenticated and object.owner == user %}
+        <c-button-nav class="flex items-center ml-auto" color="yellow"
+        url="{% url 'item-edit' object.pk %}">
+            <span class="inline-block mr-2 fill-white">{% include "icons/handyman.svg" %}</span>
+            Manage
+        </c-button-nav>
+        {% endif %}
+    </div>
+    <div class="flex flex-col w-3/4 items-center">
+        <c-h1>{{ object.name }}</c-h1>
+
+        <c-gallery>
+            {% for photo in view.object.photos.all %}
+            <c-photo src="{{ photo.image.url }}"
             alt="{{ view.object.name }} Photo {{ forloop.counter }}" />
-    {% endfor %}
-    </c-gallery>
+            {% endfor %}
+        </c-gallery>
 
-    <c-button-nav url="{% url 'item-list' %}">Back to List</c-button-nav>
-    <c-button-nav url="{% url 'item-edit' object.pk %}">Edit</c-button-nav>
-    <c-button-nav url="{% url 'item-delete' object.pk %}">Delete</c-button-nav>
+        <c-items.action-buttons-with-status
+            :action-context="action_context"
+        ></c-items.action-buttons-with-status>
+    </div>
+    <div class="flex flex-col bg-borrowd-indigo-300/50 p-4 rounded-lg">
+        <c-h2>Description</c-h2>
+        <p>{{ object.description }}</p>
+    </div>
 </c-box>
 {% endblock %}

@@ -1,4 +1,5 @@
-from typing import Iterable, Never, Optional
+from dataclasses import dataclass
+from typing import Never, Optional
 
 from django.db.models import (
     CASCADE,
@@ -38,6 +39,18 @@ class ItemAction(TextChoices):
     MARK_RETURNED = "MARK_RETURNED", "Mark Returned"
     CONFIRM_RETURNED = "CONFIRM_RETURNED", "Confirm Returned"
     CANCEL_REQUEST = "CANCEL_REQUEST", "Cancel Request"
+
+
+@dataclass
+class ItemActionContext:
+    """
+    Container for item actions and related context information.
+    Combines action buttons with status text, eliminating the need for
+    separate frontend logic and multiple DB calls.
+    """
+
+    actions: tuple[ItemAction, ...]
+    status_text: str
 
 
 class ItemCategory(Model):
@@ -99,7 +112,103 @@ class Item(Model):
     def get_absolute_url(self) -> str:
         return reverse("item-detail", args=[self.pk])
 
-    def get_actions_for(self, user: BorrowdUser) -> Iterable[ItemAction]:
+    def get_action_context_for(self, user: BorrowdUser) -> ItemActionContext:
+        """
+        Returns ItemActionContext containing ItemActions [e.g. REQUEST_ITEM, ACCEPT_REQUEST]
+        and status information [e.g. "You are currently borrowing this item."] for the given user.
+        """
+
+        current_borrower = self.get_current_borrower()
+        requesting_user = self.get_requesting_user()
+        actions = self.get_actions_for(user)
+
+        # Generate status text based on user role and current actions/status
+        status_text = self._get_status_text_for_user(
+            user=user,
+            actions=actions,
+            current_borrower=current_borrower,
+            requesting_user=requesting_user,
+        )
+
+        return ItemActionContext(actions=actions, status_text=status_text)
+
+    def _get_status_text_for_user(
+        self,
+        user: BorrowdUser,
+        actions: tuple[ItemAction, ...],
+        current_borrower: Optional[BorrowdUser],
+        requesting_user: Optional[BorrowdUser],
+    ) -> str:
+        """Generate context-appropriate status text for the user."""
+        # Determine user role
+        is_owner = self.owner == user
+        is_borrower = current_borrower and current_borrower == user
+
+        # Get display names (with privacy considerations)
+        requester_name = requesting_user.username if requesting_user else "Someone"
+        borrower_name = current_borrower.username if current_borrower else "Borrower"
+
+        if is_owner:
+            return self._get_owner_status_text(actions, requester_name, borrower_name)
+        elif is_borrower:
+            return self._get_borrower_status_text(actions)
+        else:
+            return self._get_other_user_status_text(actions)
+
+    def _get_owner_status_text(
+        self, actions: tuple[ItemAction, ...], requester_name: str, borrower_name: str
+    ) -> str:
+        """Generate status text for item owners."""
+
+        if ItemAction.ACCEPT_REQUEST in actions:
+            return f"{requester_name} has requested to borrow this item!"
+        elif (
+            ItemAction.MARK_COLLECTED in actions
+            and ItemAction.CANCEL_REQUEST in actions
+        ):
+            return f"You've accepted {borrower_name}'s borrow request, please mark the item as Collected when you've given it to them."
+        elif ItemAction.CONFIRM_COLLECTED in actions:
+            return (
+                f"{borrower_name} marked item as collected, confirm you have lent it."
+            )
+        elif ItemAction.MARK_RETURNED in actions:
+            return f"You are currently lending this item to {borrower_name}. Mark it as returned when you have received it back."
+        elif ItemAction.CONFIRM_RETURNED in actions:
+            return f"{borrower_name} marked item as returned, confirm you have received it back."
+        elif self.status == ItemStatus.RESERVED:
+            return f"You've marked this item as lent, waiting for {borrower_name} to confirm collected."
+        elif self.status == ItemStatus.BORROWED:
+            return f"Waiting for {borrower_name} to confirm returned."
+        else:
+            return "This is your item and it is available for borrowing."
+
+    def _get_borrower_status_text(self, actions: tuple[ItemAction, ...]) -> str:
+        """Generate status text for current borrowers."""
+        if ItemAction.CANCEL_REQUEST in actions:
+            return "Owner accepted request, mark Collected when you have received the item."
+        elif ItemAction.CONFIRM_COLLECTED in actions:
+            return "Owner marked item as collected, confirm you have received it."
+        elif ItemAction.MARK_RETURNED in actions:
+            return "You are currently borrowing this item. Mark it as returned when you have returned it to the owner."
+        elif ItemAction.CONFIRM_RETURNED in actions:
+            return "Owner marked item as returned, confirm you have given it back."
+        elif len(actions) == 0 and self.status == ItemStatus.RESERVED:
+            return "You're currently borrowing this item!"
+        elif len(actions) == 0 and self.status == ItemStatus.BORROWED:
+            return "Waiting owner confirmation of returned item."
+        else:
+            return "Not available for borrowing"
+
+    def _get_other_user_status_text(self, actions: tuple[ItemAction, ...]) -> str:
+        """Generate status text for users who are neither owner nor borrower."""
+        if len(actions) == 1 and ItemAction.CANCEL_REQUEST in actions:
+            return "Requested to borrow, waiting on owner response..."
+        elif ItemAction.REQUEST_ITEM in actions:
+            return "Available to request!"
+        else:
+            return "Not available for borrowing"
+
+    def get_actions_for(self, user: BorrowdUser) -> tuple[ItemAction, ...]:
         """
         Returns a tuple of ItemAction objects representing the
         current valid actions that the given User may perform on this
@@ -194,6 +303,71 @@ class Item(Model):
             raise ValueError(
                 f"Unexpected Transaction status '{current_tx.status}' for Item '{self}' and User '{user}'"
             )
+
+    def get_requesting_user(self) -> Optional[BorrowdUser]:
+        """
+        Returns the User who has requested to borrow this Item, if any.
+        This is specifically for items in REQUESTED status.
+        """
+        try:
+            transaction = Transaction.objects.get(
+                Q(item=self) & Q(status=TransactionStatus.REQUESTED)
+            )
+            # party2 is the requestor
+            return transaction.party2  # type: ignore[return-value]
+        except Transaction.DoesNotExist:
+            return None
+        except Transaction.MultipleObjectsReturned:
+            # Return the most recent request (for now)
+            txn: Optional["Transaction"] = (
+                Transaction.objects.filter(
+                    Q(item=self) & Q(status=TransactionStatus.REQUESTED)
+                )
+                .order_by("-created_at")
+                .first()
+            )
+            return txn.party2 if txn else None  # type: ignore[return-value]
+
+    def get_current_borrower(self) -> Optional[BorrowdUser]:
+        """
+        Returns the User who is currently borrowing this Item, if any.
+        """
+        # Look for an active transaction where the item is borrowed or reserved
+        try:
+            transaction = Transaction.objects.get(
+                Q(item=self)
+                & Q(
+                    status__in=[
+                        TransactionStatus.ACCEPTED,
+                        TransactionStatus.COLLECTION_ASSERTED,
+                        TransactionStatus.COLLECTED,
+                        TransactionStatus.RETURN_ASSERTED,
+                    ]
+                )
+            )
+            # party2 is the borrower
+            return transaction.party2  # type: ignore[return-value]
+        except Transaction.DoesNotExist:
+            return None
+        except Transaction.MultipleObjectsReturned:
+            # This shouldn't happen with proper business logic, but just in case
+            # return the most recent one
+            txn: Optional["Transaction"] = (
+                Transaction.objects.filter(
+                    Q(item=self)
+                    & Q(
+                        status__in=[
+                            TransactionStatus.ACCEPTED,
+                            TransactionStatus.COLLECTION_ASSERTED,
+                            TransactionStatus.COLLECTED,
+                            TransactionStatus.RETURN_ASSERTED,
+                        ]
+                    )
+                )
+                .order_by("-updated_at")
+                .first()
+            )
+            return txn.party2 if txn else None  # type: ignore[return-value]
 
     def get_current_transaction_for_user(
         self, user: BorrowdUser
