@@ -19,6 +19,16 @@
         {% else %}
             <script src="https://cdn.tailwindcss.com"></script>
         {% endif %}
+        <style>
+            p a {
+                color: #2563eb; /* Tailwind blue-600 */
+                font-weight: 600;
+            }
+
+            p a:hover {
+                text-decoration: underline;
+            }
+        </style>
     </head>
     <body>
         {% block body %}
