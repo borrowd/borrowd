@@ -6,7 +6,7 @@
 {% if attrs.name %}name="{{ attrs.name }}"{% endif %}
 {% if attrs.value %}value="{{ attrs.value }}"{% endif %}
 {% if attrs.type %}type="{{ attrs.type }}"{% endif %}
-class="bg-blue-500 text-white font-medium py-2 px-4 rounded-lg transition duration-200 ease-in-out hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 {{ attrs.class }}"
+class="bg-blue-500 text-white font-medium py-2 px-4 !my-5 rounded-lg transition duration-200 ease-in-out hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 {{ attrs.class }}"
 {% if attrs.disabled %}disabled{% endif %} {% if attrs.onclick %}onclick="{{ attrs.onclick }}"{% endif %} {% if attrs.aria_label %}aria-label="{{ attrs.aria_label }}"{% endif %} {% if attrs.aria_describedby %}aria-describedby="{{ attrs.aria_describedby }}"{% endif %} {% if attrs.aria_controls %}aria-controls="{{ attrs.aria_controls }}"{% endif %} {% if attrs.aria_expanded %}aria-expanded="{{ attrs.aria_expanded }}"{% endif %} {% if attrs.aria_haspopup %}aria-haspopup="{{ attrs.aria_haspopup }}"{% endif %} {% if attrs.role %}role="{{ attrs.role }}"{% endif %}
 >
 {% slot %}
