@@ -19,6 +19,7 @@ from borrowd_users.models import BorrowdUser
 
 from .exceptions import InvalidItemAction
 from .filters import ItemFilter
+from .forms import ItemCreateWithPhotoForm
 from .models import Item, ItemAction, ItemPhoto
 
 
@@ -94,15 +95,21 @@ def borrow_item(request: HttpRequest, pk: int) -> HttpResponse:
     )
 
 
-class ItemCreateView(BorrowdTemplateFinderMixin, CreateView[Item, ModelForm[Item]]):
+class ItemCreateView(
+    BorrowdTemplateFinderMixin, CreateView[Item, ItemCreateWithPhotoForm]
+):
     model = Item
-    fields = ["name", "description", "category"]
+    form_class = ItemCreateWithPhotoForm
 
-    def form_valid(self, form: ModelForm[Item]) -> HttpResponse:
+    def form_valid(self, form: ItemCreateWithPhotoForm) -> HttpResponse:
         form.instance.owner = self.request.user  # type: ignore[assignment]
         # default trust level for now
         form.instance.trust_level_required = TrustLevel.LOW
-        return super().form_valid(form)
+        response = super().form_valid(form)
+        image = form.cleaned_data.get("image")
+        if image:
+            ItemPhoto.objects.create(item=self.object, image=image)
+        return response
 
     def get_success_url(self) -> str:
         if self.object is None:
