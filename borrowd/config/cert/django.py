@@ -17,7 +17,7 @@ DEBUG = False
 # That is, only when this platform.sh variable is defined
 if env("PLATFORM_APPLICATION_NAME") is not None:
     ALLOWED_HOSTS = [
-        "app.borrowd.org",
+        ".platformsh.site",
     ]
 
     # PLATFORM_PROJECT_ENTROPY is unique to your project
@@ -67,7 +67,7 @@ STORAGES = {
     "default": {
         "BACKEND": "storages.backends.s3.S3Storage",
         "OPTIONS": {
-            "bucket_name": "borrowd-media-prod-us-west-1",
+            "bucket_name": "borrowd-media-dev-us-west-1",
             "default_acl": "public-read",
             "file_overwrite": False,
             "region_name": "us-west-1",
