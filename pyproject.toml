@@ -19,3 +19,8 @@ dependencies = [
     "django-storages[s3]>=1.14.6",
     "django-vite>=3.1.0",
 ]
+
+[dependency-groups]
+dev = [
+    "pyyaml>=6.0.2",
+]
