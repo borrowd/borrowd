@@ -153,6 +153,12 @@ requiring updates to JS or CSS (i.e. Tailwind) files. In prod, JS+CSS
 dependencies will have been bundled, so that template tag becomes a
 no-op.
 
+#### Optional: load demo data
+
+```
+uv run manage.py loadborrowddata fixtures/demo_data.yaml
+```
+
 ## Working with tools via `uv`
 
 Use the `uvx` command to invoke tools installed via `uv`:
