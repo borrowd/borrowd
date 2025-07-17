@@ -153,6 +153,18 @@ requiring updates to JS or CSS (i.e. Tailwind) files. In prod, JS+CSS
 dependencies will have been bundled, so that template tag becomes a
 no-op.
 
+#### Optional: load demo data
+
+Demo data is kept outside the repo. We have a custom management
+command, `loadborrowddata`, which ensures that signals are disabled
+for the loading process.
+
+Example demo data load command:
+
+```
+uv run manage.py loadborrowddata fixtures/demo_data.yaml
+```
+
 ## Working with tools via `uv`
 
 Use the `uvx` command to invoke tools installed via `uv`:
