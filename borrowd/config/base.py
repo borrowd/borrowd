@@ -13,6 +13,8 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 import os
 from pathlib import Path
 
+from django.urls import reverse_lazy
+
 from borrowd.config.env import env
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -134,7 +136,7 @@ AUTH_PASSWORD_VALIDATORS = [
 # AUTH
 AUTH_USER_MODEL = "borrowd_users.BorrowdUser"
 
-LOGIN_REDIRECT_URL = "/"
+LOGIN_REDIRECT_URL = reverse_lazy("item-list")
 
 ACCOUNT_LOGIN_BY_CODE_ENABLED = True
 
