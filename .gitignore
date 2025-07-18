@@ -4,8 +4,10 @@
 *.log
 *.pot
 db.sqlite3
-media
 staticfiles/
+media/*
+# Do include demo data images in repo
+!media/demo_data/
 
 # Backup files
 *.bak
