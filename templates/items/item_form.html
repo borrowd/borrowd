@@ -10,7 +10,7 @@
 {% block items_content %}
 <c-box>
     <c-h1>{% if not view.object.pk %}Create{% else %}Edit{% endif %} Item</c-h1>
-    <form method="post" class="flex flex-col space-y-2">
+    <form method="post" enctype="multipart/form-data" class="flex flex-col space-y-2">
         {% csrf_token %}
         {% for field in form %}
         <div class="">

@@ -217,3 +217,30 @@ We have not used a
 just a related Profile model with a
 [one-to-one relationship](https://docs.djangoproject.com/en/5.2/topics/auth/customizing/#extending-the-existing-user-model)
 with the standard User model. This is defined in the `borrowd_users/` app.
+
+
+## Deployment
+Configuration files are present to deploy the app on platform.sh.
+
+`.platform.app.yaml` holds app and services configurations as well as deployment hooks
+`.env.platform` contains public env vars that will be pushed with the app
+
+Prod media and file storages are configured to use AWS S3 buckets (via wasabi).
+
+Platform.sh maintains a git repository whose branches are each deployed as separate environments with their own services. Environment variables can be configured to be shared across environments. `main` is considered the CI/CD build and tagged git branches will be merged to an official public `release` branch.
+
+To manually push and deploy the app (assuming platform.sh access):
+```
+platform project:set-remote <project-id>
+git push -u platform <main|release|feature-branch>
+```
+
+DB CLI
+```
+platform sql -e main
+```
+
+View container logs
+```
+platform log -p <project-id> -e main
+```
