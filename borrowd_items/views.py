@@ -13,7 +13,6 @@ from django.views.generic import (
 )
 from django_filters.views import FilterView
 
-from borrowd.models import TrustLevel
 from borrowd.util import BorrowdTemplateFinderMixin
 from borrowd_users.models import BorrowdUser
 
@@ -103,8 +102,6 @@ class ItemCreateView(
 
     def form_valid(self, form: ItemCreateWithPhotoForm) -> HttpResponse:
         form.instance.owner = self.request.user  # type: ignore[assignment]
-        # default trust level for now
-        form.instance.trust_level_required = TrustLevel.LOW
         response = super().form_valid(form)
         image = form.cleaned_data.get("image")
         if image:
@@ -142,7 +139,7 @@ class ItemListView(BorrowdTemplateFinderMixin, FilterView):  # type: ignore[misc
 
 class ItemUpdateView(BorrowdTemplateFinderMixin, UpdateView[Item, ModelForm[Item]]):
     model = Item
-    fields = ["name", "description", "category"]
+    fields = ["name", "description", "category", "trust_level_required"]
 
     def get_success_url(self) -> str:
         if self.object is None:

@@ -17,6 +17,13 @@
     </div>
     <div class="flex flex-col w-3/4 items-center">
         <c-h1>{{ object.name }}</c-h1>
+        {% if user.is_authenticated and object.owner == user %}
+        <div class="mb-2">
+            <c-trust-pill level="{{object.get_trust_level_required_display}}">
+                Trust Level: {{object.get_trust_level_required_display}}
+            </c-trust-pill>
+        </div>
+        {% endif %}
 
         <c-gallery>
             {% for photo in view.object.photos.all %}
@@ -29,7 +36,7 @@
             :action-context="action_context"
         ></c-items.action-buttons-with-status>
     </div>
-    <div class="flex flex-col bg-borrowd-indigo-300/50 p-4 rounded-lg">
+    <div class="flex flex-col bg-borrowd-indigo-300/50 p-4 rounded-lg w-full">
         <c-h2>Description</c-h2>
         <p>{{ object.description }}</p>
     </div>

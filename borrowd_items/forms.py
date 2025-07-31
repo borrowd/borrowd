@@ -8,4 +8,4 @@ class ItemCreateWithPhotoForm(forms.ModelForm[Item]):
 
     class Meta:
         model = Item
-        fields = ["name", "description", "category"]
+        fields = ["name", "description", "category", "trust_level_required"]
