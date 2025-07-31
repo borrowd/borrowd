@@ -53,7 +53,7 @@ class ProfileUpdateView(
     UpdateView[Profile, ModelForm[Profile]],
 ):
     model = Profile
-    fields = ["image"]
+    fields = ["image", "first_name", "last_name"]
 
     def get_object(self, queryset: QuerySet[Any] | None = None) -> Profile:
         user: BorrowdUser = self.request.user  # type: ignore[assignment]

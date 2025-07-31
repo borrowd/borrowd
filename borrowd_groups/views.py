@@ -62,7 +62,7 @@ class GroupCreateView(
 
     def form_valid(self, form: ModelForm[BorrowdGroup]) -> HttpResponse:
         if self.request.user.is_authenticated:
-            form.instance.created_by_id = form.instance.updated_by_id = (
+            form.instance.created_by_id = form.instance.updated_by_id = (  # type: ignore[attr-defined]
                 self.request.user.pk
             )
 
@@ -101,8 +101,7 @@ class GroupDetailView(BorrowdTemplateFinderMixin, DetailView[BorrowdGroup]):
         for membership in memberships:
             members_data.append(
                 {
-                    # For privacy just display username here? Or full name, mind you only users who have been invited to the group can see this
-                    "username": membership.user.username,  # type: ignore
+                    "full_name": membership.user.profile.full_name(),  # type: ignore
                     "profile_image": membership.user.profile.image,  # type: ignore
                     "role": membership.is_moderator and "Moderator" or "Member",
                 }
@@ -176,7 +175,7 @@ class GroupJoinView(LoginRequiredMixin, View):
             # returning a `Group` and not a `BorrowdGroup`?
             group = BorrowdGroup.objects.get(
                 pk=group_invite.group_id, name=group_invite.group_name
-            )  # type: ignore[assignment]
+            )
         except (BorrowdGroup.DoesNotExist, ValueError):
             # Don't reveal any info about Group lookup
             err = "invalid"
@@ -243,7 +242,7 @@ class GroupUpdateView(
 
     def form_valid(self, form: ModelForm[BorrowdGroup]) -> HttpResponse:
         if self.request.user.is_authenticated:
-            form.instance.updated_by_id = self.request.user.pk
+            form.instance.updated_by_id = self.request.user.pk  # type: ignore[attr-defined]
         return super().form_valid(form)
 
     def get_success_url(self) -> str:

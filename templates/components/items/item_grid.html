@@ -51,7 +51,7 @@
                     From {{ tx.party1.username }}
                 {% elif label_type == 'tx_borrower' %}
                     <c-avatar src="{{tx.party2.profile.profile_pic}}" class="inline !h-7 !w-7" />
-                    By {{ tx.party2.username }}
+                    By {{ tx.party2.profile.full_name }}
                 {% endif %}
             </c-slot>
             {% endif %}
