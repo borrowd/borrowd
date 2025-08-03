@@ -5,11 +5,6 @@
 # https://docs.platform.sh/domains/steps/dns.html#cname-records
 
 # standard route
-"https://app.{default}/":
+"https://{default}/":
     type: upstream
     upstream: "borrowd:http"
-
-# redirect base domain to app subdomain
-"https://{default}/":
-    type: redirect
-    to: "https://app.{default}/"
