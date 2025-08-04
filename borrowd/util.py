@@ -1,6 +1,8 @@
-from django.db.models import Model
+import base64
+import json
+import sys
 
-from borrowd_groups.models import BorrowdGroup
+from django.db.models import Model
 
 
 class BorrowdTemplateFinderMixin:
@@ -22,10 +24,33 @@ class BorrowdTemplateFinderMixin:
     mixin so that we can use it generically across all of our apps.
     """
 
-    model: type[Model | BorrowdGroup]
+    model: type[Model]
     template_name_suffix: str
 
     def get_template_names(self) -> list[str]:
         app_name = self.model._meta.app_label.replace("borrowd_", "")
         model_name = self.model.__name__.lower().replace("borrowd", "")
         return [f"{app_name}/{model_name}{self.template_name_suffix}.html"]
+
+
+# Helper function for decoding base64-encoded JSON variables.
+# There is a platform.sh helper package for reading config variables: https://github.com/platformsh/config-reader-python
+# but not sure it is worth adding another dependency at this point.
+def decode(variable: str):  # type: ignore
+    """Decodes a Platform.sh environment variable.
+    Args:
+        variable (string):
+            Base64-encoded JSON (the content of an environment variable).
+    Returns:
+        An dict (if representing a JSON object), or a scalar type.
+    Raises:
+        JSON decoding error.
+    """
+    try:
+        if sys.version_info[1] > 5:
+            return json.loads(base64.b64decode(variable))
+        else:
+            return json.loads(base64.b64decode(variable).decode("utf-8"))
+    except json.decoder.JSONDecodeError as e:
+        print("Error decoding JSON, code %d", json.decoder.JSONDecodeError)
+        raise e

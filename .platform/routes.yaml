@@ -1,11 +1,10 @@
 # Each route describes how an incoming URL is going to be processed by Platform.sh.
 
+# Documentation for platform.sh redirection and routing:
+# https://docs.platform.sh/define-routes/redirects.html
+# https://docs.platform.sh/domains/steps/dns.html#cname-records
+
 # standard route
-"https://www.{default}/":
+"https://{default}/":
     type: upstream
     upstream: "borrowd:http"
-
-# redirect non-www to www
-"https://{default}/":
-    type: redirect
-    to: "https://www.{default}/"
