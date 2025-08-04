@@ -9,6 +9,8 @@
     <title>{% block head_title %}{% endblock %} - Borrow'd 🐝</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css" />
      <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
+     <!-- Plausible Analytics -->
+     <script defer data-domain="app.borrowd.org" src="https://plausible.io/js/script.js"></script>
     {% if use_local_bundling %}
         {% vite_hmr_client %}
         {% vite_asset 'static/js/main.js' %}
