@@ -30,12 +30,19 @@ class Profile(models.Model):
         BorrowdUser, on_delete=models.CASCADE
     )
     image = models.ImageField(upload_to="profile_pics/", null=True, blank=True)
-    display_name: models.CharField[str, str] = models.CharField(
+    first_name: models.CharField[str, str] = models.CharField(
         max_length=50, null=False, blank=False
     )
 
+    last_name: models.CharField[str, str] = models.CharField(
+        max_length=50, null=False, blank=False
+    )
+
+    def full_name(self) -> str:
+        return f"{self.first_name} {self.last_name}"
+
     def __str__(self) -> str:
-        return str(f"Profile '{self.display_name}' for User '{self.user}'")
+        return f"Profile '{self.full_name()}' for User '{self.user}'"
 
     @property
     def profile_pic(self) -> str:

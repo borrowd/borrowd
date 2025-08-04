@@ -146,8 +146,12 @@ class Item(Model):
         is_borrower = current_borrower and current_borrower == user
 
         # Get display names (with privacy considerations)
-        requester_name = requesting_user.username if requesting_user else "Someone"
-        borrower_name = current_borrower.username if current_borrower else "Borrower"
+        requester_name = (
+            requesting_user.profile.full_name() if requesting_user else "Someone"
+        )
+        borrower_name = (
+            current_borrower.profile.full_name() if current_borrower else "Borrower"
+        )
 
         if is_owner:
             return self._get_owner_status_text(actions, requester_name, borrower_name)
