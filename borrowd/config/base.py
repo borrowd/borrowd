@@ -56,6 +56,7 @@ INSTALLED_APPS = [
     "borrowd_web",
     "borrowd_items",
     "borrowd_groups",
+    "borrowd_notifications",
     "guardian",
     "django_filters",
     "django_vite",
