@@ -1,0 +1,8 @@
+Hi {{ requester_name }},
+
+Good news: your request to borrow {{ item_name }} has been approved!
+
+You can reach out to {{ item_owner_name }} at {{ item_owner_email }} to coordinate pickup and details.
+
+Happy borrowing,
+The Borrow'd team

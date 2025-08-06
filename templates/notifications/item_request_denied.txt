@@ -1,0 +1,9 @@
+Hi {{ requester_name }},
+
+Just a heads up: the {{ item_name }} you requested isn't available right now.
+
+We know that's a bummer, but we hope you'll find what you need soon. You can keep browsing or check back later!
+
+Thanks for being part of the Borrow'd community,
+
+The Borrow'd team

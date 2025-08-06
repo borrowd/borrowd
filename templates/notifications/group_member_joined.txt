@@ -1,0 +1,9 @@
+Hi {{ group_member_name }}
+
+Just a quick heads up, {{ new_member_name }} has joined your {{ group_name }} group on Borrow'd.
+
+You're always in control of your sharing. If you'd like, you can update your trust level for this group anytime in your settings.
+
+Thanks for helping build a community where sharing is second nature!
+
+The Borrow'd team

@@ -1,0 +1,7 @@
+Hi {{ item_owner_name }},
+
+{{ requester_name }} has marked your {{ item_name }} as returned. It's now available again for your group to borrow.
+
+Thanks for being part of a community that shares what we already have. Every time we borrow instead of buy, we reduce waste and lighten our impact.
+
+The Borrow'd team

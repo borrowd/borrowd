@@ -1,0 +1,22 @@
+{% extends "notifications/layout.html" %}
+
+{% block title %}Request Approved - Borrow'd{% endblock %}
+
+{% block content %}
+<h2>Hi {{ requester_name }},</h2>
+
+<div class="success">
+    <strong>Good news: your request to borrow {{ item_name }} has been approved!</strong>
+</div>
+
+<div class="contact-info">
+    <p><strong>Contact Information:</strong></p>
+    <p>Owner: {{ item_owner_name }}</p>
+    <p>Email: {{ item_owner_email }}</p>
+</div>
+
+<p>You can reach out to {{ item_owner_name }} at {{ item_owner_email }} to coordinate pickup and details.</p>
+
+<p>Happy borrowing,</p>
+<p>The Borrow'd team</p>
+{% endblock %}
