@@ -63,7 +63,7 @@ def get_platformsh_base_url() -> str | None:
     if not platform_routes:
         return None  # Not running on Platform.sh
 
-    routes = json.loads(platform_routes)
+    routes = decode(platform_routes)
 
     # Choose the primary HTTPS route (without `-internal`)
     https_routes = [
