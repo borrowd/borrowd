@@ -52,7 +52,7 @@ web:
     # The command to launch your app. If it terminates, it’s restarted immediately.
     #
     # using gunicorn as opposed to uvi/hypercorn or daphne since we do not make use of async or websockets right now
-    start: "gunicorn -w 4 -b unix:$SOCKET borrowd.wsgi:application"
+    start: "uv run gunicorn -w 4 -b unix:$SOCKET borrowd.wsgi:application"
 
   # More information: https://docs.platform.sh/configuration/app-containers.html#upstream
   upstream:
