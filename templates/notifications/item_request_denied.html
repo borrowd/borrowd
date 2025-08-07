@@ -1,22 +1,17 @@
 {% extends "notifications/layout.html" %}
 
-{% block title %}Request Not Available - Borrow'd{% endblock %}
+{% block title %}Item Not Available - Borrow'd{% endblock %}
 
 {% block content %}
 <h2>Hi {{ requester_name }},</h2>
 
 <div class="error">
-    <strong>Unfortunately, {{ item_name }} is not available for borrowing at this time.</strong>
+    <p>Just a heads up: the <strong>{{ item_name }}</strong> you requested isn't available right now.</p>
 </div>
 
-<p>This could be because:</p>
-<ul>
-    <li>The item is currently being borrowed by someone else</li>
-    <li>The owner has marked it as unavailable</li>
-    <li>The item has been removed from sharing</li>
-</ul>
+<p>We know that’s a bummer, but we hope you’ll find what you need soon. You can keep browsing or check back later!</p>
 
-<p>Don't worry - there are plenty of other great items in your community to borrow!</p>
+<p>Thanks for being part of the Borrow’d community,</p>
 
 <p>The Borrow'd team</p>
 {% endblock %}
