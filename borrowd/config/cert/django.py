@@ -2,7 +2,7 @@ import os
 
 from environ import ImproperlyConfigured
 
-from borrowd.util import decode
+from borrowd.util import decode, get_platformsh_base_url
 
 from ..base import *  # noqa: F403
 from ..env import env
@@ -19,6 +19,8 @@ if env("PLATFORM_APPLICATION_NAME") is not None:
     ALLOWED_HOSTS = [
         ".platformsh.site",
     ]
+
+    BASE_URL = get_platformsh_base_url() or "https://app.borrowd.org"
 
     # PLATFORM_PROJECT_ENTROPY is unique to your project
     # Use it to define define Django's SECRET_KEY

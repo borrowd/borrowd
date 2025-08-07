@@ -20,6 +20,8 @@ if env("PLATFORM_APPLICATION_NAME") is not None:
         "app.borrowd.org",
     ]
 
+    BASE_URL = "https://app.borrowd.org"
+
     # PLATFORM_PROJECT_ENTROPY is unique to your project
     # Use it to define define Django's SECRET_KEY
     # See https://docs.djangoproject.com/en/5.2/ref/settings/#secret-key

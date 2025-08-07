@@ -56,6 +56,7 @@ INSTALLED_APPS = [
     "borrowd_web",
     "borrowd_items",
     "borrowd_groups",
+    "notifications",  # Must be below apps that send notifications and above borrowd_notifications
     "borrowd_notifications",
     "guardian",
     "django_filters",
@@ -163,6 +164,8 @@ USE_I18N = True
 
 USE_TZ = True
 
+# URL to build links when HttpRequest not available (e.g. email notifications)
+BASE_URL = "http://localhost:8000"
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
