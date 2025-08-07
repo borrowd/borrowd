@@ -12,6 +12,9 @@ name: borrowd
 # (https://docs.platform.sh/languages/python.html#supported-versions)
 # to find the supported versions for the 'python' type.
 type: 'python:3.13'
+dependencies:
+  python3:
+    uv: "*"
 
 # The following block defines a single writable directory, 'media/'
 # The 'source' specifies where the writable mount is. The 'local' source
@@ -97,10 +100,11 @@ hooks:
     cp .env.platform .env
 
     # Download the latest version of pip
-    python3.13 -m pip install --upgrade pip
+    # python3.13 -m pip install --upgrade pip
 
     # Install dependencies
-    pip install -r requirements.txt
+    # pip install -r requirements.txt
+    uv sync
 
     # For vite
     npm install
