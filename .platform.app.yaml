@@ -99,11 +99,10 @@ hooks:
 
     cp .env.platform .env
 
-    # Download the latest version of pip
-    # python3.13 -m pip install --upgrade pip
+    # Set up Python virtual environment
+    uv venv
 
     # Install dependencies
-    # pip install -r requirements.txt
     uv sync
 
     # For vite
@@ -111,15 +110,15 @@ hooks:
     npm run build
 
     # Collect static assets
-    python manage.py collectstatic --noinput
+    uv run manage.py collectstatic --noinput
 
   # The deploy hook is run after the app container has been started, but before it has started accepting requests.
   # More information: https://docs.platform.sh/create-apps/hooks/hooks-comparison.html#deploy-hook
-  deploy: python manage.py migrate
+  deploy: uv run manage.py migrate
 
   # This hook runs after every deploy so fixtures should ideally be idempotent/static (e.g. use PKs)
   post_deploy: |
     echo "Loading fixtures..."
 
     echo "Loading item categories..."
-    python manage.py loaddata items/item_categories
+    uv run manage.py loaddata items/item_categories
