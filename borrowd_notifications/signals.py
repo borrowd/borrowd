@@ -8,8 +8,8 @@ and fill in the reserved "emailed" field.
 
 To add a new Notification:
     - add/update a signal handler for the object triggering the notification and call notify.send()
-    - in NotificationService, add a corresponding NotificationType and context in _get_context_for
-    - add template in templates/notifications
+    - in NotificationService, add a corresponding NotificationType and context in _get_template_context_for
+    - add text and html templates in templates/notifications
 
 django-notifications repo: https://github.com/django-notifications/django-notifications
 """
@@ -52,42 +52,43 @@ def send_transaction_notifications(
 ) -> None:
     """Send notifications when transaction status changes."""
 
-    if instance.status == TransactionStatus.REQUESTED:
-        notify.send(
-            instance.party2,
-            recipient=[instance.party1],
-            verb=NotificationType.ITEM_REQUESTED.value,
-            action_object=instance.item,
-            target=instance,
-            description=f"Someone's hoping to borrow your {instance.item.name}",  # type: ignore[attr-defined]
-        )
-    elif instance.status == TransactionStatus.ACCEPTED:
-        notify.send(
-            instance.party1,
-            recipient=[instance.party2],
-            verb=NotificationType.ITEM_REQUEST_ACCEPTED.value,
-            action_object=instance.item,
-            target=instance,
-            description=f"Your request to borrow {instance.item.name} was approved",  # type: ignore[attr-defined]
-        )
-    elif instance.status == TransactionStatus.REJECTED:
-        notify.send(
-            instance.party1,
-            recipient=[instance.party2],
-            verb=NotificationType.ITEM_REQUEST_DENIED.value,
-            action_object=instance.item,
-            target=instance,
-            description="The item you requested is not available",
-        )
-    elif instance.status == TransactionStatus.RETURNED:
-        notify.send(
-            instance.party2,
-            recipient=[instance.party1],
-            verb=NotificationType.ITEM_RETURNED.value,
-            action_object=instance.item,
-            target=instance,
-            description="Borrow'd item returned",
-        )
+    match instance.status:
+        case TransactionStatus.REQUESTED:
+            notify.send(
+                instance.party2,
+                recipient=[instance.party1],
+                verb=NotificationType.ITEM_REQUESTED.value,
+                action_object=instance.item,
+                target=instance,
+                description=f"Someone's hoping to borrow your {instance.item.name}",  # type: ignore[attr-defined]
+            )
+        case TransactionStatus.ACCEPTED:
+            notify.send(
+                instance.party1,
+                recipient=[instance.party2],
+                verb=NotificationType.ITEM_REQUEST_ACCEPTED.value,
+                action_object=instance.item,
+                target=instance,
+                description=f"Your request to borrow {instance.item.name} was approved",  # type: ignore[attr-defined]
+            )
+        case TransactionStatus.REJECTED:
+            notify.send(
+                instance.party1,
+                recipient=[instance.party2],
+                verb=NotificationType.ITEM_REQUEST_DENIED.value,
+                action_object=instance.item,
+                target=instance,
+                description="The item you requested is not available",
+            )
+        case TransactionStatus.RETURNED:
+            notify.send(
+                instance.party2,
+                recipient=[instance.party1],
+                verb=NotificationType.ITEM_RETURNED.value,
+                action_object=instance.item,
+                target=instance,
+                description="Borrow'd item returned",
+            )
 
 
 @receiver(post_save, sender=Membership)
@@ -96,7 +97,7 @@ def send_group_member_joined_notifications(
 ) -> None:
     """Send notifications to existing group members when a new member joins."""
 
-    # TODO handle checking if previous status was different to handle approved/Pending -> Active memberships
+    # TODO once membership approval is implemented, check status change e.g. Pending -> Active memberships
     if created and (
         instance.status == MembershipStatus.ACTIVE
         or instance.status == MembershipStatus.PENDING

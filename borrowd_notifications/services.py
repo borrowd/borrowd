@@ -88,7 +88,6 @@ class NotificationService:
                     )
         elif isinstance(notification.target, BorrowdGroup):
             membership: Membership = notification.action_object
-            # existing_members = membership.group.membership_set.exclude(user=membership.user)  # type: ignore[attr-defined]
             context.update(
                 {
                     "group_member_name": notification.recipient.profile.full_name(),
