@@ -41,7 +41,7 @@ class NotificationService:
             message=text_message,
             html_message=html_message,
             from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[notification.recipient],
+            recipient_list=[notification.recipient.email],
             fail_silently=False,
         )
 
