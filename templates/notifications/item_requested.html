@@ -1,0 +1,19 @@
+{% extends "notifications/layout.html" %}
+
+{% block title %}Item Requested - Borrow'd{% endblock %}
+
+{% block content %}
+<h2>Hi {{ item_owner_name }},</h2>
+
+<p>{{ requester_name }} would love to borrow your <strong>{{ item_name }}</strong>.</p>
+
+<p>You can review and respond to their request by clicking below:</p>
+
+<div class="text-center">
+    <a href="{{ respond_url }}" class="button">Respond to request</a>
+</div>
+
+<p>Thanks for being part of a community that shares more and wastes less.</p>
+
+<p>The Borrow'd team</p>
+{% endblock %}

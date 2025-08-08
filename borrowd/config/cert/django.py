@@ -2,7 +2,7 @@ import os
 
 from environ import ImproperlyConfigured
 
-from borrowd.util import decode
+from borrowd.util import decode, get_platformsh_base_url
 
 from ..base import *  # noqa: F403
 from ..env import env
@@ -39,10 +39,12 @@ if env("PLATFORM_APPLICATION_NAME") is not None:
     # This variable must always match the primary database relationship name, configured in .platform.app.yaml
     PLATFORMSH_DB_RELATIONSHIP = "db"
 
-    # Database service configuration, POST-BUILD ONLY
+    # POST-BUILD ONLY (Database service configuration, host URL, etc.)
     # As services aren't available during the build
     # (e.g. only available in deploy and later hooks)
     if (platform_env := env("PLATFORM_ENVIRONMENT", default=None)) is not None:
+        BASE_URL = get_platformsh_base_url() or "https://app.borrowd.org"
+
         platformRelationships = decode(env("PLATFORM_RELATIONSHIPS"))
         db_settings = platformRelationships[PLATFORMSH_DB_RELATIONSHIP][0]
         DATABASES = {
@@ -55,6 +57,7 @@ if env("PLATFORM_APPLICATION_NAME") is not None:
                 "PORT": db_settings["port"],
             },
         }
+
 else:
     raise ImproperlyConfigured(
         "PLATFORM_APPLICATION_NAME is not set. This is not a platform.sh environment."

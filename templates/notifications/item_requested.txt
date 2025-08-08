@@ -1,0 +1,10 @@
+Hi {{ item_owner_name }},
+
+{{ requester_name }} would love to borrow your {{ item_name }}.
+
+You can review and respond to their request by clicking below:
+{{ respond_url }}
+
+Thanks for being part of a community that shares more and wastes less.
+
+The Borrow'd team

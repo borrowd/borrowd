@@ -1,6 +1,8 @@
 import base64
 import json
+import os
 import sys
+from urllib.parse import urlparse
 
 from django.db.models import Model
 
@@ -54,3 +56,25 @@ def decode(variable: str):  # type: ignore
     except json.decoder.JSONDecodeError as e:
         print("Error decoding JSON, code %d", json.decoder.JSONDecodeError)
         raise e
+
+
+def get_platformsh_base_url() -> str | None:
+    platform_routes = os.environ.get("PLATFORM_ROUTES")
+    if not platform_routes:
+        return None  # Not running on Platform.sh
+
+    routes = decode(platform_routes)
+
+    # Choose the primary HTTPS route (without `-internal`)
+    https_routes = [
+        url
+        for url in routes.keys()
+        if url.startswith("https://") and "-internal" not in url
+    ]
+    if not https_routes:
+        return None
+
+    # If multiple, sort to prefer bare domain (or do your own logic)
+    primary_url = sorted(https_routes)[0]
+    parsed = urlparse(primary_url)
+    return f"{parsed.scheme}://{parsed.netloc}"

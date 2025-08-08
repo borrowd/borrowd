@@ -20,6 +20,8 @@ if env("PLATFORM_APPLICATION_NAME") is not None:
         "app.borrowd.org",
     ]
 
+    BASE_URL = "https://app.borrowd.org"
+
     # PLATFORM_PROJECT_ENTROPY is unique to your project
     # Use it to define define Django's SECRET_KEY
     # See https://docs.djangoproject.com/en/5.2/ref/settings/#secret-key
@@ -39,7 +41,7 @@ if env("PLATFORM_APPLICATION_NAME") is not None:
     # This variable must always match the primary database relationship name, configured in .platform.app.yaml
     PLATFORMSH_DB_RELATIONSHIP = "db"
 
-    # Database service configuration, POST-BUILD ONLY
+    # POST-BUILD ONLY (Database service configuration, host URL, etc.)
     # As services aren't available during the build
     # (e.g. only available in deploy and later hooks)
     if (platform_env := env("PLATFORM_ENVIRONMENT", default=None)) is not None:

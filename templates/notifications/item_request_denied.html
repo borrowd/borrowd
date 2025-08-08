@@ -1,0 +1,17 @@
+{% extends "notifications/layout.html" %}
+
+{% block title %}Item Not Available - Borrow'd{% endblock %}
+
+{% block content %}
+<h2>Hi {{ requester_name }},</h2>
+
+<div class="error">
+    <p>Just a heads up: the <strong>{{ item_name }}</strong> you requested isn't available right now.</p>
+</div>
+
+<p>We know that’s a bummer, but we hope you’ll find what you need soon. You can keep browsing or check back later!</p>
+
+<p>Thanks for being part of the Borrow’d community,</p>
+
+<p>The Borrow'd team</p>
+{% endblock %}
