@@ -20,3 +20,8 @@ dependencies = [
     "django-vite>=3.1.0",
     "django-notifications-hq @ git+https://github.com/django-notifications/django-notifications.git"
 ]
+
+[dependency-groups]
+dev = [
+    "pyyaml>=6.0.2",
+]
