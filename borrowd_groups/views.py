@@ -8,6 +8,7 @@ from django.core.signing import SignatureExpired, TimestampSigner
 from django.forms import ModelForm
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
+from django.template import loader as template_loader
 from django.urls import reverse, reverse_lazy
 from django.views.generic import (
     CreateView,
@@ -250,3 +251,9 @@ class GroupUpdateView(
         if self.object is None:
             return reverse("borrowd_groups:group-list")
         return reverse("borrowd_groups:group-detail", args=[self.object.pk])
+
+
+def forbidden(request: HttpRequest) -> HttpResponse:
+    template = template_loader.get_template("./templates/403.html")
+    body = template.render
+    return HttpResponse(body, status=403)
