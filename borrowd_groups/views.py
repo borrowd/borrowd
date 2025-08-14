@@ -3,7 +3,6 @@ from typing import Any
 
 from django.conf import settings
 from django.contrib import messages
-from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.signing import SignatureExpired, TimestampSigner
 from django.forms import ModelForm
 from django.http import HttpRequest, HttpResponse
@@ -18,6 +17,7 @@ from django.views.generic import (
     View,
 )
 from django_filters.views import FilterView
+from guardian.mixins import LoginRequiredMixin, PermissionRequiredMixin
 
 from borrowd.util import BorrowdTemplateFinderMixin
 
@@ -88,8 +88,16 @@ class GroupDeleteView(
     success_url = reverse_lazy("borrowd_groups:group-list")
 
 
-class GroupDetailView(BorrowdTemplateFinderMixin, DetailView[BorrowdGroup]):
+# No typing for django_guardian, so mypy doesn't like us subclassing.
+class GroupDetailView(
+    LoginRequiredMixin,  # type: ignore[misc]
+    PermissionRequiredMixin,  # type: ignore[misc]
+    BorrowdTemplateFinderMixin,
+    DetailView[BorrowdGroup],
+):
     model = BorrowdGroup
+    permission_required = "view_this_group"
+    return_403 = True
 
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
