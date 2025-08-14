@@ -63,7 +63,7 @@ class GroupCreateView(
 
     def form_valid(self, form: ModelForm[BorrowdGroup]) -> HttpResponse:
         if self.request.user.is_authenticated:
-            form.instance.created_by_id = form.instance.updated_by_id = (
+            form.instance.created_by_id = form.instance.updated_by_id = (  # type: ignore[attr-defined]
                 self.request.user.pk
             )
 
@@ -140,7 +140,8 @@ class GroupInviteView(DetailView[BorrowdGroup]):
         return context
 
 
-class GroupJoinView(LoginRequiredMixin, View):
+# No typing for django_guardian, so mypy doesn't like us subclassing.
+class GroupJoinView(LoginRequiredMixin, View):  # type: ignore[misc]
     """
     View to handle group join requests via invite link.
 
@@ -185,7 +186,7 @@ class GroupJoinView(LoginRequiredMixin, View):
             # returning a `Group` and not a `BorrowdGroup`?
             group = BorrowdGroup.objects.get(
                 pk=group_invite.group_id, name=group_invite.group_name
-            )  # type: ignore[assignment]
+            )
         except (BorrowdGroup.DoesNotExist, ValueError):
             # Don't reveal any info about Group lookup
             err = "invalid"
@@ -252,7 +253,7 @@ class GroupUpdateView(
 
     def form_valid(self, form: ModelForm[BorrowdGroup]) -> HttpResponse:
         if self.request.user.is_authenticated:
-            form.instance.updated_by_id = self.request.user.pk
+            form.instance.updated_by_id = self.request.user.pk  # type: ignore[attr-defined]
         return super().form_valid(form)
 
     def get_success_url(self) -> str:
