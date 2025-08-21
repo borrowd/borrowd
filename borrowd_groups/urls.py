@@ -21,3 +21,5 @@ urlpatterns = [
     path("<int:pk>/delete/", GroupDeleteView.as_view(), name="group-delete"),
     path("join/<str:encoded>/", GroupJoinView.as_view(), name="group-join"),
 ]
+
+handler403 = "borrowd_groups.views.forbidden"

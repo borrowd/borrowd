@@ -143,6 +143,13 @@ LOGIN_REDIRECT_URL = reverse_lazy("item-list")
 
 ACCOUNT_LOGIN_BY_CODE_ENABLED = True
 
+# Render template rather than simply returning 403 status code with
+# no content
+GUARDIAN_RENDER_403 = True
+# Don't create the user named AnonymousUser. We don't need to give
+# object-level permisions to logged-out users, so reduce complexity.
+ANONYMOUS_USER_NAME = None
+
 # django-allauth configurations
 AUTHENTICATION_BACKENDS = [
     "django.contrib.auth.backends.ModelBackend",
