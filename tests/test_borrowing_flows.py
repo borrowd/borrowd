@@ -104,7 +104,7 @@ class RejectedFlowTest(SimpleTestCase):
         # mypy doesn't know that.
         if not hasattr(response, "context_data"):
             self.fail("Response should have context_data")
-        item_actions = response.context_data["item_actions"]
+        item_actions = response.context_data["action_context"].actions
 
         #
         # Assert
@@ -139,7 +139,7 @@ class RejectedFlowTest(SimpleTestCase):
         # mypy doesn't know that.
         if not hasattr(response, "context_data"):
             self.fail("Response should have context_data")
-        item_actions = response.context_data["item_actions"]
+        item_actions = response.context_data["action_context"].actions
 
         #
         # Assert
@@ -211,7 +211,7 @@ class RejectedFlowTest(SimpleTestCase):
         # mypy doesn't know that.
         if not hasattr(response, "context_data"):
             self.fail("Response should have context_data")
-        item_actions = response.context_data["item_actions"]
+        item_actions = response.context_data["action_context"].actions
 
         #
         # Assert
