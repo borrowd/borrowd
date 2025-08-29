@@ -152,6 +152,8 @@ def pre_membership_delete(
     membership = instance
     user: BorrowdUser = membership.user  # type: ignore[assignment]
     borrowd_group: BorrowdGroup = membership.group  # type: ignore[assignment]
+    # error: "_ST" has no attribute "name"  [attr-defined]
+    group = Group.objects.get(name=borrowd_group.name)
 
     #
     # Check the group will not be left without a Moderator
