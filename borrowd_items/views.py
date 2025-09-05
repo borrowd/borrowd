@@ -18,7 +18,7 @@ from borrowd_users.models import BorrowdUser
 
 from .exceptions import InvalidItemAction
 from .filters import ItemFilter
-from .forms import ItemCreateWithPhotoForm
+from .forms import ItemCreateWithPhotoForm, ItemForm
 from .models import Item, ItemAction, ItemPhoto
 
 
@@ -137,9 +137,9 @@ class ItemListView(BorrowdTemplateFinderMixin, FilterView):  # type: ignore[misc
     filterset_class = ItemFilter
 
 
-class ItemUpdateView(BorrowdTemplateFinderMixin, UpdateView[Item, ModelForm[Item]]):
+class ItemUpdateView(BorrowdTemplateFinderMixin, UpdateView[Item, ItemForm]):
     model = Item
-    fields = ["name", "description", "category", "trust_level_required"]
+    form_class = ItemForm
 
     def get_success_url(self) -> str:
         if self.object is None:
