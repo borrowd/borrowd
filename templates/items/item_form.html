@@ -44,7 +44,7 @@
             </c-button-nav>
         {% endif %}
 
-        <div class="flex gap-4">
+        <div class="flex gap-4 justify-center sm:justify-start">
             <c-button type="submit">Save</c-button>
             {% if form.instance.pk %}
                 <c-button-nav url="{% url 'item-detail' form.instance.pk %}">
