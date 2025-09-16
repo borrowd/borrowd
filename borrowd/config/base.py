@@ -55,6 +55,7 @@ INSTALLED_APPS = [
     "allauth",
     "allauth.account",
     "borrowd_web",
+    "borrowd_beta",
     "borrowd_items",
     "borrowd_groups",
     "notifications",  # Must be below apps that send notifications and above borrowd_notifications
@@ -73,6 +74,7 @@ MIDDLEWARE = [
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
+    "borrowd_beta.middleware.BetaAccessMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
@@ -96,6 +98,7 @@ TEMPLATES = [
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
                 "borrowd.context_processors.use_local_bundling",
+                "borrowd_beta.context_processors.beta_status",
             ],
         },
     },
@@ -197,6 +200,19 @@ MEDIA_URL = "/media/"
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# borrowd_beta settings
+BETA_SIGNUP_REDIRECT_PATH = "/"
+BETA_CHECK_EXCLUDE_PATHS = [
+    r"^/favicon.ico$",
+    r"^/admin/.*",
+    r"^/static/.*",
+    r"^/media/.*",
+    r"^/beta/.*",
+    r"^/__reload__/.*",
+]
+BETA_COOKIE_DOMAIN = None
+BETA_SECURE_COOKIE = False
 
 #
 # Shim for mypy to play nice with certain generic types

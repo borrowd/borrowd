@@ -27,6 +27,7 @@ from borrowd_web.views import favicon
 urlpatterns: List[URLPattern | URLResolver] = [
     path("admin/", admin.site.urls),
     path("accounts/", include("allauth.urls")),
+    path("beta/", include("borrowd_beta.urls")),
     path("profile/", include("borrowd_users.urls")),
     path("items/", include("borrowd_items.urls")),
     path("groups/", include("borrowd_groups.urls")),
