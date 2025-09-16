@@ -211,8 +211,8 @@ BETA_CHECK_EXCLUDE_PATHS = [
     r"^/beta/.*",
     r"^/__reload__/.*",
 ]
-BETA_COOKIE_DOMAIN = None
-BETA_SECURE_COOKIE = False
+BETA_COOKIE_DOMAIN: str | None = None
+BETA_SECURE_COOKIE: bool = False
 
 #
 # Shim for mypy to play nice with certain generic types
