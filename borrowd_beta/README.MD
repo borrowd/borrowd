@@ -53,3 +53,8 @@ BETA_SIGNUP_REDIRECT_PATH = '/'  # Default to base path
 BETA_COOKIE_DOMAIN = None  # domain (if not localhost)
 BETA_SECURE_COOKIE = False # whether cookie is https only
 ```
+
+# Usage
+Open django admin and create a new Beta Code. Enter generated beta code in beta wall form.
+
+On succesfully entering code, a cookie 'beta_key' containining a UUID is stored in the browser and passed/checked during requests.

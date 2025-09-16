@@ -60,9 +60,7 @@ class BetaSignup(models.Model):
     beta_code: ForeignKey[BetaCode] = models.ForeignKey(
         BetaCode, related_name="signups", on_delete=models.CASCADE
     )
-    token: UUIDField[str, str] = UUIDField(
-        default=uuid.uuid4, editable=False, unique=True
-    )
+    token: UUIDField = UUIDField(default=uuid.uuid4, editable=False, unique=True)  # type: ignore[type-arg]
     submitted_at: DateTimeField[Never, Never] = models.DateTimeField(auto_now_add=True)
 
     def __str__(self) -> str:
