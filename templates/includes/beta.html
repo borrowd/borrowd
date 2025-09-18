@@ -3,9 +3,15 @@
 <!-- Modal Overlay -->
 <div class="fixed inset-0 z-40 bg-black bg-opacity-40 backdrop-blur-sm flex items-center justify-center">
     <!-- Modal Content -->
-    <div id="beta-modal-content" class="bg-borrowd-indigo-300 border border-borrowd-indigo-600 rounded-md shadow-lg p-6 max-w-md w-full mx-4">
-        <p class="text-borrowd-indigo-600 text-sm mb-4 text-center">
+    <div id="beta-modal-content" class="bg-borrowd-indigo-300 border border-borrowd-indigo-600 rounded-md shadow-lg p-6 max-w-md w-full mx-4 text-borrowd-indigo-600 text-lg mb-4 text-center">
+        <p>
             {% blocktrans %}This is a beta version of Borrow'd.{% endblocktrans %}
+        </p>
+        <p class="p-5">
+            <a href="https://borrowd.org/#sign-up"
+               target="_blank"
+               class="underline hover:font-bold"
+            >Sign up for early access</a>
         </p>
         {% include "beta/signup_form.html" %}
     </div>
