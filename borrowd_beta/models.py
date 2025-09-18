@@ -16,8 +16,14 @@ from django.forms import ValidationError
 
 
 class BetaCode(models.Model):
+    """
+    Represents a unique, shareable beta access code with a usage limit and metadata about its creation and updates.
+    """
+
     name: CharField[str, str] = CharField(
-        unique=True, max_length=255, help_text="A descriptive name for this beta code."
+        unique=True,
+        max_length=255,
+        help_text="A descriptive name for this beta code e.g. 'Social Media Campaign', 'Friend Referrals'.",
     )
     num_uses: PositiveIntegerField[int, int] = PositiveIntegerField(
         default=10, help_text="Number of times this code can be used."
@@ -57,6 +63,10 @@ class BetaCode(models.Model):
 
 
 class BetaSignup(models.Model):
+    """
+    Represents a user's signup using a beta code. Token is an access key stored as a cookie in the user's browser.
+    """
+
     beta_code: ForeignKey[BetaCode] = models.ForeignKey(
         BetaCode, related_name="signups", on_delete=models.CASCADE
     )
