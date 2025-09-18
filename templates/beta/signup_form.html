@@ -1,0 +1,30 @@
+{% load i18n %}
+<form action="{% url 'beta-signup' %}" class="flex flex-col items-center"
+    id="beta-modal-form"
+    hx-post="{% url 'beta-signup' %}"
+    hx-target="#beta-modal-form"
+    hx-swap="outerHTML"
+    hx-on="htmx:afterOnLoad: if(event.detail.xhr.getResponseHeader('HX-Redirect')) { window.location = event.detail.xhr.getResponseHeader('HX-Redirect'); }"
+>
+    {% csrf_token %}
+    {{ beta_signup_form.as_p }}
+    <button type="submit" class="mt-2 px-4 py-2 bg-borrowd-indigo-600 text-white rounded">
+        {% trans "Enter beta code" %}
+    </button>
+    {% if form.errors %}
+        <div class="block content-center">
+            <p>{% trans "There was an error processing your beta code." %}</p>
+            <div class="block">
+                <ul class="list-disc">
+                {% for field, errors in form.errors.items %}
+                    {% for error in errors %}
+                        <li>
+                            {{ error }}
+                        </li>
+                    {% endfor %}
+                {% endfor %}
+                </ul>
+            </div>
+        </div>
+    {% endif %}
+</form>

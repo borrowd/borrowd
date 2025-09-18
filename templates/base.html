@@ -52,6 +52,7 @@
 </head>
 <body x-data class="flex flex-col justify-center min-h-screen bg-gray-100" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
 
+    {% include "includes/beta.html" %}
     {% include "includes/messages.html" %}
     {% include "includes/header.html" %}
 
