@@ -213,6 +213,7 @@ BETA_CHECK_EXCLUDE_PATHS = [
 ]
 BETA_COOKIE_DOMAIN: str | None = None
 BETA_SECURE_COOKIE: bool = False
+BETA_COOKIE_SAMESITE = "Lax"
 
 #
 # Shim for mypy to play nice with certain generic types
