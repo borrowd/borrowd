@@ -65,8 +65,10 @@ class BorrowdGroup(Model):
     custom group model in Django, but this is a common way to start.
     """
 
-    name: CharField[str, str] = CharField(max_length=150, unique=True)
-    description: TextField[Never, Never] = TextField(blank=True, null=True)
+    name: CharField[str, str] = CharField(max_length=50, unique=True)
+    description: TextField[Never, Never] = TextField(
+        max_length=500, blank=True, null=True
+    )
     logo: ImageField = ImageField(upload_to="groups/logos", null=True, blank=True)
     banner: ImageField = ImageField(upload_to="groups/banners", null=True, blank=True)
     membership_requires_approval: BooleanField[Never, Never] = BooleanField(
