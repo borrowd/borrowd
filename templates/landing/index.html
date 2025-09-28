@@ -2,52 +2,23 @@
 {% load static %}
 {% block head_title %}Welcome{% endblock %}
 {% block content %}
-<div>
-    <section class="flex flex-col md:flex-row items-center justify-center mx-auto">
-        <div class="max-w-md mx-auto py-6 px-4">
-            <h1 class="text-5xl font-bold text-gray-900 py-4">Borrow, Lend, Belong</h1>
-            <p class="text-lg text-gray-700">
-                Borrow'd empowers communities to share underused resources, reducing material waste and fostering a
-                sustainable, collaborative economy.
+<section class="flex flex-col w-5/6 bg-white font-roboto-slab">
+    <h1 class="text-5xl text-center md:text-start text-gray-400 p-6 md:p-10">Welcome to Borrow'd!</h1>
+    <div class="flex flex-col lg:flex-row text-xl p-8 lg:px-12 gap-8">
+        <div class="flex flex-col gap-8 mt-4 lg:order-1 order-2 text-gray-600">
+            <p>
+               Borrow’d is a community-powered platform that helps you share with the people you trust in real life. It’s built around Groups - your friends, neighbors, and community members.
             </p>
-            <div class="mt-6">
-                <c-button-nav url="{% url 'account_signup' %}">
-                    Sign Up
-                </c-button-nav>
-            </div>
+            <p>
+                If you’re not in any Groups, you won’t see any items available to borrow - because sharing only happens within your chosen communities.
+            </p>
+            <p>
+                To join a group, use the invitation link that you received.
+            </p>
+            <p>
+                No invitation link? Create your own group, add some items to share, and invite your friends to join!
+            </p>
         </div>
-        <c-landing-img src="{% static 'landing/index/example-item-listing.png' %}" />
-    </section>
-    <div class="mb-6"></div>
-    <section class="flex flex-col md:flex-row items-center justify-center mx-auto">
-        <div class="md:order-2 max-w-md mx-auto py-21 px-4 sm:px-6 lg:px-8">
-            <h2 class="text-2xl font-bold text-gray-900 mb-6">Share more, waste less</h2>
-            <div class="flex items-start space-x-4">
-                <i class="fas fa-hands text-blue-600 text-2xl"></i>
-                <div>
-                    <h3 class="text-lg font-semibold text-gray-900">Step back from needless consumption</h3>
-                    <p class="text-gray-700">Hanging a shelf and need to borrow a drill? Your neighbor down the street is
-                        happy to share!</p>
-                </div>
-            </div>
-            <div class="flex items-start space-x-4">
-                <i class="fas fa-asterisk text-blue-600 text-2xl"></i>
-                <div>
-                    <h3 class="text-lg font-semibold text-gray-900">Have a drill you can lend?</h3>
-                    <p class="text-gray-700">Your neighbor down the street would love to borrow it, you can learn more about
-                        them and what they need it for!</p>
-                </div>
-            </div>
-            <div class="flex items-start space-x-4">
-                <i class="fas fa-tools text-blue-600 text-2xl"></i>
-                <div>
-                    <h3 class="text-lg font-semibold text-gray-900">Drill baby drill!</h3>
-                    <p class="text-gray-700">The average drill is only used for 10 minutes - we just raised that average and
-                        helped reduce waste!</p>
-                </div>
-            </div>
-        </div>
-        <c-landing-img src="{% static 'landing/index/borrowd-raccoon-with-item-icons.png' %}" />
-    </section>
-</div>
+        <img class="w-2/3 mx-auto max-w-xs lg:max-w-lg object-contain order-1 lg:order-2 drop-shadow-xl" src="{% static 'landing/index/landing-page-img.png' %}" />
+</section>
 {% endblock %}
