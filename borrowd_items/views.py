@@ -16,7 +16,7 @@ from django_filters.views import FilterView
 from borrowd.util import BorrowdTemplateFinderMixin
 from borrowd_users.models import BorrowdUser
 
-from .exceptions import InvalidItemAction
+from .exceptions import InvalidItemAction, ItemAlreadyRequested
 from .filters import ItemFilter
 from .forms import ItemCreateWithPhotoForm, ItemForm
 from .models import Item, ItemAction, ItemPhoto
@@ -71,27 +71,52 @@ def borrow_item(request: HttpRequest, pk: int) -> HttpResponse:
     try:
         req_action = req_action.upper()
         item.process_action(user=user, action=ItemAction(req_action))
-    except InvalidItemAction as e:
-        return HttpResponse(str(e), status=400)
+        # Action succeeded, return success response
+        action_context = item.get_action_context_for(user=user)
+        return render(
+            request,
+            template_name="components/items/action_buttons_with_status.html",
+            context={
+                "item": item,
+                "action_context": action_context,
+            },
+            content_type="text/html",
+            status=200,
+        )
+    except ItemAlreadyRequested:
+        # Specific case: item already requested by another user
+        action_context = item.get_action_context_for(user=user)
+        return render(
+            request,
+            template_name="components/items/action_buttons_with_status.html",
+            context={
+                "item": item,
+                "action_context": action_context,
+                "error_message": "Sorry! Another user requested this item just before you.",
+                "error_type": "already_requested",
+            },
+            content_type="text/html",
+            status=200,
+        )
+    except InvalidItemAction:
+        # Other invalid actions
+        action_context = item.get_action_context_for(user=user)
+        return render(
+            request,
+            template_name="components/items/action_buttons_with_status.html",
+            context={
+                "item": item,
+                "action_context": action_context,
+            },
+            content_type="text/html",
+            status=200,
+        )
     except Exception as e:
         # This is maybe too much information to surface to end-users.
         # Leaving in for dev, eventually should probably just log it.
         return HttpResponse(
             f"An error occurred while processing the action: {e}", status=500
         )
-
-    action_context = item.get_action_context_for(user=user)
-
-    return render(
-        request,
-        template_name="components/items/action_buttons_with_status.html",
-        context={
-            "item": item,
-            "action_context": action_context,
-        },
-        content_type="text/html",
-        status=200,
-    )
 
 
 class ItemCreateView(
