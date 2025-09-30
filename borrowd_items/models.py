@@ -210,6 +210,9 @@ class Item(Model):
             return "Requested to borrow, waiting on owner response..."
         elif ItemAction.REQUEST_ITEM in actions:
             return "Available to request!"
+        elif self.get_requesting_user() is not None:
+            # There's a pending request from another user
+            return "Item is reserved"
         else:
             return "Not available for borrowing"
 
@@ -244,14 +247,20 @@ class Item(Model):
         if current_tx is None:
             #   AND the item status Available,
             #   AND the user is not the owner,
-            if self.status == ItemStatus.AVAILABLE and self.owner != user:
+            #   AND there's no pending request from another user
+            if (
+                self.status == ItemStatus.AVAILABLE
+                and self.owner != user
+                and self.get_requesting_user() is None
+            ):
                 # THEN
                 #   the User can Request the Item.
                 return (ItemAction.REQUEST_ITEM,)
             else:
                 # At this point, either:
                 #   the item is not Available
-                #   OR the user is the owner;
+                #   OR the user is the owner
+                #   OR there's already a pending request from another user;
                 # either way, no Request can be initiated.
 
                 # NOTE Later we may want to allow new Requests on Items
