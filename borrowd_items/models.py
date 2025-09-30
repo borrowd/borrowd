@@ -21,7 +21,7 @@ from django.urls import reverse
 from borrowd.models import TrustLevel
 from borrowd_users.models import BorrowdUser
 
-from .exceptions import InvalidItemAction
+from .exceptions import InvalidItemAction, ItemAlreadyRequested
 
 
 class ItemAction(TextChoices):
@@ -412,6 +412,12 @@ class Item(Model):
         """
         Process the given action for this Item and User.
         """
+        # Check for specific case: trying to request an item that already has a pending request
+        if action == ItemAction.REQUEST_ITEM and self.get_requesting_user() is not None:
+            raise ItemAlreadyRequested(
+                f"Item '{self}' already has a pending request from another user."
+            )
+
         valid_actions = self.get_actions_for(user=user)
         if action not in valid_actions:
             raise InvalidItemAction(
