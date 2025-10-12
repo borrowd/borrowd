@@ -5,7 +5,6 @@ from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import QuerySet
-from django.forms import ModelForm
 from django.http import HttpRequest, HttpResponse, HttpResponseBase
 from django.shortcuts import redirect, render
 from django.urls import reverse, reverse_lazy
@@ -18,7 +17,7 @@ from borrowd.util import BorrowdTemplateFinderMixin
 from borrowd_items.models import Item, ItemStatus, Transaction
 from borrowd_users.models import Profile
 
-from .forms import CustomSignupForm
+from .forms import CustomSignupForm, ProfileUpdateForm
 from .models import BorrowdUser
 
 
@@ -54,14 +53,19 @@ def profile_view(request: HttpRequest) -> HttpResponse:
 class ProfileUpdateView(
     LoginRequiredMixin,
     BorrowdTemplateFinderMixin,
-    UpdateView[Profile, ModelForm[Profile]],
+    UpdateView[Profile, ProfileUpdateForm],
 ):
     model = Profile
-    fields = ["image"]
+    form_class = ProfileUpdateForm
 
     def get_object(self, queryset: QuerySet[Any] | None = None) -> Profile:
         user: BorrowdUser = self.request.user  # type: ignore[assignment]
         return user.profile
+
+    def form_valid(self, form: ProfileUpdateForm) -> HttpResponse:
+        """Add success message when profile is updated."""
+        messages.success(self.request, "Your profile has been updated successfully.")
+        return super().form_valid(form)
 
     def get_success_url(self) -> str:
         return reverse("profile")
