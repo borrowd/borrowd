@@ -39,11 +39,17 @@
             {% for action in action_context.actions %}
                 <button
                     type="button"
+                    {% if action.name == 'REQUEST_ITEM' %}
+                    onclick="showModal('request-item-modal')"
+                    {% elif action.name == 'ACCEPT_REQUEST' %}
+                    onclick="showModal('accept-request-modal')"
+                    {% else %}
                     hx-post="{% url 'item-borrow' item.pk %}"
                     hx-vals='{"action": "{{ action.name }}"}'
                     hx-trigger="click"
                     hx-swap="innerHTML"
                     hx-target="#action-status-container"
+                    {% endif %}
                     class="inline-block w-fit font-medium py-2 px-4 rounded transition-colors duration-200 border-2
                     {% if action.name == 'ACCEPT_REQUEST' %}{{ 'green'|button_bg_color }} {{ 'green'|button_text_color }} {{ 'green'|button_border_color }}
                     {% elif action.name == 'REJECT_REQUEST' or action.name == 'CANCEL_REQUEST' %}{{ 'red'|button_bg_color }} {{ 'red'|button_text_color }} {{ 'red'|button_border_color }}
@@ -55,5 +61,35 @@
                 </button>
             {% endfor %}
         </div>
+
+        <!-- Confirmation Modals -->
+        {% include "components/items/request_item_modal.html" %}
+        {% include "components/items/accept_request_modal.html" %}
+
+        <script>
+        function confirmRequestItem() {
+            // Close the modal
+            closeModal('request-item-modal');
+
+            // Execute the original HTMX request
+            htmx.ajax('POST', '{% url 'item-borrow' item.pk %}', {
+                values: {'action': 'REQUEST_ITEM'},
+                swap: 'innerHTML',
+                target: '#action-status-container'
+            });
+        }
+
+        function confirmAcceptRequest() {
+            // Close the modal
+            closeModal('accept-request-modal');
+
+            // Execute the original HTMX request
+            htmx.ajax('POST', '{% url 'item-borrow' item.pk %}', {
+                values: {'action': 'ACCEPT_REQUEST'},
+                swap: 'innerHTML',
+                target: '#action-status-container'
+            });
+        }
+        </script>
     </div>
 </div>
