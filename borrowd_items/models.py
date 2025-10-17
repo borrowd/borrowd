@@ -8,7 +8,6 @@ from django.db.models import (
     CharField,
     DateTimeField,
     ForeignKey,
-    ImageField,
     IntegerChoices,
     IntegerField,
     Model,
@@ -17,6 +16,8 @@ from django.db.models import (
     TextChoices,
 )
 from django.urls import reverse
+from imagekit.models import ProcessedImageField
+from imagekit.processors import ResizeToFit
 
 from borrowd.models import TrustLevel
 from borrowd_users.models import BorrowdUser
@@ -527,7 +528,14 @@ class ItemPhoto(Model):
     # Height/Width might also need to be stored by parsing image metadata on save
     item: ForeignKey[Item] = ForeignKey(Item, on_delete=CASCADE, related_name="photos")
     item_id: int  # hint for mypy
-    image: ImageField = ImageField(upload_to="items", null=False, blank=False)
+    image = ProcessedImageField(
+        upload_to="items/",
+        processors=[ResizeToFit(800, 800)],
+        format="JPEG",
+        options={"quality": 75},
+        null=True,
+        blank=True,
+    )
 
     def __str__(self) -> str:
         # error: "_ST" has no attribute "name"  [attr-defined]
