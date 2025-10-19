@@ -23,6 +23,19 @@ def profile_view(request: HttpRequest) -> HttpResponse:
     user: BorrowdUser = request.user  # type: ignore[assignment]
     profile = user.profile
 
+    return render(
+        request,
+        "users/profile.html",
+        {
+            "profile": profile,
+        },
+    )
+
+
+@login_required
+def inventory_view(request: HttpRequest) -> HttpResponse:
+    user: BorrowdUser = request.user  # type: ignore[assignment]
+
     requests_from_user = Transaction.get_borrow_requests_from_user(user)
     requests_to_user = Transaction.get_borrow_requests_to_user(user)
     borrowed = Transaction.get_current_borrows_for_user(user)
@@ -36,9 +49,8 @@ def profile_view(request: HttpRequest) -> HttpResponse:
 
     return render(
         request,
-        "users/profile.html",
+        "users/inventory.html",
         {
-            "profile": profile,
             "requests_from_user": requests_from_user,
             "requests_to_user": requests_to_user,
             "borrowed": borrowed,
