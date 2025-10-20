@@ -1,0 +1,53 @@
+<!-- Reusable Modal Component -->
+<div id="{{ modal_id }}" class="fixed inset-0 z-40 bg-black bg-opacity-40 backdrop-blur-sm flex items-center justify-center" style="display: none;">
+    <!-- Modal Content -->
+    <div class="bg-borrowd-indigo-300 border border-borrowd-indigo-600 rounded-md shadow-lg p-6 max-w-md w-full mx-4 text-borrowd-indigo-600 text-lg">
+        <!-- Modal Header -->
+        {% if modal_title %}
+        <div class="mb-4">
+            <h3 class="text-xl font-bold text-center">{{ modal_title }}</h3>
+        </div>
+        {% endif %}
+
+        <!-- Modal Body -->
+        <div class="mb-6 text-center">
+            {{ modal_content|safe }}
+        </div>
+
+        <!-- Modal Actions -->
+        {% load button_styles %}
+        <div class="flex justify-center space-x-4">
+            {% if cancel_button %}
+            <button
+                type="button"
+                onclick="closeModal('{{ modal_id }}')"
+                class="inline-block w-fit font-medium py-2 px-4 rounded transition-colors duration-200 border-2
+                {{ 'red'|button_bg_color }} {{ 'red'|button_text_color }} {{ 'red'|button_border_color }}"
+            >
+                {{ cancel_button }}
+            </button>
+            {% endif %}
+
+            {% if confirm_button %}
+            <button
+                type="button"
+                onclick="{{ confirm_action }}"
+                class="inline-block w-fit font-medium py-2 px-4 rounded transition-colors duration-200 border-2
+                {{ 'green'|button_bg_color }} {{ 'green'|button_text_color }} {{ 'green'|button_border_color }}"
+            >
+                {{ confirm_button }}
+            </button>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+function showModal(modalId) {
+    document.getElementById(modalId).style.display = 'flex';
+}
+
+function closeModal(modalId) {
+    document.getElementById(modalId).style.display = 'none';
+}
+</script>

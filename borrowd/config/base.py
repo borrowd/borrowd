@@ -203,6 +203,7 @@ MEDIA_URL = "/media/"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # borrowd_beta settings
+BORROWD_BETA_ENABLED = env("BORROWD_BETA_ENABLED", default=True)
 BETA_SIGNUP_REDIRECT_PATH = "/"
 BETA_CHECK_EXCLUDE_PATHS = [
     r"^/favicon.ico$",
