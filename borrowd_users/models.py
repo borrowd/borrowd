@@ -2,6 +2,8 @@ from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.templatetags.static import static
 from guardian.mixins import GuardianUserMixin
+from imagekit.models import ProcessedImageField
+from imagekit.processors import ResizeToFit
 
 from borrowd_groups.mixins import BorrowdGroupPermissionMixin
 
@@ -29,7 +31,14 @@ class Profile(models.Model):
     user: models.OneToOneField[BorrowdUser] = models.OneToOneField(
         BorrowdUser, on_delete=models.CASCADE
     )
-    image = models.ImageField(upload_to="profile_pics/", null=True, blank=True)
+    image = ProcessedImageField(
+        upload_to="profile_pics/",
+        processors=[ResizeToFit(800, 800)],
+        format="JPEG",
+        options={"quality": 75},
+        null=True,
+        blank=True,
+    )
     first_name: models.CharField[str, str] = models.CharField(
         max_length=50, null=False, blank=False
     )
