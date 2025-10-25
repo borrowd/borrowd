@@ -1,7 +1,7 @@
 from collections import namedtuple
 from typing import Any
 
-from django.conf import settings
+# from django.conf import settings
 from django.contrib import messages
 from django.core.signing import SignatureExpired, TimestampSigner
 from django.forms import ModelForm
@@ -50,8 +50,9 @@ class InviteSigner:
 
     @staticmethod
     def unsign_invite(signed: str, max_age: int = 60 * 60 * 24 * 7) -> GroupInvite:
-        expiry: int = settings.BORROWD_GROUP_INVITE_EXPIRY_SECONDS or max_age
-        decoded = InviteSigner._signer.unsign_object(signed, max_age=expiry)
+        # expiry: int = settings.BORROWD_GROUP_INVITE_EXPIRY_SECONDS or max_age
+        # decoded = InviteSigner._signer.unsign_object(signed, max_age=expiry)
+        decoded = InviteSigner._signer.unsign_object(signed)
         return GroupInvite(*decoded)
 
 
