@@ -103,6 +103,11 @@ class CustomSignupForm(UserCreationForm[BorrowdUser]):
         help_text="Enter the same password as before, for verification.",
     )
 
+    signup_agreements = forms.BooleanField(
+        required=True,
+        label='I have read and agree to the <a href="https://borrowd.org/terms-of-use/" target="_blank" rel="noopener noreferrer" class="underline">Terms of Use</a> and <a href="https://borrowd.org/liability-agreement/" target="_blank" rel="noopener noreferrer" class="underline">Liability Agreement</a>.',
+    )
+
     class Meta:
         model = User
         fields = ("email", "first_name", "last_name", "password1", "password2")

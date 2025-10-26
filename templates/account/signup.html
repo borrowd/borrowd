@@ -28,6 +28,11 @@
             {% endif %}
 
             <div class="rounded-md shadow-sm space-y-4">
+                <!-- Info box for real name -->
+                <div class="rounded-md bg-borrowd-indigo-300 border border-borrowd-indigo-600 p-4 mb-2 text-borrowd-indigo-600 text-sm">
+                    <span class="font-semibold">We’re building a community based on trust.</span>
+                    <span>Using your <b>real name</b> helps others know who they’re sharing with!</span>
+                </div>
                 <!-- Email field -->
                 <div>
                     <label for="{{ form.email.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
@@ -114,6 +119,14 @@
                 </div>
             </div>
 
+            <div class="mb-4 flex items-center">
+                {{ form.signup_agreements.errors }}
+                {{ form.signup_agreements }}
+                <label for="id_signup_agreements" class="ml-2 text-sm">
+                    I have read and agree to the <a href="https://borrowd.org/terms-of-use/" target="_blank" rel="noopener noreferrer" class="underline">Terms of Use</a> and
+                    <a href="https://borrowd.org/liability-agreement/" target="_blank" rel="noopener noreferrer" class="underline">Liability Agreement</a>.
+                </label>
+            </div>
             <div class="mx-auto w-fit">
                 <c-button type="submit">
                     {% trans "Create account" %}
