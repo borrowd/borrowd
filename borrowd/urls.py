@@ -20,12 +20,25 @@ from typing import List
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
+from django.http import HttpRequest, HttpResponse
+from django.shortcuts import redirect
 from django.urls import URLPattern, URLResolver, include, path
 
+from borrowd_users.views import CustomSignupView
 from borrowd_web.views import favicon
+
+
+def redirect_to_custom_signup(request: HttpRequest) -> HttpResponse:
+    """Redirect allauth signup to our custom signup"""
+    return redirect("custom_signup")
+
 
 urlpatterns: List[URLPattern | URLResolver] = [
     path("admin/", admin.site.urls),
+    # Custom signup view
+    path("signup/", CustomSignupView.as_view(), name="custom_signup"),
+    # Redirect allauth signup to our custom signup
+    path("accounts/signup/", redirect_to_custom_signup, name="account_signup"),
     path("accounts/", include("allauth.urls")),
     path("beta/", include("borrowd_beta.urls")),
     path("profile/", include("borrowd_users.urls")),

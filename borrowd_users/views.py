@@ -1,13 +1,15 @@
 from typing import Any
 
+from django.contrib import messages
+from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import QuerySet
-from django.forms import ModelForm
-from django.http import HttpRequest, HttpResponse
-from django.shortcuts import render
-from django.urls import reverse
+from django.http import HttpRequest, HttpResponse, HttpResponseBase
+from django.shortcuts import redirect, render
+from django.urls import reverse, reverse_lazy
 from django.views.generic import (
+    CreateView,
     UpdateView,
 )
 
@@ -15,6 +17,7 @@ from borrowd.util import BorrowdTemplateFinderMixin
 from borrowd_items.models import Item, ItemStatus, Transaction
 from borrowd_users.models import Profile
 
+from .forms import CustomSignupForm, ProfileUpdateForm
 from .models import BorrowdUser
 
 
@@ -62,14 +65,64 @@ def inventory_view(request: HttpRequest) -> HttpResponse:
 class ProfileUpdateView(
     LoginRequiredMixin,
     BorrowdTemplateFinderMixin,
-    UpdateView[Profile, ModelForm[Profile]],
+    UpdateView[Profile, ProfileUpdateForm],
 ):
     model = Profile
-    fields = ["image", "first_name", "last_name"]
+    form_class = ProfileUpdateForm
 
     def get_object(self, queryset: QuerySet[Any] | None = None) -> Profile:
         user: BorrowdUser = self.request.user  # type: ignore[assignment]
         return user.profile
 
+    def form_valid(self, form: ProfileUpdateForm) -> HttpResponse:
+        """Add success message when profile is updated."""
+        messages.success(self.request, "Your profile has been updated successfully.")
+        return super().form_valid(form)
+
     def get_success_url(self) -> str:
         return reverse("profile")
+
+
+class CustomSignupView(CreateView[BorrowdUser, CustomSignupForm]):
+    """
+    Custom signup view that handles user registration with first/last names
+    and integrates with allauth for authentication.
+    """
+
+    model = BorrowdUser
+    form_class = CustomSignupForm
+    template_name = "account/signup.html"
+    success_url = reverse_lazy("item-list")  # Redirect after successful signup
+
+    def dispatch(
+        self, request: HttpRequest, *args: Any, **kwargs: Any
+    ) -> HttpResponseBase:
+        """
+        Redirect authenticated users away from signup page.
+        """
+        if request.user.is_authenticated:
+            return redirect("item-list")
+        return super().dispatch(request, *args, **kwargs)
+
+    def form_valid(self, form: CustomSignupForm) -> HttpResponse:
+        """
+        Handle successful form submission.
+        Create the user and log them in.
+        """
+        user = form.save()
+
+        # Log the user in immediately after signup with the ModelBackend
+        login(self.request, user, backend="django.contrib.auth.backends.ModelBackend")
+
+        messages.success(
+            self.request, "Welcome! Your account has been created successfully."
+        )
+
+        return redirect(self.success_url)
+
+    def form_invalid(self, form: CustomSignupForm) -> HttpResponse:
+        """
+        Handle form validation errors.
+        """
+        messages.error(self.request, "Please correct the errors below.")
+        return super().form_invalid(form)

@@ -145,6 +145,7 @@ AUTH_USER_MODEL = "borrowd_users.BorrowdUser"
 LOGIN_REDIRECT_URL = reverse_lazy("item-list")
 
 ACCOUNT_LOGIN_BY_CODE_ENABLED = True
+ACCOUNT_LOGIN_METHODS = ["email"]
 
 # Render template rather than simply returning 403 status code with
 # no content
