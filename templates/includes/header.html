@@ -40,12 +40,10 @@
                         class="hidden absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-50"
                     >
                             <!-- Mobile-only nav items -->
-                            {% if user.is_authenticated %}
-                                <a href="{% url 'item-list' %}" class="block px-4 py-2 hover:bg-gray-100 md:hidden">Search</a>
-                                <a href="{% url 'borrowd_groups:group-list' %}" class="block px-4 py-2 hover:bg-gray-100 md:hidden">Groups</a>
-                                <a href="{% url 'profile-inventory' %}" class="block px-4 py-2 hover:bg-gray-100">Inventory</a>
-                                <a href="{% url 'profile' %}" class="block px-4 py-2 hover:bg-gray-100">Settings</a>
-                            {% endif %}
+                            <a href="{% url 'item-list' %}" class="block px-4 py-2 hover:bg-gray-100 md:hidden">Search</a>
+                            <a href="{% url 'borrowd_groups:group-list' %}" class="block px-4 py-2 hover:bg-gray-100 md:hidden">Groups</a>
+                            <a href="{% url 'profile-inventory' %}" class="block px-4 py-2 hover:bg-gray-100">Inventory</a>
+                            <a href="{% url 'profile' %}" class="block px-4 py-2 hover:bg-gray-100">Settings</a>
 
                             <form method="POST" action="{% url 'account_logout' %}">
                             {% csrf_token %}
