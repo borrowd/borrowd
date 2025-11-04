@@ -4,12 +4,12 @@
     <nav class="flex justify-between items-center w-full">
         <ul class="flex flex-col md:flex-row text-center my-auto md:space-x-8 items-center ml-5">
             {% if user.is_authenticated %}
-            <li>
+            <li class="hidden md:block">
                 <c-nav-menu-item href="{% url 'item-list' %}">
                     Search
                 </c-nav-menu-item>
             </li>
-            <li>
+            <li class="hidden md:block">
                 <c-nav-menu-item href="{% url 'borrowd_groups:group-list' %}">
                     Groups
                 </c-nav-menu-item>
@@ -39,9 +39,13 @@
                         id="menu-dropdown"
                         class="hidden absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-50"
                     >
-                        <a href="{% url 'profile' %}" class="block px-4 py-2 hover:bg-gray-100">Settings</a>
-                        <a href="{% url 'profile-inventory' %}" class="block px-4 py-2 hover:bg-gray-100">Inventory</a>
-                        <form method="POST" action="{% url 'account_logout' %}">
+                            <!-- Mobile-only nav items -->
+                            <a href="{% url 'item-list' %}" class="block px-4 py-2 hover:bg-gray-100 md:hidden">Search</a>
+                            <a href="{% url 'borrowd_groups:group-list' %}" class="block px-4 py-2 hover:bg-gray-100 md:hidden">Groups</a>
+                            <a href="{% url 'profile-inventory' %}" class="block px-4 py-2 hover:bg-gray-100">Inventory</a>
+                            <a href="{% url 'profile' %}" class="block px-4 py-2 hover:bg-gray-100">Settings</a>
+
+                            <form method="POST" action="{% url 'account_logout' %}">
                             {% csrf_token %}
                             <button type="submit" class="w-full text-left px-4 py-2 hover:bg-gray-100">Sign Out</button>
                         </form>
