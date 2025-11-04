@@ -4,12 +4,12 @@
     <nav class="flex justify-between items-center w-full">
         <ul class="flex flex-col md:flex-row text-center my-auto md:space-x-8 items-center ml-5">
             {% if user.is_authenticated %}
-            <li>
+            <li class="hidden md:block">
                 <c-nav-menu-item href="{% url 'item-list' %}">
                     Search
                 </c-nav-menu-item>
             </li>
-            <li>
+            <li class="hidden md:block">
                 <c-nav-menu-item href="{% url 'borrowd_groups:group-list' %}">
                     Groups
                 </c-nav-menu-item>
@@ -24,25 +24,35 @@
         </div>
         <ul class="flex space-x-4 items-right items-center">
             {% if user.is_authenticated %}
-                {% if user.profile.image %}
-                    <li>
-                        <c-thumbnail src="{{ user.profile.image.url }}" alt="Profile Picture" class="!rounded-full" />
-                    </li>
-                {% endif %}
-                <li>
-                    <c-nav-menu-item href="{% url 'profile' %}">
-                        Profile
-                    </c-nav-menu-item>
-                </li>
-            {% url 'account_logout' as logout_url_ %}
-            {% if logout_url_ %}
-                <li>
-                    <c-nav-menu-item href="{{ logout_url_ }}">
-                        {% trans "Sign Out" %}
-                    </c-nav-menu-item>
-                </li>
+                <div class="relative">
+                    <!-- ✅ Profile image as a clickable button -->
+                    <button id="profile-button" class="focus:outline-none">
+                        {% if user.profile.image %}
+                            <c-thumbnail src="{{ user.profile.image.url }}" alt="Profile Picture" class="!rounded-full w-10 h-10" />
+                        {% else %}
+                            <c-thumbnail src="{% static 'icons/account-circle.svg' %}" alt="Default Profile Picture" class="!rounded-full w-10 h-10" />
+                        {% endif %}
+                    </button>
+
+                    <!-- ✅ Dropdown menu -->
+                    <div
+                        id="menu-dropdown"
+                        class="hidden absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-50"
+                    >
+                            <!-- Mobile-only nav items -->
+                            <a href="{% url 'item-list' %}" class="block px-4 py-2 hover:bg-gray-100 md:hidden">Search</a>
+                            <a href="{% url 'borrowd_groups:group-list' %}" class="block px-4 py-2 hover:bg-gray-100 md:hidden">Groups</a>
+                            <a href="{% url 'profile-inventory' %}" class="block px-4 py-2 hover:bg-gray-100">Inventory</a>
+                            <a href="{% url 'profile' %}" class="block px-4 py-2 hover:bg-gray-100">Settings</a>
+
+                            <form method="POST" action="{% url 'account_logout' %}">
+                            {% csrf_token %}
+                            <button type="submit" class="w-full text-left px-4 py-2 hover:bg-gray-100">Sign Out</button>
+                        </form>
+                    </div>
+                </div>
             {% endif %}
-            {% else %}
+            {% if not user.is_authenticated %}
                 {% url 'account_request_login_code' as login_url_ %}
                 {% if login_url_ %}
                     <li>

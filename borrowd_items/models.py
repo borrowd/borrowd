@@ -188,26 +188,33 @@ class Item(Model):
         else:
             return "This is your item and it is available for borrowing."
 
+    # Permit borrower to see owner name in status text
     def _get_borrower_status_text(self, actions: tuple[ItemAction, ...]) -> str:
+        owner_name = self.owner.profile.full_name()  # type: ignore[attr-defined]
         """Generate status text for current borrowers."""
         if ItemAction.CANCEL_REQUEST in actions:
-            return "Owner accepted request, mark Collected when you have received the item."
+            return f"{owner_name} accepted request, mark Collected when you have received the item."
         elif ItemAction.CONFIRM_COLLECTED in actions:
-            return "Owner marked item as collected, confirm you have received it."
+            return (
+                f"{owner_name} marked item as collected, confirm you have received it."
+            )
         elif ItemAction.MARK_RETURNED in actions:
-            return "You are currently borrowing this item. Mark it as returned when you have returned it to the owner."
+            return f"You are currently borrowing this item. Mark it as returned when you have returned it to {owner_name}."
         elif ItemAction.CONFIRM_RETURNED in actions:
-            return "Owner marked item as returned, confirm you have given it back."
+            return (
+                f"{owner_name} marked item as returned, confirm you have given it back."
+            )
         elif len(actions) == 0 and self.status == ItemStatus.RESERVED:
             return "You're currently borrowing this item!"
         elif len(actions) == 0 and self.status == ItemStatus.BORROWED:
-            return "Waiting owner confirmation of returned item."
+            return f"Waiting {owner_name} confirmation of returned item."
         else:
             return "Not available for borrowing"
 
     def _get_other_user_status_text(self, actions: tuple[ItemAction, ...]) -> str:
         """Generate status text for users who are neither owner nor borrower."""
         if len(actions) == 1 and ItemAction.CANCEL_REQUEST in actions:
+            # Intentionally obscuring owner name here for privacy to reject
             return "Requested to borrow, waiting on owner response..."
         elif ItemAction.REQUEST_ITEM in actions:
             return "Available to request!"
