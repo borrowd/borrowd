@@ -19,7 +19,9 @@ class BorrowdUser(AbstractUser, BorrowdGroupPermissionMixin, GuardianUserMixin):
     it later.
     """
 
-    pass
+    # Override the inherited fields to make them required
+    first_name: models.CharField[str, str] = models.CharField(max_length=150)
+    last_name: models.CharField[str, str] = models.CharField(max_length=150)
 
     # Hint for mypy (actual field created from reverse relation)
     profile: "Profile"
@@ -30,16 +32,9 @@ class Profile(models.Model):
         BorrowdUser, on_delete=models.CASCADE
     )
     image = models.ImageField(upload_to="profile_pics/", null=True, blank=True)
-    first_name: models.CharField[str, str] = models.CharField(
-        max_length=50, null=False, blank=False
-    )
-
-    last_name: models.CharField[str, str] = models.CharField(
-        max_length=50, null=False, blank=False
-    )
 
     def full_name(self) -> str:
-        return f"{self.first_name} {self.last_name}"
+        return f"{self.user.first_name} {self.user.last_name}"
 
     def __str__(self) -> str:
         return f"Profile '{self.full_name()}' for User '{self.user}'"
