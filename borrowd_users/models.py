@@ -35,7 +35,7 @@ class Profile(models.Model):
     )
     image = ProcessedImageField(
         upload_to="profile_pics/",
-        processors=[ResizeToFit(800, 800)],
+        processors=[ResizeToFit(1600, 1600)],
         format="JPEG",
         options={"quality": 75},
         null=True,

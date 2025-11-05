@@ -72,7 +72,7 @@ class BorrowdGroup(Model):
     )
     logo: ProcessedImageField = ProcessedImageField(
         upload_to="groups/logos/",
-        processors=[ResizeToFit(800, 800)],
+        processors=[ResizeToFit(1600, 1600)],
         format="JPEG",
         options={"quality": 75},
         null=True,
@@ -80,7 +80,7 @@ class BorrowdGroup(Model):
     )
     banner: ProcessedImageField = ProcessedImageField(
         upload_to="groups/banners/",
-        processors=[ResizeToFit(800, 800)],
+        processors=[ResizeToFit(1600, 400)],
         format="JPEG",
         options={"quality": 75},
         null=True,
