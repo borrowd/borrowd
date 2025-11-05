@@ -16,8 +16,8 @@ from django.db.models import (
     TextChoices,
 )
 from django.urls import reverse
-from imagekit.models import ProcessedImageField
-from imagekit.processors import ResizeToFit
+from imagekit.models import ImageSpecField, ProcessedImageField
+from imagekit.processors import ResizeToFill, ResizeToFit
 
 from borrowd.models import TrustLevel
 from borrowd_users.models import BorrowdUser
@@ -537,11 +537,17 @@ class ItemPhoto(Model):
     item_id: int  # hint for mypy
     image = ProcessedImageField(
         upload_to="items/",
-        processors=[ResizeToFit(800, 800)],
+        processors=[ResizeToFit(1600, 1600)],
         format="JPEG",
         options={"quality": 75},
         null=True,
         blank=True,
+    )
+    thumbnail = ImageSpecField(
+        source="image",
+        processors=[ResizeToFill(200, 200)],
+        format="JPEG",
+        options={"quality": 75},
     )
 
     def __str__(self) -> str:
