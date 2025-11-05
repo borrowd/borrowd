@@ -41,13 +41,6 @@ class Profile(models.Model):
         null=True,
         blank=True,
     )
-    first_name: models.CharField[str, str] = models.CharField(
-        max_length=50, null=False, blank=False
-    )
-
-    last_name: models.CharField[str, str] = models.CharField(
-        max_length=50, null=False, blank=False
-    )
 
     def full_name(self) -> str:
         return f"{self.user.first_name} {self.user.last_name}"
