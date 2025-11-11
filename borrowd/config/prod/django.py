@@ -10,9 +10,9 @@ from ..env import env
 DEBUG = False
 
 # Beta settings
-# BETA_COOKIE_DOMAIN = "app.borrowd.org"
-# BETA_SECURE_COOKIE = True
-# BETA_COOKIE_SAMESITE = "Strict"
+BETA_COOKIE_DOMAIN = "app.borrowd.org"
+BETA_SECURE_COOKIE = True
+BETA_COOKIE_SAMESITE = "Strict"
 
 #################################################################################
 # Platform.sh-specific configuration

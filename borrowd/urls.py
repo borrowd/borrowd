@@ -40,7 +40,7 @@ urlpatterns: List[URLPattern | URLResolver] = [
     # Redirect allauth signup to our custom signup
     path("accounts/signup/", redirect_to_custom_signup, name="account_signup"),
     path("accounts/", include("allauth.urls")),
-    # path("beta/", include("borrowd_beta.urls")),
+    path("beta/", include("borrowd_beta.urls")),
     path("profile/", include("borrowd_users.urls")),
     path("items/", include("borrowd_items.urls")),
     path("groups/", include("borrowd_groups.urls")),

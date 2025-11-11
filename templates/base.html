@@ -73,8 +73,9 @@
 </head>
 <body x-data class="flex flex-col justify-center min-h-screen bg-gray-100" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
 
-    {# this is how we include the beta modal in the main app -- disabled for now #}
-    {# {% include "includes/beta.html" %} #}
+    {% if borrowd_beta_enabled %}
+    {% include "includes/beta.html" %}
+    {% endif %}
     {% include "includes/messages.html" %}
     {% include "includes/header.html" %}
 
