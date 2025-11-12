@@ -75,6 +75,15 @@ to your liking.
 
 #### Env vars
 
+* `BORROWD_BETA_ENABLED`
+
+_Required: No_
+_Default: False_
+
+Specifies whether or not to enable the "Beta Wall". This is functionality
+that requires users to have an enter a code before accessing the application,
+above and beyond the normal auth process.
+
 * `BORROWD_USE_LOCAL_BUNDLING`
 
 _Required: No_
