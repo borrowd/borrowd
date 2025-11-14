@@ -8,7 +8,6 @@ from django.db.models import (
     CharField,
     DateTimeField,
     ForeignKey,
-    ImageField,
     IntegerField,
     Manager,
     ManyToManyField,
@@ -18,6 +17,8 @@ from django.db.models import (
     UniqueConstraint,
 )
 from django.urls import reverse
+from imagekit.models import ProcessedImageField
+from imagekit.processors import ResizeToFit
 
 from borrowd.models import TrustLevel
 from borrowd_groups.exceptions import ExistingMemberException
@@ -69,8 +70,22 @@ class BorrowdGroup(Model):
     description: TextField[Never, Never] = TextField(
         max_length=500, blank=True, null=True
     )
-    logo: ImageField = ImageField(upload_to="groups/logos", null=True, blank=True)
-    banner: ImageField = ImageField(upload_to="groups/banners", null=True, blank=True)
+    logo: ProcessedImageField = ProcessedImageField(
+        upload_to="groups/logos/",
+        processors=[ResizeToFit(1600, 1600)],
+        format="JPEG",
+        options={"quality": 75},
+        null=True,
+        blank=True,
+    )
+    banner: ProcessedImageField = ProcessedImageField(
+        upload_to="groups/banners/",
+        processors=[ResizeToFit(1600, 400)],
+        format="JPEG",
+        options={"quality": 75},
+        null=True,
+        blank=True,
+    )
     membership_requires_approval: BooleanField[Never, Never] = BooleanField(
         default=True,
         help_text="If true, new members will require Moderator approval to join the group.",
