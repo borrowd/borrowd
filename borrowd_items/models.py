@@ -540,8 +540,6 @@ class ItemPhoto(Model):
         processors=[ResizeToFit(1600, 1600)],
         format="JPEG",
         options={"quality": 75},
-        null=True,
-        blank=True,
     )
     thumbnail = ImageSpecField(
         source="image",
