@@ -12,8 +12,10 @@ class BetaAccessMiddleware:
         self.get_response = get_response
 
     def __call__(self, request: Any) -> Any:
-        # Set request variable for context processor
-        request.has_beta_access = self.get_beta_signup(request) is not None
+        if not getattr(settings, "BORROWD_BETA_ENABLED", False):
+            request.has_beta_access = True
+        else:
+            request.has_beta_access = self.get_beta_signup(request) is not None
 
         if not request.has_beta_access and self.is_redirect_required(request):
             return redirect(self.signup_redirect_path)
