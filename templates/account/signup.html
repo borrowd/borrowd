@@ -16,7 +16,7 @@
             </p>
         </div>
 
-        <form class="mt-8 space-y-6" method="post">
+        <form class="mt-8 space-y-6" method="post" onsubmit="this.querySelector('button[type=submit]').disabled = true;">
             {% csrf_token %}
 
             {% if form.non_field_errors %}

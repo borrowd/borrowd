@@ -45,7 +45,7 @@
                             <a href="{% url 'profile-inventory' %}" class="block px-4 py-2 hover:bg-gray-100">Inventory</a>
                             <a href="{% url 'profile' %}" class="block px-4 py-2 hover:bg-gray-100">Settings</a>
 
-                            <form method="POST" action="{% url 'account_logout' %}">
+                            <form method="POST" action="{% url 'account_logout' %}" onsubmit="this.querySelector('button[type=submit]').disabled = true;">
                             {% csrf_token %}
                             <button type="submit" class="w-full text-left px-4 py-2 hover:bg-gray-100">Sign Out</button>
                         </form>

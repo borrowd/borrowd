@@ -5,7 +5,7 @@
 <c-box>
     <c-h1>Confirm Deletion</c-h1>
     <p>Are you sure you want to delete "{{ object }}"?</p>
-    <form method="post">
+    <form method="post" onsubmit="this.querySelector('button[type=submit]').disabled = true;">
         {% csrf_token %}
         <c-button danger type="submit">Yes, delete</c-button>
         <c-button-nav url="{% url 'borrowd_groups:group-detail' object.pk %}">Cancel</c-button-nav>

@@ -8,7 +8,7 @@
     <c-users.profile-card :profile="profile" />
 
     <c-h1>{% trans "Edit Profile" %}</c-h1>
-    <form method="post" enctype="multipart/form-data" class="flex flex-col space-y-2">
+    <form method="post" enctype="multipart/form-data" class="flex flex-col space-y-2" onsubmit="this.querySelector('button[type=submit]').disabled = true;">
         {% csrf_token %}
         {% for field in form %}
         <div class="">
