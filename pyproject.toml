@@ -18,7 +18,8 @@ dependencies = [
     "gunicorn>=23.0.0",
     "django-storages[s3]>=1.14.6",
     "django-vite>=3.1.0",
-    "django-notifications-hq @ git+https://github.com/django-notifications/django-notifications.git"
+    "django-notifications-hq @ git+https://github.com/django-notifications/django-notifications.git",
+    "django-imagekit>=6.0.0",
 ]
 
 [dependency-groups]
