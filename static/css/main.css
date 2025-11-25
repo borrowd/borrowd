@@ -1,11 +1,14 @@
 @import "tailwindcss";
+@plugin "daisyui"{
+    themes: false;
+}
 
 @font-face {
     font-family: "Roboto Slab";
     font-style: normal;
     font-weight: 400;
     font-display: swap;
-    src: url("$fonts/RobotoSlab-Regular.ttf")
+    src: url("$fonts/RobotoSlab-Regular.ttf");
 }
 
 @theme {
