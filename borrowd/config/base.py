@@ -38,7 +38,8 @@ ALLOWED_HOSTS: list[str] = []
 # Borrowd settings
 #
 BORROWD_GROUP_INVITE_EXPIRY_SECONDS: int = 60 * 60 * 24 * 7  # 1 week
-BORROWD_USE_LOCAL_BUNDLING = env("BORROWD_USE_LOCAL_BUNDLING", default=False)
+# DaisyUI requires our bundled CSS (dui- prefix, themes disabled), so keep bundling on by default.
+BORROWD_USE_LOCAL_BUNDLING = env("BORROWD_USE_LOCAL_BUNDLING", default=True)
 
 # Application definition
 
