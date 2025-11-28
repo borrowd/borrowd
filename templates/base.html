@@ -13,43 +13,8 @@
      <script defer data-domain="app.borrowd.org" src="https://plausible.io/js/script.js"></script>
     {% if use_local_bundling %}
         {% vite_hmr_client %}
-        {% vite_asset 'static/js/main.js' %}
-    {% else %}
-        <link rel="preconnect" href="https://fonts.googleapis.com">
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-        <link href="https://fonts.googleapis.com/css2?family=Roboto+Slab:wght@400&display=swap" rel="stylesheet">
-        <script src="https://cdn.tailwindcss.com"></script>
-        <script>
-            tailwind.config = {
-                theme: {
-                    extend: {
-                        colors: {
-                            "borrowd-indigo": {
-                                300: "#d9e1f4",
-                                600: "#2c51a1",
-                            },
-                            "borrowd-honey": {
-                                300: "#fdf7e1",
-                                600: "#b97c21",
-                            },
-                            "borrowd-plum": {
-                                300: "#f0d7eb",
-                                600: "#73325b",
-                            },
-                            "borrowd-fern": {
-                                300: "#ebf7ed",
-                                600: "#537533",
-                            },
-                        },
-                        fontFamily: {
-                            'roboto-slab': ['"Roboto Slab"', 'serif'],
-                        },
-                    },
-                },
-            }
-        </script>
-
     {% endif %}
+    {% vite_asset 'static/js/main.js' %}
 </head>
 <body x-data class="flex flex-col justify-center min-h-screen bg-gray-100" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
 
