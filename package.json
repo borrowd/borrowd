@@ -7,7 +7,7 @@
         "@tailwindcss/vite": "^4.1.8",
         "tailwindcss": "^4.1.8"
     },
-    "description": "Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) to get started!",
+    "description": "Contributions are welcome! See [CONTRIBUTING.md](docs/CONTRIBUTING.md) to get started!",
     "devDependencies": {
         "daisyui": "^5.5.5",
         "vite": "^6.3.5"
