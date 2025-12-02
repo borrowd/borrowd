@@ -11,7 +11,7 @@ from .models import BorrowdUser, Profile
 User = get_user_model()
 
 # Common field styles
-INPUT_CLASSES = "w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-borrowd-indigo-500 focus:border-borrowd-indigo-500"
+INPUT_CLASSES = "input w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-borrowd-indigo-500 focus:border-borrowd-indigo-500"
 
 
 # Factory functions for creating form fields with consistent styling
@@ -51,6 +51,22 @@ def create_last_name_field() -> forms.CharField:
             attrs={
                 "class": INPUT_CLASSES,
                 "placeholder": "Last name",
+            }
+        ),
+    )
+
+
+def create_bio_field() -> forms.CharField:
+    """Create a textarea field for bio with consistent styling."""
+    return forms.CharField(
+        required=False,
+        max_length=120,
+        widget=forms.Textarea(
+            attrs={
+                "class": "textarea  w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-borrowd-indigo-500 focus:border-borrowd-indigo-500",
+                "placeholder": "Tell others a bit about yourself",
+                "rows": 3,
+                "maxlength": 120,
             }
         ),
     )
@@ -156,8 +172,20 @@ class ProfileUpdateForm(forms.ModelForm[Profile]):
 
     class Meta:
         model = Profile
-        fields = ["image"]
-        widgets = {"image": forms.FileInput(attrs={"class": INPUT_CLASSES})}
+        fields = ["image", "bio"]
+        widgets = {
+            "image": forms.FileInput(
+                attrs={
+                    "class": "file-input file-input-bordered w-full sr-only",
+                    "id": "id_image",
+                    "accept": "image/*",
+                }
+            ),
+        }
+
+    email = create_email_field()
+    bio = create_bio_field()
+    remove_image = forms.BooleanField(required=False, widget=forms.HiddenInput())
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
@@ -165,6 +193,8 @@ class ProfileUpdateForm(forms.ModelForm[Profile]):
         if self.instance and self.instance.user:
             self.fields["first_name"].initial = self.instance.user.first_name
             self.fields["last_name"].initial = self.instance.user.last_name
+            self.fields["email"].initial = self.instance.user.email
+        self.fields["bio"].initial = self.instance.bio
 
     def clean_first_name(self) -> str:
         first_name: str | None = self.cleaned_data.get("first_name")
@@ -174,16 +204,42 @@ class ProfileUpdateForm(forms.ModelForm[Profile]):
         last_name: str | None = self.cleaned_data.get("last_name")
         return validate_name_field(last_name, "last name")
 
+    def clean_email(self) -> str:
+        email: str | None = self.cleaned_data.get("email")
+        if not email:
+            raise forms.ValidationError("Email is required.")
+        existing_user = (
+            User.objects.filter(email__iexact=email)
+            .exclude(pk=self.instance.user.pk)
+            .exists()
+        )
+        if existing_user:
+            raise forms.ValidationError("A user with this email already exists.")
+        return email
+
     def save(self, commit: bool = True) -> Profile:
         profile = super().save(commit=False)
+        remove_image = self.cleaned_data.get("remove_image")
 
         # Update the associated user's name fields
         if profile.user:
             profile.user.first_name = self.cleaned_data["first_name"]
             profile.user.last_name = self.cleaned_data["last_name"]
+            profile.user.email = self.cleaned_data["email"]
+
+        profile.bio = self.cleaned_data.get("bio", profile.bio)
+
+        if remove_image:
+            if profile.image:
+                profile.image.delete(save=False)
+            profile.image = None
 
             if commit:
                 profile.user.save()
                 profile.save()
+        elif commit:
+            if profile.user:
+                profile.user.save()
+            profile.save()
 
         return profile
