@@ -16,5 +16,21 @@
         <c-divider />
         <c-items.item-grid :items="item_list" show_status class="flex flex-col space-y-4 mt-6" />
     </c-box>
+
+    {% if user_has_items and not user_has_groups %}
+    <c-box>
+        <div class="flex flex-col items-center justify-center py-12 px-4">
+            {% load static %}
+            <h2 class="text-3xl font-bold text-gray-900 mb-4">Need a group?</h2>
+            <img src="{% static 'items/no-groups-img.png' %}" alt="People sharing items" class="w-80 h-64 mb-6 object-contain">
+            <p class="text-gray-800 text-center mb-6 max-w-md">
+                It looks like you don't have any groups yet! That's the way you'll be able to borrow items. Create one now and invite your friends!
+            </p>
+            <c-button-nav url="{% url 'group-create' %}" class="bg-purple-700 hover:bg-purple-800 text-white px-8 py-3 rounded-lg text-lg">
+                Create a group
+            </c-button-nav>
+        </div>
+    </c-box>
+    {% endif %}
 </div>
 {% endblock %}

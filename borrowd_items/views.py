@@ -161,6 +161,22 @@ class ItemListView(BorrowdTemplateFinderMixin, FilterView):  # type: ignore[misc
     template_name_suffix = "_list"  # Reusing template from ListView
     filterset_class = ItemFilter
 
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+        context: dict[str, Any] = super().get_context_data(**kwargs)
+        user: BorrowdUser = self.request.user
+
+        # Check if user has items
+        user_has_items = Item.objects.filter(owner=user).exists()
+
+        # Check if user is in any groups (with active membership)
+        from borrowd_groups.models import Membership
+
+        user_has_groups = Membership.objects.filter(user=user, status="active").exists()
+
+        context["user_has_items"] = user_has_items
+        context["user_has_groups"] = user_has_groups
+        return context
+
 
 class ItemUpdateView(BorrowdTemplateFinderMixin, UpdateView[Item, ItemForm]):
     model = Item
