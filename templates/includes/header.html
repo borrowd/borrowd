@@ -1,75 +1,97 @@
 {% load static %}
 {% load i18n %}
-<header class="flex justify-between items-center bg-white shadow-md p-4 pr-10 w-full mx-auto rounded-b-2xl">
-    <nav class="flex justify-between items-center w-full">
-        <ul class="flex flex-col md:flex-row text-center my-auto md:space-x-8 items-center ml-5">
-            {% if user.is_authenticated %}
-            <li class="hidden md:block">
-                <c-nav-menu-item href="{% url 'item-list' %}">
-                    Search
-                </c-nav-menu-item>
-            </li>
-            <li class="hidden md:block">
-                <c-nav-menu-item href="{% url 'borrowd_groups:group-list' %}">
-                    Groups
-                </c-nav-menu-item>
-            </li>
-            {% endif %}
-        </ul>
-        <div id="header-logo" class="flex items-center">
-            <a href="{% url 'index' %}" class="flex items-center">
-                <img class="w-48" src="{% static 'borrowd-logo.svg' %}"
-                    alt="Borrow'd's logo, complete with friendly bumble bee" />
-            </a>
-        </div>
-        <ul class="flex space-x-4 items-right items-center">
-            {% if user.is_authenticated %}
-                <div class="relative">
-                    <!-- ✅ Profile image as a clickable button -->
-                    <button id="profile-button" class="focus:outline-none">
-                        {% if user.profile.image %}
-                            <c-thumbnail src="{{ user.profile.image.url }}" alt="Profile Picture" class="!rounded-full w-10 h-10" />
-                        {% else %}
-                            <c-thumbnail src="{% static 'icons/account-circle.svg' %}" alt="Default Profile Picture" class="!rounded-full w-10 h-10" />
-                        {% endif %}
-                    </button>
+<!-- Navbar -->
+<div class="navbar bg-white shadow-sm sticky top-0 z-50">
+  <div class="navbar-start">
+    <!-- If authed, show 🍔  -->
+    {% if user.is_authenticated %}
+    <label for="main-drawer" class="btn btn-ghost btn-circle">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7" />
+      </svg>
+    </label>
+    {% endif %}
+  </div>
+  <div class="navbar-center">
+    <a href="{% url 'index' %}" class="btn btn-ghost">
+      <img class="w-48" src="{% static 'borrowd-logo.svg' %}" alt="Borrow'd's logo, complete with friendly bumble bee" />
+    </a>
+  </div>
+  <div class="navbar-end">
+    {% if not user.is_authenticated %}
+      {% url 'account_request_login_code' as login_url_ %}
+      {% if login_url_ %}
+        <a href="{{ login_url_ }}" class="btn btn-ghost">
+          {% trans "Sign In" %}
+        </a>
+      {% endif %}
+      {% url 'account_signup' as signup_url_ %}
+      {% if signup_url_ %}
+        <a href="{% url 'account_signup' %}" class="btn btn-primary">
+          Sign Up
+        </a>
+      {% endif %}
+    {% else %}
+      <!-- currently empty. Avatar picture in future? -->
+      <div class="w-12"></div>
+    {% endif %}
+  </div>
+</div>
 
-                    <!-- ✅ Dropdown menu -->
-                    <div
-                        id="menu-dropdown"
-                        class="hidden absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-50"
-                    >
-                            <!-- Mobile-only nav items -->
-                            <a href="{% url 'item-list' %}" class="block px-4 py-2 hover:bg-gray-100 md:hidden">Search</a>
-                            <a href="{% url 'borrowd_groups:group-list' %}" class="block px-4 py-2 hover:bg-gray-100 md:hidden">Groups</a>
-                            <a href="{% url 'profile-inventory' %}" class="block px-4 py-2 hover:bg-gray-100">Inventory</a>
-                            <a href="{% url 'profile' %}" class="block px-4 py-2 hover:bg-gray-100">Settings</a>
-
-                            <form method="POST" action="{% url 'account_logout' %}" onsubmit="this.querySelector('button[type=submit]').disabled = true;">
-                            {% csrf_token %}
-                            <button type="submit" class="w-full text-left px-4 py-2 hover:bg-gray-100">Sign Out</button>
-                        </form>
-                    </div>
-                </div>
-            {% endif %}
-            {% if not user.is_authenticated %}
-                {% url 'account_request_login_code' as login_url_ %}
-                {% if login_url_ %}
-                    <li>
-                        <c-nav-menu-item href="{{ login_url_ }}">
-                            {% trans "Sign In" %}
-                        </c-nav-menu-item>
-                    </li>
-                {% endif %}
-                {% url 'account_signup' as signup_url_ %}
-                {% if signup_url_ %}
-                    <li>
-                        <c-button-nav url="{% url 'account_signup' %}">
-                            Sign Up
-                        </c-button-nav>
-                    </li>
-                {% endif %}
-            {% endif %}
-        </ul>
-    </nav>
-</header>
+<!-- Drawer/Sidebar -->
+{% if user.is_authenticated %}
+<div class="drawer">
+  <input id="main-drawer" type="checkbox" class="drawer-toggle" />
+  <div class="drawer-content"></div>
+  <div class="drawer-side z-40">
+    <label for="main-drawer" aria-label="close sidebar" class="drawer-overlay"></label>
+    <ul class="menu bg-white min-h-full w-80 pt-20 px-4 pb-4 shadow-xl">
+      <li>
+        <a href="{% url 'item-list' %}" class="flex items-center gap-3 py-3">
+          <i class="fas fa-magnifying-glass text-lg"></i>
+          <span>Search</span>
+        </a>
+      </li>
+      <li>
+        <a href="{% url 'borrowd_groups:group-list' %}" class="flex items-center gap-3 py-3">
+          <i class="fas fa-users text-lg"></i>
+          <span>Groups</span>
+        </a>
+      </li>
+      <li>
+        <a href="{% url 'profile-inventory' %}" class="flex items-center gap-3 py-3">
+          <i class="fas fa-box text-lg"></i>
+          <span>Inventory</span>
+        </a>
+      </li>
+      <li>
+        <a href="{% url 'profile' %}" class="flex items-center gap-3 py-3">
+          <i class="fas fa-user text-lg"></i>
+          <span>My Profile</span>
+        </a>
+      </li>
+      <li>
+        <a href="javascript:void(0)" aria-disabled="true" class="flex items-center gap-3 py-3 opacity-60 cursor-not-allowed">
+          <i class="fas fa-circle-question text-lg"></i>
+          <span>FAQ</span>
+        </a>
+      </li>
+      <li>
+        <a href="{% url 'profile' %}" class="flex items-center gap-3 py-3">
+          <i class="fas fa-gear text-lg"></i>
+          <span>Settings</span>
+        </a>
+      </li>
+      <li>
+        <form method="POST" action="{% url 'account_logout' %}" onsubmit="this.querySelector('button[type=submit]').disabled = true;">
+          {% csrf_token %}
+          <button type="submit" class="flex items-center gap-3 py-3 w-full text-left">
+            <i class="fas fa-right-from-bracket text-lg"></i>
+            <span>Logout</span>
+          </button>
+        </form>
+      </li>
+    </ul>
+  </div>
+</div>
+{% endif %}
