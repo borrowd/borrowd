@@ -1,62 +1,181 @@
 {% extends "layouts/default.html" %}
 {% load i18n %}
 
-{% block head_title  %}{{ profile.user.username }}'s profile{% endblock %}
+{% block head_title %}{{ profile.user.username }}'s profile{% endblock %}
 
 {% block content %}
-<div class="flex flex-col space-y-4 bg-white shadow-lg rounded-lg p-8 w-full max-w-2xl">
-    <c-users.profile-card :profile="profile" />
-
-    <!-- Settings Section -->
-    <div class="mt-6">
-        <c-h2>{% trans "Settings" %}</c-h2>
-        <ul class=" flex flex-row items-center gap-2">
-            <li>
-                <c-button-nav url="{% url 'profile-edit' %}">
-                    {% trans "Edit Profile" %}
-                </c-button-nav>
-            </li>
-            {% url 'account_email' as email_url_ %}
-            {% if email_url_ %}
-                <li>
-                    <c-button-nav url="{{ email_url_ }}">
-                        {% trans "Change Email" %}
-                    </c-button-nav>
-                </li>
-            {% endif %}
-            {% url 'account_change_password' as change_password_url_ %}
-            {% if change_password_url_ %}
-                <li>
-                    <c-button-nav url="{{ change_password_url_ }}">
-                        {% trans "Change Password" %}
-                    </c-button-nav>
-                </li>
-            {% endif %}
-            {% url 'socialaccount_connections' as connections_url_ %}
-            {% if connections_url_ %}
-                <li>
-                    <c-button-nav url="{{ connections_url_ }}">
-                        {% trans "Account Connections" %}
-                    </c-button-nav>
-                </li>
-            {% endif %}
-            {% url 'mfa_index' as mfa_url_ %}
-            {% if mfa_url_ %}
-                <li>
-                    <c-button-nav url="{{ mfa_url_ }}">
-                        {% trans "Two-Factor Authentication" %}
-                    </c-button-nav>
-                </li>
-            {% endif %}
-            {% url 'usersessions_list' as usersessions_list_url_ %}
-            {% if usersessions_list_url_ %}
-                <li>
-                    <c-button-nav url="{{ usersessions_list_url_ }}">
-                        {% trans "Sessions" %}
-                    </c-button-nav>
-                </li>
-            {% endif %}
-        </ul>
+<div class="flex flex-col w-full max-w-2xl mx-auto px-4 py-4">
+    <!-- Header Row: Back Arrow + Title -->
+    <div class="flex items-center justify-center relative mb-6">
+        <a href="javascript:history.back()" class="absolute left-0 btn btn-ghost btn-circle">
+            <i class="fa-solid fa-arrow-left text-lg"></i>
+        </a>
+        <h1 class="text-xl font-semibold">Profile</h1>
     </div>
+
+    <form method="post" enctype="multipart/form-data" onsubmit="this.querySelector('button[type=submit]').disabled = true;">
+        {% csrf_token %}
+
+        <!-- Avatar Section -->
+        <div class="card shadow-md mb-6 p-3 rounded-md border border-gray-200">
+            <div class="flex items-center justify-between">
+                <!-- Avatar -->
+                <div class="avatar">
+                    <div class="w-20 rounded-full">
+                        {% if profile.image %}
+                            <img src="{{ profile.image.url }}" alt="Profile Picture" id="avatar-preview" />
+                        {% else %}
+                            <img src="https://ui-avatars.com/api/?name={{ profile.full_name|urlencode }}&background=random" alt="Profile Picture" id="avatar-preview" />
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Buttons -->
+                <div class="flex gap-2">
+                    <label for="id_image" class="btn rounded-md">
+                        <i class="fa-solid fa-pen"></i>
+                        Edit
+                    </label>
+                    <button type="button" onclick="deleteAvatar()" class="btn rounded-md">
+                        <i class="fa-solid fa-trash"></i>
+                        Delete
+                    </button>
+                </div>
+            </div>
+            <!-- Hidden file input -->
+            {{ form.image }}
+        </div>
+
+        <!-- Personal Information Section -->
+        <div class="mb-6">
+            <h2 class="text-base-content font-semibold mb-4">Personal information</h2>
+
+            <!-- First Name -->
+            <fieldset class="fieldset">
+                <label class="form-control w-full mb-4">
+                    <div class="label mb-2">
+                        <span class="label-text text-gray-400">First name</span>
+                    </div>
+                    {{ form.first_name }}
+                    {% if form.first_name.errors %}
+                        <div class="label">
+                            <span class="label-text-alt text-error">{{ form.first_name.errors.0 }}</span>
+                        </div>
+                    {% endif %}
+                </label>
+            </fieldset>
+
+            <!-- Last Name -->
+            <fieldset class="fieldset">
+                <label class="form-control w-full mb-4">
+                    <div class="label mb-2">
+                        <span class="label-text text-gray-400">Last name</span>
+                    </div>
+                    {{ form.last_name }}
+                    {% if form.last_name.errors %}
+                        <div class="label">
+                            <span class="label-text-alt text-error">{{ form.last_name.errors.0 }}</span>
+                        </div>
+                    {% endif %}
+                </label>
+            </fieldset>
+
+            <!-- Email -->
+            <fieldset class="fieldset">
+                <label class="form-control w-full mb-4">
+                    <div class="label mb-2">
+                        <span class="label-text text-gray-400">Email</span>
+                    </div>
+                    {{ form.email }}
+                    {% if form.email.errors %}
+                        <div class="label">
+                            <span class="label-text-alt text-error">{{ form.email.errors.0 }}</span>
+                        </div>
+                    {% endif %}
+                </label>
+            </fieldset>
+
+            <!-- About Yourself (Bio) -->
+            <fieldset class="fieldset">
+                <label class="form-control w-full mb-4">
+                    <div class="label mb-2">
+                        <span class="label-text text-gray-400">About yourself</span>
+                    </div>
+                    {{ form.bio }}
+                    <div class="label mt-2">
+                        <span class="label-text-alt text-gray-400">
+                            <span id="bio-counter">{{ form.bio.value|length|default:0 }}</span>/120
+                        </span>
+                    </div>
+                    {% if form.bio.errors %}
+                        <div class="label">
+                            <span class="label-text-alt text-error">{{ form.bio.errors.0 }}</span>
+                        </div>
+                    {% endif %}
+                </label>
+            </fieldset>
+        </div>
+
+        <!-- Security Section -->
+        <div class="mb-6">
+            <h2 class="text-base-content font-semibold mb-4">Security</h2>
+
+            {% url 'account_change_password' as change_password_url %}
+            {% if change_password_url %}
+                <a href="{{ change_password_url }}" class="card border border-gray-200 bg-base-100 shadow-md rounded-md flex flex-row items-center justify-between px-4 py-2 hover:bg-base-200 transition-colors">
+                    <span class="text-base">Change password</span>
+                    <div class="bg-gray-200 rounded w-8 h-8 flex items-center justify-center">
+                        <i class="fa-solid fa-chevron-right text-gray-600 text-sm"></i>
+                    </div>
+                </a>
+            {% endif %}
+        </div>
+
+        <!-- Update Profile Button -->
+        <button type="submit" class="btn btn-primary w-fit rounded-md">
+            Update profile
+        </button>
+
+        <!-- Hidden field for image removal -->
+        {{ form.remove_image }}
+    </form>
 </div>
+
+<script>
+    // Character counter for bio field
+    const bioField = document.querySelector('textarea[name="bio"]');
+    const bioCounter = document.getElementById('bio-counter');
+
+    if (bioField && bioCounter) {
+        bioField.addEventListener('input', function() {
+            bioCounter.textContent = this.value.length;
+        });
+    }
+
+    // Image preview
+    const imageInput = document.getElementById('id_image');
+    const avatarPreview = document.getElementById('avatar-preview');
+
+    if (imageInput) {
+        imageInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    avatarPreview.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+    }
+
+    // Delete avatar function
+    function deleteAvatar() {
+        if (confirm('Are you sure you want to delete your avatar?')) {
+            document.querySelector('input[name="remove_image"]').value = 'true';
+            avatarPreview.src = 'https://ui-avatars.com/api/?name={{ profile.full_name|urlencode }}&background=random';
+            imageInput.value = '';
+        }
+    }
+</script>
 {% endblock %}
