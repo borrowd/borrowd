@@ -1,5 +1,11 @@
 @import "tailwindcss";
 @plugin "daisyui"{
+    /*
+        If you decide to change something here, the CDN in `templates/base.html` needs to be updated as well.
+        Otherwise, you won't see dev changes.
+        Note that some customizations are unavailable through the cdn, such as the `prefix` config.
+        See https://daisyui.com/docs/cdn/ 'customize parts' section and https://daisyui.com/docs/config/
+    */
     themes: false;
 }
 
