@@ -8,10 +8,7 @@ from django.db.models import QuerySet
 from django.http import HttpRequest, HttpResponse, HttpResponseBase
 from django.shortcuts import redirect, render
 from django.urls import reverse, reverse_lazy
-from django.views.generic import (
-    CreateView,
-    UpdateView,
-)
+from django.views.generic import CreateView, UpdateView
 
 from borrowd.util import BorrowdTemplateFinderMixin
 from borrowd_items.models import Item, ItemStatus, Transaction
@@ -117,6 +114,10 @@ class CustomSignupView(CreateView[BorrowdUser, CustomSignupForm]):
         messages.success(
             self.request, "Welcome! Your account has been created successfully."
         )
+
+        # Honor next parameter if it exists
+        if "next" in self.request.GET:
+            return redirect(self.request.GET["next"])
 
         return redirect(self.success_url)
 

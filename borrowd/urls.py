@@ -30,7 +30,11 @@ from borrowd_web.views import favicon
 
 def redirect_to_custom_signup(request: HttpRequest) -> HttpResponse:
     """Redirect allauth signup to our custom signup"""
-    return redirect("custom_signup")
+    response = redirect("custom_signup")
+    # Pass through any GET parameters (specifically for "next")
+    if request.GET.keys():
+        response["Location"] += f"?{request.GET.urlencode()}"
+    return response
 
 
 urlpatterns: List[URLPattern | URLResolver] = [
