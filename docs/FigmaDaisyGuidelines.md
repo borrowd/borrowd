@@ -13,13 +13,8 @@ This guide walks you through translating Figma designs (built with DaisyUI compo
 
 Borrow'd uses a custom DaisyUI configuration with:
 - **No built-in themes** (`themes: false`)
-- **Class prefix** `dui-` for all DaisyUI classes
 
 This configuration is set in `static/css/main.css`:
-
-All DaisyUI classes must be prefixed with `dui-`. For example:
-- DaisyUI docs show: `navbar` We use: `dui-navbar`
-- DaisyUI docs show: `btn`, `btn-primary`. We use: `dui-btn`, `dui-btn-primary`
 
 ---
 
@@ -104,22 +99,22 @@ Here's a general approach, along with specific examples of how the navbar redesi
 
  ```django
 <!-- Navbar -->
-<div class="dui-navbar">
-  <div class="dui-navbar-start">
+<div class="navbar">
+  <div class="navbar-start">
     <!-- If authed, show 🍔  -->
     {% if user.is_authenticated %}
     <!-- Hamburger button toggles drawer via label for="main-drawer" -->
-    <label for="main-drawer" class="dui-btn">
+    <label for="main-drawer" class="btn">
       <svg>
         <!-- Hamburger -->
       </svg>
     </label>
     {% endif %}
   </div>
-  <div class="dui-navbar-center">
+  <div class="navbar-center">
     <a href="{% url 'index' %}">Logo</a>
   </div>
-  <div class="dui-navbar-end">
+  <div class="navbar-end">
     <!-- If not authed, show sign in/up -->
     {% if not user.is_authenticated %}
       <!-- Auth link buttons -->
@@ -130,17 +125,17 @@ Here's a general approach, along with specific examples of how the navbar redesi
 <!-- Drawer -->
 <!-- Show only if authed -->
 {% if user.is_authenticated %}
-<div class="dui-drawer">
+<div class="drawer">
   <!-- Hidden checkbox controls drawer open/close state -->
-  <input id="main-drawer" type="checkbox" class="dui-drawer-toggle" />
+  <input id="main-drawer" type="checkbox" class="drawer-toggle" />
   <!-- Main content empty, as drawer is just for sidebar -->
-  <div class="dui-drawer-content"></div>
+  <div class="drawer-content"></div>
   <!-- Sidebar -->
-  <div class="dui-drawer-side">
+  <div class="drawer-side">
     <!-- Clicking overlay closes drawer -->
-    <label for="main-drawer" class="dui-drawer-overlay"></label>
+    <label for="main-drawer" class="drawer-overlay"></label>
     <!-- Menu -->
-    <ul class="dui-menu">
+    <ul class="menu">
       <li><a href="{% url 'a' %}">Search</a></li>
       <!-- Others... -->
     </ul>
@@ -153,7 +148,7 @@ Here's a general approach, along with specific examples of how the navbar redesi
 Find or create the relevant files to implement the UI. In our case, the relevant files were `templates/include/header.html` and `templates/base.html`. The `header.html` file included the previous navbar. The `base.html` included the functionality for the dropdown menu of the old navbar, which needed to be deleted as it would all be handled by Daisy UI.
 
 ### 7. Adapt your mapped out component to the Django template
-Using the basic HTML structure you developed in part 5, implement the changes needed to the files you identified in part 6. This will be the step where any final styling will happen as well. Remember to add the `dui-` prefix to all DaisyUI classes and finish by comparing your final result with the Figma document.
+Using the basic HTML structure you developed in part 5, implement the changes needed to the files you identified in part 6. This will be the step where any final styling will happen as well. Finish by comparing your final result with the Figma document.
 
 ___
 

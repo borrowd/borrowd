@@ -1,7 +1,6 @@
 @import "tailwindcss";
 @plugin "daisyui"{
     themes: false;
-    prefix: "dui-"
 }
 
 @font-face {
