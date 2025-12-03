@@ -9,13 +9,7 @@ from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
 from django.template import loader as template_loader
 from django.urls import reverse, reverse_lazy
-from django.views.generic import (
-    CreateView,
-    DeleteView,
-    DetailView,
-    UpdateView,
-    View,
-)
+from django.views.generic import CreateView, DeleteView, DetailView, UpdateView, View
 from django_filters.views import FilterView
 from guardian.mixins import LoginRequiredMixin, PermissionRequiredMixin
 
@@ -57,7 +51,9 @@ class InviteSigner:
 
 
 class GroupCreateView(
-    BorrowdTemplateFinderMixin, CreateView[BorrowdGroup, ModelForm[BorrowdGroup]]
+    LoginRequiredMixin,  # type: ignore[misc]
+    BorrowdTemplateFinderMixin,
+    CreateView[BorrowdGroup, ModelForm[BorrowdGroup]],
 ):
     model = BorrowdGroup
     form_class = GroupCreateForm
@@ -82,7 +78,9 @@ class GroupCreateView(
 
 
 class GroupDeleteView(
-    BorrowdTemplateFinderMixin, DeleteView[BorrowdGroup, ModelForm[BorrowdGroup]]
+    LoginRequiredMixin,  # type: ignore[misc]
+    BorrowdTemplateFinderMixin,
+    DeleteView[BorrowdGroup, ModelForm[BorrowdGroup]],
 ):
     # Todo: prevent non-admin/moderators from completing this action
     model = BorrowdGroup
@@ -126,7 +124,10 @@ class GroupDetailView(
 
 
 # TODO: secure to Group members (not just logged-in users)
-class GroupInviteView(DetailView[BorrowdGroup]):
+class GroupInviteView(
+    LoginRequiredMixin,  # type: ignore[misc]
+    DetailView[BorrowdGroup],
+):
     model = BorrowdGroup
     template_name = "groups/group_invite.html"
 
@@ -239,14 +240,16 @@ class GroupJoinView(LoginRequiredMixin, View):  # type: ignore[misc]
 
 
 # No typing for django_filter, so mypy doesn't like us subclassing.
-class GroupListView(FilterView):  # type: ignore[misc]
+class GroupListView(LoginRequiredMixin, FilterView):  # type: ignore[misc]
     template_name = "groups/group_list.html"
     model = Membership
     filterset_class = GroupFilter
 
 
 class GroupUpdateView(
-    BorrowdTemplateFinderMixin, UpdateView[BorrowdGroup, ModelForm[BorrowdGroup]]
+    LoginRequiredMixin,  # type: ignore[misc]
+    BorrowdTemplateFinderMixin,
+    UpdateView[BorrowdGroup, ModelForm[BorrowdGroup]],
 ):
     model = BorrowdGroup
     fields = ["name", "description", "logo", "banner", "membership_requires_approval"]
