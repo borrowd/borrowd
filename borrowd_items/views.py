@@ -5,13 +5,9 @@ from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render
 from django.urls import reverse, reverse_lazy
 from django.views.decorators.http import require_POST
-from django.views.generic import (
-    CreateView,
-    DeleteView,
-    DetailView,
-    UpdateView,
-)
+from django.views.generic import CreateView, DeleteView, DetailView, UpdateView
 from django_filters.views import FilterView
+from guardian.mixins import LoginRequiredMixin
 
 from borrowd.util import BorrowdTemplateFinderMixin
 from borrowd_users.models import BorrowdUser
@@ -120,7 +116,9 @@ def borrow_item(request: HttpRequest, pk: int) -> HttpResponse:
 
 
 class ItemCreateView(
-    BorrowdTemplateFinderMixin, CreateView[Item, ItemCreateWithPhotoForm]
+    LoginRequiredMixin,  # type: ignore[misc]
+    BorrowdTemplateFinderMixin,
+    CreateView[Item, ItemCreateWithPhotoForm],
 ):
     model = Item
     form_class = ItemCreateWithPhotoForm
@@ -139,12 +137,20 @@ class ItemCreateView(
         return reverse("item-detail", args=[self.object.pk])
 
 
-class ItemDeleteView(BorrowdTemplateFinderMixin, DeleteView[Item, ModelForm[Item]]):
+class ItemDeleteView(
+    LoginRequiredMixin,  # type: ignore[misc]
+    BorrowdTemplateFinderMixin,
+    DeleteView[Item, ModelForm[Item]],
+):
     model = Item
     success_url = reverse_lazy("item-list")
 
 
-class ItemDetailView(BorrowdTemplateFinderMixin, DetailView[Item]):
+class ItemDetailView(
+    LoginRequiredMixin,  # type: ignore[misc]
+    BorrowdTemplateFinderMixin,
+    DetailView[Item],
+):
     model = Item
 
     def get_context_data(self, **kwargs: str) -> dict[str, Any]:
@@ -156,13 +162,21 @@ class ItemDetailView(BorrowdTemplateFinderMixin, DetailView[Item]):
 
 
 # No typing for django_filter, so mypy doesn't like us subclassing.
-class ItemListView(BorrowdTemplateFinderMixin, FilterView):  # type: ignore[misc]
+class ItemListView(
+    LoginRequiredMixin,  # type: ignore[misc]
+    BorrowdTemplateFinderMixin,
+    FilterView,  # type: ignore[misc]
+):
     model = Item
     template_name_suffix = "_list"  # Reusing template from ListView
     filterset_class = ItemFilter
 
 
-class ItemUpdateView(BorrowdTemplateFinderMixin, UpdateView[Item, ItemForm]):
+class ItemUpdateView(
+    LoginRequiredMixin,  # type: ignore[misc]
+    BorrowdTemplateFinderMixin,
+    UpdateView[Item, ItemForm],
+):
     model = Item
     form_class = ItemForm
 
@@ -173,7 +187,9 @@ class ItemUpdateView(BorrowdTemplateFinderMixin, UpdateView[Item, ItemForm]):
 
 
 class ItemPhotoCreateView(
-    BorrowdTemplateFinderMixin, CreateView[ItemPhoto, ModelForm[ItemPhoto]]
+    LoginRequiredMixin,  # type: ignore[misc]
+    BorrowdTemplateFinderMixin,
+    CreateView[ItemPhoto, ModelForm[ItemPhoto]],
 ):
     model = ItemPhoto
     fields = ["image"]  # item set from URL params
@@ -197,7 +213,9 @@ class ItemPhotoCreateView(
 
 
 class ItemPhotoDeleteView(
-    BorrowdTemplateFinderMixin, DeleteView[ItemPhoto, ModelForm[ItemPhoto]]
+    LoginRequiredMixin,  # type: ignore[misc]
+    BorrowdTemplateFinderMixin,
+    DeleteView[ItemPhoto, ModelForm[ItemPhoto]],
 ):
     model = ItemPhoto
 
