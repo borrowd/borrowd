@@ -22,6 +22,24 @@ from .models import BorrowdGroup, Membership
 GroupInvite = namedtuple("GroupInvite", ["group_id", "group_name"])
 
 
+def get_members_data(group: BorrowdGroup) -> list[dict[str, Any]]:
+    """
+    Helper function to format membership data for display.
+    Returns a list of dicts with member information.
+    """
+    memberships = Membership.objects.filter(group=group).select_related("user")
+    members_data = []
+    for membership in memberships:
+        members_data.append(
+            {
+                "full_name": membership.user.profile.full_name(),  # type: ignore
+                "profile_image": membership.user.profile.image,  # type: ignore
+                "role": membership.is_moderator and "Moderator" or "Member",
+            }
+        )
+    return members_data
+
+
 class InviteSigner:
     """
     Static class to handle signing and unsigning of group invites.
@@ -103,19 +121,7 @@ class GroupDetailView(
 
         group: BorrowdGroup = self.object
 
-        memberships = Membership.objects.filter(group=group).select_related("user")
-
-        members_data = []
-        for membership in memberships:
-            members_data.append(
-                {
-                    "full_name": membership.user.profile.full_name(),  # type: ignore
-                    "profile_image": membership.user.profile.image,  # type: ignore
-                    "role": membership.is_moderator and "Moderator" or "Member",
-                }
-            )
-
-        context["members_data"] = members_data
+        context["members_data"] = get_members_data(group)
         if self.request.user.is_authenticated:
             context["is_moderator"] = Membership.objects.filter(
                 user=self.request.user, group=group, is_moderator=True
@@ -210,9 +216,15 @@ class GroupJoinView(LoginRequiredMixin, View):  # type: ignore[misc]
         if isinstance(val_res, HttpResponse):
             return val_res
 
+        group: BorrowdGroup = val_res
         form = GroupJoinForm()
 
-        context = {"object": val_res, "group": val_res, "form": form}
+        context = {
+            "object": group,
+            "group": group,
+            "form": form,
+            "members_data": get_members_data(group),
+        }
         return render(request, "groups/group_join.html", context)
 
     def post(

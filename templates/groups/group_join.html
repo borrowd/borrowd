@@ -10,12 +10,25 @@
         {% endcomment %}
         <c-h2>Join Group?</c-h2>
         <c-h1>{{ object.name }}</c-h1>
+        {% if members_data %}
+        <div class="mb-6 text-sm md:text-base bg-gray-50 rounded-lg p-6 border border-gray-200">
+            {% include "components/groups/members_list.html" with members=members_data %}
+        </div>
+        {% endif %}
+
         <p class="text-gray-700 mb-4"><b>Description:</b> {{ object.description }}</p>
         <p class="text-gray-700 mb-4"><b>Membership requires approval:</b> {{ object.membership_requires_approval|yesno:"Yes,No" }}</p>
+
+        <c-divider class="my-4" />
+
         <form method="post" action="{{ request.get_full_path }}" onsubmit="this.querySelector('button[type=submit]').disabled = true;">
             {% csrf_token %}
             {{ form }}
-        <c-button type="submit">Join</c-button>
+
+            <div class="mt-4">
+                <c-button type="submit">Join</c-button>
+            </div>
+        </form>
     </div>
 </c-box>
 {% endblock %}

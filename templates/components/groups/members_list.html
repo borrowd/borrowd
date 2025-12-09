@@ -1,6 +1,6 @@
 <div>
-  <c-h2 class="border-b -mx-4 px-4 md:-mx-8 md:px-8 pb-4">Members ({{ members|length }})</c-h2>
-  <div class="-mx-4 md:-mx-8">
+  <c-h2 class="border-b pb-4">Members ({{ members|length }})</c-h2>
+  <div class="max-h-96 overflow-y-auto">
     <div class="divide-y divide-gray-200">
       {% for member in members %}
         <c-groups.member-row :member="member" />
