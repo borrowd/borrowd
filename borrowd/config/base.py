@@ -217,6 +217,27 @@ BETA_COOKIE_DOMAIN: str | None = None
 BETA_SECURE_COOKIE: bool = False
 BETA_COOKIE_SAMESITE = "Lax"
 
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+        },
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": "WARNING",
+    },
+    "loggers": {
+        "django": {
+            "handlers": ["console"],
+            "level": os.getenv("DJANGO_LOG_LEVEL", "INFO").upper(),
+            "propagate": False,
+        },
+    },
+}
+
 #
 # Shim for mypy to play nice with certain generic types
 #
