@@ -30,3 +30,12 @@ class GroupJoinForm(forms.Form):
         required=True,
         label="Your Trust Level with this Group",
     )
+
+
+class UpdateTrustLevelForm(forms.Form):
+    trust_level = forms.ChoiceField(
+        choices=TrustLevel.choices,
+        required=True,
+        label="Your Trust Level with this Group",
+        help_text="Update your trust level to control what items you share with this group.",
+    )

@@ -21,6 +21,13 @@
         </div>
         <p class="text-gray-700 mb-4">{{ object.description }}</p>
         <p class="text-gray-500">{{ object.users.count }} members</p>
+
+        {% if user_trust_level %}
+        <div class="mt-4 p-3 bg-gray-50 rounded-lg">
+            <c-groups.trust-level-editor :trust_level="user_trust_level" :group_id="object.pk" />
+        </div>
+        {% endif %}
+
         <div class="relative my-4 -mx-4 md:-mx-8">
             <hr class="border-t border-gray-200 w-full">
         </div>

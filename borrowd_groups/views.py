@@ -13,10 +13,11 @@ from django.views.generic import CreateView, DeleteView, DetailView, UpdateView,
 from django_filters.views import FilterView
 from guardian.mixins import LoginRequiredMixin, PermissionRequiredMixin
 
+from borrowd.models import TrustLevel
 from borrowd.util import BorrowdTemplateFinderMixin
 
 from .filters import GroupFilter
-from .forms import GroupCreateForm, GroupJoinForm
+from .forms import GroupCreateForm, GroupJoinForm, UpdateTrustLevelForm
 from .models import BorrowdGroup, Membership
 
 GroupInvite = namedtuple("GroupInvite", ["group_id", "group_name"])
@@ -120,6 +121,14 @@ class GroupDetailView(
             context["is_moderator"] = Membership.objects.filter(
                 user=self.request.user, group=group, is_moderator=True
             ).exists()
+            # Get the current user's membership to expose their trust level
+            try:
+                user_membership = Membership.objects.get(
+                    user=self.request.user, group=group
+                )
+                context["user_trust_level"] = user_membership.trust_level
+            except Membership.DoesNotExist:
+                context["user_trust_level"] = None
         return context
 
 
@@ -263,6 +272,40 @@ class GroupUpdateView(
         if self.object is None:
             return reverse("borrowd_groups:group-list")
         return reverse("borrowd_groups:group-detail", args=[self.object.pk])
+
+
+class UpdateTrustLevelView(LoginRequiredMixin, View):  # type: ignore[misc]
+    """
+    View to handle updating a user's trust level for a group they're a member of.
+    """
+
+    def post(self, request: HttpRequest, pk: int) -> HttpResponse:
+        try:
+            group = BorrowdGroup.objects.get(pk=pk)
+        except BorrowdGroup.DoesNotExist:
+            messages.error(request, "Group not found.")
+            return redirect("borrowd_groups:group-list")
+
+        try:
+            membership = Membership.objects.get(user=request.user, group=group)
+        except Membership.DoesNotExist:
+            messages.error(request, "You are not a member of this group.")
+            return redirect("borrowd_groups:group-detail", pk=pk)
+
+        form = UpdateTrustLevelForm(request.POST)
+        if form.is_valid():
+            new_trust_level = form.cleaned_data["trust_level"]
+            membership.trust_level = new_trust_level
+            membership.save()
+            # Get human-readable label for the trust level
+            trust_level_label = dict(TrustLevel.choices)[int(new_trust_level)]
+            messages.success(
+                request, f"Your trust level has been updated to {trust_level_label}."
+            )
+        else:
+            messages.error(request, "Invalid trust level selected.")
+
+        return redirect("borrowd_groups:group-detail", pk=pk)
 
 
 def forbidden(request: HttpRequest) -> HttpResponse:

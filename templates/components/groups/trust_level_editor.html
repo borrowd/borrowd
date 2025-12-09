@@ -1,0 +1,39 @@
+<div x-data="{ editing: false, trustLevel: {{ trust_level }}, saving: false }" class="flex items-center gap-2">
+    <span class="text-sm text-gray-600">Your Trust Level:</span>
+
+    <div x-show="!editing" class="flex items-center gap-2">
+        <span x-text="trustLevel === 1 ? 'Low' : trustLevel === 2 ? 'Medium' : 'High'" class="text-sm font-medium text-gray-900"></span>
+        <c-trust-pill :level="trustLevel === 1 ? 'Low' : trustLevel === 2 ? 'Medium' : 'High'" />
+        <button @click="editing = true" class="text-gray-400 hover:text-gray-600 transition-colors" title="Edit trust level">
+            <!-- Alpine not happy with django template tag so inline svg here... it's a pencil -->
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+            </svg>
+        </button>
+    </div>
+
+    <form x-show="editing" method="post" action="{% url 'borrowd_groups:update-trust-level' group_id %}"
+              @submit="saving = true"
+              class="flex items-center gap-2">
+            {% csrf_token %}
+            <select name="trust_level"
+                    x-model="trustLevel"
+                    class="px-2 py-1 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                <option value="1">Low</option>
+                <option value="2">Medium</option>
+                <option value="3">High</option>
+            </select>
+            <button type="submit"
+                    :disabled="saving"
+                    class="px-2 py-1 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 text-white text-sm rounded-md transition-colors">
+                <span x-show="!saving">Save</span>
+                <span x-show="saving">...</span>
+            </button>
+            <button type="button"
+                    @click="editing = false; trustLevel = {{ trust_level }}"
+                    :disabled="saving"
+                    class="px-2 py-1 text-gray-600 hover:text-gray-800 text-sm">
+                Cancel
+            </button>
+    </form>
+</div>
