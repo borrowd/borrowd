@@ -4,12 +4,12 @@ from typing import Never, Optional
 from django.db.models import (
     CASCADE,
     PROTECT,
-    SET_NULL,
     CharField,
     DateTimeField,
     ForeignKey,
     IntegerChoices,
     IntegerField,
+    ManyToManyField,
     Model,
     Q,
     QuerySet,
@@ -87,8 +87,11 @@ class Item(Model):
     )
     # If user is deleted, delete their Items
     owner: ForeignKey[BorrowdUser] = ForeignKey(BorrowdUser, on_delete=CASCADE)
-    category: ForeignKey[ItemCategory] = ForeignKey(
-        ItemCategory, on_delete=SET_NULL, null=True, blank=False
+    categories: ManyToManyField[ItemCategory, ItemCategory] = ManyToManyField(
+        ItemCategory,
+        related_name="items",
+        blank=False,
+        help_text="Categories this item belongs to. At least one required.",
     )
     trust_level_required: IntegerField[TrustLevel, int] = IntegerField(
         choices=TrustLevel,
