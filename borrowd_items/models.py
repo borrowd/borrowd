@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from typing import Never, Optional
 
+from django.core.exceptions import ValidationError
 from django.db.models import (
     CASCADE,
     PROTECT,
@@ -57,6 +58,9 @@ class ItemActionContext:
 class ItemCategory(Model):
     name: CharField[str, str] = CharField(max_length=50, null=False, blank=False)
     description: CharField[str, str] = CharField(max_length=100, null=True, blank=True)
+
+    # Hint for mypy (actual field created from reverse M2M relation)
+    items: QuerySet["Item"]
 
     def __str__(self) -> str:
         return self.name
@@ -116,6 +120,13 @@ class Item(Model):
 
     def get_absolute_url(self) -> str:
         return reverse("item-detail", args=[self.pk])
+
+    def clean(self) -> None:
+        """Validate that Item has at least one category assigned."""
+        super().clean()
+        # M2M validation only works for saved instances
+        if self.pk and not self.categories.exists():
+            raise ValidationError({"categories": "At least one category is required."})
 
     def get_action_context_for(self, user: BorrowdUser) -> ItemActionContext:
         """
