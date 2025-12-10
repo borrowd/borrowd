@@ -5,10 +5,13 @@ Covers:
 - filtering items by categories
 """
 
+from typing import Any
+
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 
 from borrowd.models import TrustLevel
+from borrowd_items.forms import ItemForm
 from borrowd_items.models import Item, ItemCategory
 from borrowd_users.models import BorrowdUser
 
@@ -178,51 +181,233 @@ class ItemMultiCategoryModelTests(TestCase):
 class ItemFormCategoryValidationTests(TestCase):
     """Tests for ItemForm category validation."""
 
+    owner: BorrowdUser
+    category_electronics: ItemCategory
+    category_tools: ItemCategory
+    category_outdoor: ItemCategory
+
     @classmethod
     def setUpTestData(cls) -> None:
         """Create shared users, categories, and items for form tests."""
-        pass
+        cls.owner = BorrowdUser.objects.create(
+            username="formtestuser",
+            email="formtestuser@example.com",
+        )
+        cls.category_electronics = ItemCategory.objects.create(
+            name="Electronics",
+            description="Electronic devices and gadgets",
+        )
+        cls.category_tools = ItemCategory.objects.create(
+            name="Tools",
+            description="Hand and power tools",
+        )
+        cls.category_outdoor = ItemCategory.objects.create(
+            name="Outdoor",
+            description="Outdoor and camping equipment",
+        )
+
+    def get_valid_form_data(
+        self,
+        categories: list[ItemCategory],
+        name: str = "Test Item",
+        description: str = "A test item description",
+    ) -> dict[str, Any]:
+        """Return valid form data with specified categories."""
+        return {
+            "name": name,
+            "description": description,
+            "categories": [c.pk for c in categories],
+            "trust_level_required": TrustLevel.LOW,
+        }
+
+    def create_item_with_categories(
+        self,
+        categories: list[ItemCategory],
+        name: str = "Existing Item",
+        description: str = "An existing item",
+    ) -> Item:
+        """Create an item with specified categories for edit tests."""
+        item = Item.objects.create(
+            name=name,
+            description=description,
+            owner=self.owner,
+            trust_level_required=TrustLevel.LOW,
+        )
+        item.categories.add(*categories)
+        return item
 
     def test_form_valid_with_single_category(self) -> None:
         """Form validates with one selected category."""
-        pass
+        form_data = self.get_valid_form_data(categories=[self.category_tools])
+        form = ItemForm(data=form_data)
+
+        self.assertTrue(form.is_valid(), form.errors)
 
     def test_form_valid_with_multiple_categories(self) -> None:
         """Form validates with multiple selected categories."""
-        pass
+        form_data = self.get_valid_form_data(
+            categories=[self.category_electronics, self.category_outdoor]
+        )
+        form = ItemForm(data=form_data)
+
+        self.assertTrue(form.is_valid(), form.errors)
 
     def test_form_invalid_without_categories(self) -> None:
         """Form rejects submissions without categories."""
-        # Should raise validation error: "At least one category is required."
-        pass
+        form_data = {
+            "name": "Test Item",
+            "description": "A test item description",
+            "categories": [],
+            "trust_level_required": TrustLevel.LOW,
+        }
+        form = ItemForm(data=form_data)
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("categories", form.errors)
 
     def test_form_saves_multiple_categories(self) -> None:
         """Saving the form assigns all selected categories to the item."""
-        pass
+        form_data = self.get_valid_form_data(
+            categories=[self.category_electronics, self.category_tools],
+            name="Multi-Category Item",
+        )
+        form = ItemForm(data=form_data)
+        self.assertTrue(form.is_valid(), form.errors)
+
+        # ItemForm doesn't include 'owner' field, but Item.owner is required.
+        # commit=False lets us set owner before saving to satisfy the constraint.
+        # save_m2m() is then required to persist M2M relationships (categories).
+        item = form.save(commit=False)
+        item.owner = self.owner
+        item.save()
+        form.save_m2m()
+
+        self.assertEqual(item.categories.count(), 2)
+        self.assertIn(self.category_electronics, item.categories.all())
+        self.assertIn(self.category_tools, item.categories.all())
 
     def test_form_preserves_selected_categories_on_edit(self) -> None:
-        """Editing an item preserves selected categories."""
-        pass
+        """Editing an item preserves existing categories when adding new ones."""
+        # Create item with 2 categories (electronics, outdoor)
+        item = self.create_item_with_categories(
+            categories=[
+                self.category_electronics,
+                self.category_outdoor,
+            ]
+        )
+
+        # Edit the item to add tools category
+        form_data = self.get_valid_form_data(
+            categories=[
+                self.category_electronics,
+                self.category_outdoor,
+                self.category_tools,
+            ],
+            name=item.name,
+            description=item.description,
+        )
+        form = ItemForm(data=form_data, instance=item)
+        self.assertTrue(form.is_valid(), form.errors)
+        form.save()
+
+        # Verify previous categories are present after edit
+        item.refresh_from_db()
+        self.assertIn(self.category_electronics, item.categories.all())
+        self.assertIn(self.category_outdoor, item.categories.all())
 
     def test_form_can_add_categories(self) -> None:
         """Updating an item can add additional categories."""
-        pass
+        item = self.create_item_with_categories(categories=[self.category_tools])
+        form_data = self.get_valid_form_data(
+            categories=[self.category_tools, self.category_electronics],
+            name=item.name,
+            description=item.description,
+        )
+        form = ItemForm(data=form_data, instance=item)
+        self.assertTrue(form.is_valid(), form.errors)
+
+        form.save()
+
+        item.refresh_from_db()
+        self.assertEqual(item.categories.count(), 2)
+        self.assertIn(self.category_tools, item.categories.all())
+        self.assertIn(self.category_electronics, item.categories.all())
 
     def test_form_can_remove_categories(self) -> None:
         """Updating an item can remove categories."""
-        pass
+        item = self.create_item_with_categories(
+            categories=[self.category_tools, self.category_outdoor]
+        )
+        form_data = self.get_valid_form_data(
+            categories=[self.category_tools],
+            name=item.name,
+            description=item.description,
+        )
+        form = ItemForm(data=form_data, instance=item)
+        self.assertTrue(form.is_valid(), form.errors)
+
+        form.save()
+
+        item.refresh_from_db()
+        self.assertEqual(item.categories.count(), 1)
+        self.assertIn(self.category_tools, item.categories.all())
+        self.assertNotIn(self.category_outdoor, item.categories.all())
 
     def test_form_can_replace_all_categories(self) -> None:
         """Updating an item can replace all categories."""
-        pass
+        item = self.create_item_with_categories(
+            categories=[self.category_tools, self.category_outdoor]
+        )
+        form_data = self.get_valid_form_data(
+            categories=[self.category_electronics],
+            name=item.name,
+            description=item.description,
+        )
+        form = ItemForm(data=form_data, instance=item)
+        self.assertTrue(form.is_valid(), form.errors)
 
-    def test_form_handles_adding_and_deleting_categories(self) -> None:
+        form.save()
+
+        item.refresh_from_db()
+        self.assertEqual(item.categories.count(), 1)
+        self.assertIn(self.category_electronics, item.categories.all())
+        self.assertNotIn(self.category_tools, item.categories.all())
+        self.assertNotIn(self.category_outdoor, item.categories.all())
+
+    def test_form_handles_adding_and_removing_categories(self) -> None:
         """Updating can add some categories while removing others."""
-        pass
+        item = self.create_item_with_categories(
+            categories=[self.category_tools, self.category_outdoor]
+        )
+        # Remove outdoor, keep tools, add electronics
+        form_data = self.get_valid_form_data(
+            categories=[self.category_tools, self.category_electronics],
+            name=item.name,
+            description=item.description,
+        )
+        form = ItemForm(data=form_data, instance=item)
+        self.assertTrue(form.is_valid(), form.errors)
+
+        form.save()
+
+        item.refresh_from_db()
+        self.assertEqual(item.categories.count(), 2)
+        self.assertIn(self.category_tools, item.categories.all())
+        self.assertIn(self.category_electronics, item.categories.all())
+        self.assertNotIn(self.category_outdoor, item.categories.all())
 
     def test_form_invalid_category_id_rejected(self) -> None:
         """Form rejects non-existent category IDs."""
-        pass
+        form_data = {
+            "name": "Test Item",
+            "description": "A test item description",
+            "categories": [99999],  # Non-existent category ID
+            "trust_level_required": TrustLevel.LOW,
+        }
+        form = ItemForm(data=form_data)
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("categories", form.errors)
 
 
 class ItemFilterCategoryTests(TestCase):
