@@ -5,7 +5,7 @@ from typing import Any
 from django.db import migrations
 
 
-# https://docs.djangoproject.com/en/6.0/ref/migration-operations/#runpython
+# https://docs.djangoproject.com/en/5.2/ref/migration-operations/#runpython
 def migrate_category_to_categories(apps: Any, schema_editor: Any) -> None:
     """Copy old single category FK to new categories M2M field."""
     Item = apps.get_model("borrowd_items", "Item")
