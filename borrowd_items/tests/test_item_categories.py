@@ -18,8 +18,8 @@ from borrowd_items.models import Item, ItemCategory
 from borrowd_users.models import BorrowdUser
 
 
-class ItemMultiCategoryModelTests(TestCase):
-    """Tests for Item model multi-category functionality."""
+class ItemCategoryTestBase(TestCase):
+    """Base class with common fixtures for item category tests."""
 
     owner: BorrowdUser
     category_electronics: ItemCategory
@@ -28,10 +28,10 @@ class ItemMultiCategoryModelTests(TestCase):
 
     @classmethod
     def setUpTestData(cls) -> None:
-        """Create shared users and categories for model tests."""
+        """Create shared owner and categories."""
         cls.owner = BorrowdUser.objects.create(
-            username="testuser",
-            email="testuser@example.com",
+            username="testowner",
+            email="testowner@example.com",
         )
         cls.category_electronics = ItemCategory.objects.create(
             name="Electronics",
@@ -62,6 +62,10 @@ class ItemMultiCategoryModelTests(TestCase):
         if categories:
             item.categories.add(*categories)
         return item
+
+
+class ItemMultiCategoryModelTests(ItemCategoryTestBase):
+    """Tests for Item model multi-category functionality."""
 
     def test_item_can_have_single_category(self) -> None:
         """Item accepts a single category assignment."""
@@ -180,33 +184,8 @@ class ItemMultiCategoryModelTests(TestCase):
         self.assertIn(self.category_tools, item.categories.all())
 
 
-class ItemFormCategoryValidationTests(TestCase):
+class ItemFormCategoryValidationTests(ItemCategoryTestBase):
     """Tests for ItemForm category validation."""
-
-    owner: BorrowdUser
-    category_electronics: ItemCategory
-    category_tools: ItemCategory
-    category_outdoor: ItemCategory
-
-    @classmethod
-    def setUpTestData(cls) -> None:
-        """Create shared users, categories, and items for form tests."""
-        cls.owner = BorrowdUser.objects.create(
-            username="formtestuser",
-            email="formtestuser@example.com",
-        )
-        cls.category_electronics = ItemCategory.objects.create(
-            name="Electronics",
-            description="Electronic devices and gadgets",
-        )
-        cls.category_tools = ItemCategory.objects.create(
-            name="Tools",
-            description="Hand and power tools",
-        )
-        cls.category_outdoor = ItemCategory.objects.create(
-            name="Outdoor",
-            description="Outdoor and camping equipment",
-        )
 
     def get_valid_form_data(
         self,
@@ -221,22 +200,6 @@ class ItemFormCategoryValidationTests(TestCase):
             "categories": [c.pk for c in categories],
             "trust_level_required": TrustLevel.LOW,
         }
-
-    def create_item_with_categories(
-        self,
-        categories: list[ItemCategory],
-        name: str = "Existing Item",
-        description: str = "An existing item",
-    ) -> Item:
-        """Create an item with specified categories for edit tests."""
-        item = Item.objects.create(
-            name=name,
-            description=description,
-            owner=self.owner,
-            trust_level_required=TrustLevel.LOW,
-        )
-        item.categories.add(*categories)
-        return item
 
     def test_form_valid_with_single_category(self) -> None:
         """Form validates with one selected category."""
@@ -291,7 +254,7 @@ class ItemFormCategoryValidationTests(TestCase):
     def test_form_preserves_selected_categories_on_edit(self) -> None:
         """Editing an item preserves existing categories when adding new ones."""
         # Create item with 2 categories (electronics, outdoor)
-        item = self.create_item_with_categories(
+        item = self.create_item(
             categories=[
                 self.category_electronics,
                 self.category_outdoor,
@@ -319,7 +282,7 @@ class ItemFormCategoryValidationTests(TestCase):
 
     def test_form_can_add_categories(self) -> None:
         """Updating an item can add additional categories."""
-        item = self.create_item_with_categories(categories=[self.category_tools])
+        item = self.create_item(categories=[self.category_tools])
         form_data = self.get_valid_form_data(
             categories=[self.category_tools, self.category_electronics],
             name=item.name,
@@ -337,9 +300,7 @@ class ItemFormCategoryValidationTests(TestCase):
 
     def test_form_can_remove_categories(self) -> None:
         """Updating an item can remove categories."""
-        item = self.create_item_with_categories(
-            categories=[self.category_tools, self.category_outdoor]
-        )
+        item = self.create_item(categories=[self.category_tools, self.category_outdoor])
         form_data = self.get_valid_form_data(
             categories=[self.category_tools],
             name=item.name,
@@ -357,9 +318,7 @@ class ItemFormCategoryValidationTests(TestCase):
 
     def test_form_can_replace_all_categories(self) -> None:
         """Updating an item can replace all categories."""
-        item = self.create_item_with_categories(
-            categories=[self.category_tools, self.category_outdoor]
-        )
+        item = self.create_item(categories=[self.category_tools, self.category_outdoor])
         form_data = self.get_valid_form_data(
             categories=[self.category_electronics],
             name=item.name,
@@ -378,9 +337,7 @@ class ItemFormCategoryValidationTests(TestCase):
 
     def test_form_handles_adding_and_removing_categories(self) -> None:
         """Updating can add some categories while removing others."""
-        item = self.create_item_with_categories(
-            categories=[self.category_tools, self.category_outdoor]
-        )
+        item = self.create_item(categories=[self.category_tools, self.category_outdoor])
         # Remove outdoor, keep tools, add electronics
         form_data = self.get_valid_form_data(
             categories=[self.category_tools, self.category_electronics],
@@ -412,14 +369,10 @@ class ItemFormCategoryValidationTests(TestCase):
         self.assertIn("categories", form.errors)
 
 
-class ItemFilterCategoryTests(TestCase):
+class ItemFilterCategoryTests(ItemCategoryTestBase):
     """Tests for ItemFilter category filtering functionality."""
 
-    owner: BorrowdUser
     member: BorrowdUser
-    category_electronics: ItemCategory
-    category_tools: ItemCategory
-    category_outdoor: ItemCategory
     item_drill: Item
     item_laptop: Item
     item_tent: Item
@@ -428,10 +381,8 @@ class ItemFilterCategoryTests(TestCase):
     @classmethod
     def setUpTestData(cls) -> None:
         """Create items with varied category combinations for filter tests."""
-        cls.owner = BorrowdUser.objects.create(
-            username="filterowner",
-            email="filterowner@example.com",
-        )
+        super().setUpTestData()
+
         cls.member = BorrowdUser.objects.create(
             username="filtermember",
             email="filtermember@example.com",
@@ -446,19 +397,6 @@ class ItemFilterCategoryTests(TestCase):
             membership_requires_approval=False,
         )
         group.add_user(cls.member, trust_level=TrustLevel.HIGH)
-
-        cls.category_electronics = ItemCategory.objects.create(
-            name="Electronics",
-            description="Electronic devices",
-        )
-        cls.category_tools = ItemCategory.objects.create(
-            name="Tools",
-            description="Hand and power tools",
-        )
-        cls.category_outdoor = ItemCategory.objects.create(
-            name="Outdoor",
-            description="Outdoor equipment",
-        )
 
         # Create items with various category combinations
         cls.item_drill = Item.objects.create(
