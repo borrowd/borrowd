@@ -8,9 +8,11 @@ Covers:
 from typing import Any
 
 from django.core.exceptions import ValidationError
-from django.test import TestCase
+from django.test import RequestFactory, TestCase
 
 from borrowd.models import TrustLevel
+from borrowd_groups.models import BorrowdGroup
+from borrowd_items.filters import ItemFilter
 from borrowd_items.forms import ItemForm
 from borrowd_items.models import Item, ItemCategory
 from borrowd_users.models import BorrowdUser
@@ -413,45 +415,235 @@ class ItemFormCategoryValidationTests(TestCase):
 class ItemFilterCategoryTests(TestCase):
     """Tests for ItemFilter category filtering functionality."""
 
+    owner: BorrowdUser
+    member: BorrowdUser
+    category_electronics: ItemCategory
+    category_tools: ItemCategory
+    category_outdoor: ItemCategory
+    item_drill: Item
+    item_laptop: Item
+    item_tent: Item
+    item_multitool: Item
+
     @classmethod
     def setUpTestData(cls) -> None:
         """Create items with varied category combinations for filter tests."""
-        pass
+        cls.owner = BorrowdUser.objects.create(
+            username="filterowner",
+            email="filterowner@example.com",
+        )
+        cls.member = BorrowdUser.objects.create(
+            username="filtermember",
+            email="filtermember@example.com",
+        )
+
+        # Create group so member can see owner's items
+        group = BorrowdGroup.objects.create(
+            name="Filter Test Group",
+            created_by=cls.owner,
+            updated_by=cls.owner,
+            trust_level=TrustLevel.HIGH,
+            membership_requires_approval=False,
+        )
+        group.add_user(cls.member, trust_level=TrustLevel.HIGH)
+
+        cls.category_electronics = ItemCategory.objects.create(
+            name="Electronics",
+            description="Electronic devices",
+        )
+        cls.category_tools = ItemCategory.objects.create(
+            name="Tools",
+            description="Hand and power tools",
+        )
+        cls.category_outdoor = ItemCategory.objects.create(
+            name="Outdoor",
+            description="Outdoor equipment",
+        )
+
+        # Create items with various category combinations
+        cls.item_drill = Item.objects.create(
+            name="Cordless Drill",
+            description="18V cordless drill",
+            owner=cls.owner,
+            trust_level_required=TrustLevel.LOW,
+        )
+        cls.item_drill.categories.add(cls.category_tools)
+
+        cls.item_laptop = Item.objects.create(
+            name="Laptop",
+            description="Development laptop",
+            owner=cls.owner,
+            trust_level_required=TrustLevel.LOW,
+        )
+        cls.item_laptop.categories.add(cls.category_electronics)
+
+        cls.item_tent = Item.objects.create(
+            name="Camping Tent",
+            description="4-person tent",
+            owner=cls.owner,
+            trust_level_required=TrustLevel.LOW,
+        )
+        cls.item_tent.categories.add(cls.category_outdoor)
+
+        # Item with multiple categories
+        cls.item_multitool = Item.objects.create(
+            name="Multimeter",
+            description="Digital multimeter for electronics work",
+            owner=cls.owner,
+            trust_level_required=TrustLevel.LOW,
+        )
+        cls.item_multitool.categories.add(cls.category_electronics, cls.category_tools)
+
+    def get_filter_results(
+        self,
+        user: BorrowdUser,
+        categories: list[ItemCategory] | None = None,
+        search: str | None = None,
+    ) -> list[Item]:
+        """Apply ItemFilter and return the filtered items."""
+        factory = RequestFactory()
+        request = factory.get("/items/")
+        request.user = user
+
+        filter_data: dict[str, Any] = {}
+        if categories:
+            filter_data["categories"] = [c.pk for c in categories]
+        if search:
+            filter_data["search"] = search
+
+        item_filter = ItemFilter(data=filter_data, request=request)
+        return list(item_filter.qs)
 
     def test_filter_by_single_category(self) -> None:
         """Filtering by a single category returns matching items."""
-        pass
+        results = self.get_filter_results(
+            user=self.member,
+            categories=[self.category_tools],
+        )
+
+        # Should return drill and multitool (both have tools category)
+        self.assertEqual(len(results), 2)
+        self.assertIn(self.item_drill, results)
+        self.assertIn(self.item_multitool, results)
+        self.assertNotIn(self.item_laptop, results)
+        self.assertNotIn(self.item_tent, results)
 
     def test_filter_by_multiple_categories_returns_items_matching_any_selected_category(
         self,
     ) -> None:
         """Filtering returns items matching any selected categories (OR logic)."""
-        pass
+        results = self.get_filter_results(
+            user=self.member,
+            categories=[self.category_tools, self.category_outdoor],
+        )
+
+        # Should return drill, tent, and multitool (OR logic)
+        self.assertEqual(len(results), 3)
+        self.assertIn(self.item_drill, results)
+        self.assertIn(self.item_tent, results)
+        self.assertIn(self.item_multitool, results)
+        self.assertNotIn(self.item_laptop, results)
 
     def test_filter_items_with_multiple_categories_assigned(self) -> None:
         """Items with multiple categories still appear when one category matches."""
-        pass
+        # Filter by electronics only
+        results = self.get_filter_results(
+            user=self.member,
+            categories=[self.category_electronics],
+        )
+
+        # Multitool has both electronics and tools, should appear
+        self.assertIn(self.item_multitool, results)
+        self.assertIn(self.item_laptop, results)
+        self.assertEqual(len(results), 2)
 
     def test_filter_returns_no_results_for_unmatched_categories(self) -> None:
         """Filtering by categories without matches returns an empty queryset."""
-        pass
+        # Create a category with no items
+        empty_category = ItemCategory.objects.create(
+            name="Empty Category",
+            description="No items here",
+        )
+
+        results = self.get_filter_results(
+            user=self.member,
+            categories=[empty_category],
+        )
+
+        self.assertEqual(len(results), 0)
 
     def test_filter_with_no_category_returns_all_items(self) -> None:
         """When no category is selected, all accessible items are returned."""
-        pass
+        results = self.get_filter_results(
+            user=self.member,
+            categories=None,
+        )
+
+        # Should return all 4 items
+        self.assertEqual(len(results), 4)
+        self.assertIn(self.item_drill, results)
+        self.assertIn(self.item_laptop, results)
+        self.assertIn(self.item_tent, results)
+        self.assertIn(self.item_multitool, results)
 
     def test_filter_deduplicates_items_with_multiple_selected_categories(self) -> None:
-        """Should verify filtering with overlapping categories does not return duplicate items."""
-        pass
+        """Filtering with overlapping categories does not return duplicate items."""
+        # Multitool has both electronics and tools categories
+        # Selecting both should not return multitool twice
+        results = self.get_filter_results(
+            user=self.member,
+            categories=[self.category_electronics, self.category_tools],
+        )
+
+        # Count occurrences of multitool
+        multitool_count = results.count(self.item_multitool)
+        self.assertEqual(multitool_count, 1)
+
+        # Should have drill, laptop, and multitool (3 unique items)
+        self.assertEqual(len(results), 3)
 
     def test_filter_combines_with_search_query(self) -> None:
         """Category filtering composes correctly with search queries."""
-        pass
+        results = self.get_filter_results(
+            user=self.member,
+            categories=[self.category_electronics, self.category_tools],
+            search="Drill",
+        )
+
+        # Only drill matches both the category filter and search
+        self.assertEqual(len(results), 1)
+        self.assertIn(self.item_drill, results)
 
     def test_filter_respects_item_visibility_rules(self) -> None:
         """Category filtering respects trust level and group membership."""
-        pass
+        # Create a non-member who shouldn't see any items
+        non_member = BorrowdUser.objects.create(
+            username="nonmember",
+            email="nonmember@example.com",
+        )
+
+        results = self.get_filter_results(
+            user=non_member,
+            categories=[self.category_tools],
+        )
+
+        # Non-member shouldn't see any items
+        self.assertEqual(len(results), 0)
 
     def test_filter_with_all_categories_selected(self) -> None:
         """Selecting all categories returns every accessible item."""
-        pass
+        results = self.get_filter_results(
+            user=self.member,
+            categories=[
+                self.category_electronics,
+                self.category_tools,
+                self.category_outdoor,
+            ],
+        )
+
+        # All items should be returned
+        self.assertEqual(len(results), 4)
+        self.assertIn(self.item_drill, results)
+        self.assertIn(self.item_laptop, results)
+        self.assertIn(self.item_tent, results)
+        self.assertIn(self.item_multitool, results)
