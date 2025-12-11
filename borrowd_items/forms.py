@@ -8,7 +8,7 @@ class ItemForm(forms.ModelForm[Item]):
 
     class Meta:
         model = Item
-        fields = ["name", "description", "category", "trust_level_required"]
+        fields = ["name", "description", "categories", "trust_level_required"]
         widgets = {
             "name": forms.TextInput(
                 attrs={"class": "w-full", "placeholder": "Enter item name..."}
@@ -20,7 +20,7 @@ class ItemForm(forms.ModelForm[Item]):
                     "placeholder": "Enter a detailed description of your item...",
                 }
             ),
-            "category": forms.Select(attrs={"class": "w-full"}),
+            "categories": forms.SelectMultiple(attrs={"class": "w-full"}),
             "trust_level_required": forms.Select(attrs={"class": "w-full"}),
         }
 
