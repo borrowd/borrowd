@@ -162,6 +162,12 @@ requiring updates to JS or CSS (i.e. Tailwind) files. In prod, JS+CSS
 dependencies will have been bundled, so that template tag becomes a
 no-op.
 
+#### Optional: Authenticating a new user
+
+You need to sign up as a new user with your email address. You can use the + method to subdivide for more than one user (e.g. `test@example.com` and `test+1@example.com` will be two different users).
+
+Emails which would normally be sent to your email in prod will show up in the console, **including login codes**.
+
 #### Optional: load demo data
 
 Demo data is kept outside the repo. We have a custom management
