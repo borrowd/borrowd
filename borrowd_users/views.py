@@ -3,16 +3,14 @@ from typing import Any
 from django.contrib import messages
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth.mixins import LoginRequiredMixin
-from django.db.models import QuerySet
 from django.http import HttpRequest, HttpResponse, HttpResponseBase
 from django.shortcuts import redirect, render
-from django.urls import reverse, reverse_lazy
-from django.views.generic import CreateView, UpdateView
+from django.urls import reverse_lazy
+from django.views.generic import (
+    CreateView,
+)
 
-from borrowd.util import BorrowdTemplateFinderMixin
 from borrowd_items.models import Item, ItemStatus, Transaction
-from borrowd_users.models import Profile
 
 from .forms import CustomSignupForm, ProfileUpdateForm
 from .models import BorrowdUser
@@ -23,11 +21,21 @@ def profile_view(request: HttpRequest) -> HttpResponse:
     user: BorrowdUser = request.user  # type: ignore[assignment]
     profile = user.profile
 
+    if request.method == "POST":
+        form = ProfileUpdateForm(request.POST, request.FILES, instance=profile)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Your profile has been updated successfully.")
+            return redirect("profile")
+    else:
+        form = ProfileUpdateForm(instance=profile)
+
     return render(
         request,
         "users/profile.html",
         {
             "profile": profile,
+            "form": form,
         },
     )
 
@@ -57,27 +65,6 @@ def inventory_view(request: HttpRequest) -> HttpResponse:
             "user_items": user_items,
         },
     )
-
-
-class ProfileUpdateView(
-    LoginRequiredMixin,
-    BorrowdTemplateFinderMixin,
-    UpdateView[Profile, ProfileUpdateForm],
-):
-    model = Profile
-    form_class = ProfileUpdateForm
-
-    def get_object(self, queryset: QuerySet[Any] | None = None) -> Profile:
-        user: BorrowdUser = self.request.user  # type: ignore[assignment]
-        return user.profile
-
-    def form_valid(self, form: ProfileUpdateForm) -> HttpResponse:
-        """Add success message when profile is updated."""
-        messages.success(self.request, "Your profile has been updated successfully.")
-        return super().form_valid(form)
-
-    def get_success_url(self) -> str:
-        return reverse("profile")
 
 
 class CustomSignupView(CreateView[BorrowdUser, CustomSignupForm]):
