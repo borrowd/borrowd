@@ -227,6 +227,9 @@ or [htmx](https://htmx.org/).
 We use [TailwindCSS](https://tailwindcss.com/) for styling, rolled-up
 and minified by [vite.js](https://vite.dev/).
 
+We also use [DaisyUI](https://daisyui.com/)
+for pre-built component styles. See [FigmaDaisyGuidelines.md](docs/FigmaDaisyGuidelines.md) for a walkthrough on how to apply or convert Figma designs to Daisy components in the app.
+
 ## Users and Authentication
 
 We use [django-allauth](https://allauth.org/) for authentication. The

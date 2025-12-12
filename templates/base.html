@@ -18,7 +18,42 @@
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
         <link href="https://fonts.googleapis.com/css2?family=Roboto+Slab:wght@400&display=swap" rel="stylesheet">
-        <script src="https://cdn.tailwindcss.com"></script>
+        <link href="https://cdn.jsdelivr.net/npm/daisyui@5" rel="stylesheet" type="text/css" />
+        <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+        <style>
+            /* DaisyUI theme. should align with main.css theme*/
+            :root {
+              color-scheme: light dark;
+              --color-base-100: #FFFFFF;
+              --color-base-200: #F8F8F8;
+              --color-base-300: #EEEEEE;
+              --color-base-content: #18181B;
+              --color-primary: #2C51A1;
+              --color-primary-content: #FFFFFF;
+              --color-secondary: #73325B;
+              --color-secondary-content: #FFFFFF;
+              --color-accent: #B97C21;
+              --color-accent-content: oklch(100% 0 0);
+              --color-neutral: #314157;
+              --color-neutral-content: #FFFFFF;
+              --color-info: oklch(50% 0.134 242.749);
+              --color-info-content: #FFFFFF;
+              --color-success: #00891D;
+              --color-success-content: #FFFFFF;
+              --color-warning: #EEAF00;
+              --color-warning-content: oklch(0% 0 0);
+              --color-error: #E50006;
+              --color-error-content: oklch(100% 0 0);
+              --radius-selector: 0.5rem;
+              --radius-field: 0.5rem;
+              --radius-box: 0.5rem;
+              --size-selector: 0.25rem;
+              --size-field: 0.25rem;
+              --border: 1px;
+              --depth: 1;
+              --noise: 0;
+            }
+        </style>
         <script>
             tailwind.config = {
                 theme: {
@@ -47,26 +82,6 @@
                     },
                 },
             }
-        </script>
-        <script>
-            document.addEventListener("DOMContentLoaded", () => {
-                const button = document.getElementById("profile-button");
-                const dropdown = document.getElementById("menu-dropdown");
-
-                if (button && dropdown) {
-                    button.addEventListener("click", (e) => {
-                        e.stopPropagation(); // prevent click from reaching document
-                        dropdown.classList.toggle("hidden");
-                    });
-
-                    document.addEventListener("click", (e) => {
-                        // Close dropdown when clicking anywhere else
-                        if (!button.contains(e.target) && !dropdown.contains(e.target)) {
-                            dropdown.classList.add("hidden");
-                        }
-                    });
-                }
-            });
         </script>
 
     {% endif %}

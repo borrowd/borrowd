@@ -1,10 +1,20 @@
 {% load i18n %}
 {% if messages %}
-<div class="p-4 bg-blue-100 border border-blue-300 rounded-md shadow-sm">
-    <ul class="space-y-2">
-        {% for message in messages %}
-        <li class="text-blue-800 text-sm">{{ message }}</li>
-        {% endfor %}
-    </ul>
+<div id="notification-toast" class="fixed top-20 right-4 z-50">
+    {% for message in messages %}
+    <div class="bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg text-sm mb-2 max-w-xs">
+        {{ message }}
+    </div>
+    {% endfor %}
 </div>
+<script>
+    setTimeout(() => {
+        const toast = document.getElementById('notification-toast');
+        if (toast) {
+            toast.style.transition = 'opacity 0.3s ease-out';
+            toast.style.opacity = '0';
+            setTimeout(() => toast.remove(), 300);
+        }
+    }, 5000);
+</script>
 {% endif %}
