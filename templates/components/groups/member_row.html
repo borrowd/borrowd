@@ -13,6 +13,7 @@
       <div class="text-sm text-gray-500">{{ member.role }}</div>
     </div>
     <!-- todo: member actions -->
+    {% if is_moderator %}
     <div>
       <button class="text-gray-400 hover:text-gray-600 focus:outline-none">
           <!-- super ugly, but draws a nice vertical 3-dot for now, will be replaced with proper icon library -->
@@ -21,4 +22,5 @@
         </svg>
       </button>
     </div>
+    {% endif %}
   </div>
