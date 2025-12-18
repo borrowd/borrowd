@@ -16,6 +16,9 @@
         <div class="fieldset w-full">
             <label class="label">
                 <span class="label-text ">{{ field.label }}</span>
+                {% if field.name == "trust_level_required" %}
+                    <a href="javascript:void(0)" onclick="showModal('trust-level-info-modal')" class="label-text-alt text-blue-600 hover:text-blue-800 underline ml-2">What is this?</a>
+                {% endif %}
             </label>
             {{ field }}
             {% if field.errors %}
@@ -53,8 +56,8 @@
 
         {% endif %}
 
-        <div class="flex gap-4 justify-center sm:justify-start">
-            <c-button type="submit" class="btn-primary">Save</c-button>
+        <div class="">
+            <c-button type="submit" class="btn btn-primary">Save item</c-button>
             {% if form.instance.pk %}
                 <c-button-nav url="{% url 'item-detail' form.instance.pk %}">
                     Cancel
@@ -66,4 +69,6 @@
         </div>
     </form>
 </c-box>
+
+{% include "components/modal.html" with modal_id="trust-level-info-modal" modal_title="Group trust levels" cancel_button="Got it" modal_content="<p>At the heart of Borrow'd is trust. Each group you join gets a trust level (High, Medium, or Low), which determines what kinds of items they can request from you. For example:</p><h2 class='font-bold mt-4 mb-2'>High trust: Super Best Friends</h2><p>A small circle of people you've known for years. You trust them with your life – and also, electronics, appliances, and other high-value items.</p><h2 class='font-bold mt-4 mb-2'>Medium trust: Sports Ball Team</h2><p>You may have only known each other for a few seasons, but you know you can count on them to score points (and return your items). You're comfortable sharing things like hobby tools or gardening supplies.</p><h2 class='font-bold mt-4 mb-2'>Low trust: Neighborhood Community</h2><p>You recognize your neighbors, but don't necessarily see each other often. You're happy to lend out low-cost, hard-to-break items like books, toys, or decorations.</p>" %}
 {% endblock %}
