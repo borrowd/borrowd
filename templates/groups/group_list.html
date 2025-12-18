@@ -6,7 +6,7 @@
     <c-box>
         <div class="flex justify-between items-center mb-4">
             <c-h1>Groups</c-h1>
-            <c-button-nav url="{% url 'borrowd_groups:group-create' %}">Create New Group</c-button-nav>
+            <c-button-nav url="{% url 'borrowd_groups:group-create' %}" class="btn btn-primary">Create New Group</c-button-nav>
         </div>
         <div class="flex space-x-4 mb-4">
             <div class="flex-grow">
@@ -28,7 +28,7 @@
                     when we're also using HTMX to avoid page reloads here.
                     {% endcomment %}
                     {% if not request.GET.values|join:"" == "" %}
-                    <c-button-nav url="{% url 'borrowd_groups:group-list' %}">Clear</c-button-nav>
+                    <c-button-nav url="{% url 'borrowd_groups:group-list' %}" class="btn btn-ghost">Clear</c-button-nav>
                     {% endif %}
                 </form> -->
             </div>
