@@ -9,7 +9,7 @@
 
 {% block items_content %}
 <c-box>
-    <c-h1>{% if not view.object.pk %}Create{% else %}Edit{% endif %} Item</c-h1>
+    {% include "components/page_header.html" with title=page_title %}
     <form method="post" enctype="multipart/form-data" class="flex flex-col space-y-2" onsubmit="this.querySelector('button[type=submit]').disabled = true;">
         {% csrf_token %}
         {% for field in form %}
@@ -37,8 +37,8 @@
                     <div>
                         <c-photo src="{{ photo.image.url }}"
                             alt="{{ view.object.name }} Photo {{ forloop.counter }}" />
-                        <div class="p-1 flex justify-center">
-                            <c-button-nav url="{% url 'itemphoto-delete' view.object.pk photo.pk %}">
+                        <div class="p-1">
+                            <c-button-nav url="{% url 'itemphoto-delete' view.object.pk photo.pk %}" class="btn btn-link">
                                 Delete
                             </c-button-nav>
                         </div>
@@ -49,20 +49,20 @@
                 <div class="mb-2">No photos</div>
             {% endif %}
             {% if view.object.photos.count < 5 %}
-                <c-button-nav url="{% url 'itemphoto-create' form.instance.pk %}">Add Photo</c-button-nav>
+                <c-button-nav url="{% url 'itemphoto-create' form.instance.pk %}" class="btn btn-sm">Add Photo</c-button-nav>
             {% else %}
                 <div class="text-gray-500 italic">Photo limit (5) reached. Delete a photo if you want to add another.</div>
             {% endif %}
 
         {% endif %}
 
-        <div class="">
-            <c-button type="submit" class="btn btn-primary">Save item</c-button>
+        <div class="mt-4">
+            <c-button type="submit" class="btn btn-primary mr-2">Save item</c-button>
             {% if form.instance.pk %}
-                <c-button-nav url="{% url 'item-detail' form.instance.pk %}">
+                <c-button-nav url="{% url 'item-detail' form.instance.pk %}" class="btn">
                     Cancel
                 </c-button-nav>
-                <c-button-nav url="{% url 'item-delete' form.instance.pk %}">
+                <c-button-nav url="{% url 'item-delete' form.instance.pk %}" class="btn btn-link">
                     Delete
                 </c-button-nav>
             {% endif %}

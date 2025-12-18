@@ -1,0 +1,7 @@
+<!-- Reusable Page Header Component with Back Button -->
+<div class="flex items-center justify-center relative mb-6">
+    <a href="{% if back_url %}{{ back_url }}{% else %}javascript:history.back(){% endif %}" class="absolute left-0 btn btn-ghost btn-circle">
+        <i class="fa-solid fa-arrow-left text-lg"></i>
+    </a>
+    <h1 class="text-xl font-semibold">{{ title }}</h1>
+</div>

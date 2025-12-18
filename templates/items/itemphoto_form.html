@@ -20,7 +20,7 @@
         {% endfor %}
         <div class="flex gap-4">
             <c-button type="submit">Save</c-button>
-            <c-button-nav url="{% url 'item-edit' item_pk %}">Cancel</c-button-nav>
+            <c-button-nav url="{% url 'item-edit' item_pk %}" class="btn btn-ghost">Cancel</c-button-nav>
         </div>
     </form>
 </c-box>
