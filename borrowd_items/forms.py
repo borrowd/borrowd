@@ -11,17 +11,17 @@ class ItemForm(forms.ModelForm[Item]):
         fields = ["name", "description", "categories", "trust_level_required"]
         widgets = {
             "name": forms.TextInput(
-                attrs={"class": "w-full", "placeholder": "Enter item name..."}
+                attrs={"class": "input input-bordered w-full", "placeholder": "Enter item name..."}
             ),
             "description": forms.Textarea(
                 attrs={
                     "rows": 4,
-                    "class": "w-full resize-y",
+                    "class": "textarea textarea-bordered w-full resize-y",
                     "placeholder": "Enter a detailed description of your item...",
                 }
             ),
-            "categories": forms.SelectMultiple(attrs={"class": "w-full"}),
-            "trust_level_required": forms.Select(attrs={"class": "w-full"}),
+            "categories": forms.SelectMultiple(attrs={"class": "select select-bordered w-full"}),
+            "trust_level_required": forms.Select(attrs={"class": "select select-bordered w-full"}),
         }
 
 
@@ -32,6 +32,6 @@ class ItemCreateWithPhotoForm(ItemForm):
         required=False,
         label="Photo (optional)",
         widget=forms.FileInput(
-            attrs={"class": "w-full max-w-full", "accept": "image/*"}
+            attrs={"class": "file-input file-input-bordered w-full max-w-full", "accept": "image/*"}
         ),
     )
