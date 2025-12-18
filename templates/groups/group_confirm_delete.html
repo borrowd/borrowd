@@ -8,7 +8,7 @@
     <form method="post" onsubmit="this.querySelector('button[type=submit]').disabled = true;">
         {% csrf_token %}
         <c-button danger type="submit">Yes, delete</c-button>
-        <c-button-nav url="{% url 'borrowd_groups:group-detail' object.pk %}">Cancel</c-button-nav>
+        <c-button-nav url="{% url 'borrowd_groups:group-detail' object.pk %}" class="btn btn-ghost">Cancel</c-button-nav>
     </form>
 </c-box>
 {% endblock %}
