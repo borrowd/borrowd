@@ -123,6 +123,11 @@ class ItemCreateView(
     model = Item
     form_class = ItemCreateWithPhotoForm
 
+    def get_context_data(self, **kwargs: str) -> dict[str, Any]:
+        context = super().get_context_data(**kwargs)
+        context["page_title"] = "Create Item"
+        return context
+
     def form_valid(self, form: ItemCreateWithPhotoForm) -> HttpResponse:
         form.instance.owner = self.request.user  # type: ignore[assignment]
         response = super().form_valid(form)
@@ -179,6 +184,11 @@ class ItemUpdateView(
 ):
     model = Item
     form_class = ItemForm
+
+    def get_context_data(self, **kwargs: str) -> dict[str, Any]:
+        context = super().get_context_data(**kwargs)
+        context["page_title"] = "Edit Item"
+        return context
 
     def get_success_url(self) -> str:
         if self.object is None:

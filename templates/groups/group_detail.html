@@ -32,12 +32,12 @@
             <hr class="border-t border-gray-200 w-full">
         </div>
         <div>
-            <c-button-nav url="{% url 'borrowd_groups:group-invite' object.pk %}">
+            <c-button-nav url="{% url 'borrowd_groups:group-invite' object.pk %}" class="btn btn-secondary">
                 Get Invite Link
             </c-button-nav>
             <!-- only moderators can edit Group -->
             {% if is_moderator %}
-            <c-button-nav url="{% url 'borrowd_groups:group-edit' object.pk %}" class="bg-orange-500 hover:bg-orange-600 text-white">
+            <c-button-nav url="{% url 'borrowd_groups:group-edit' object.pk %}" class="btn btn-warning">
                 Edit Group
             </c-button-nav>
             {% endif %}
