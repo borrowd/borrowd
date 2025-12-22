@@ -1,7 +1,9 @@
 {% load button_styles %}
 <a href="{{ url }}"
-   class="inline-block w-fit font-medium py-2 px-4 rounded transition-colors duration-200 border-2
-          {{ color|default:"blue"|button_bg_color }} {{ color|default:"blue"|button_text_color }} {{ color|default:"blue"|button_border_color }}
-          {{ class }}">
+   class="btn btn-primary
+          {% comment %} {{ color|default:"blue"|button_bg_color }} {{ color|default:"blue"|button_text_color }} {{ color|default:"blue"|button_border_color }}
+          {{ class }} {% endcomment %}
+           "
+           >
     {{ slot }}
 </a>
