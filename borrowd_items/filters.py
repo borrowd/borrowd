@@ -1,7 +1,7 @@
 from typing import Any
 
 from django.db.models import Q, QuerySet
-from django_filters import CharFilter, FilterSet, ModelChoiceFilter
+from django_filters import CharFilter, FilterSet, ModelMultipleChoiceFilter
 from guardian.shortcuts import get_objects_for_user
 
 from .models import Item, ItemCategory
@@ -10,8 +10,11 @@ from .models import Item, ItemCategory
 # No typing for django_filter, so mypy doesn't like us subclassing.
 class ItemFilter(FilterSet):  # type: ignore[misc]
     search = CharFilter(label="Search", method="filter_by_search")
-    category = ModelChoiceFilter(
-        queryset=ItemCategory.objects.all(), empty_label="Category"
+    categories = ModelMultipleChoiceFilter(
+        field_name="categories",
+        queryset=ItemCategory.objects.all(),
+        method="filter_by_categories",
+        label="Categories",
     )
 
     def filter_by_search(
@@ -22,6 +25,25 @@ class ItemFilter(FilterSet):  # type: ignore[misc]
         return queryset.filter(
             Q(name__icontains=value) | Q(description__icontains=value)
         )
+
+    def filter_by_categories(
+        self, queryset: QuerySet[Item], name: str, value: Any
+    ) -> QuerySet[Item]:
+        """
+        Filter items by selected categories.
+
+        Items can have multiple categories assigned.
+        When filtering by multiple categories, we show items that match ANY
+        of the selected categories, not all of them.
+
+        The `distinct()` call removes items with multiple selected categories
+        For example, if a user selects both "Electronics" and "Tools" categories,
+        and a "Cordless Drill" item has both categories assigned,
+        that item would appear twice in the results without distinct().
+        """
+        if not value:
+            return queryset
+        return queryset.filter(categories__in=value).distinct()
 
     @property
     def qs(self) -> QuerySet[Item]:
@@ -56,4 +78,4 @@ class ItemFilter(FilterSet):  # type: ignore[misc]
 
     class Meta:
         model = Item
-        fields = ["category", "search"]
+        fields = ["categories", "search"]

@@ -1,21 +1,64 @@
 @import "tailwindcss";
+@plugin "daisyui";
+/*
+local bundling theme.
+For non-local bundling, the relevant themes can be found in the base.html files,
+templates/allauth/base.html
+templates/base.html
+Any changes here will take place if using local bundling, and will be represented
+in prod, but the aforementioned files need to be updated if using non-local bundling.
+*/
+@plugin "daisyui/theme" {
+  name: "light";
+  default: true;
+  prefersdark: true;
+  color-scheme: "light";
+  --color-base-100: #ffffff;
+  --color-base-200: #f8f8f8;
+  --color-base-300: #eeeeee;
+  --color-base-content: #18181b;
+  --color-primary: #2c51a1;
+  --color-primary-content: #ffffff;
+  --color-secondary: #73325b;
+  --color-secondary-content: #ffffff;
+  --color-accent: #b97c21;
+  --color-accent-content: oklch(100% 0 0);
+  --color-neutral: #314157;
+  --color-neutral-content: #ffffff;
+  --color-info: oklch(50% 0.134 242.749);
+  --color-info-content: #ffffff;
+  --color-success: #00891d;
+  --color-success-content: #ffffff;
+  --color-warning: #eeaf00;
+  --color-warning-content: oklch(0% 0 0);
+  --color-error: #e50006;
+  --color-error-content: oklch(100% 0 0);
+  --radius-selector: 0.5rem;
+  --radius-field: 0.5rem;
+  --radius-box: 0.5rem;
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+  --border: 1px;
+  --depth: 1;
+  --noise: 0;
+}
 
 @font-face {
-    font-family: "Roboto Slab";
-    font-style: normal;
-    font-weight: 400;
-    font-display: swap;
-    src: url("$fonts/RobotoSlab-Regular.ttf")
+  font-family: "Roboto Slab";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("$fonts/RobotoSlab-Regular.ttf");
 }
 
 @theme {
-    --color-borrowd-indigo-300: #d9e1f4;
-    --color-borrowd-indigo-600: #2c51a1;
-    --color-borrowd-honey-300: #fdf7e1;
-    --color-borrowd-honey-600: #b97c21;
-    --color-borrowd-plum-300: #f0d7eb;
-    --color-borrowd-plum-600: #73325b;
-    --color-borrowd-fern-300: #ebf7ed;
-    --color-borrowd-fern-600: #537533;
-    --font-roboto-slab: "Roboto Slab", "serif";
+  --color-borrowd-indigo-300: #d9e1f4;
+  --color-borrowd-indigo-600: #2c51a1;
+  --color-borrowd-honey-300: #fdf7e1;
+  --color-borrowd-honey-600: #b97c21;
+  --color-borrowd-plum-300: #f0d7eb;
+  --color-borrowd-plum-600: #73325b;
+  --color-borrowd-fern-300: #ebf7ed;
+  --color-borrowd-fern-600: #537533;
+  --font-roboto-slab: "Roboto Slab", "serif";
 }
