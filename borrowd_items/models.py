@@ -5,7 +5,6 @@ from django.core.exceptions import ValidationError
 from django.db.models import (
     CASCADE,
     PROTECT,
-    SET_NULL,
     CharField,
     DateTimeField,
     ForeignKey,
@@ -92,12 +91,7 @@ class Item(Model):
     )
     # If user is deleted, delete their Items
     owner: ForeignKey[BorrowdUser] = ForeignKey(BorrowdUser, on_delete=CASCADE)
-    # Deprecated: Use `categories` instead.
-    # Deprecated in https://github.com/borrowd/borrowd/pull/202
-    # TODO: Remove in follow-up PR.
-    category: ForeignKey[ItemCategory] = ForeignKey(
-        ItemCategory, on_delete=SET_NULL, null=True, blank=False
-    )
+
     categories: ManyToManyField[ItemCategory, ItemCategory] = ManyToManyField(
         ItemCategory,
         related_name="items",
