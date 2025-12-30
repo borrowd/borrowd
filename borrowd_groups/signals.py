@@ -8,8 +8,8 @@ from guardian.shortcuts import assign_perm, remove_perm
 
 from borrowd.models import TrustLevel
 from borrowd_groups.exceptions import ModeratorRequiredException
-from borrowd_groups.models import BorrowdGroup, Membership
-from borrowd_items.models import Item
+from borrowd_groups.models import BorrowdGroup, GroupPermission, Membership
+from borrowd_items.models import Item, ItemPermission
 from borrowd_users.models import BorrowdUser
 
 
@@ -108,27 +108,27 @@ def refresh_permissions_on_membership_update(
         owner=user, trust_level_required__lte=new_trust_level
     )
 
-    for perm in ["view_this_item"]:  # will have more later
-        remove_perm(perm, group, items_requiring_higher_trust)
-        assign_perm(perm, group, items_requiring_lower_trust)
+    for item_perm in [ItemPermission.VIEW]:  # will have more later
+        remove_perm(item_perm, group, items_requiring_higher_trust)
+        assign_perm(item_perm, group, items_requiring_lower_trust)
 
     #
     # Handle Group permissions
     #
-    member_perms = ["view_this_group"]
+    member_perms = [GroupPermission.VIEW]
     moderator_perms = [
-        "edit_this_group",
-        "delete_this_group",
+        GroupPermission.EDIT,
+        GroupPermission.DELETE,
     ]
     if membership.is_moderator:
         member_perms += moderator_perms
     else:
         # Remove moderator permissions if the user is no longer a moderator
-        for perm in moderator_perms:
-            remove_perm(perm, user, borrowd_group)
+        for group_perm in moderator_perms:
+            remove_perm(group_perm, user, borrowd_group)
 
-    for perm in member_perms:
-        assign_perm(perm, user, borrowd_group)
+    for group_perm in member_perms:
+        assign_perm(group_perm, user, borrowd_group)
 
 
 @receiver(pre_delete, sender=BorrowdGroup)
@@ -163,21 +163,21 @@ def pre_membership_delete(
     #
     # Handle Group removal
     #
-    all_perms = [
-        "view_this_group",
-        "edit_this_group",
-        "delete_this_group",
+    group_perms = [
+        GroupPermission.VIEW,
+        GroupPermission.EDIT,
+        GroupPermission.DELETE,
     ]
     # Remove all permissions for the user on the group
-    for perm in all_perms:
-        remove_perm(perm, user, borrowd_group)
+    for group_perm in group_perms:
+        remove_perm(group_perm, user, borrowd_group)
 
     #
     # Handle Item removal
     #
     items_of_user = Item.objects.filter(owner=user)
-    for perm in ["view_this_item"]:  # will have more later
-        remove_perm(perm, group, items_of_user)
+    for item_perm in [ItemPermission.VIEW]:  # will have more later
+        remove_perm(item_perm, group, items_of_user)
 
 
 @receiver(pre_save, sender=Membership)

@@ -232,7 +232,12 @@ LOGGING = {
     "loggers": {
         "django": {
             "handlers": ["console"],
-            "level": os.getenv("DJANGO_LOG_LEVEL", "INFO").upper(),
+            "level": env("DJANGO_LOG_LEVEL", default="INFO").upper(),
+            "propagate": False,
+        },
+        "borrowd": {
+            "handlers": ["console"],
+            "level": env("DJANGO_LOG_LEVEL", default="INFO").upper(),
             "propagate": False,
         },
     },

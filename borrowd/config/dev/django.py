@@ -1,6 +1,13 @@
+from borrowd.config.env import env
+
 from ..base import *  # noqa: F403
 
-DEBUG = True
+if env("DEBUG", cast=str, default="true").lower() in ("1", "t", "true", "yes", "y"):
+    DEBUG = True
+else:
+    print("running server with DEBUG mode OFF")
+    DEBUG = False
+    ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
 
 STATIC_ROOT = BASE_DIR / "staticfiles"  # noqa: F405
 DJANGO_VITE = {

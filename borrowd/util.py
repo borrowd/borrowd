@@ -1,10 +1,16 @@
 import base64
 import json
+import logging
 import os
 import sys
 from urllib.parse import urlparse
 
+from django.core.exceptions import PermissionDenied
 from django.db.models import Model
+from django.http import Http404
+from guardian.mixins import PermissionRequiredMixin
+
+logger = logging.getLogger(__name__)
 
 
 class BorrowdTemplateFinderMixin:
@@ -78,3 +84,29 @@ def get_platformsh_base_url() -> str | None:
     primary_url = sorted(https_routes)[0]
     parsed = urlparse(primary_url)
     return f"{parsed.scheme}://{parsed.netloc}"
+
+
+class LoginOr404PermissionMixin(PermissionRequiredMixin):  # type: ignore[misc]
+    """
+    Anonymous users → redirect to login
+    Authenticated users without permission → 404
+    """
+
+    def on_permission_check_fail(self, request, response, obj=None):  # type: ignore[no-untyped-def]
+        user = self.request.user
+        if not user.is_authenticated:
+            return super().on_permission_check_fail(request, response, obj)
+        raise Http404
+
+
+class LoginOr403PermissionMixin(PermissionRequiredMixin):  # type: ignore[misc]
+    """
+    Anonymous users → redirect to login
+    Authenticated users without permission → 403
+    """
+
+    def on_permission_check_fail(self, request, response, obj=None):  # type: ignore[no-untyped-def]
+        user = self.request.user
+        if not user.is_authenticated:
+            return super().on_permission_check_fail(request, response, obj)
+        raise PermissionDenied

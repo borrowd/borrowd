@@ -1,3 +1,4 @@
+from enum import StrEnum
 from typing import Any, Never  # Unfortunately needed for more mypy shenanigans
 
 from django.contrib.auth.models import Group
@@ -23,6 +24,12 @@ from imagekit.processors import ResizeToFit
 from borrowd.models import TrustLevel
 from borrowd_groups.exceptions import ExistingMemberException
 from borrowd_users.models import BorrowdUser
+
+
+class GroupPermission(StrEnum):
+    VIEW = "view_this_group"
+    EDIT = "edit_this_group"
+    DELETE = "delete_this_group"
 
 
 class BorrowdGroupManager(Manager["BorrowdGroup"]):
