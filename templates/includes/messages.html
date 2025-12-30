@@ -1,15 +1,17 @@
 {% load i18n %}
 {% if messages %}
-<div id="notification-toast" class="fixed top-20 right-4 z-50">
+<div>
     {% for message in messages %}
-    <div class="bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg text-sm mb-2 max-w-xs">
-        {{ message }}
+    <div class="toast toast-center z-100">
+        <div class="alert alert-{{ message.tags }}">
+            <span>{{ message }}</span>
+        </div>
     </div>
     {% endfor %}
 </div>
 <script>
     setTimeout(() => {
-        const toast = document.getElementById('notification-toast');
+        const toast = document.querySelector('.toast');
         if (toast) {
             toast.style.transition = 'opacity 0.3s ease-out';
             toast.style.opacity = '0';
