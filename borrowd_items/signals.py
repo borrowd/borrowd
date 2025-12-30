@@ -3,7 +3,9 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 from guardian.shortcuts import assign_perm, remove_perm
 
-from .models import Item, ItemPermission
+from borrowd_permissions.models import ItemOLP
+
+from .models import Item
 
 
 @receiver(post_save, sender=Item)
@@ -21,7 +23,7 @@ def assign_item_permissions(
 
     if created:
         # For new items, assign owner permissions
-        for perm in [ItemPermission.VIEW, ItemPermission.EDIT, ItemPermission.DELETE]:
+        for perm in [ItemOLP.VIEW, ItemOLP.EDIT, ItemOLP.DELETE]:
             assign_perm(
                 perm,
                 instance.owner,
@@ -30,7 +32,7 @@ def assign_item_permissions(
     else:
         # For updated items, remove existing group permissions first
         for group in owner_groups:
-            remove_perm(ItemPermission.VIEW, group, instance)
+            remove_perm(ItemOLP.VIEW, group, instance)
 
     # Assign view permissions to all Groups of which the owner
     # is a member and has an equal or greater Trust Level than
@@ -41,4 +43,5 @@ def assign_item_permissions(
     allowed_groups = owner_groups.filter(
         name__in=allowed_borrowd_groups.values_list("name", flat=True)
     )
-    assign_perm(ItemPermission.VIEW, allowed_groups, instance)
+    assign_perm(ItemOLP.VIEW, allowed_groups, instance)
+    assign_perm(ItemOLP.VIEW, allowed_groups, instance)

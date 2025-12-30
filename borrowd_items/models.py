@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from enum import StrEnum
 from typing import Never, Optional
 
 from django.core.exceptions import ValidationError
@@ -25,12 +24,6 @@ from borrowd.models import TrustLevel
 from borrowd_users.models import BorrowdUser
 
 from .exceptions import InvalidItemAction, ItemAlreadyRequested
-
-
-class ItemPermission(StrEnum):
-    VIEW = "view_this_item"
-    EDIT = "edit_this_item"
-    DELETE = "delete_this_item"
 
 
 class ItemAction(TextChoices):

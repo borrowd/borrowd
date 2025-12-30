@@ -8,8 +8,9 @@ from guardian.shortcuts import assign_perm, remove_perm
 
 from borrowd.models import TrustLevel
 from borrowd_groups.exceptions import ModeratorRequiredException
-from borrowd_groups.models import BorrowdGroup, GroupPermission, Membership
-from borrowd_items.models import Item, ItemPermission
+from borrowd_groups.models import BorrowdGroup, Membership
+from borrowd_items.models import Item
+from borrowd_permissions.models import BorrowdGroupOLP, ItemOLP
 from borrowd_users.models import BorrowdUser
 
 
@@ -108,17 +109,17 @@ def refresh_permissions_on_membership_update(
         owner=user, trust_level_required__lte=new_trust_level
     )
 
-    for item_perm in [ItemPermission.VIEW]:  # will have more later
+    for item_perm in [ItemOLP.VIEW]:  # will have more later
         remove_perm(item_perm, group, items_requiring_higher_trust)
         assign_perm(item_perm, group, items_requiring_lower_trust)
 
     #
     # Handle Group permissions
     #
-    member_perms = [GroupPermission.VIEW]
+    member_perms = [BorrowdGroupOLP.VIEW]
     moderator_perms = [
-        GroupPermission.EDIT,
-        GroupPermission.DELETE,
+        BorrowdGroupOLP.EDIT,
+        BorrowdGroupOLP.DELETE,
     ]
     if membership.is_moderator:
         member_perms += moderator_perms
@@ -164,9 +165,9 @@ def pre_membership_delete(
     # Handle Group removal
     #
     group_perms = [
-        GroupPermission.VIEW,
-        GroupPermission.EDIT,
-        GroupPermission.DELETE,
+        BorrowdGroupOLP.VIEW,
+        BorrowdGroupOLP.EDIT,
+        BorrowdGroupOLP.DELETE,
     ]
     # Remove all permissions for the user on the group
     for group_perm in group_perms:
@@ -176,7 +177,7 @@ def pre_membership_delete(
     # Handle Item removal
     #
     items_of_user = Item.objects.filter(owner=user)
-    for item_perm in [ItemPermission.VIEW]:  # will have more later
+    for item_perm in [ItemOLP.VIEW]:  # will have more later
         remove_perm(item_perm, group, items_of_user)
 
 
@@ -195,4 +196,5 @@ def pre_membership_save(
 
     # Check if the user is being added as a moderator
     if not membership.is_moderator:
+        _raise_if_last_moderator(user, group, **kwargs)
         _raise_if_last_moderator(user, group, **kwargs)

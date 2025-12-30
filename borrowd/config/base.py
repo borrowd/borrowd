@@ -50,11 +50,12 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "django_cotton",
-    "guardian",
     "borrowd",
     "borrowd_users",  # Must be above `allauth` to use our templates
     "allauth",
     "allauth.account",
+    "guardian",  # Must be before borrowd_permissions
+    "borrowd_permissions",  # Must be before object-defining apps like borrowd_items and borrowd_groups
     "borrowd_web",
     "borrowd_beta",
     "borrowd_items",

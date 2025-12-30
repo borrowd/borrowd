@@ -9,17 +9,18 @@ from django.views.generic import CreateView, DeleteView, DetailView, UpdateView
 from django_filters.views import FilterView
 from guardian.mixins import LoginRequiredMixin
 
-from borrowd.util import (
-    BorrowdTemplateFinderMixin,
+from borrowd.util import BorrowdTemplateFinderMixin
+from borrowd_permissions.mixins import (
     LoginOr403PermissionMixin,
     LoginOr404PermissionMixin,
 )
+from borrowd_permissions.models import ItemOLP
 from borrowd_users.models import BorrowdUser
 
 from .exceptions import InvalidItemAction, ItemAlreadyRequested
 from .filters import ItemFilter
 from .forms import ItemCreateWithPhotoForm, ItemForm
-from .models import Item, ItemAction, ItemPermission, ItemPhoto
+from .models import Item, ItemAction, ItemPhoto
 
 
 @require_POST
@@ -147,7 +148,7 @@ class ItemDeleteView(
     DeleteView[Item, ModelForm[Item]],
 ):
     model = Item
-    permission_required = ItemPermission.DELETE
+    permission_required = ItemOLP.DELETE
     success_url = reverse_lazy("item-list")
 
 
@@ -157,7 +158,7 @@ class ItemDetailView(
     DetailView[Item],
 ):
     model = Item
-    permission_required = ItemPermission.VIEW
+    permission_required = ItemOLP.VIEW
 
     def get_context_data(self, **kwargs: str) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
@@ -184,7 +185,7 @@ class ItemUpdateView(
     UpdateView[Item, ItemForm],
 ):
     model = Item
-    permission_required = ItemPermission.EDIT
+    permission_required = ItemOLP.EDIT
     form_class = ItemForm
 
     def get_success_url(self) -> str:
@@ -199,7 +200,7 @@ class ItemPhotoCreateView(
     CreateView[ItemPhoto, ModelForm[ItemPhoto]],
 ):
     model = ItemPhoto
-    permission_required = ItemPermission.EDIT
+    permission_required = ItemOLP.EDIT
     fields = ["image"]  # item set from URL params
 
     def get_permission_object(self):  # type: ignore[no-untyped-def]
@@ -229,7 +230,7 @@ class ItemPhotoDeleteView(
     DeleteView[ItemPhoto, ModelForm[ItemPhoto]],
 ):
     model = ItemPhoto
-    permission_required = ItemPermission.EDIT
+    permission_required = ItemOLP.EDIT
 
     def get_permission_object(self):  # type: ignore[no-untyped-def]
         return self.get_object().item

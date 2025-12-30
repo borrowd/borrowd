@@ -14,15 +14,16 @@ from django_filters.views import FilterView
 from guardian.mixins import LoginRequiredMixin
 
 from borrowd.models import TrustLevel
-from borrowd.util import (
-    BorrowdTemplateFinderMixin,
+from borrowd.util import BorrowdTemplateFinderMixin
+from borrowd_permissions.mixins import (
     LoginOr403PermissionMixin,
     LoginOr404PermissionMixin,
 )
+from borrowd_permissions.models import BorrowdGroupOLP
 
 from .filters import GroupFilter
 from .forms import GroupCreateForm, GroupJoinForm, UpdateTrustLevelForm
-from .models import BorrowdGroup, GroupPermission, Membership
+from .models import BorrowdGroup, Membership
 
 GroupInvite = namedtuple("GroupInvite", ["group_id", "group_name"])
 
@@ -109,7 +110,7 @@ class GroupDeleteView(
 ):
     # Todo: prevent non-admin/moderators from completing this action
     model = BorrowdGroup
-    permission_required = GroupPermission.DELETE
+    permission_required = BorrowdGroupOLP.DELETE
     success_url = reverse_lazy("borrowd_groups:group-list")
 
 
@@ -120,7 +121,7 @@ class GroupDetailView(
     DetailView[BorrowdGroup],
 ):
     model = BorrowdGroup
-    permission_required = GroupPermission.VIEW
+    permission_required = BorrowdGroupOLP.VIEW
 
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
@@ -148,7 +149,7 @@ class GroupInviteView(
     DetailView[BorrowdGroup],
 ):
     model = BorrowdGroup
-    permission_required = GroupPermission.VIEW
+    permission_required = BorrowdGroupOLP.VIEW
     template_name = "groups/group_invite.html"
 
     def get_context_data(self, **kwargs: str) -> dict[str, Any]:
@@ -278,7 +279,7 @@ class GroupUpdateView(
     UpdateView[BorrowdGroup, ModelForm[BorrowdGroup]],
 ):
     model = BorrowdGroup
-    permission_required = GroupPermission.EDIT
+    permission_required = BorrowdGroupOLP.EDIT
     fields = ["name", "description", "logo", "banner", "membership_requires_approval"]
 
     def form_valid(self, form: ModelForm[BorrowdGroup]) -> HttpResponse:
@@ -371,6 +372,9 @@ class RemoveMemberView(LoginRequiredMixin, View):  # type: ignore[misc]
 
 # this is magically picked up when PermissionDenied is raised from within this app
 def forbidden(request: HttpRequest) -> HttpResponse:
+    template = template_loader.get_template("./templates/403.html")
+    body = template.render
+    return HttpResponse(body, status=403)
     template = template_loader.get_template("./templates/403.html")
     body = template.render
     return HttpResponse(body, status=403)
