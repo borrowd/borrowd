@@ -50,6 +50,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "django_cotton",
+    "guardian",
     "borrowd",
     "borrowd_users",  # Must be above `allauth` to use our templates
     "allauth",
@@ -60,7 +61,6 @@ INSTALLED_APPS = [
     "borrowd_groups",
     "notifications",  # Must be below apps that send notifications and above borrowd_notifications
     "borrowd_notifications",
-    "guardian",
     "django_filters",
     "django_vite",
     "django_cleanup.apps.CleanupConfig",  # Must go last https://github.com/un1t/django-cleanup?tab=readme-ov-file#configuration
