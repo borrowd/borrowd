@@ -25,7 +25,7 @@ def profile_view(request: HttpRequest) -> HttpResponse:
         form = ProfileUpdateForm(request.POST, request.FILES, instance=profile)
         if form.is_valid():
             form.save()
-            messages.success(request, "Your profile has been updated successfully.")
+            messages.success(request, "Profile updated")
             return redirect("profile")
     else:
         form = ProfileUpdateForm(instance=profile)
