@@ -3,7 +3,7 @@
   <div class="max-h-96 overflow-y-auto">
     <div class="divide-y divide-gray-200">
       {% for member in members %}
-        <c-groups.member-row :member="member" />
+        <c-groups.member-row :member="member" :is_moderator="is_moderator" />
       {% endfor %}
     </div>
   </div>

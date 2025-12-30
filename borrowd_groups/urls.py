@@ -8,6 +8,7 @@ from .views import (
     GroupJoinView,
     GroupListView,
     GroupUpdateView,
+    RemoveMemberView,
     UpdateTrustLevelView,
 )
 
@@ -24,6 +25,11 @@ urlpatterns = [
         "<int:pk>/update-trust-level/",
         UpdateTrustLevelView.as_view(),
         name="update-trust-level",
+    ),
+    path(
+        "<int:pk>/remove-member/<int:user_id>/",
+        RemoveMemberView.as_view(),
+        name="remove-member",
     ),
     path("join/<str:encoded>/", GroupJoinView.as_view(), name="group-join"),
 ]

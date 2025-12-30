@@ -37,6 +37,8 @@ def get_members_data(group: BorrowdGroup) -> list[dict[str, Any]]:
     for membership in memberships:
         members_data.append(
             {
+                "user_id": membership.user.id,  # type: ignore
+                "membership_id": membership.id,  # type: ignore
                 "full_name": membership.user.profile.full_name(),  # type: ignore
                 "profile_image": membership.user.profile.image,  # type: ignore
                 "role": membership.is_moderator and "Moderator" or "Member",
@@ -320,6 +322,49 @@ class UpdateTrustLevelView(LoginRequiredMixin, View):  # type: ignore[misc]
             )
         else:
             messages.error(request, "Invalid trust level selected.")
+
+        return redirect("borrowd_groups:group-detail", pk=pk)
+
+
+class RemoveMemberView(LoginRequiredMixin, View):  # type: ignore[misc]
+    """
+    View to handle removing a member from a group.
+    Only moderators can remove members.
+    """
+
+    def post(self, request: HttpRequest, pk: int, user_id: int) -> HttpResponse:
+        # Get the group
+        try:
+            group = BorrowdGroup.objects.get(pk=pk)
+        except BorrowdGroup.DoesNotExist:
+            messages.error(request, "Group not found.")
+            return redirect("borrowd_groups:group-list")
+
+        # Check if the requesting user is a moderator
+        is_moderator = Membership.objects.filter(
+            user=request.user, group=group, is_moderator=True
+        ).exists()
+
+        if not is_moderator:
+            messages.error(request, "You do not have permission to remove members.")
+            return redirect("borrowd_groups:group-detail", pk=pk)
+
+        # Get the membership to remove
+        try:
+            membership = Membership.objects.get(user_id=user_id, group=group)
+        except Membership.DoesNotExist:
+            messages.error(request, "Member not found in this group.")
+            return redirect("borrowd_groups:group-detail", pk=pk)
+
+        # Prevent removing yourself
+        if membership.user == request.user:
+            messages.error(request, "You cannot remove yourself from the group.")
+            return redirect("borrowd_groups:group-detail", pk=pk)
+
+        # Remove the member
+        member_name = membership.user.profile.full_name()  # type: ignore
+        membership.delete()
+        messages.success(request, f"{member_name} has been removed from the group.")
 
         return redirect("borrowd_groups:group-detail", pk=pk)
 
