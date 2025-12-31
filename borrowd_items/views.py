@@ -64,7 +64,7 @@ def borrow_item(request: HttpRequest, pk: int) -> HttpResponse:
     # Not currently differentiating between viewing and borrowing
     # permissions; assumed that if a user can "see" an item (and
     # they're not the owner), then they can request to borrow it.
-    if not user.has_perm("view_this_item", item):
+    if not user.has_perm(ItemOLP.VIEW, item):
         return HttpResponse(
             "You do not have permission to borrow this item.", status=403
         )

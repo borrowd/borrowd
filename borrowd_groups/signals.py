@@ -197,4 +197,3 @@ def pre_membership_save(
     # Check if the user is being added as a moderator
     if not membership.is_moderator:
         _raise_if_last_moderator(user, group, **kwargs)
-        _raise_if_last_moderator(user, group, **kwargs)

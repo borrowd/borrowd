@@ -4,6 +4,8 @@ from django.db.models import Q, QuerySet
 from django_filters import CharFilter, FilterSet, ModelMultipleChoiceFilter
 from guardian.shortcuts import get_objects_for_user
 
+from borrowd_permissions.models import ItemOLP
+
 from .models import Item, ItemCategory
 
 
@@ -65,7 +67,7 @@ class ItemFilter(FilterSet):  # type: ignore[misc]
         if not hasattr(self, "_qs"):
             qs: QuerySet[Item] = get_objects_for_user(
                 self.request.user,
-                "view_this_item",
+                ItemOLP.VIEW,
                 klass=Item,
                 with_superuser=False,
             )

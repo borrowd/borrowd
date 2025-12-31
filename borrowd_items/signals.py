@@ -44,4 +44,3 @@ def assign_item_permissions(
         name__in=allowed_borrowd_groups.values_list("name", flat=True)
     )
     assign_perm(ItemOLP.VIEW, allowed_groups, instance)
-    assign_perm(ItemOLP.VIEW, allowed_groups, instance)

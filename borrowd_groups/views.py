@@ -375,6 +375,3 @@ def forbidden(request: HttpRequest) -> HttpResponse:
     template = template_loader.get_template("./templates/403.html")
     body = template.render
     return HttpResponse(body, status=403)
-    template = template_loader.get_template("./templates/403.html")
-    body = template.render
-    return HttpResponse(body, status=403)

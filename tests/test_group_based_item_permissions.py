@@ -5,6 +5,7 @@ from guardian.shortcuts import get_perms
 from borrowd.models import TrustLevel
 from borrowd_groups.models import BorrowdGroup
 from borrowd_items.models import Item
+from borrowd_permissions.models import ItemOLP
 from borrowd_users.models import BorrowdUser
 
 
@@ -27,7 +28,7 @@ class GroupBasedItemPermissionsTests(TestCase):
 
         # Assert
         ## Check if the owner can see the item
-        self.assertTrue(owner.has_perm("view_this_item", item))
+        self.assertTrue(owner.has_perm(ItemOLP.VIEW, item))
 
     def test_owners_have_automatic_membership_to_groups_they_create(self) -> None:
         # Arrange
@@ -52,7 +53,7 @@ class GroupBasedItemPermissionsTests(TestCase):
 
         # Assert
         ## Check if the group member can see the item
-        self.assertTrue(member.has_perm("view_this_item", item))
+        self.assertTrue(member.has_perm(ItemOLP.VIEW, item))
 
     def test_item_visible_to_group_members_on_item_creation(self) -> None:
         # Arrange
@@ -77,7 +78,7 @@ class GroupBasedItemPermissionsTests(TestCase):
 
         # Assert
         ## Check if the group member can see the item
-        self.assertTrue(member.has_perm("view_this_item", item))
+        self.assertTrue(member.has_perm(ItemOLP.VIEW, item))
 
     def test_item_visible_to_group_members_on_joining_group(self) -> None:
         # Arrange
@@ -103,7 +104,7 @@ class GroupBasedItemPermissionsTests(TestCase):
 
         # Assert
         ## Check if the group member can see the item
-        self.assertTrue(member.has_perm("view_this_item", item))
+        self.assertTrue(member.has_perm(ItemOLP.VIEW, item))
 
     def test_item_not_visible_to_group_with_lower_trust_on_joining_group(self) -> None:
         # Arrange
@@ -132,7 +133,7 @@ class GroupBasedItemPermissionsTests(TestCase):
         ## Member should not be able to see Item,
         ## because Item requires a High trust level,
         ## and Owner only has Low trust with this group.
-        self.assertFalse(member.has_perm("view_this_item", item))
+        self.assertFalse(member.has_perm(ItemOLP.VIEW, item))
 
     def test_item_not_visible_to_group_members_on_leaving_group(self) -> None:
         # Arrange
@@ -158,11 +159,11 @@ class GroupBasedItemPermissionsTests(TestCase):
 
         # Assert
         ## Check if the group member can see the item
-        self.assertTrue(member.has_perm("view_this_item", item))
+        self.assertTrue(member.has_perm(ItemOLP.VIEW, item))
 
         group.remove_user(member)
         ## Check if the group member can still see the item
-        self.assertFalse(member.has_perm("view_this_item", item))
+        self.assertFalse(member.has_perm(ItemOLP.VIEW, item))
 
     def test_item_not_visible_to_group_owner_on_leaving_group(self) -> None:
         # Arrange
@@ -185,13 +186,13 @@ class GroupBasedItemPermissionsTests(TestCase):
 
         # Assert
         ## Check if the group Moderator can see the item
-        self.assertTrue(moderator.has_perm("view_this_item", item))
+        self.assertTrue(moderator.has_perm(ItemOLP.VIEW, item))
 
         ## Remove the member from the group
         group.remove_user(member)
 
         ## Confirm the group Moderator can no longer see the item
-        self.assertFalse(moderator.has_perm("view_this_item", item))
+        self.assertFalse(moderator.has_perm(ItemOLP.VIEW, item))
 
     def test_item_not_visible_to_non_members(self) -> None:
         # Arrange
@@ -220,8 +221,8 @@ class GroupBasedItemPermissionsTests(TestCase):
 
         # Assert
         ## Check if the non-member cannot see the item
-        self.assertTrue(member.has_perm("view_this_item", item))
-        self.assertFalse(non_member.has_perm("view_this_item", item))
+        self.assertTrue(member.has_perm(ItemOLP.VIEW, item))
+        self.assertFalse(non_member.has_perm(ItemOLP.VIEW, item))
 
     def test_item_visible_to_groups_with_higher_trust_level(self) -> None:
         # Arrange
@@ -250,9 +251,9 @@ class GroupBasedItemPermissionsTests(TestCase):
 
         # Assert
         ## Check the group can see all three of these Items, given its High trust level
-        self.assertTrue("view_this_item" in get_perms(perms_group, item1))
-        self.assertTrue("view_this_item" in get_perms(perms_group, item2))
-        self.assertTrue("view_this_item" in get_perms(perms_group, item3))
+        self.assertTrue(ItemOLP.VIEW in get_perms(perms_group, item1))
+        self.assertTrue(ItemOLP.VIEW in get_perms(perms_group, item2))
+        self.assertTrue(ItemOLP.VIEW in get_perms(perms_group, item3))
 
     def test_item_not_visible_to_groups_with_lower_trust_level(self) -> None:
         # Arrange
@@ -281,9 +282,9 @@ class GroupBasedItemPermissionsTests(TestCase):
 
         # Assert
         ## Check the group can only see item1, since it only has a LOW trust level
-        self.assertTrue("view_this_item" in get_perms(perms_group, item1))
-        self.assertFalse("view_this_item" in get_perms(perms_group, item2))
-        self.assertFalse("view_this_item" in get_perms(perms_group, item3))
+        self.assertTrue(ItemOLP.VIEW in get_perms(perms_group, item1))
+        self.assertFalse(ItemOLP.VIEW in get_perms(perms_group, item2))
+        self.assertFalse(ItemOLP.VIEW in get_perms(perms_group, item3))
 
     def test_item_visibility_revoked_when_group_trust_lowered(self) -> None:
         # Arrange
@@ -301,7 +302,7 @@ class GroupBasedItemPermissionsTests(TestCase):
         )
 
         # Assert initial visibility
-        self.assertTrue("view_this_item" in get_perms(perms_group, item))
+        self.assertTrue(ItemOLP.VIEW in get_perms(perms_group, item))
 
         # Act
         ## Lower the group's trust level
@@ -309,7 +310,7 @@ class GroupBasedItemPermissionsTests(TestCase):
 
         # Assert
         ## Check that the group can no longer see the item
-        self.assertFalse("view_this_item" in get_perms(perms_group, item))
+        self.assertFalse(ItemOLP.VIEW in get_perms(perms_group, item))
 
     def test_item_visibility_granted_when_group_trust_raised(self) -> None:
         # Arrange
@@ -330,7 +331,7 @@ class GroupBasedItemPermissionsTests(TestCase):
         )
 
         # Assert initial visibility
-        self.assertFalse("view_this_item" in get_perms(perms_group, item))
+        self.assertFalse(ItemOLP.VIEW in get_perms(perms_group, item))
 
         # Act
         ## Raise the group's trust level
@@ -338,7 +339,7 @@ class GroupBasedItemPermissionsTests(TestCase):
 
         # Assert
         ## Check that the group can no longer see the item
-        self.assertTrue("view_this_item" in get_perms(perms_group, item))
+        self.assertTrue(ItemOLP.VIEW in get_perms(perms_group, item))
 
     def test_item_visibility_revoked_when_group_deleted(self) -> None:
         # Arrange
@@ -359,7 +360,7 @@ class GroupBasedItemPermissionsTests(TestCase):
         )
 
         # Assert initial visibility
-        self.assertTrue(member.has_perm("view_this_item", item))
+        self.assertTrue(member.has_perm(ItemOLP.VIEW, item))
 
         # Act
         ## Delete the group
@@ -367,7 +368,7 @@ class GroupBasedItemPermissionsTests(TestCase):
 
         # Assert
         ## Check that the erstwhile group member can no longer see the item
-        self.assertFalse(member.has_perm("view_this_item", item))
+        self.assertFalse(member.has_perm(ItemOLP.VIEW, item))
 
     def test_item_owner_still_sees_item_when_group_deleted(self) -> None:
         # Arrange
@@ -387,7 +388,7 @@ class GroupBasedItemPermissionsTests(TestCase):
         )
 
         # Assert initial visibility
-        self.assertTrue(owner.has_perm("view_this_item", item))
+        self.assertTrue(owner.has_perm(ItemOLP.VIEW, item))
 
         # Act
         ## Delete the group
@@ -395,7 +396,7 @@ class GroupBasedItemPermissionsTests(TestCase):
 
         # Assert
         ## Check that the erstwhile group member can no longer see the item
-        self.assertTrue(owner.has_perm("view_this_item", item))
+        self.assertTrue(owner.has_perm(ItemOLP.VIEW, item))
 
     def test_item_still_visible_if_another_group_remains(self) -> None:
         # Arrange
@@ -426,7 +427,7 @@ class GroupBasedItemPermissionsTests(TestCase):
         )
 
         # Assert initial visibility
-        self.assertTrue(member.has_perm("view_this_item", item))
+        self.assertTrue(member.has_perm(ItemOLP.VIEW, item))
 
         # Act
         ## Delete the group
@@ -435,7 +436,7 @@ class GroupBasedItemPermissionsTests(TestCase):
         # Assert
         ## Member should still be able to see the item
         ## because of group2
-        self.assertTrue(member.has_perm("view_this_item", item))
+        self.assertTrue(member.has_perm(ItemOLP.VIEW, item))
         self.assertTrue(
-            "view_this_item" in get_perms(Group.objects.get(name=group2.name), item)
+            ItemOLP.VIEW in get_perms(Group.objects.get(name=group2.name), item)
         )
