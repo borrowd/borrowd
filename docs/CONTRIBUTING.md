@@ -93,6 +93,15 @@ Specifies whether or not to use `vite` for local serving of JS/CSS
 assets in dev. Also required for prod (where we can't rely on CDNs to
 serve our static assets).
 
+* `LOCAL_SENTRY_ENABLED`
+
+_Required: No_
+_Default: False_
+
+Specifies whether or not to enable the sentry integration when running locally.
+Must be paired with `DJANGO_SETTINGS_MODULE=borrowd.config.dev.django`. This
+should only be turned on when debugging the sentry integration itself.
+
 * `DJANGO_SECRET_KEY`
 
 _Required: either this OR the subsequent var_

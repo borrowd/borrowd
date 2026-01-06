@@ -1,5 +1,7 @@
 import os
 
+# for some reason, pre-commit cannot find sentry_sdk
+import sentry_sdk  # type: ignore[import-not-found]
 from environ import ImproperlyConfigured
 
 from borrowd.util import decode, get_platformsh_base_url
@@ -57,6 +59,12 @@ if env("PLATFORM_APPLICATION_NAME") is not None:
                 "PORT": db_settings["port"],
             },
         }
+
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,  # noqa: F405
+        send_default_pii=True,
+        environment="staging",
+    )
 
 else:
     raise ImproperlyConfigured(
