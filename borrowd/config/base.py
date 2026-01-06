@@ -38,7 +38,7 @@ ALLOWED_HOSTS: list[str] = []
 # Borrowd settings
 #
 BORROWD_GROUP_INVITE_EXPIRY_SECONDS: int = 60 * 60 * 24 * 7  # 1 week
-BORROWD_USE_LOCAL_BUNDLING = env("BORROWD_USE_LOCAL_BUNDLING", default=False)
+BORROWD_USE_LOCAL_BUNDLING = env.bool("BORROWD_USE_LOCAL_BUNDLING", default=False)
 
 # Application definition
 
@@ -203,7 +203,7 @@ MEDIA_URL = "/media/"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # borrowd_beta settings
-BORROWD_BETA_ENABLED = env("BORROWD_BETA_ENABLED", default=False)
+BORROWD_BETA_ENABLED = env.bool("BORROWD_BETA_ENABLED", default=False)
 BETA_SIGNUP_REDIRECT_PATH = "/"
 BETA_CHECK_EXCLUDE_PATHS = [
     r"^/favicon.ico$",
@@ -237,6 +237,8 @@ LOGGING = {
         },
     },
 }
+
+SENTRY_DSN = "https://ba24455003326bec7fc90b49af2d5c27@o4510502108594176.ingest.us.sentry.io/4510660596137984"
 
 #
 # Shim for mypy to play nice with certain generic types
