@@ -1,9 +1,15 @@
 from django.urls import path
 
-from .views import CustomSignupView, inventory_view, profile_view
+from .views import (
+    CustomSignupView,
+    delete_profile_photo_view,
+    inventory_view,
+    profile_view,
+)
 
 urlpatterns = [
     path("", profile_view, name="profile"),
+    path("delete-photo/", delete_profile_photo_view, name="profile-delete-photo"),
     path("signup/", CustomSignupView.as_view(), name="custom_signup"),
     path("inventory/", inventory_view, name="profile-inventory"),
 ]

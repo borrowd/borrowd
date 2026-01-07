@@ -3,9 +3,10 @@ from typing import Any
 from django.contrib import messages
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
-from django.http import HttpRequest, HttpResponse, HttpResponseBase
+from django.http import HttpRequest, HttpResponse, HttpResponseBase, JsonResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse_lazy
+from django.views.decorators.http import require_POST
 from django.views.generic import (
     CreateView,
 )
@@ -37,6 +38,42 @@ def profile_view(request: HttpRequest) -> HttpResponse:
             "profile": profile,
             "form": form,
         },
+    )
+
+
+@login_required
+@require_POST
+def delete_profile_photo_view(request: HttpRequest) -> JsonResponse:
+    """
+    Delete the user's profile photo via AJAX without affecting other form fields.
+    As of this writing (Dec 28, 2025), the current photo delete flow pops up
+    a modal that the user must confirm before deleting the photo.
+    If the user clicks "delete" without this view, the phot is deleted,
+    but the entire form is submitted, which means any pending updates the user
+    has (email, bio, etc.) are also submitted. To avoid this terrible UX,
+    this view is necessary, as it deletes only the avatar and allows the other
+    fields to be left as-is. This is also why it returns json rather than an http
+    redirect or similar.
+    """
+    user: BorrowdUser = request.user  # type: ignore[assignment]
+    profile = user.profile
+
+    if profile.image:
+        profile.image.delete(save=False)
+        profile.image = None
+        profile.save()
+        # Returns json rather than http in order to allow other in-progress fields to be left as-is.
+        return JsonResponse(
+            {
+                "success": True,
+                "message": "You deleted your profile picture.",
+                "full_name": profile.full_name(),
+            }
+        )
+
+    return JsonResponse(
+        {"success": False, "message": "No profile picture to delete."},
+        status=400,
     )
 
 
