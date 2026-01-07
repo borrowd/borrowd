@@ -197,22 +197,19 @@
                 const reader = new FileReader();
                 reader.onload = function(e) {
                     avatarPreview.src = e.target.result;
-                    // Enable delete button when new image is selected
-                    if (deleteBtn) {
-                        deleteBtn.disabled = false;
-                    }
                 };
                 reader.readAsDataURL(file);
             }
         });
     }
 
-    // Open delete confirmation modal
+    // Open delete confirmation modal for avatar
     function openDeleteModal() {
         document.getElementById('delete-avatar-modal').showModal();
     }
 
-    // Show toast notification
+    // Show custom toast notification (needs to be updated to align with templates/includes/messages.html)
+    // Doing this because we don't want page refresh on avatar update (see PR 237)
     function showToast(message) {
         const toast = document.createElement('div');
         toast.id = 'notification-toast';
