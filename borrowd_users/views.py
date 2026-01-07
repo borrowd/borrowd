@@ -1,5 +1,6 @@
 from typing import Any
 
+from allauth.account.views import PasswordChangeView
 from django.contrib import messages
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
@@ -12,7 +13,7 @@ from django.views.generic import (
 
 from borrowd_items.models import Item, ItemStatus, Transaction
 
-from .forms import CustomSignupForm, ProfileUpdateForm
+from .forms import ChangePasswordForm, CustomSignupForm, ProfileUpdateForm
 from .models import BorrowdUser
 
 
@@ -114,3 +115,29 @@ class CustomSignupView(CreateView[BorrowdUser, CustomSignupForm]):
         """
         messages.error(self.request, "Please correct the errors below.")
         return super().form_invalid(form)
+
+
+class CustomPasswordChangeView(PasswordChangeView):  # type: ignore[misc]
+    """
+    Custom password change view that displays validation errors as warning toasts.
+
+    Extends allauth's PasswordChangeView to add a warning message when form
+    validation fails. This ensures users see an orange toast notification
+    per ux.
+    """
+
+    def form_invalid(self, form: ChangePasswordForm) -> HttpResponse:
+        """Add warning message when password validation fails."""
+        # Get the first error message to display in the toast
+        error_message: str | None = None
+        for field in form:
+            if field.errors:
+                error_message = str(field.errors[0])
+                break
+        if not error_message and form.non_field_errors():
+            error_message = str(form.non_field_errors()[0])
+
+        if error_message:
+            messages.warning(self.request, error_message)
+
+        return super().form_invalid(form)  # type: ignore[no-any-return]
