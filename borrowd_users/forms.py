@@ -1,5 +1,6 @@
 from typing import Any
 
+from allauth.account.forms import SetPasswordForm
 from django import forms
 from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import UserCreationForm
@@ -243,3 +244,15 @@ class ProfileUpdateForm(forms.ModelForm[Profile]):
             profile.save()
 
         return profile
+
+
+class ChangePasswordForm(SetPasswordForm):  # type: ignore[misc]
+    """
+    Custom password change form that doesn't require the old password.
+
+    Extends SetPasswordForm to provide password1/password2 fields only,
+    skipping old password verification per UX requirements.
+    https://www.figma.com/design/wMliTL8KGBlUACk0d8fkZ3/Borrow-d---Mobile-App--mid-fidelity-?node-id=746-18213&m=dev
+    """
+
+    pass
