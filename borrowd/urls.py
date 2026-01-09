@@ -43,7 +43,8 @@ urlpatterns: List[URLPattern | URLResolver] = [
     path("signup/", CustomSignupView.as_view(), name="custom_signup"),
     # Redirect allauth signup to our custom signup
     path("accounts/signup/", redirect_to_custom_signup, name="account_signup"),
-    # Custom password change view (shows warning toast on validation errors)
+    # Profile password change view
+    # Included to show warning toast on errors, mostly validation
     path(
         "accounts/password/change/",
         CustomPasswordChangeView.as_view(),
