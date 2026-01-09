@@ -91,6 +91,16 @@ def validate_name_field(value: str | None, field_name: str) -> str:
     return value.strip()
 
 
+def validate_password_mixed_case(password: str) -> None:
+    """Validate password contains both uppercase and lowercase characters."""
+    has_upper = any(c.isupper() for c in password)
+    has_lower = any(c.islower() for c in password)
+    if not (has_upper and has_lower):
+        raise forms.ValidationError(
+            "Password must contain both uppercase and lowercase characters."
+        )
+
+
 def validate_email_unique(email: str | None) -> str | None:
     """Validate that email is provided and unique."""
     if not email:
@@ -143,6 +153,7 @@ class CustomSignupForm(UserCreationForm[BorrowdUser]):
         password1: str | None = self.cleaned_data.get("password1")
         if not password1:
             raise forms.ValidationError("Password is required.")
+        validate_password_mixed_case(password1)
         # Use Django's built-in password validation
         try:
             validate_password(password1, self.instance)
@@ -276,13 +287,5 @@ class ChangePasswordForm(SetPasswordForm):  # type: ignore[misc]
         password1: str | None = self.cleaned_data.get("password1")
         if not password1:
             raise forms.ValidationError("Password is required.")
-
-        has_upper = any(c.isupper() for c in password1)
-        has_lower = any(c.islower() for c in password1)
-
-        if not (has_upper and has_lower):
-            raise forms.ValidationError(
-                "Password must contain both uppercase and lowercase characters."
-            )
-
+        validate_password_mixed_case(password1)
         return password1
