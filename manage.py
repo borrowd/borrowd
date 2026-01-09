@@ -3,7 +3,6 @@
 
 import os
 import sys
-
 from borrowd.config.env import env
 
 
