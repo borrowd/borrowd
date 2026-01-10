@@ -84,15 +84,6 @@ Specifies whether or not to enable the "Beta Wall". This is functionality
 that requires users to have an enter a code before accessing the application,
 above and beyond the normal auth process.
 
-* `BORROWD_USE_LOCAL_BUNDLING`
-
-_Required: No_
-_Default: False_
-
-Specifies whether or not to use `vite` for local serving of JS/CSS
-assets in dev. Also required for prod (where we can't rely on CDNs to
-serve our static assets).
-
 * `DJANGO_SECRET_KEY`
 
 _Required: either this OR the subsequent var_

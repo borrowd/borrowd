@@ -13,47 +13,8 @@
         {% block extra_head %}
         {% endblock extra_head %}
         <link rel="icon" type="image/png" href="{% static 'favicon.png' %}" />
-        {% if use_local_bundling %}
-            {% vite_hmr_client %}
-            {% vite_asset 'static/js/main.js' %}
-        {% else %}
-<link href="https://cdn.jsdelivr.net/npm/daisyui@5" rel="stylesheet" type="text/css" />
-        <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-        <style>
-            /* DaisyUI theme. should align with main.css theme*/
-            :root {
-              color-scheme: light dark;
-              --color-base-100: #FFFFFF;
-              --color-base-200: #F8F8F8;
-              --color-base-300: #EEEEEE;
-              --color-base-content: #18181B;
-              --color-primary: #2C51A1;
-              --color-primary-content: #FFFFFF;
-              --color-secondary: #73325B;
-              --color-secondary-content: #FFFFFF;
-              --color-accent: #B97C21;
-              --color-accent-content: oklch(100% 0 0);
-              --color-neutral: #314157;
-              --color-neutral-content: #FFFFFF;
-              --color-info: oklch(50% 0.134 242.749);
-              --color-info-content: #FFFFFF;
-              --color-success: #00891D;
-              --color-success-content: #FFFFFF;
-              --color-warning: #EEAF00;
-              --color-warning-content: oklch(0% 0 0);
-              --color-error: #E50006;
-              --color-error-content: oklch(100% 0 0);
-              --radius-selector: 0.5rem;
-              --radius-field: 0.5rem;
-              --radius-box: 0.5rem;
-              --size-selector: 0.25rem;
-              --size-field: 0.25rem;
-              --border: 1px;
-              --depth: 1;
-              --noise: 0;
-            }
-        </style>
-        {% endif %}
+        {% vite_hmr_client %}
+        {% vite_asset 'static/js/main.js' %}
         <style>
             p a {
                 color: #2563eb; /* Tailwind blue-600 */
