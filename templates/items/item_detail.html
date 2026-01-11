@@ -2,13 +2,12 @@
 
 {% block head_title %}View Item{% endblock %}
 {% block items_content %}
-{% load button_styles %}
 <c-box class="relative flex flex-col items-center">
     <div class="w-full flex">
-        <c-button-nav color="blue" url="{% url 'item-list' %}"><span>&larr;</span> Back to List</c-button-nav>
+        <c-button-nav url="{% url 'item-list' %}" class="btn btn-ghost"><span>&larr;</span> Back to List</c-button-nav>
 
         {% if user.is_authenticated and object.owner == user %}
-        <c-button-nav class="flex items-center ml-auto" color="yellow"
+        <c-button-nav class="btn btn-warning flex items-center ml-auto"
         url="{% url 'item-edit' object.pk %}">
             <span class="inline-block mr-2 fill-white">{% include "icons/handyman.svg" %}</span>
             Manage

@@ -35,7 +35,7 @@
             when we're also using HTMX to avoid page reloads here.
             {% endcomment %}
             {% if not request.GET.values|join:"" == "" %}
-                <c-button-nav url="{% url 'item-list' %}">Clear</c-button-nav>
+                <c-button-nav url="{% url 'item-list' %}" class="btn btn-ghost">Clear</c-button-nav>
             {% endif %}
         </div>
     </div>
