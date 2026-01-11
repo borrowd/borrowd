@@ -26,6 +26,11 @@
                     <span class="label-text-alt text-error">{{ field.errors }}</span>
                 </label>
             {% endif %}
+            {% if field.name == "image" %}
+                <label class="label">
+                    <span class="label-text-alt text-base-content/60">Max size 2MB</span>
+                </label>
+            {% endif %}
         </div>
         {% endfor %}
 
