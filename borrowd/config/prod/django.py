@@ -1,5 +1,7 @@
 import os
 
+# for some unknown reason, pre-commit cannot find sentry_sdk
+import sentry_sdk  # type: ignore[import-not-found]
 from environ import ImproperlyConfigured
 
 from borrowd.util import decode
@@ -96,3 +98,11 @@ DJANGO_VITE = {
         "manifest_path": BASE_DIR / "build" / "manifest.json",  # noqa: F405
     }
 }
+
+sentry_sdk.init(
+    dsn=SENTRY_DSN,  # noqa: F405
+    # Add data like request headers and IP for users,
+    # see https://docs.sentry.io/platforms/python/data-management/data-collected/ for more info
+    send_default_pii=True,
+    environment="production",
+)

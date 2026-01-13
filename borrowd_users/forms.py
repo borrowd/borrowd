@@ -185,7 +185,6 @@ class ProfileUpdateForm(forms.ModelForm[Profile]):
 
     email = create_email_field()
     bio = create_bio_field()
-    remove_image = forms.BooleanField(required=False, widget=forms.HiddenInput())
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
@@ -219,7 +218,6 @@ class ProfileUpdateForm(forms.ModelForm[Profile]):
 
     def save(self, commit: bool = True) -> Profile:
         profile = super().save(commit=False)
-        remove_image = self.cleaned_data.get("remove_image")
 
         # Update the associated user's name fields
         if profile.user:
@@ -229,15 +227,7 @@ class ProfileUpdateForm(forms.ModelForm[Profile]):
 
         profile.bio = self.cleaned_data.get("bio", profile.bio)
 
-        if remove_image:
-            if profile.image:
-                profile.image.delete(save=False)
-            profile.image = None
-
-            if commit:
-                profile.user.save()
-                profile.save()
-        elif commit:
+        if commit:
             if profile.user:
                 profile.user.save()
             profile.save()
