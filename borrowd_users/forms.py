@@ -1,5 +1,6 @@
 from typing import Any
 
+from allauth.account.forms import SetPasswordForm
 from django import forms
 from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import UserCreationForm
@@ -90,6 +91,16 @@ def validate_name_field(value: str | None, field_name: str) -> str:
     return value.strip()
 
 
+def validate_password_mixed_case(password: str) -> None:
+    """Validate password contains both uppercase and lowercase characters."""
+    has_upper = any(c.isupper() for c in password)
+    has_lower = any(c.islower() for c in password)
+    if not (has_upper and has_lower):
+        raise forms.ValidationError(
+            "Password must contain both uppercase and lowercase characters."
+        )
+
+
 def validate_email_unique(email: str | None) -> str | None:
     """Validate that email is provided and unique."""
     if not email:
@@ -142,6 +153,7 @@ class CustomSignupForm(UserCreationForm[BorrowdUser]):
         password1: str | None = self.cleaned_data.get("password1")
         if not password1:
             raise forms.ValidationError("Password is required.")
+        validate_password_mixed_case(password1)
         # Use Django's built-in password validation
         try:
             validate_password(password1, self.instance)
@@ -233,3 +245,37 @@ class ProfileUpdateForm(forms.ModelForm[Profile]):
             profile.save()
 
         return profile
+
+
+class ChangePasswordForm(SetPasswordForm):  # type: ignore[misc]
+    """
+    Custom password change form that doesn't require the old password.
+
+    Why this is the way it is:
+    ---------------------
+    Django-allauth's default ChangePasswordForm requires three fields:
+    - oldpassword (current password)
+    - password1 (new password)
+    - password2 (confirm new password)
+
+    Our UX design only shows two fields (new password + confirmation).
+    This omits the old password requirement. By extending SetPasswordForm instead of
+    ChangePasswordForm, we get only password1/password2 fields (no need for the old password)
+
+    This class exists as a named form so that it can be referenced in ACCOUNT_FORMS
+    settings (borrowd/config/base.py).
+
+    You can add custom validation to this class if AllAuth's validators are not enough.
+    Validation will only apply on the password change form, not on signup.
+
+    Design reference:
+    https://www.figma.com/design/wMliTL8KGBlUACk0d8fkZ3/Borrow-d---Mobile-App--mid-fidelity-?node-id=746-18213&m=dev
+    """
+
+    def clean_password1(self) -> str:
+        """Validate password contains both uppercase and lowercase characters."""
+        password1: str | None = self.cleaned_data.get("password1")
+        if not password1:
+            raise forms.ValidationError("Password is required.")
+        validate_password_mixed_case(password1)
+        return password1

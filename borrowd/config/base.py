@@ -147,6 +147,20 @@ LOGIN_REDIRECT_URL = reverse_lazy("item-list")
 ACCOUNT_LOGIN_BY_CODE_ENABLED = True
 ACCOUNT_LOGIN_METHODS = ["email"]
 
+"""
+https://docs.allauth.org/en/latest/account/forms.html
+This overrides the change_password form shown in allauth.
+change_password: Uses SetPasswordForm instead of ChangePasswordForm to skip
+the need to provide the user's current password.
+This means users don't need to enter their current password when changing it.
+This is a UX decision.
+Security note: this means anyone with access
+to a logged-in session can change the password.
+"""
+ACCOUNT_FORMS = {
+    "change_password": "borrowd_users.forms.ChangePasswordForm",
+}
+
 # Render template rather than simply returning 403 status code with
 # no content
 GUARDIAN_RENDER_403 = True
