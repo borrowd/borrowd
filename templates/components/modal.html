@@ -4,6 +4,7 @@
      - modal_title: Optional, title text
      - modal_content: Required, HTML content for modal body
      - modal_size: Optional, 'half' or 'full' (default: 'half')
+     - button_layout: Optional, 'end' (default), 'between', or 'equal' for button arrangement
      - cancel_button: Optional, text for secondary button (left side)
      - cancel_action: Optional, onclick action for secondary button (if not provided, closes modal)
      - cancel_button_class: Optional, CSS classes for secondary button (default: 'btn btn-ghost font-semibold')
@@ -34,19 +35,19 @@
 
         <!-- Modal actions -->
         {% if cancel_button or confirm_button %}
-        <div class="modal-action justify-end pt-6 gap-3 flex-shrink-0">
+        <div class="modal-action pt-6 gap-3 flex-shrink-0 {% if button_layout == 'between' %}justify-between{% elif button_layout == 'equal' %}{% else %}justify-end{% endif %}">
             {% if cancel_button %}
                 {% if cancel_action %}
-                <button type="button" onclick="{{ cancel_action }}" class="{{ cancel_button_class|default:'btn btn-ghost font-semibold' }}">{{ cancel_button }}</button>
+                <button type="button" onclick="{{ cancel_action }}" class="{{ cancel_button_class|default:'btn btn-ghost font-semibold' }} {% if button_layout == 'equal' %}flex-1{% endif %}">{{ cancel_button }}</button>
                 {% else %}
-                <form method="dialog">
-                    <button class="{{ cancel_button_class|default:'btn btn-ghost font-semibold' }}">{{ cancel_button }}</button>
+                <form method="dialog" {% if button_layout == 'equal' %}class="flex-1"{% endif %}>
+                    <button class="{{ cancel_button_class|default:'btn btn-ghost font-semibold' }} {% if button_layout == 'equal' %}w-full{% endif %}">{{ cancel_button }}</button>
                 </form>
                 {% endif %}
             {% endif %}
 
             {% if confirm_button %}
-            <button type="button" onclick="{{ confirm_action }}" class="{{ confirm_button_class|default:'btn btn-primary font-semibold' }}">{{ confirm_button }}</button>
+            <button type="button" onclick="{{ confirm_action }}" class="{{ confirm_button_class|default:'btn btn-primary font-semibold' }} {% if button_layout == 'equal' %}flex-1{% endif %}">{{ confirm_button }}</button>
             {% endif %}
         </div>
         {% endif %}
