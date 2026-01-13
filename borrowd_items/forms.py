@@ -7,6 +7,7 @@ from .models import Item, ItemPhoto
 
 MAX_PHOTO_SIZE_BYTES = 2 * 1024 * 1024  # 2MB
 ALLOWED_IMAGE_EXTENSIONS = ["jpg", "jpeg", "png", "webp"]
+ALLOWED_IMAGE_ACCEPT = ",".join(f".{ext}" for ext in ALLOWED_IMAGE_EXTENSIONS)
 
 
 def validate_image_size(image: UploadedFile) -> None:
@@ -59,7 +60,7 @@ class ItemCreateWithPhotoForm(ItemForm):
         widget=forms.FileInput(
             attrs={
                 "class": "file-input file-input-bordered w-full max-w-full",
-                "accept": "image/*",
+                "accept": ALLOWED_IMAGE_ACCEPT,
             }
         ),
     )
@@ -82,7 +83,7 @@ class ItemPhotoForm(forms.ModelForm[ItemPhoto]):
         widget=forms.FileInput(
             attrs={
                 "class": "file-input file-input-bordered w-full max-w-full",
-                "accept": "image/*",
+                "accept": ALLOWED_IMAGE_ACCEPT,
             }
         ),
     )
