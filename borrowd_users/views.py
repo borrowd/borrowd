@@ -1,18 +1,20 @@
 from typing import Any
 
+from allauth.account.views import PasswordChangeView
 from django.contrib import messages
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
-from django.http import HttpRequest, HttpResponse, HttpResponseBase
+from django.http import HttpRequest, HttpResponse, HttpResponseBase, JsonResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse_lazy
+from django.views.decorators.http import require_POST
 from django.views.generic import (
     CreateView,
 )
 
 from borrowd_items.models import Item, ItemStatus, Transaction
 
-from .forms import CustomSignupForm, ProfileUpdateForm
+from .forms import ChangePasswordForm, CustomSignupForm, ProfileUpdateForm
 from .models import BorrowdUser
 
 
@@ -25,7 +27,7 @@ def profile_view(request: HttpRequest) -> HttpResponse:
         form = ProfileUpdateForm(request.POST, request.FILES, instance=profile)
         if form.is_valid():
             form.save()
-            messages.success(request, "Your profile has been updated successfully.")
+            messages.success(request, "Profile updated")
             return redirect("profile")
     else:
         form = ProfileUpdateForm(instance=profile)
@@ -37,6 +39,42 @@ def profile_view(request: HttpRequest) -> HttpResponse:
             "profile": profile,
             "form": form,
         },
+    )
+
+
+@login_required
+@require_POST
+def delete_profile_photo_view(request: HttpRequest) -> JsonResponse:
+    """
+    Delete the user's profile photo via AJAX without affecting other form fields.
+    As of this writing (Dec 28, 2025), the current photo delete flow pops up
+    a modal that the user must confirm before deleting the photo.
+    If the user clicks "delete" without this view, the phot is deleted,
+    but the entire form is submitted, which means any pending updates the user
+    has (email, bio, etc.) are also submitted. To avoid this terrible UX,
+    this view is necessary, as it deletes only the avatar and allows the other
+    fields to be left as-is. This is also why it returns json rather than an http
+    redirect or similar.
+    """
+    user: BorrowdUser = request.user  # type: ignore[assignment]
+    profile = user.profile
+
+    if profile.image:
+        profile.image.delete(save=False)
+        profile.image = None
+        profile.save()
+        # Returns json rather than http in order to allow other in-progress fields to be left as-is.
+        return JsonResponse(
+            {
+                "success": True,
+                "message": "You deleted your profile picture.",
+                "full_name": profile.full_name(),
+            }
+        )
+
+    return JsonResponse(
+        {"success": False, "message": "No profile picture to delete."},
+        status=400,
     )
 
 
@@ -114,3 +152,29 @@ class CustomSignupView(CreateView[BorrowdUser, CustomSignupForm]):
         """
         messages.error(self.request, "Please correct the errors below.")
         return super().form_invalid(form)
+
+
+class CustomPasswordChangeView(PasswordChangeView):  # type: ignore[misc]
+    """
+    Custom password change view that displays validation errors as warning toasts.
+
+    Extends allauth's PasswordChangeView to add a warning message when form
+    validation fails. This ensures users see an orange toast notification
+    per ux.
+    """
+
+    def form_invalid(self, form: ChangePasswordForm) -> HttpResponse:
+        """Add warning message when password validation fails."""
+        # Get the first error message to display in the toast
+        error_message: str | None = None
+        for field in form:
+            if field.errors:
+                error_message = str(field.errors[0])
+                break
+        if not error_message and form.non_field_errors():
+            error_message = str(form.non_field_errors()[0])
+
+        if error_message:
+            messages.warning(self.request, error_message)
+
+        return super().form_invalid(form)  # type: ignore[no-any-return]
