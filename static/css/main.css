@@ -1,12 +1,7 @@
 @import "tailwindcss";
 @plugin "daisyui";
 /*
-local bundling theme.
-For non-local bundling, the relevant themes can be found in the base.html files,
-templates/allauth/base.html
-templates/base.html
-Any changes here will take place if using local bundling, and will be represented
-in prod, but the aforementioned files need to be updated if using non-local bundling.
+Borrow'd theme for DaisyUI
 */
 @plugin "daisyui/theme" {
   name: "light";
@@ -50,7 +45,8 @@ in prod, but the aforementioned files need to be updated if using non-local bund
   font-display: swap;
   src: url("$fonts/RobotoSlab-Regular.ttf");
 }
-
+/* Tailwind Theme
+TODO: Transfer over all to daisy */
 @theme {
   --color-borrowd-indigo-300: #d9e1f4;
   --color-borrowd-indigo-600: #2c51a1;
