@@ -109,6 +109,15 @@ _Default: None_
 
 Module path to the desired django config file to load.
 
+* `LOCAL_SENTRY_ENABLED`
+
+_Required: No_
+_Default: False_
+
+Specifies whether or not to enable the sentry integration when running locally.
+Must be paired with `DJANGO_SETTINGS_MODULE=borrowd.config.dev.django`. This
+should only be turned on when debugging the sentry integration itself.
+
 ### 5. Running the app
 
 Now all your tooling is installed, you're ready to fire up the
