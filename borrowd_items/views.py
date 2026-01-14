@@ -65,9 +65,7 @@ def borrow_item(request: HttpRequest, pk: int) -> HttpResponse:
     # permissions; assumed that if a user can "see" an item (and
     # they're not the owner), then they can request to borrow it.
     if not user.has_perm(ItemOLP.VIEW, item):
-        return HttpResponse(
-            "You do not have permission to borrow this item.", status=403
-        )
+        return HttpResponse("Not found", status=404)
 
     try:
         req_action = req_action.upper()

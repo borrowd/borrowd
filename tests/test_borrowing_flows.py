@@ -61,13 +61,6 @@ class RejectedFlowTest(SimpleTestCase):
             membership_requires_approval=False,
         )
         cls.group.add_user(cls.borrower, trust_level=TrustLevel.HIGH)
-        from django.contrib.contenttypes.models import ContentType
-
-        ct_map = {ct.id: ct.name for ct in ContentType.objects.all()}
-        import logging
-
-        logger = logging.getLogger("django")
-        logger.error(ct_map)
         cls.item = Item.objects.create(
             name="Test Item",
             description="Test Description",
