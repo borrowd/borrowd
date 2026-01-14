@@ -24,7 +24,7 @@ from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect
 from django.urls import URLPattern, URLResolver, include, path
 
-from borrowd_users.views import CustomSignupView
+from borrowd_users.views import CustomPasswordChangeView, CustomSignupView
 from borrowd_web.views import favicon
 
 
@@ -43,6 +43,13 @@ urlpatterns: List[URLPattern | URLResolver] = [
     path("signup/", CustomSignupView.as_view(), name="custom_signup"),
     # Redirect allauth signup to our custom signup
     path("accounts/signup/", redirect_to_custom_signup, name="account_signup"),
+    # Profile password change view
+    # Included to show warning toast on errors, mostly validation
+    path(
+        "accounts/password/change/",
+        CustomPasswordChangeView.as_view(),
+        name="account_change_password",
+    ),
     path("accounts/", include("allauth.urls")),
     path("beta/", include("borrowd_beta.urls")),
     path("profile/", include("borrowd_users.urls")),
@@ -51,11 +58,6 @@ urlpatterns: List[URLPattern | URLResolver] = [
     path("favicon.ico", favicon, name="favicon"),
     path("", include("borrowd_web.urls")),
 ]
-
-if not settings.BORROWD_USE_LOCAL_BUNDLING:
-    urlpatterns += [
-        path("__reload__/", include("django_browser_reload.urls")),
-    ]
 
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

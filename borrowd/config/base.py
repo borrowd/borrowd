@@ -38,7 +38,6 @@ ALLOWED_HOSTS: list[str] = []
 # Borrowd settings
 #
 BORROWD_GROUP_INVITE_EXPIRY_SECONDS: int = 60 * 60 * 24 * 7  # 1 week
-BORROWD_USE_LOCAL_BUNDLING = env("BORROWD_USE_LOCAL_BUNDLING", default=False)
 
 # Application definition
 
@@ -67,9 +66,6 @@ INSTALLED_APPS = [
     "django_cleanup.apps.CleanupConfig",  # Must go last https://github.com/un1t/django-cleanup?tab=readme-ov-file#configuration
 ]
 
-if not BORROWD_USE_LOCAL_BUNDLING:
-    INSTALLED_APPS.insert(-1, "django_browser_reload")
-
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -81,8 +77,6 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "allauth.account.middleware.AccountMiddleware",
 ]
-if not BORROWD_USE_LOCAL_BUNDLING:
-    MIDDLEWARE.insert(0, "django_browser_reload.middleware.BrowserReloadMiddleware")
 
 ROOT_URLCONF = "borrowd.urls"
 
@@ -98,7 +92,6 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
-                "borrowd.context_processors.use_local_bundling",
                 "borrowd_beta.context_processors.beta_status",
             ],
         },
@@ -148,6 +141,20 @@ LOGIN_REDIRECT_URL = reverse_lazy("item-list")
 ACCOUNT_LOGIN_BY_CODE_ENABLED = True
 ACCOUNT_LOGIN_METHODS = ["email"]
 
+"""
+https://docs.allauth.org/en/latest/account/forms.html
+This overrides the change_password form shown in allauth.
+change_password: Uses SetPasswordForm instead of ChangePasswordForm to skip
+the need to provide the user's current password.
+This means users don't need to enter their current password when changing it.
+This is a UX decision.
+Security note: this means anyone with access
+to a logged-in session can change the password.
+"""
+ACCOUNT_FORMS = {
+    "change_password": "borrowd_users.forms.ChangePasswordForm",
+}
+
 # Render template rather than simply returning 403 status code with
 # no content
 GUARDIAN_RENDER_403 = True
@@ -186,10 +193,9 @@ BASE_URL = "http://localhost:8000"
 STATICFILES_DIRS = [
     BASE_DIR / "static",
 ]
-if BORROWD_USE_LOCAL_BUNDLING:
-    STATICFILES_DIRS += [
-        BASE_DIR / "build/",
-    ]
+BUILD_DIR = BASE_DIR / "build"
+if BUILD_DIR.exists():
+    STATICFILES_DIRS.append(BUILD_DIR)
 
 STATIC_URL = "static/"
 
@@ -204,7 +210,7 @@ MEDIA_URL = "/media/"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # borrowd_beta settings
-BORROWD_BETA_ENABLED = env("BORROWD_BETA_ENABLED", default=False)
+BORROWD_BETA_ENABLED = env.bool("BORROWD_BETA_ENABLED", default=False)
 BETA_SIGNUP_REDIRECT_PATH = "/"
 BETA_CHECK_EXCLUDE_PATHS = [
     r"^/favicon.ico$",
@@ -243,6 +249,8 @@ LOGGING = {
         },
     },
 }
+
+SENTRY_DSN = "https://ba24455003326bec7fc90b49af2d5c27@o4510502108594176.ingest.us.sentry.io/4510660596137984"
 
 #
 # Shim for mypy to play nice with certain generic types

@@ -1,3 +1,6 @@
+# for some unknown reason, pre-commit cannot find sentry_sdk
+import sentry_sdk  # type: ignore[import-not-found]
+
 from borrowd.config.env import env
 
 from ..base import *  # noqa: F403
@@ -16,3 +19,10 @@ DJANGO_VITE = {
         "manifest_path": BASE_DIR / "build" / "manifest.json",  # noqa: F405
     }
 }
+
+if env.bool("LOCAL_SENTRY_ENABLED", default=False):
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,  # noqa: F405
+        send_default_pii=True,
+        environment="local",
+    )
