@@ -56,5 +56,7 @@ TODO: Transfer over all to daisy */
   --color-borrowd-plum-600: #73325b;
   --color-borrowd-fern-300: #ebf7ed;
   --color-borrowd-fern-600: #537533;
+  --color-tertiary: #537533;
+  --color-tertiary-content: #ffffff;
   --font-roboto-slab: "Roboto Slab", "serif";
 }

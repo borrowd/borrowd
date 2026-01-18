@@ -27,10 +27,10 @@
         <div class="flex gap-4">
             <c-button type="submit">Save</c-button>
             {% if form.instance.pk %}
-                <c-button-nav url="{% url 'borrowd_groups:group-detail' form.instance.pk %}">
+                <c-button-nav url="{% url 'borrowd_groups:group-detail' form.instance.pk %}" class="btn btn-ghost">
                     Cancel
                 </c-button-nav>
-                <c-button-nav url="{% url 'borrowd_groups:group-delete' form.instance.pk %}">
+                <c-button-nav url="{% url 'borrowd_groups:group-delete' form.instance.pk %}" class="btn btn-error">
                     Delete
                 </c-button-nav>
             {% endif %}

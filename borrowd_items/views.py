@@ -19,7 +19,7 @@ from borrowd_users.models import BorrowdUser
 
 from .exceptions import InvalidItemAction, ItemAlreadyRequested
 from .filters import ItemFilter
-from .forms import ItemCreateWithPhotoForm, ItemForm
+from .forms import ItemCreateWithPhotoForm, ItemForm, ItemPhotoForm
 from .models import Item, ItemAction, ItemPhoto
 
 
@@ -126,6 +126,11 @@ class ItemCreateView(
     model = Item
     form_class = ItemCreateWithPhotoForm
 
+    def get_context_data(self, **kwargs: str) -> dict[str, Any]:
+        context = super().get_context_data(**kwargs)
+        context["page_title"] = "Create Item"
+        return context
+
     def form_valid(self, form: ItemCreateWithPhotoForm) -> HttpResponse:
         form.instance.owner = self.request.user  # type: ignore[assignment]
         response = super().form_valid(form)
@@ -186,6 +191,11 @@ class ItemUpdateView(
     permission_required = ItemOLP.EDIT
     form_class = ItemForm
 
+    def get_context_data(self, **kwargs: str) -> dict[str, Any]:
+        context = super().get_context_data(**kwargs)
+        context["page_title"] = "Edit Item"
+        return context
+
     def get_success_url(self) -> str:
         if self.object is None:
             return reverse("item-list")
@@ -195,11 +205,11 @@ class ItemUpdateView(
 class ItemPhotoCreateView(
     LoginOr403PermissionMixin,
     BorrowdTemplateFinderMixin,
-    CreateView[ItemPhoto, ModelForm[ItemPhoto]],
+    CreateView[ItemPhoto, ItemPhotoForm],
 ):
     model = ItemPhoto
     permission_required = ItemOLP.EDIT
-    fields = ["image"]  # item set from URL params
+    form_class = ItemPhotoForm
 
     def get_permission_object(self):  # type: ignore[no-untyped-def]
         return Item.objects.get(pk=self.kwargs["item_pk"])
@@ -210,7 +220,7 @@ class ItemPhotoCreateView(
         context["item_pk"] = item_pk
         return context
 
-    def form_valid(self, form: ModelForm[ItemPhoto]) -> HttpResponse:
+    def form_valid(self, form: ItemPhotoForm) -> HttpResponse:
         context = self.get_context_data()
         form.instance.item_id = context["item_pk"]
         return super().form_valid(form)
