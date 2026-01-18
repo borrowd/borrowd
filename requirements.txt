@@ -17,6 +17,10 @@ botocore==1.38.44 \
     # via
     #   boto3
     #   s3transfer
+certifi==2026.1.4 \
+    --hash=sha256:9943707519e4add1115f44c2bc244f782c0249876bf51b6599fee1ffbedd685c \
+    --hash=sha256:ac726dd470482006e014ad384921ed6438c457018f4b3d204aea4281258b2120
+    # via sentry-sdk
 django==5.2.1 \
     --hash=sha256:57fe1f1b59462caed092c80b3dd324fd92161b620d59a9ba9181c34746c97284 \
     --hash=sha256:a9b680e84f9a0e71da83e399f1e922e1ab37b2173ced046b541c72e1589a5961
@@ -33,6 +37,7 @@ django==5.2.1 \
     #   django-storages
     #   django-vite
     #   jsonfield
+    #   sentry-sdk
 django-allauth==65.8.0 \
     --hash=sha256:9da589d99d412740629333a01865a90c95c97e0fae0cde789aa45a8fda90e83b
     # via borrowd
@@ -169,6 +174,10 @@ s3transfer==0.13.0 \
     --hash=sha256:0148ef34d6dd964d0d8cf4311b2b21c474693e57c2e069ec708ce043d2b527be \
     --hash=sha256:f5e6db74eb7776a37208001113ea7aa97695368242b364d73e91c981ac522177
     # via boto3
+sentry-sdk==2.48.0 \
+    --hash=sha256:5213190977ff7fdff8a58b722fb807f8d5524a80488626ebeda1b5676c0c1473 \
+    --hash=sha256:6b12ac256769d41825d9b7518444e57fa35b5642df4c7c5e322af4d2c8721172
+    # via borrowd
 six==1.17.0 \
     --hash=sha256:4721f391ed90541fddacab5acf947aa0d3dc7d27b2e1e8eda2be8970586c3274 \
     --hash=sha256:ff70335d468e7eb6ec65b95b99d3a2836546063f63acc5171de367e834932a81
@@ -190,4 +199,6 @@ tzdata==2025.2 ; sys_platform == 'win32' \
 urllib3==2.5.0 \
     --hash=sha256:3fc47733c7e419d4bc3f6b3dc2b4f890bb743906a30d56ba4a5bfa4bbff92760 \
     --hash=sha256:e6b01673c0fa6a13e374b50871808eb3bf7046c4b125b216f6bf1cc604cff0dc
-    # via botocore
+    # via
+    #   botocore
+    #   sentry-sdk

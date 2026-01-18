@@ -7,14 +7,18 @@ from django.core.signing import SignatureExpired, TimestampSigner
 from django.forms import ModelForm
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
-from django.template import loader as template_loader
 from django.urls import reverse, reverse_lazy
 from django.views.generic import CreateView, DeleteView, DetailView, UpdateView, View
 from django_filters.views import FilterView
-from guardian.mixins import LoginRequiredMixin, PermissionRequiredMixin
+from guardian.mixins import LoginRequiredMixin
 
 from borrowd.models import TrustLevel
 from borrowd.util import BorrowdTemplateFinderMixin
+from borrowd_permissions.mixins import (
+    LoginOr403PermissionMixin,
+    LoginOr404PermissionMixin,
+)
+from borrowd_permissions.models import BorrowdGroupOLP
 
 from .filters import GroupFilter
 from .forms import GroupCreateForm, GroupJoinForm, UpdateTrustLevelForm
@@ -99,25 +103,24 @@ class GroupCreateView(
 
 
 class GroupDeleteView(
-    LoginRequiredMixin,  # type: ignore[misc]
+    LoginOr404PermissionMixin,
     BorrowdTemplateFinderMixin,
     DeleteView[BorrowdGroup, ModelForm[BorrowdGroup]],
 ):
     # Todo: prevent non-admin/moderators from completing this action
     model = BorrowdGroup
+    permission_required = BorrowdGroupOLP.DELETE
     success_url = reverse_lazy("borrowd_groups:group-list")
 
 
 # No typing for django_guardian, so mypy doesn't like us subclassing.
 class GroupDetailView(
-    LoginRequiredMixin,  # type: ignore[misc]
-    PermissionRequiredMixin,  # type: ignore[misc]
+    LoginOr403PermissionMixin,
     BorrowdTemplateFinderMixin,
     DetailView[BorrowdGroup],
 ):
     model = BorrowdGroup
-    permission_required = "view_this_group"
-    return_403 = True
+    permission_required = BorrowdGroupOLP.VIEW
 
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
@@ -140,12 +143,12 @@ class GroupDetailView(
         return context
 
 
-# TODO: secure to Group members (not just logged-in users)
 class GroupInviteView(
-    LoginRequiredMixin,  # type: ignore[misc]
+    LoginOr404PermissionMixin,
     DetailView[BorrowdGroup],
 ):
     model = BorrowdGroup
+    permission_required = BorrowdGroupOLP.VIEW
     template_name = "groups/group_invite.html"
 
     def get_context_data(self, **kwargs: str) -> dict[str, Any]:
@@ -270,11 +273,12 @@ class GroupListView(LoginRequiredMixin, FilterView):  # type: ignore[misc]
 
 
 class GroupUpdateView(
-    LoginRequiredMixin,  # type: ignore[misc]
+    LoginOr404PermissionMixin,
     BorrowdTemplateFinderMixin,
     UpdateView[BorrowdGroup, ModelForm[BorrowdGroup]],
 ):
     model = BorrowdGroup
+    permission_required = BorrowdGroupOLP.EDIT
     fields = ["name", "description", "logo", "banner", "membership_requires_approval"]
 
     def form_valid(self, form: ModelForm[BorrowdGroup]) -> HttpResponse:
@@ -363,9 +367,3 @@ class RemoveMemberView(LoginRequiredMixin, View):  # type: ignore[misc]
         messages.success(request, f"{member_name} has been removed from the group.")
 
         return redirect("borrowd_groups:group-detail", pk=pk)
-
-
-def forbidden(request: HttpRequest) -> HttpResponse:
-    template = template_loader.get_template("./templates/403.html")
-    body = template.render
-    return HttpResponse(body, status=403)

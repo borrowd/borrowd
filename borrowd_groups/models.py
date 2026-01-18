@@ -22,6 +22,7 @@ from imagekit.processors import ResizeToFit
 
 from borrowd.models import TrustLevel
 from borrowd_groups.exceptions import ExistingMemberException
+from borrowd_permissions.models import BorrowdGroupOLP
 from borrowd_users.models import BorrowdUser
 
 
@@ -191,9 +192,9 @@ class BorrowdGroup(Model):
 
     class Meta:
         permissions = (
-            ("view_this_group", "Can view this Group"),
-            ("edit_this_group", "Can edit this Group"),
-            ("delete_this_group", "Can delete this Group"),
+            (BorrowdGroupOLP.VIEW, "Can view this Group"),
+            (BorrowdGroupOLP.EDIT, "Can edit this Group"),
+            (BorrowdGroupOLP.DELETE, "Can delete this Group"),
         )
 
 

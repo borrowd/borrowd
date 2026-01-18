@@ -10,6 +10,11 @@ from django_filters.views import FilterView
 from guardian.mixins import LoginRequiredMixin
 
 from borrowd.util import BorrowdTemplateFinderMixin
+from borrowd_permissions.mixins import (
+    LoginOr403PermissionMixin,
+    LoginOr404PermissionMixin,
+)
+from borrowd_permissions.models import ItemOLP
 from borrowd_users.models import BorrowdUser
 
 from .exceptions import InvalidItemAction, ItemAlreadyRequested
@@ -59,10 +64,8 @@ def borrow_item(request: HttpRequest, pk: int) -> HttpResponse:
     # Not currently differentiating between viewing and borrowing
     # permissions; assumed that if a user can "see" an item (and
     # they're not the owner), then they can request to borrow it.
-    if not user.has_perm("view_this_item", item):
-        return HttpResponse(
-            "You do not have permission to borrow this item.", status=403
-        )
+    if not user.has_perm(ItemOLP.VIEW, item):
+        return HttpResponse("Not found", status=404)
 
     try:
         req_action = req_action.upper()
@@ -143,20 +146,22 @@ class ItemCreateView(
 
 
 class ItemDeleteView(
-    LoginRequiredMixin,  # type: ignore[misc]
+    LoginOr404PermissionMixin,
     BorrowdTemplateFinderMixin,
     DeleteView[Item, ModelForm[Item]],
 ):
     model = Item
+    permission_required = ItemOLP.DELETE
     success_url = reverse_lazy("item-list")
 
 
 class ItemDetailView(
-    LoginRequiredMixin,  # type: ignore[misc]
+    LoginOr404PermissionMixin,
     BorrowdTemplateFinderMixin,
     DetailView[Item],
 ):
     model = Item
+    permission_required = ItemOLP.VIEW
 
     def get_context_data(self, **kwargs: str) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
@@ -178,11 +183,12 @@ class ItemListView(
 
 
 class ItemUpdateView(
-    LoginRequiredMixin,  # type: ignore[misc]
+    LoginOr404PermissionMixin,
     BorrowdTemplateFinderMixin,
     UpdateView[Item, ItemForm],
 ):
     model = Item
+    permission_required = ItemOLP.EDIT
     form_class = ItemForm
 
     def get_context_data(self, **kwargs: str) -> dict[str, Any]:
@@ -197,12 +203,16 @@ class ItemUpdateView(
 
 
 class ItemPhotoCreateView(
-    LoginRequiredMixin,  # type: ignore[misc]
+    LoginOr403PermissionMixin,
     BorrowdTemplateFinderMixin,
     CreateView[ItemPhoto, ItemPhotoForm],
 ):
     model = ItemPhoto
+    permission_required = ItemOLP.EDIT
     form_class = ItemPhotoForm
+
+    def get_permission_object(self):  # type: ignore[no-untyped-def]
+        return Item.objects.get(pk=self.kwargs["item_pk"])
 
     def get_context_data(self, **kwargs: str) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
@@ -223,11 +233,15 @@ class ItemPhotoCreateView(
 
 
 class ItemPhotoDeleteView(
-    LoginRequiredMixin,  # type: ignore[misc]
+    LoginOr403PermissionMixin,
     BorrowdTemplateFinderMixin,
     DeleteView[ItemPhoto, ModelForm[ItemPhoto]],
 ):
     model = ItemPhoto
+    permission_required = ItemOLP.EDIT
+
+    def get_permission_object(self):  # type: ignore[no-untyped-def]
+        return self.get_object().item
 
     def get_success_url(self) -> str:
         instance: ItemPhoto = self.object

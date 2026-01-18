@@ -33,5 +33,3 @@ urlpatterns = [
     ),
     path("join/<str:encoded>/", GroupJoinView.as_view(), name="group-join"),
 ]
-
-handler403 = "borrowd_groups.views.forbidden"

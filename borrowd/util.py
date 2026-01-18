@@ -1,10 +1,13 @@
 import base64
 import json
+import logging
 import os
 import sys
 from urllib.parse import urlparse
 
 from django.db.models import Model
+
+logger = logging.getLogger(__name__)
 
 
 class BorrowdTemplateFinderMixin:
