@@ -61,3 +61,5 @@ urlpatterns: List[URLPattern | URLResolver] = [
 
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
+handler403 = "borrowd.views.custom_403_router"

@@ -1,4 +1,5 @@
 from django.contrib.auth.models import AnonymousUser
+from django.core.exceptions import PermissionDenied
 from django.test import RequestFactory, TestCase
 
 from borrowd.models import TrustLevel
@@ -71,13 +72,10 @@ class GroupDetailViewTests(TestCase):
         #
         # Act
         #
-        response = GroupDetailView.as_view()(request, pk=group.pk)
-
-        #
-        #  Assert
-        #
-        # Forbidden error
-        self.assertEqual(response.status_code, 403)
+        # the Mixin raises a PermissionDenied which does not get caught in this test, but
+        # does get caught correctly in the application operation
+        with self.assertRaises(PermissionDenied):
+            GroupDetailView.as_view()(request, pk=group.pk)
 
     def test_logged_out_user_cannot_view_detail_page(self) -> None:
         #

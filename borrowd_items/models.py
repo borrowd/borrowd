@@ -21,6 +21,7 @@ from imagekit.models import ImageSpecField, ProcessedImageField
 from imagekit.processors import ResizeToFill, ResizeToFit
 
 from borrowd.models import TrustLevel
+from borrowd_permissions.models import ItemOLP
 from borrowd_users.models import BorrowdUser
 
 from .exceptions import InvalidItemAction, ItemAlreadyRequested
@@ -523,18 +524,18 @@ class Item(Model):
         # Permissions using the naming conventon `*_this_*` are used
         # for object-/record-level permissions: whereas the permission
         # `view_item` would allow a user to view "any" Item, the
-        # permission `view_this_item` allows viewing a specific Item.
+        # permission `ItemOLP.VIEW` allows viewing a specific Item.
         permissions = [
             (
-                "view_this_item",
+                ItemOLP.VIEW,
                 "Can view this item",
             ),
             (
-                "edit_this_item",
+                ItemOLP.EDIT,
                 "Can edit this item",
             ),
             (
-                "delete_this_item",
+                ItemOLP.DELETE,
                 "Can delete this item",
             ),
             (

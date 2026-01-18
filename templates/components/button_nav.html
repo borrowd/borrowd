@@ -1,8 +1,8 @@
 {% load button_styles %}
 <a href="{{ url }}"
    class="btn btn-primary
-          {% comment %} {{ color|default:"blue"|button_bg_color }} {{ color|default:"blue"|button_text_color }} {{ color|default:"blue"|button_border_color }}
-          {{ class }} {% endcomment %}
+          {% comment %} {{ color|default:'blue'|button_bg_color }} {{ color|default:'blue'|button_text_color }} {{ color|default:'blue'|button_border_color }}
+          {{ class|default:'' }} {% endcomment %}
            "
            >
     {{ slot }}

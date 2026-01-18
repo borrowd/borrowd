@@ -53,13 +53,14 @@ INSTALLED_APPS = [
     "borrowd_users",  # Must be above `allauth` to use our templates
     "allauth",
     "allauth.account",
+    "guardian",  # Must be before borrowd_permissions
+    "borrowd_permissions",  # Must be before object-defining apps like borrowd_items and borrowd_groups
     "borrowd_web",
     "borrowd_beta",
     "borrowd_items",
     "borrowd_groups",
     "notifications",  # Must be below apps that send notifications and above borrowd_notifications
     "borrowd_notifications",
-    "guardian",
     "django_filters",
     "django_vite",
     "django_cleanup.apps.CleanupConfig",  # Must go last https://github.com/un1t/django-cleanup?tab=readme-ov-file#configuration
@@ -238,7 +239,12 @@ LOGGING = {
     "loggers": {
         "django": {
             "handlers": ["console"],
-            "level": os.getenv("DJANGO_LOG_LEVEL", "INFO").upper(),
+            "level": env("DJANGO_LOG_LEVEL", default="INFO").upper(),
+            "propagate": False,
+        },
+        "borrowd": {
+            "handlers": ["console"],
+            "level": env("DJANGO_LOG_LEVEL", default="INFO").upper(),
             "propagate": False,
         },
     },
