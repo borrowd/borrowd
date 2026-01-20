@@ -15,14 +15,23 @@ from borrowd_users.models import BorrowdUser
 
 
 @receiver(post_save, sender=BorrowdGroup)
-def create_perms_group_on_borrowd_group_creation(
+def maintain_perms_group_on_borrowd_group_change(
     sender: BorrowdGroup, instance: BorrowdGroup, created: bool, **kwargs: str
 ) -> None:
-    # Only run this logic on instance creation
-    if not created:
-        return
+    # on create, create the perms group, then save the reference to the perms
+    # group onto the borrowd group, because we need to maintain this linkage
+    # even if the name changes
+    if created:
+        perms_group = Group.objects.create(name=instance.name)
+        instance.perms_group = perms_group
+        instance.save()
 
-    Group.objects.create(name=instance.name)
+    # on update, make sure that the names still match
+    else:
+        perms_group = instance.perms_group
+        if perms_group.name != instance.name:
+            perms_group.name = instance.name
+            perms_group.save()
 
 
 @receiver(post_save, sender=BorrowdGroup)
@@ -130,16 +139,6 @@ def refresh_permissions_on_membership_update(
 
     for group_perm in member_perms:
         assign_perm(group_perm, user, borrowd_group)
-
-
-@receiver(pre_delete, sender=BorrowdGroup)
-def borrowd_group_pre_delete_remove_perms_group(
-    sender: BorrowdGroup, instance: BorrowdGroup, **kwargs: Any
-) -> None:
-    # Use get() as there should always be exactly one; see
-    # `create_perms_group_on_borrowd_group_creation()` above.
-    group = Group.objects.get(name=instance.name)
-    group.delete()
 
 
 @receiver(pre_delete, sender=Membership)
