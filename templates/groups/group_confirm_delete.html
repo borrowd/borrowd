@@ -4,7 +4,7 @@
 {% block groups_content %}
 <c-box>
     <c-h1>Confirm Deletion</c-h1>
-    <p>Are you sure you want to delete "{{ object }}"?</p>
+    <p>Are you sure you want to delete "{{ object.name }}"?</p>
     <form method="post" onsubmit="this.querySelector('button[type=submit]').disabled = true;">
         {% csrf_token %}
         <c-button danger type="submit">Yes, delete</c-button>
