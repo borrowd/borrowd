@@ -12,6 +12,7 @@ from django.db.models import (
     Manager,
     ManyToManyField,
     Model,
+    OneToOneField,
     TextChoices,
     TextField,
     UniqueConstraint,
@@ -98,6 +99,11 @@ class BorrowdGroup(Model):
         related_name="borrowd_groups",
         related_query_name="borrowd_groups",
         through="borrowd_groups.Membership",
+    )
+    perms_group: OneToOneField[Group] = OneToOneField(
+        Group,
+        null=True,
+        on_delete=CASCADE,
     )
     created_by: ForeignKey[BorrowdUser] = ForeignKey(
         BorrowdUser,

@@ -235,7 +235,7 @@ class GroupBasedItemPermissionsTests(TestCase):
             updated_by=owner,
             membership_requires_approval=False,
         )
-        perms_group = Group.objects.get(name=borrowd_group.name)
+        perms_group = borrowd_group.perms_group
 
         # Act
         ## Create an Items with low, med and high levels
@@ -266,7 +266,7 @@ class GroupBasedItemPermissionsTests(TestCase):
             updated_by=owner,
             trust_level=TrustLevel.LOW,
         )
-        perms_group = Group.objects.get(name=borrowd_group.name)
+        perms_group = borrowd_group.perms_group
 
         # Act
         ## Create an Items with low, med and high levels
@@ -294,7 +294,7 @@ class GroupBasedItemPermissionsTests(TestCase):
         borrowd_group: BorrowdGroup = BorrowdGroup.objects.create(
             name="Test Group", created_by=owner, updated_by=owner
         )
-        perms_group = Group.objects.get(name=borrowd_group.name)
+        perms_group = borrowd_group.perms_group
 
         ## Create an item with a HIGH trust level
         item = Item.objects.create(
@@ -323,7 +323,7 @@ class GroupBasedItemPermissionsTests(TestCase):
             updated_by=owner,
             trust_level=TrustLevel.LOW,
         )
-        perms_group = Group.objects.get(name=borrowd_group.name)
+        perms_group = borrowd_group.perms_group
 
         ## Create an item with a HIGH trust level
         item = Item.objects.create(
