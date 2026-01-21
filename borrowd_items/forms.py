@@ -5,7 +5,7 @@ from django.template.defaultfilters import filesizeformat
 
 from .models import Item, ItemPhoto
 
-MAX_PHOTO_SIZE_BYTES = 2 * 1024 * 1024  # 2MB
+MAX_PHOTO_SIZE_BYTES = 5 * 1024 * 1024  # 5MB
 ALLOWED_IMAGE_EXTENSIONS = ["jpg", "jpeg", "png", "webp"]
 ALLOWED_IMAGE_ACCEPT = ",".join(f".{ext}" for ext in ALLOWED_IMAGE_EXTENSIONS)
 
