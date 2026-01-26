@@ -8,15 +8,29 @@
 {% block head_title %}{% if not view.object.pk %}Create{% else %}Edit{% endif %} Item{% endblock %}
 
 {% block items_content %}
-<c-box>
-    <c-h1>{% if not view.object.pk %}Create{% else %}Edit{% endif %} Item</c-h1>
-    <form method="post" enctype="multipart/form-data" class="flex flex-col space-y-2" onsubmit="this.querySelector('button[type=submit]').disabled = true;">
+<div class="w-full">
+    {% include "components/page_header.html" with title=page_title %}
+    <form method="post" enctype="multipart/form-data" class="flex flex-col gap-4" onsubmit="this.querySelector('button[type=submit]').disabled = true;">
         {% csrf_token %}
         {% for field in form %}
-        <div class="">
-            {{ field.errors }}
-            <b>{{ field.label_tag }}</b>
-            <div class="border-2 border-gray-200 w-fit">{{ field }} </div>
+        <div class="fieldset w-full">
+            <label class="label">
+                <span class="label-text ">{{ field.label }}</span>
+                {% if field.name == "trust_level_required" %}
+                    <a href="javascript:void(0)" onclick="showModal('trust-level-info-modal')" class="label-text-alt text-blue-600 hover:text-blue-800 underline ml-2">What is this?</a>
+                {% endif %}
+            </label>
+            {{ field }}
+            {% if field.errors %}
+                <label class="label">
+                    <span class="label-text-alt text-error">{{ field.errors }}</span>
+                </label>
+            {% endif %}
+            {% if field.name == "image" %}
+                <label class="label">
+                    <span class="label-text-alt text-base-content/60">Max size 5MB</span>
+                </label>
+            {% endif %}
         </div>
         {% endfor %}
 
@@ -28,8 +42,8 @@
                     <div>
                         <c-photo src="{{ photo.image.url }}"
                             alt="{{ view.object.name }} Photo {{ forloop.counter }}" />
-                        <div class="p-1 flex justify-center">
-                            <c-button-nav url="{% url 'itemphoto-delete' view.object.pk photo.pk %}">
+                        <div class="p-1">
+                            <c-button-nav url="{% url 'itemphoto-delete' view.object.pk photo.pk %}" class="btn btn-link">
                                 Delete
                             </c-button-nav>
                         </div>
@@ -40,24 +54,26 @@
                 <div class="mb-2">No photos</div>
             {% endif %}
             {% if view.object.photos.count < 5 %}
-                <c-button-nav url="{% url 'itemphoto-create' form.instance.pk %}">Add Photo</c-button-nav>
+                <c-button-nav url="{% url 'itemphoto-create' form.instance.pk %}" class="btn btn-sm">Add Photo</c-button-nav>
             {% else %}
                 <div class="text-gray-500 italic">Photo limit (5) reached. Delete a photo if you want to add another.</div>
             {% endif %}
 
         {% endif %}
 
-        <div class="flex gap-4 justify-center sm:justify-start">
-            <c-button type="submit">Save</c-button>
+        <div class="mt-4">
+            <c-button type="submit" class="btn btn-primary mr-2">Save item</c-button>
             {% if form.instance.pk %}
-                <c-button-nav url="{% url 'item-detail' form.instance.pk %}">
+                <c-button-nav url="{% url 'item-detail' form.instance.pk %}" class="btn">
                     Cancel
                 </c-button-nav>
-                <c-button-nav url="{% url 'item-delete' form.instance.pk %}">
+                <c-button-nav url="{% url 'item-delete' form.instance.pk %}" class="btn btn-link">
                     Delete
                 </c-button-nav>
             {% endif %}
         </div>
     </form>
-</c-box>
+</div>
+
+{% include "components/modal.html" with modal_id="trust-level-info-modal" modal_title="Group trust levels" modal_size="full" cancel_button="Got it" modal_content="<div class='text-left'><p class='mb-4'>At the heart of Borrow'd is trust. Each group you join gets a trust level (High, Medium, or Low), which determines what kinds of items they can request from you. For example:</p><div class='mb-4'><p class='font-bold mb-2'><span class='text-tertiary'>High trust:</span> Super Best Friends</p><p>A small circle of people you've known for years. You trust them with your life – and also, electronics, appliances, and other high-value items.</p></div><div class='mb-4'><p class='font-bold mb-2'><span class='text-accent'>Medium trust:</span> Sports Ball Team</p><p>You may have only known each other for a few seasons, but you know you can count on them to score points (and return your items). You're comfortable sharing things like hobby tools or gardening supplies.</p></div><div><p class='font-bold mb-2'><span class='text-secondary'>Low trust:</span> Neighborhood Community</p><p>You recognize your neighbors, but don't necessarily see each other often. You're happy to lend out low-cost, hard-to-break items like books, toys, or decorations.</p></div></div>" %}
 {% endblock %}

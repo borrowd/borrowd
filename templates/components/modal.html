@@ -1,53 +1,81 @@
-<!-- Reusable Modal Component -->
-<div id="{{ modal_id }}" class="fixed inset-0 z-40 bg-black bg-opacity-40 backdrop-blur-sm flex items-center justify-center" style="display: none;">
-    <!-- Modal Content -->
-    <div class="bg-borrowd-indigo-300 border border-borrowd-indigo-600 rounded-md shadow-lg p-6 max-w-md w-full mx-4 text-borrowd-indigo-600 text-lg">
-        <!-- Modal Header -->
+<!-- Reusable Modal Component
+     Parameters:
+     - modal_id: Required, unique ID for the modal
+     - modal_title: Optional, title text
+     - modal_content: Required, HTML content for modal body
+     - modal_size: Optional, 'half' or 'full' (default: 'half')
+     - button_layout: Optional, 'end' (default), 'between', or 'equal' for button arrangement
+     - cancel_button: Optional, text for secondary button (left side)
+     - cancel_action: Optional, onclick action for secondary button (if not provided, closes modal)
+     - cancel_button_class: Optional, CSS classes for secondary button (default: 'btn btn-ghost font-semibold')
+     - confirm_button: Optional, text for primary button (right side)
+     - confirm_action: Optional, onclick action for primary button
+     - confirm_button_class: Optional, CSS classes for primary button (default: 'btn btn-primary font-semibold')
+-->
+<dialog id="{{ modal_id }}" class="modal modal-bottom sm:modal-middle">
+    <div class="modal-box rounded-t-2xl sm:rounded-2xl max-w-lg {% if modal_size == 'full' %}max-h-[85vh]{% else %}max-h-[60vh]{% endif %} flex flex-col">
+        <!-- Close button -->
+        <form method="dialog">
+            <button class="btn btn-ghost absolute top-0 right-0 h-16 w-16 p-2 flex flex-col align-items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 22 22" fill="none">
+  <g filter="url(#filter0_d_1222_4949)">
+    <path fill-rule="evenodd" clip-rule="evenodd" d="M5.01386 5.01386C5.28235 4.74538 5.71765 4.74538 5.98614 5.01386L11 10.0277L16.0139 5.01386C16.2824 4.74538 16.7177 4.74538 16.9861 5.01386C17.2546 5.28235 17.2546 5.71765 16.9861 5.98614L11.9723 11L16.9861 16.0139C17.2546 16.2824 17.2546 16.7177 16.9861 16.9861C16.7177 17.2546 16.2824 17.2546 16.0139 16.9861L11 11.9723L5.98614 16.9861C5.71765 17.2546 5.28235 17.2546 5.01386 16.9861C4.74538 16.7177 4.74538 16.2824 5.01386 16.0139L10.0277 11L5.01386 5.98614C4.74538 5.71765 4.74538 5.28235 5.01386 5.01386Z" fill="#181818"/>
+  </g>
+  <defs>
+    <filter id="filter0_d_1222_4949" x="4.8125" y="4.8125" width="12.375" height="12.875" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feFlood flood-opacity="0" result="BackgroundImageFix"/>
+      <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+      <feOffset dy="0.5"/>
+      <feComposite in2="hardAlpha" operator="out"/>
+      <feColorMatrix type="matrix" values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.15 0"/>
+      <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_1222_4949"/>
+      <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_1222_4949" result="shape"/>
+    </filter>
+  </defs>
+</svg>
+            </button>
+        </form>
+
+        <!-- Modal Title -->
         {% if modal_title %}
-        <div class="mb-4">
-            <h3 class="text-xl font-bold text-center">{{ modal_title }}</h3>
-        </div>
+        <h3 class="text-2xl leading-[1.8rem] flex-shrink-0 pr-12">{{ modal_title }}</h3>
         {% endif %}
 
-        <!-- Modal Body -->
-        <div class="mb-6 text-center">
+        <!-- Modal Content (scrollable) -->
+        <div class="{% if modal_title %}pt-4{% endif %} leading-[1.4rem] text-base overflow-y-auto flex-grow">
             {{ modal_content|safe }}
         </div>
 
-        <!-- Modal Actions -->
-        {% load button_styles %}
-        <div class="flex justify-center space-x-4">
+        <!-- Modal actions -->
+        {% if cancel_button or confirm_button %}
+        <div class="pt-6 gap-2 {% if button_layout == 'equal' %}grid grid-cols-2{% else %}modal-action {% if button_layout == 'between' %}justify-between{% else %}justify-end{% endif %}{% endif %}">
             {% if cancel_button %}
-            <button
-                type="button"
-                onclick="closeModal('{{ modal_id }}')"
-                class="inline-block w-fit font-medium py-2 px-4 rounded transition-colors duration-200 border-2
-                {{ 'red'|button_bg_color }} {{ 'red'|button_text_color }} {{ 'red'|button_border_color }}"
-            >
-                {{ cancel_button }}
-            </button>
+                {% if cancel_action %}
+                <button type="button" onclick="{{ cancel_action }}" class="{{ cancel_button_class|default:'btn btn-ghost font-semibold' }}{% if button_layout == 'equal' %} w-full{% endif %}">{{ cancel_button }}</button>
+                {% else %}
+                <form method="dialog">
+                    <button class="{{ cancel_button_class|default:'btn btn-ghost font-semibold' }}{% if button_layout == 'equal' %} w-full{% endif %}">{{ cancel_button }}</button>
+                </form>
+                {% endif %}
             {% endif %}
 
             {% if confirm_button %}
-            <button
-                type="button"
-                onclick="{{ confirm_action }}"
-                class="inline-block w-fit font-medium py-2 px-4 rounded transition-colors duration-200 border-2
-                {{ 'green'|button_bg_color }} {{ 'green'|button_text_color }} {{ 'green'|button_border_color }}"
-            >
-                {{ confirm_button }}
-            </button>
+            <button type="button" onclick="{{ confirm_action }}" class="{{ confirm_button_class|default:'btn btn-primary font-semibold' }}{% if button_layout == 'equal' %} w-full{% endif %}">{{ confirm_button }}</button>
             {% endif %}
         </div>
+        {% endif %}
     </div>
-</div>
+    <form method="dialog" class="modal-backdrop">
+        <button>close</button>
+    </form>
+</dialog>
 
 <script>
 function showModal(modalId) {
-    document.getElementById(modalId).style.display = 'flex';
+    document.getElementById(modalId).showModal();
 }
 
 function closeModal(modalId) {
-    document.getElementById(modalId).style.display = 'none';
+    document.getElementById(modalId).close();
 }
 </script>
