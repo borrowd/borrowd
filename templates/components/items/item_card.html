@@ -16,51 +16,42 @@ Parameters:
 - action_context: ItemActionContext with .actions and .status_text (from get_action_context_for)
 - show_actions: Boolean - render action buttons
 - variant: 'default' | 'compact'
+
+ {% if variant == 'compact' %}max-w-sm{% else %}w-[18rem] h-[9.375rem]{% endif %}
+
 {% endcomment %}
 {% load static %}
-
-<div id="item-card-{{ pk }}" class="bg-white rounded-lg shadow-md overflow-hidden {% if variant == 'compact' %}max-w-sm{% else %}w-full{% endif %}">
+<div id="item-card-{{ pk }}" class="bg-white rounded-lg shadow-md overflow-hidden w-72">
     {% if banner_type %}
         {% include "components/items/item_card_header.html" with banner_type=banner_type requester_name=requester_name time_ago=time_ago %}
     {% endif %}
 
-    <div class="flex p-3 gap-3">
-        <!-- Thumbnail -->
-        <a href="{% url 'item-detail' pk %}" class="flex-shrink-0">
-            <div class="relative">
-                <img
-                    src="{{ image|default:'/static/items/categories/logo-tools.png' }}"
-                    alt="{{ name|default:'Item image' }}"
-                    class="{% if variant == 'compact' %}w-20 h-20{% else %}w-24 h-24{% endif %} object-cover rounded-lg"
-                />
-                {% if variant == 'compact' and not banner_type %}
-                    <!-- Available label overlaid on image for compact variant -->
-                    <div class="absolute bottom-0 left-0 right-0 bg-borrowd-fern-300 text-borrowd-fern-600 text-xs font-medium py-1 px-2 rounded-b-lg">
-                        Available
-                    </div>
-                {% endif %}
+    <div class="flex-col p-4">
+        <div class="flex gap-3 flex-row items-top p-3">
+            <!-- Thumbnail -->
+            <a href="{% url 'item-detail' pk %}" class="flex-shrink-0">
+                <div class="relative">
+                    <img
+                        src="{{ image|default:'/static/items/categories/logo-tools.png' }}"
+                        alt="{{ name|default:'Item image' }}"
+                        class="w-32 h-32 object-cover rounded-lg"
+                    />
+                </div>
+            </a>
+
+            <!-- Content -->
+            <div class="flex-1 min-w-0 flex flex-col">
+                <div class="flex items-start justify-between gap-2">
+                    <a href="{% url 'item-detail' pk %}" class="block no-underline min-w-0 flex-1">
+                        <h3 class="text-base font-semibold text-gray-900 wrap">{{ name }}</h3>
+                        <p class="text-sm text-gray-600 line-clamp-2 mt-1 wrap">{{ description }}</p>
+                    </a>
+                </div>
             </div>
-        </a>
-
-        <!-- Content -->
-        <div class="flex-1 min-w-0 flex flex-col">
-            <div class="flex items-start justify-between gap-2">
-                <a href="{% url 'item-detail' pk %}" class="block no-underline min-w-0 flex-1">
-                    <h3 class="text-base font-semibold text-gray-900 truncate">{{ name }}</h3>
-                    <p class="text-sm text-gray-600 line-clamp-2 mt-1">{{ description }}</p>
-                </a>
-
-                {% if is_yours %}
-                    <span class="flex-shrink-0 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-borrowd-indigo-300 text-borrowd-indigo-600">
-                        Yours
-                    </span>
-                {% endif %}
-            </div>
-
-            {% if show_actions and action_context.actions %}
-                {% include "components/items/item_card_actions.html" with item=item action_context=action_context %}
-            {% endif %}
         </div>
+        {% if show_actions and action_context.actions %}
+            {% include "components/items/item_card_actions.html" with item=item action_context=action_context %}
+        {% endif %}
     </div>
 
     {% if show_actions %}
