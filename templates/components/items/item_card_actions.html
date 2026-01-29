@@ -9,7 +9,7 @@ Parameters:
 {% endcomment %}
 {% load button_styles %}
 
-<div id="item-card-actions-{{ item.pk }}" class="flex gap-2 mt-3">
+<div id="item-card-actions-{{ item.pk }}" class="flex gap-2 mt-3 p3">
     {% for action in action_context.actions %}
         {% if action.name == 'ACCEPT_REQUEST' %}
             <button
