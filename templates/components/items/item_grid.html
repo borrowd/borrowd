@@ -1,4 +1,3 @@
-{% load days_since %}
 {% load time_filters %}
 {% load banner_filters %}
 <div class="{{ class|default:'' }}">
@@ -19,70 +18,34 @@
         </div>
     {% endif %}
     {% for item in items %}
-        {% load static %}
-        <c-items.item-box pk="{{item.pk}}"
-            name="{{item.name}}"
-            description="{{item.description}}"
-            owner="{{item.owner.username}}"
-            status="{{item.get_status_display}}"
-            image="{{item.photos.all.0.thumbnail.url}}"
-            label_color="{{ label_color }}"
-            box_size="{{ box_size }}"
-            show_status="{{ show_status }}"
-        >
-            {% if label_type == 'i_borrower' and item.borrower %}
-                <c-slot name="label">
-                    <c-avatar src="{{item.borrower.profile.profile_pic}}" class="inline !h-7 !w-7" />
-                    With {{ item.borrower.username|default:'' }}
-                </c-slot>
-            {% endif %}
-        </c-items.item-box>
+        {% with action_context=item|get_action_context_for:request.user banner_type=item|get_item_banner_type %}
+        <c-items.item-card
+            pk="{{ item.pk }}"
+            name="{{ item.name }}"
+            description="{{ item.description }}"
+            image="{{ item.photos.all.0.thumbnail.url }}"
+            banner_type="{{ banner_type }}"
+            :item="item"
+            :action_context="action_context"
+            :show_actions="True"
+        />
+        {% endwith %}
     {% endfor %}
     {% for tx in transactions %}
-        {% load static %}
-        {% if display_type == 'box' %}
-            <c-items.item-box pk="{{ tx.item.pk }}"
-                name="{{ tx.item.name }}"
-                description="{{tx.item.description}}"
-                owner="{{ tx.item.owner.username }}"
-                image="{{ tx.item.photos.all.0.thumbnail.url }}"
-                status="{{ tx.get_status_display }}"
-                label_color="{{ label_color }}"
-                box_size="{{ box_size }}"
-                show_status="{{ show_status }}"
-            >
-                {% if label_type %}
-                <c-slot name="label">
-                    {% if label_type == 'tx_time' %}
-                        <c-avatar src="{% static 'icons/handshake.svg' %}" class="inline !h-7 !w-7" />
-                        {{ tx.created_at|days_since }}
-                    {% elif label_type == 'tx_owner' %}
-                        <c-avatar src="{{tx.party1.profile.profile_pic}}" class="inline !h-7 !w-7" />
-                        From {{ tx.party1.username }}
-                    {% elif label_type == 'tx_borrower' %}
-                        <c-avatar src="{{tx.party2.profile.profile_pic}}" class="inline !h-7 !w-7" />
-                        By {{ tx.party2.profile.full_name }}
-                    {% endif %}
-                </c-slot>
-                {% endif %}
-            </c-items.item-box>
-        {% else %}
-            {% with action_context=tx.item|get_action_context_for:request.user banner_type=tx|get_banner_type %}
-            <c-items.item-card
-                pk="{{ tx.item.pk }}"
-                name="{{ tx.item.name }}"
-                description="{{ tx.item.description }}"
-                image="{{ tx.item.photos.all.0.thumbnail.url }}"
-                :is_yours="True"
-                banner_type="{{ banner_type }}"
-                requester_name="{{ tx.party2.profile.full_name }}"
-                time_ago="{{ tx.created_at|timesince_short }}"
-                :item="tx.item"
-                :action_context="action_context"
-                :show_actions="True"
-            />
-            {% endwith %}
-        {% endif %}
+        {% with action_context=tx.item|get_action_context_for:request.user banner_type=tx|get_banner_type %}
+        <c-items.item-card
+            pk="{{ tx.item.pk }}"
+            name="{{ tx.item.name }}"
+            description="{{ tx.item.description }}"
+            image="{{ tx.item.photos.all.0.thumbnail.url }}"
+            banner_type="{{ banner_type }}"
+            requester_name="{{ tx.party2.profile.full_name }}"
+            time_ago="{{ tx.created_at|timesince_short }}"
+            :item="tx.item"
+            :action_context="action_context"
+            :show_actions="True"
+        />
+        {% endwith %}
     {% endfor %}
     </div>
 </div>
