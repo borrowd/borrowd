@@ -39,9 +39,11 @@ For variant='card', also accepts:
             {% endif %}
             class="flex-1 py-2 px-4 rounded-lg font-medium text-sm transition-colors duration-200 cursor-pointer
                 {% if action.name == 'ACCEPT_REQUEST' %}{{ 'green'|button_bg_color }} {{ 'green'|button_text_color }}
-                {% elif action.name == 'REJECT_REQUEST' or action.name == 'CANCEL_REQUEST' %}{{ 'red'|button_bg_color }} {{ 'red'|button_text_color }}
-                {% elif action.name == 'REQUEST_ITEM' %}{{ 'green'|button_bg_color }} {{ 'green'|button_text_color }}
-                {% else %}{{ 'blue'|button_bg_color }} {{ 'blue'|button_text_color }}
+                {% elif action.name == 'MARK_COLLECTED' %}{{ 'green'|button_bg_color }} {{ 'green'|button_text_color }}
+                {% elif action.name == 'REJECT_REQUEST' %}{{ 'red'|button_bg_color }} {{ 'red'|button_text_color }}
+                {% elif action.name == 'REQUEST_ITEM' %}{{ 'blue'|button_bg_color }} {{ 'blue'|button_text_color }}
+                {% elif action.name == 'CANCEL_REQUEST' %}{{ 'light_gray'|button_bg_color }} {{ 'blue_reverse'|button_text_color }}
+                {% else %}{{ 'light_gray'|button_bg_color }} {{ 'blue_reverse'|button_text_color }}
                 {% endif %}"
         >
             {% if action.name == 'ACCEPT_REQUEST' %}Accept

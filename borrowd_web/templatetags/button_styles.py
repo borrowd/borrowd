@@ -12,12 +12,13 @@ register = template.Library()
 def button_bg_color(color: str) -> str:
     """Get background color classes for buttons."""
     return {
-        "blue": "bg-borrowd-indigo-300 hover:bg-borrowd-indigo-600",
+        "blue": "bg-borrowd-indigo-600 hover:bg-borrowd-indigo-300",
         "green": "bg-borrowd-fern-300 hover:bg-borrowd-fern-600",
         "plum": "bg-borrowd-plum-300 hover:bg-borrowd-plum-600",
         "red": "bg-borrowd-cancel-light hover:bg-error",
         "yellow": "bg-borrowd-honey-300 hover:bg-borrowd-honey-600",
         "gray": "bg-gray-600 hover:bg-gray-700",  # Keep gray as standard since no borrowd equivalent
+        "light_gray": "bg-borrowd-light-gray hover:bg-gray-600",
     }.get(color, "bg-borrowd-indigo-300 hover:bg-borrowd-indigo-600")
 
 
@@ -26,7 +27,8 @@ def button_text_color(color: str) -> str:
     """Get text color classes for buttons."""
     # Note: reverse of button_bg_color above
     return {
-        "blue": "text-borrowd-indigo-600 hover:text-borrowd-indigo-300",
+        "blue": "text-borrowd-indigo-300 hover:text-borrowd-indigo-600",
+        "blue_reverse": "text-borrowd-indigo-600 hover:text-borrowd-indigo-300",
         "green": "text-borrowd-fern-600 hover:text-borrowd-fern-300",
         "plum": "text-borrowd-plum-600 hover:text-borrowd-plum-300",
         "red": "text-error hover:text-borrowd-cancel-light",

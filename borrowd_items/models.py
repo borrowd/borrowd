@@ -315,8 +315,8 @@ class Item(Model):
         elif current_tx.status == TransactionStatus.ACCEPTED:
             # Either borrower or lender can assert collection.
             return (
-                ItemAction.MARK_COLLECTED,
                 ItemAction.CANCEL_REQUEST,
+                ItemAction.MARK_COLLECTED,
             )
         elif current_tx.status == TransactionStatus.COLLECTION_ASSERTED:
             # Make sure the same person doesn't confirm the assertion
