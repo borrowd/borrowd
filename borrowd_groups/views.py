@@ -254,7 +254,13 @@ class GroupJoinView(LoginRequiredMixin, View):  # type: ignore[misc]
         form = GroupJoinForm(request.POST)
         # Making sure a Trust Level has been selected
         if not form.is_valid():
-            return render(request, "groups/group_join.html", {"form": form})
+            context = {
+                "object": group,
+                "group": group,
+                "form": form,
+                "members_data": get_members_data(group),
+            }
+            return render(request, "groups/group_join.html", context)
 
         # Wonder what we can do to cast request.user to our
         # custom user model, so mypy doesn't complain here?
