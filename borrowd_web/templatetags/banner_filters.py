@@ -5,7 +5,7 @@ from django import template
 from django.utils.safestring import mark_safe
 
 if TYPE_CHECKING:
-    from borrowd_items.models import Transaction
+    from borrowd_items.models import Item, Transaction
 
 register = template.Library()
 
@@ -89,3 +89,20 @@ def get_banner_type(transaction: "Transaction") -> str:
         TransactionStatus.RETURN_ASSERTED: "reserved",
     }
     return status_to_banner.get(transaction.status, "")
+
+
+@register.filter
+def get_item_banner_type(item: "Item") -> str:
+    """
+    Get banner type from item status.
+
+    Usage: {{ item|get_item_banner_type }}
+    """
+    from borrowd_items.models import ItemStatus
+
+    status_to_banner: dict[int, str] = {
+        ItemStatus.AVAILABLE: "available",
+        ItemStatus.RESERVED: "reserved",
+        ItemStatus.BORROWED: "reserved",
+    }
+    return status_to_banner.get(item.status, "")
