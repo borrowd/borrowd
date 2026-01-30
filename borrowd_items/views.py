@@ -20,7 +20,7 @@ from borrowd_users.models import BorrowdUser
 from .exceptions import InvalidItemAction, ItemAlreadyRequested
 from .filters import ItemFilter
 from .forms import ItemCreateWithPhotoForm, ItemForm, ItemPhotoForm
-from .models import Item, ItemAction, ItemPhoto
+from .models import Item, ItemAction, ItemActionContext, ItemPhoto
 
 
 @require_POST
@@ -67,6 +67,29 @@ def borrow_item(request: HttpRequest, pk: int) -> HttpResponse:
     if not user.has_perm(ItemOLP.VIEW, item):
         return HttpResponse("Not found", status=404)
 
+    # Detect if request is from item card by checking HX-Target header
+    hx_target = request.headers.get("HX-Target", "")
+    is_card_request = hx_target.startswith("item-card-actions-")
+
+    # Build context with variant-specific params
+    def build_context(
+        action_context: ItemActionContext,
+        error_message: str | None = None,
+        error_type: str | None = None,
+    ) -> dict[str, Any]:
+        ctx: dict[str, Any] = {
+            "item": item,
+            "action_context": action_context,
+        }
+        if is_card_request:
+            ctx["variant"] = "card"
+            ctx["container_id"] = f"item-card-actions-{pk}"
+            ctx["modal_suffix"] = f"-{pk}"
+        if error_message:
+            ctx["error_message"] = error_message
+            ctx["error_type"] = error_type
+        return ctx
+
     try:
         req_action = req_action.upper()
         item.process_action(user=user, action=ItemAction(req_action))
@@ -75,10 +98,7 @@ def borrow_item(request: HttpRequest, pk: int) -> HttpResponse:
         return render(
             request,
             template_name="components/items/action_buttons_with_status.html",
-            context={
-                "item": item,
-                "action_context": action_context,
-            },
+            context=build_context(action_context),
             content_type="text/html",
             status=200,
         )
@@ -88,12 +108,11 @@ def borrow_item(request: HttpRequest, pk: int) -> HttpResponse:
         return render(
             request,
             template_name="components/items/action_buttons_with_status.html",
-            context={
-                "item": item,
-                "action_context": action_context,
-                "error_message": "Sorry! Another user requested this item just before you.",
-                "error_type": "already_requested",
-            },
+            context=build_context(
+                action_context,
+                error_message="Sorry! Another user requested this item just before you.",
+                error_type="already_requested",
+            ),
             content_type="text/html",
             status=200,
         )
@@ -103,10 +122,7 @@ def borrow_item(request: HttpRequest, pk: int) -> HttpResponse:
         return render(
             request,
             template_name="components/items/action_buttons_with_status.html",
-            context={
-                "item": item,
-                "action_context": action_context,
-            },
+            context=build_context(action_context),
             content_type="text/html",
             status=200,
         )

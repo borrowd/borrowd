@@ -1,4 +1,6 @@
 {% load days_since %}
+{% load time_filters %}
+{% load banner_filters %}
 <div class="{{ class|default:'' }}">
     {% if title %}
         <c-h2>{{title}}</c-h2>
@@ -38,31 +40,49 @@
     {% endfor %}
     {% for tx in transactions %}
         {% load static %}
-        <c-items.item-box pk="{{ tx.item.pk }}"
-            name="{{ tx.item.name }}"
-            description="{{tx.item.description}}"
-            owner="{{ tx.item.owner.username }}"
-            image="{{ tx.item.photos.all.0.thumbnail.url }}"
-            status="{{ tx.get_status_display }}"
-            label_color="{{ label_color }}"
-            box_size="{{ box_size }}"
-            show_status="{{ show_status }}"
-        >
-            {% if label_type %}
-            <c-slot name="label">
-                {% if label_type == 'tx_time' %}
-                    <c-avatar src="{% static 'icons/handshake.svg' %}" class="inline !h-7 !w-7" />
-                    {{ tx.created_at|days_since }}
-                {% elif label_type == 'tx_owner' %}
-                    <c-avatar src="{{tx.party1.profile.profile_pic}}" class="inline !h-7 !w-7" />
-                    From {{ tx.party1.username }}
-                {% elif label_type == 'tx_borrower' %}
-                    <c-avatar src="{{tx.party2.profile.profile_pic}}" class="inline !h-7 !w-7" />
-                    By {{ tx.party2.profile.full_name }}
+        {% if display_type == 'box' %}
+            <c-items.item-box pk="{{ tx.item.pk }}"
+                name="{{ tx.item.name }}"
+                description="{{tx.item.description}}"
+                owner="{{ tx.item.owner.username }}"
+                image="{{ tx.item.photos.all.0.thumbnail.url }}"
+                status="{{ tx.get_status_display }}"
+                label_color="{{ label_color }}"
+                box_size="{{ box_size }}"
+                show_status="{{ show_status }}"
+            >
+                {% if label_type %}
+                <c-slot name="label">
+                    {% if label_type == 'tx_time' %}
+                        <c-avatar src="{% static 'icons/handshake.svg' %}" class="inline !h-7 !w-7" />
+                        {{ tx.created_at|days_since }}
+                    {% elif label_type == 'tx_owner' %}
+                        <c-avatar src="{{tx.party1.profile.profile_pic}}" class="inline !h-7 !w-7" />
+                        From {{ tx.party1.username }}
+                    {% elif label_type == 'tx_borrower' %}
+                        <c-avatar src="{{tx.party2.profile.profile_pic}}" class="inline !h-7 !w-7" />
+                        By {{ tx.party2.profile.full_name }}
+                    {% endif %}
+                </c-slot>
                 {% endif %}
-            </c-slot>
-            {% endif %}
-        </c-items.item-box>
+            </c-items.item-box>
+        {% else %}
+            {% with action_context=tx.item|get_action_context_for:request.user banner_type=tx|get_banner_type %}
+            <c-items.item-card
+                pk="{{ tx.item.pk }}"
+                name="{{ tx.item.name }}"
+                description="{{ tx.item.description }}"
+                image="{{ tx.item.photos.all.0.thumbnail.url }}"
+                :is_yours="True"
+                banner_type="{{ banner_type }}"
+                requester_name="{{ tx.party2.profile.full_name }}"
+                time_ago="{{ tx.created_at|timesince_short }}"
+                :item="tx.item"
+                :action_context="action_context"
+                :show_actions="True"
+            />
+            {% endwith %}
+        {% endif %}
     {% endfor %}
     </div>
 </div>

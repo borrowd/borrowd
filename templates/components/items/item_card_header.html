@@ -6,35 +6,23 @@ Parameters:
 - requester_name: Name of requester (for 'request' banner)
 - time_ago: Time since request, e.g., "2h ago" (for 'request' banner)
 {% endcomment %}
+{% load banner_filters %}
 
-{% if banner_type == 'request' %}
-<div class="flex items-center gap-2 px-3 py-2 bg-borrowd-plum-300 rounded-t-lg">
-    <!-- Clock icon -->
-    <svg class="w-4 h-4 text-borrowd-plum-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-    </svg>
-    <span class="text-sm font-medium text-borrowd-plum-600">
-        Requested {{ time_ago }} by {{ requester_name }}
+{% if banner_type %}
+{% with config=banner_type|get_banner_config %}
+{% if config %}
+<div class="flex items-center gap-2 px-3 py-2 {{ config.bg_class }} rounded-t-lg">
+    <span class="{{ config.text_class }}">{{ config.icon }}</span>
+    <span class="text-sm font-medium {{ config.text_class }}">
+        {% if banner_type == 'request' %}
+            Requested {{ time_ago }} by {{ requester_name }}
+        {% elif banner_type == 'available' %}
+            Available
+        {% elif banner_type == 'reserved' %}
+            Reserved
+        {% endif %}
     </span>
 </div>
-{% elif banner_type == 'available' %}
-<div class="flex items-center gap-2 px-3 py-2 bg-borrowd-fern-300 rounded-t-lg">
-    <!-- Sparkle icon -->
-    <svg class="w-4 h-4 text-borrowd-fern-600" fill="currentColor" viewBox="0 0 24 24">
-        <path d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z"/>
-    </svg>
-    <span class="text-sm font-medium text-borrowd-fern-600">
-        Available
-    </span>
-</div>
-{% elif banner_type == 'reserved' %}
-<div class="flex items-center gap-2 px-3 py-2 bg-borrowd-honey-300 rounded-t-lg">
-    <!-- Reserved/bookmark icon -->
-    <svg class="w-4 h-4 text-borrowd-honey-600" fill="currentColor" viewBox="0 0 24 24">
-        <path fill-rule="evenodd" d="M6.32 2.577a49.255 49.255 0 0111.36 0c1.497.174 2.57 1.46 2.57 2.93V21a.75.75 0 01-1.085.67L12 18.089l-7.165 3.583A.75.75 0 013.75 21V5.507c0-1.47 1.073-2.756 2.57-2.93z" clip-rule="evenodd"/>
-    </svg>
-    <span class="text-sm font-medium text-borrowd-honey-600">
-        Reserved
-    </span>
-</div>
+{% endif %}
+{% endwith %}
 {% endif %}

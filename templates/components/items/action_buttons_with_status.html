@@ -1,7 +1,61 @@
-<!--
-    Originally these were properly separate components but when apart Alpine wouldn't properly pick up the htmx swap so styling would lag behind.
-  -->
-<div id="action-status-container" class="flex flex-col items-center my-2 gap-2 w-full">
+{% comment %}
+Action Buttons Component
+
+Displays action buttons for items with optional status box and error messages.
+
+Note: Originally these were properly separate components but when apart Alpine wouldn't properly pick up the htmx swap so styling would lag behind.
+
+Parameters:
+- item: Item object (for HTMX URLs) - required
+- action_context: ItemActionContext with .actions and .status_text
+- variant: 'detail' (default) or 'card' - controls layout and styling
+- error_message: Optional error message to display
+- error_type: Optional error type ('already_requested' or other)
+
+For variant='card', also accepts:
+- container_id: The ID for the container div (default: 'item-card-actions-{{ item.pk }}')
+- modal_suffix: Suffix for modal IDs (default: '-{{ item.pk }}')
+{% endcomment %}
+{% load button_styles %}
+
+{% with container_id=container_id|default:"action-status-container" modal_suffix=modal_suffix|default:"" %}
+
+{% if variant == 'card' %}
+{# Card variant: just buttons, no status box #}
+<div id="{{ container_id }}" class="flex gap-2 mt-3">
+    {% for action in action_context.actions %}
+        <button
+            type="button"
+            {% if action.name == 'REQUEST_ITEM' %}
+            onclick="showModal('request-item-modal{{ modal_suffix }}')"
+            {% elif action.name == 'ACCEPT_REQUEST' %}
+            onclick="showModal('accept-request-modal{{ modal_suffix }}')"
+            {% else %}
+            hx-post="{% url 'item-borrow' item.pk %}"
+            hx-vals='{"action": "{{ action.name }}"}'
+            hx-trigger="click"
+            hx-swap="innerHTML"
+            hx-target="#{{ container_id }}"
+            {% endif %}
+            class="flex-1 py-2 px-4 rounded-lg font-medium text-sm transition-colors duration-200
+                {% if action.name == 'ACCEPT_REQUEST' %}bg-borrowd-fern-300 text-borrowd-fern-600 hover:bg-borrowd-fern-400
+                {% elif action.name == 'REJECT_REQUEST' or action.name == 'CANCEL_REQUEST' %}bg-white text-borrowd-plum-600 border-2 border-borrowd-plum-600 hover:bg-borrowd-plum-100
+                {% else %}bg-borrowd-indigo-300 text-borrowd-indigo-600 hover:bg-borrowd-indigo-400
+                {% endif %}"
+        >
+            {% if action.name == 'ACCEPT_REQUEST' %}Accept
+            {% elif action.name == 'REJECT_REQUEST' %}Decline
+            {% elif action.name == 'REQUEST_ITEM' %}Request item
+            {% elif action.name == 'CANCEL_REQUEST' %}Cancel Request
+            {% else %}{{ action.label }}
+            {% endif %}
+        </button>
+    {% endfor %}
+</div>
+
+{% else %}
+{# Detail variant: full layout with status box #}
+<div id="{{ container_id }}" class="flex flex-col items-center my-2 gap-2 w-full">
     <div class="flex flex-col items-center gap-4 w-full">
         <!-- Error Message (if any) -->
         {% if error_message %}
@@ -34,21 +88,20 @@
         </div>
 
         <!-- Action Buttons -->
-        {% load button_styles %}
         <div class="flex flex-wrap items-center space-x-2">
             {% for action in action_context.actions %}
                 <button
                     type="button"
                     {% if action.name == 'REQUEST_ITEM' %}
-                    onclick="showModal('request-item-modal')"
+                    onclick="showModal('request-item-modal{{ modal_suffix }}')"
                     {% elif action.name == 'ACCEPT_REQUEST' %}
-                    onclick="showModal('accept-request-modal')"
+                    onclick="showModal('accept-request-modal{{ modal_suffix }}')"
                     {% else %}
                     hx-post="{% url 'item-borrow' item.pk %}"
                     hx-vals='{"action": "{{ action.name }}"}'
                     hx-trigger="click"
                     hx-swap="innerHTML"
-                    hx-target="#action-status-container"
+                    hx-target="#{{ container_id }}"
                     {% endif %}
                     class="inline-block w-fit font-medium py-2 px-4 rounded transition-colors duration-200 border-2
                     {% if action.name == 'ACCEPT_REQUEST' %}{{ 'green'|button_bg_color }} {{ 'green'|button_text_color }} {{ 'green'|button_border_color }}
@@ -62,34 +115,30 @@
             {% endfor %}
         </div>
 
-        <!-- Confirmation Modals -->
-        {% include "components/items/request_item_modal.html" %}
-        {% include "components/items/accept_request_modal.html" %}
+        {% include "components/items/request_item_modal.html" with modal_suffix=modal_suffix %}
+        {% include "components/items/accept_request_modal.html" with modal_suffix=modal_suffix %}
 
         <script>
-        function confirmRequestItem() {
-            // Close the modal
-            closeModal('request-item-modal');
-
-            // Execute the original HTMX request
+        function confirmRequestItem{{ modal_suffix|cut:"-" }}() {
+            closeModal('request-item-modal{{ modal_suffix }}');
             htmx.ajax('POST', '{% url 'item-borrow' item.pk %}', {
                 values: {'action': 'REQUEST_ITEM'},
                 swap: 'innerHTML',
-                target: '#action-status-container'
+                target: '#{{ container_id }}'
             });
         }
 
-        function confirmAcceptRequest() {
-            // Close the modal
-            closeModal('accept-request-modal');
-
-            // Execute the original HTMX request
+        function confirmAcceptRequest{{ modal_suffix|cut:"-" }}() {
+            closeModal('accept-request-modal{{ modal_suffix }}');
             htmx.ajax('POST', '{% url 'item-borrow' item.pk %}', {
                 values: {'action': 'ACCEPT_REQUEST'},
                 swap: 'innerHTML',
-                target: '#action-status-container'
+                target: '#{{ container_id }}'
             });
         }
         </script>
     </div>
 </div>
+{% endif %}
+
+{% endwith %}

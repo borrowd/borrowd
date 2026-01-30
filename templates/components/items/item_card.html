@@ -50,16 +50,13 @@ Parameters:
             </div>
         </div>
         {% if show_actions and action_context.actions %}
-            {% include "components/items/item_card_actions.html" with item=item action_context=action_context %}
+            {% include "components/items/action_buttons_with_status.html" with item=item action_context=action_context variant="card" container_id="item-card-actions-"|add:pk modal_suffix="-"|add:pk %}
         {% endif %}
     </div>
 
     {% if show_actions %}
-        <!-- Modal for Accept Request -->
-        {% include "components/modal.html" with modal_id="accept-request-modal-"|add:pk modal_title="Accept Request" button_layout="equal" confirm_button="Agree" cancel_button="Decline" cancel_button_class="btn btn-soft btn-error font-semibold" confirm_button_class="btn btn-soft btn-success font-semibold" confirm_action="confirmAcceptRequest"|add:pk|add:"()" modal_content="<p>Let's lend with care!</p><p class='mt-2 text-sm'>We keep our community strong by lending responsibly. Please confirm you agree to:</p><ul class='list-none list-inside mt-2 text-sm'><li><a href='https://borrowd.org/borrower-lender-agreement/' target='_blank' class='underline'>Borrower–Lender Liability Agreement</a> (keeps us safe)</li><li><a href='https://borrowd.org/code-of-conduct/' target='_blank' class='underline'>Borrow'd Code of Conduct</a> (keeps trust strong)</li></ul>" %}
-
-        <!-- Modal for Request Item -->
-        {% include "components/modal.html" with modal_id="request-item-modal-"|add:pk modal_title="Confirm Request" button_layout="equal" confirm_button="Agree" cancel_button="Decline" cancel_button_class="btn btn-soft btn-error font-semibold" confirm_button_class="btn btn-soft btn-success font-semibold" confirm_action="confirmRequestItem"|add:pk|add:"()" modal_content="<p>Let's share with care!</p><p class='mt-2 text-sm'>We keep our community strong by lending responsibly. Please confirm you agree to:</p><ul class='list-none list-inside mt-2 text-sm'><li><a href='https://borrowd.org/borrower-lender-agreement/' target='_blank' class='underline'>Borrower–Lender Liability Agreement</a> (keeps us safe)</li><li><a href='https://borrowd.org/code-of-conduct/' target='_blank' class='underline'>Borrow'd Code of Conduct</a> (keeps trust strong)</li></ul>" %}
+        {% include "components/items/accept_request_modal.html" with modal_suffix="-"|add:pk %}
+        {% include "components/items/request_item_modal.html" with modal_suffix="-"|add:pk %}
 
         <script>
         function confirmAcceptRequest{{ pk }}() {
