@@ -303,8 +303,8 @@ class Item(Model):
                 # Transaction is a Request from another User.
                 # The owner can either Accept or Reject the Request.
                 return (
-                    ItemAction.ACCEPT_REQUEST,
                     ItemAction.REJECT_REQUEST,
+                    ItemAction.ACCEPT_REQUEST,
                 )
             else:
                 # The User is the requestor and the current
