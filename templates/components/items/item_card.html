@@ -21,7 +21,8 @@ Parameters:
 
 {% endcomment %}
 {% load static %}
-<div id="item-card-{{ pk }}" class="bg-white rounded-lg shadow-md overflow-hidden w-72">
+{% with card_id="item-card-"|add:context|add:"-"|add:pk modal_suffix="-"|add:context|add:"-"|add:pk %}
+<div id="{{ card_id }}" class="bg-white rounded-lg shadow-md overflow-hidden w-72">
     {% if banner_type %}
         {% include "components/items/item_card_header.html" with banner_type=banner_type requester_name=requester_name time_ago=time_ago %}
     {% endif %}
@@ -55,32 +56,13 @@ Parameters:
             </div>
         </div>
         {% if show_actions and action_context.actions %}
-            {% include "components/items/action_buttons_with_status.html" with item=item action_context=action_context variant="card" container_id="item-card-actions-"|add:pk swap_target_id="item-card-"|add:pk modal_suffix="-"|add:pk %}
+            {% include "components/items/action_buttons_with_status.html" with item=item action_context=action_context variant="card" container_id="item-card-actions"|add:modal_suffix swap_target_id=card_id modal_suffix=modal_suffix %}
         {% endif %}
     </div>
 
     {% if show_actions %}
-        {% include "components/items/accept_request_modal.html" with modal_suffix="-"|add:pk %}
-        {% include "components/items/request_item_modal.html" with modal_suffix="-"|add:pk %}
-
-        <script>
-        function confirmAcceptRequest{{ pk }}() {
-            closeModal('accept-request-modal-{{ pk }}');
-            htmx.ajax('POST', '{% url 'item-borrow' pk %}', {
-                values: {'action': 'ACCEPT_REQUEST'},
-                swap: 'outerHTML',
-                target: '#item-card-{{ pk }}'
-            });
-        }
-
-        function confirmRequestItem{{ pk }}() {
-            closeModal('request-item-modal-{{ pk }}');
-            htmx.ajax('POST', '{% url 'item-borrow' pk %}', {
-                values: {'action': 'REQUEST_ITEM'},
-                swap: 'outerHTML',
-                target: '#item-card-{{ pk }}'
-            });
-        }
-        </script>
+        {% include "components/items/accept_request_modal.html" with item=item card_id=card_id modal_suffix=modal_suffix %}
+        {% include "components/items/request_item_modal.html" with item=item card_id=card_id modal_suffix=modal_suffix %}
     {% endif %}
 </div>
+{% endwith %}
