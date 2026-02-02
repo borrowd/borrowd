@@ -34,7 +34,7 @@ For variant='card', also accepts:
             hx-post="{% url 'item-borrow' item.pk %}"
             hx-vals='{"action": "{{ action.name }}"}'
             hx-trigger="click"
-            hx-swap="innerHTML"
+            hx-swap="outerHTML"
             hx-target="#{{ container_id }}"
             {% endif %}
             class="flex-1 py-2 px-4 rounded-lg font-medium text-sm transition-colors duration-200 cursor-pointer
@@ -103,7 +103,7 @@ For variant='card', also accepts:
                     hx-post="{% url 'item-borrow' item.pk %}"
                     hx-vals='{"action": "{{ action.name }}"}'
                     hx-trigger="click"
-                    hx-swap="innerHTML"
+                    hx-swap="outerHTML"
                     hx-target="#{{ container_id }}"
                     {% endif %}
                     class="inline-block w-fit font-medium py-2 px-4 rounded transition-colors duration-200 border-2
