@@ -31,6 +31,15 @@ def get_action_context_for(item: "Item", user: "BorrowdUser") -> "ItemActionCont
 
 
 @register.filter
+def is_owner(item: "Item", user: "BorrowdUser") -> bool:
+    """
+    Template filter to check if the user owns the item.
+    Usage: {{ item|is_owner:request.user }}
+    """
+    return item.owner == user
+
+
+@register.filter
 def timesince_short(value: datetime) -> str:
     """
     Returns a short human-readable time since 'value', e.g., '2h ago', '3d ago'.

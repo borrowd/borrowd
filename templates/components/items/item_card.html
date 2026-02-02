@@ -29,24 +29,29 @@ Parameters:
     <div class="flex-col p-4">
         <div class="flex gap-3 flex-row items-top p-3">
             <!-- Thumbnail -->
-            <a href="{% url 'item-detail' pk %}" class="flex-shrink-0">
-                <div class="relative">
+            <div class="relative">
+                <a href="{% url 'item-detail' pk %}" class="block no-underline min-w-0 flex-1">
                     <img
                         src="{{ image|default:'/static/items/categories/logo-tools.png' }}"
                         alt="{{ name|default:'Item image' }}"
                         class="w-32 h-32 object-cover rounded-lg"
                     />
-                </div>
-            </a>
+                </a>
+            </div>
 
             <!-- Content -->
-            <div class="flex-1 min-w-0 flex flex-col">
-                <div class="flex items-start justify-between gap-2">
-                    <a href="{% url 'item-detail' pk %}" class="block no-underline min-w-0 flex-1">
-                        <h3 class="text-base font-semibold text-gray-900 wrap">{{ name }}</h3>
-                        <p class="text-sm text-gray-600 line-clamp-2 mt-1 wrap">{{ description }}</p>
-                    </a>
-                </div>
+            <div class="flex-col">
+                <a href="{% url 'item-detail' pk %}">
+                    <div class="mb-2">
+                        {% if is_yours %}
+                            <div class="rounded-4xl h-xs max-w-xs w-fit p-1 pl-2 pr-2 bg-gray-100 border-solid border-2 border-gray-200">
+                                <span class="text-sm text-gray-900 text-center">Yours</span>
+                            </div>
+                        {% endif %}
+                    </div>
+                    <h3 class="text-base font-semibold text-gray-900 wrap">{{ name }}</h3>
+                    <p class="text-sm text-gray-900 line-clamp-2 mt-1 wrap">{{ description }}</p>
+                </a>
             </div>
         </div>
         {% if show_actions and action_context.actions %}
