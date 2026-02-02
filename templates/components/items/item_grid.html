@@ -21,6 +21,7 @@
         {% with action_context=item|get_action_context_for:request.user banner_type=item|get_item_banner_type is_yours=item|is_owner:request.user %}
         <c-items.item-card
             pk="{{ item.pk }}"
+            context="{{ context|default:'items' }}"
             name="{{ item.name }}"
             description="{{ item.description }}"
             image="{{ item.photos.all.0.thumbnail.url }}"
@@ -36,6 +37,7 @@
         {% with action_context=tx.item|get_action_context_for:request.user banner_type=tx|get_banner_type is_yours=tx.item|is_owner:request.user %}
         <c-items.item-card
             pk="{{ tx.item.pk }}"
+            context="{{ context|default:'transactions' }}"
             name="{{ tx.item.name }}"
             description="{{ tx.item.description }}"
             image="{{ tx.item.photos.all.0.thumbnail.url }}"

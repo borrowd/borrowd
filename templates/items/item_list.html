@@ -18,7 +18,7 @@
         {% else %}
         {% comment %} nothing here yet {% endcomment %}
         {% endif %}
-        <c-items.item-grid :items="item_list" show_status class="flex flex-col space-y-4 mt-6" />
+        <c-items.item-grid :items="item_list" context="search" show_status class="flex flex-col space-y-4 mt-6" />
     </c-box>
 </div>
 {% endblock %}
