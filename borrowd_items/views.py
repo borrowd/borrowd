@@ -68,8 +68,18 @@ def borrow_item(request: HttpRequest, pk: int) -> HttpResponse:
         return HttpResponse("Not found", status=404)
 
     # Detect if request is from item card by checking HX-Target header
+    # Format: item-card-{context}-{pk} (e.g., item-card-search-123)
     hx_target = request.headers.get("HX-Target", "")
     is_card_request = hx_target.startswith("item-card-")
+
+    # Extract context from HX-Target (e.g., "item-card-search-123" -> "search")
+    card_context = ""
+    if is_card_request:
+        # Split "item-card-search-123" -> ["item", "card", "search", "123"]
+        parts = hx_target.split("-")
+        if len(parts) >= 4:
+            # Context is everything between "card" and the pk (last element)
+            card_context = "-".join(parts[2:-1])
 
     def get_banner_type_for_item(item: Item) -> str:
         """Get banner type from item status (mirrors get_item_banner_type filter)."""
@@ -96,6 +106,7 @@ def borrow_item(request: HttpRequest, pk: int) -> HttpResponse:
             # Full card context
             first_photo = item.photos.first()
             ctx["pk"] = pk
+            ctx["context"] = card_context
             ctx["name"] = item.name
             ctx["description"] = item.description
             ctx["image"] = first_photo.thumbnail.url if first_photo else ""

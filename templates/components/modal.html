@@ -9,8 +9,13 @@
      - cancel_action: Optional, onclick action for secondary button (if not provided, closes modal)
      - cancel_button_class: Optional, CSS classes for secondary button (default: 'btn btn-ghost font-semibold')
      - confirm_button: Optional, text for primary button (right side)
-     - confirm_action: Optional, onclick action for primary button
      - confirm_button_class: Optional, CSS classes for primary button (default: 'btn btn-primary font-semibold')
+
+     HTMX parameters for confirm button:
+     - hx_post: URL for HTMX POST request
+     - hx_vals: JSON string of values to send (e.g., '{"action": "REQUEST_ITEM"}')
+     - hx_target: Target element selector for swap (e.g., '#item-card-search-123')
+     - hx_swap: Swap method (default: 'outerHTML')
 -->
 <dialog id="{{ modal_id }}" class="modal modal-bottom sm:modal-middle">
     <div class="modal-box rounded-t-2xl sm:rounded-2xl max-w-lg {% if modal_size == 'full' %}max-h-[85vh]{% else %}max-h-[60vh]{% endif %} flex flex-col">
@@ -60,7 +65,13 @@
             {% endif %}
 
             {% if confirm_button %}
-            <button type="button" onclick="{{ confirm_action }}" class="{{ confirm_button_class|default:'btn btn-primary font-semibold' }}{% if button_layout == 'equal' %} w-full{% endif %}">{{ confirm_button }}</button>
+            <button type="button"
+                hx-post="{{ hx_post }}"
+                hx-vals='{{ hx_vals }}'
+                hx-target="{{ hx_target }}"
+                hx-swap="{{ hx_swap|default:'outerHTML' }}"
+                onclick="closeModal('{{ modal_id }}')"
+                class="{{ confirm_button_class|default:'btn btn-primary font-semibold' }}{% if button_layout == 'equal' %} w-full{% endif %}">{{ confirm_button }}</button>
             {% endif %}
         </div>
         {% endif %}
