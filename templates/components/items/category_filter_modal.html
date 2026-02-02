@@ -1,0 +1,17 @@
+<!--
+    Category Filter Modal Component
+
+    Renders all item categories as toggleable badge chips inside a modal.
+    Must be placed inside an Alpine.js x-data scope that provides:
+      - categories: array of {id, name} objects
+      - selectedIds: array of selected category ID strings
+      - toggle(id): add/remove a category from selection
+      - isSelected(id): check if a category is selected
+      - clear(): clear all selections and close modal
+      - confirm(): confirm selections and close modal
+
+    Parameters:
+      - modal_id: unique ID for this modal instance
+      - confirm_button_text: text for the right-side confirm button
+-->
+{% include "components/modal.html" with modal_id=modal_id modal_title="Filter by categories" modal_size="full" button_layout="between" cancel_button="Clear filters" cancel_action="clear()" confirm_button=confirm_button_text confirm_action="confirm()" modal_content="<div class='flex flex-col gap-2'><template x-for='cat in categories' :key='cat.id'><button type='button' @click='toggle(cat.id)' :class='isSelected(cat.id) ? \"badge badge-neutral font-medium text-sm leading-6 cursor-pointer px-3 py-0.5\" : \"badge badge-outline font-medium text-sm leading-6 cursor-pointer px-3 py-0.5\"' x-text='cat.name'></button></template></div>" %}
