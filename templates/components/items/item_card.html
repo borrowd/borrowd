@@ -68,7 +68,7 @@ Parameters:
             closeModal('accept-request-modal-{{ pk }}');
             htmx.ajax('POST', '{% url 'item-borrow' pk %}', {
                 values: {'action': 'ACCEPT_REQUEST'},
-                swap: 'innerHTML',
+                swap: 'outerHTML',
                 target: '#item-card-actions-{{ pk }}'
             });
         }
@@ -77,7 +77,7 @@ Parameters:
             closeModal('request-item-modal-{{ pk }}');
             htmx.ajax('POST', '{% url 'item-borrow' pk %}', {
                 values: {'action': 'REQUEST_ITEM'},
-                swap: 'innerHTML',
+                swap: 'outerHTML',
                 target: '#item-card-actions-{{ pk }}'
             });
         }
