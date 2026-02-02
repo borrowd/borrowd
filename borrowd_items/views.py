@@ -69,7 +69,18 @@ def borrow_item(request: HttpRequest, pk: int) -> HttpResponse:
 
     # Detect if request is from item card by checking HX-Target header
     hx_target = request.headers.get("HX-Target", "")
-    is_card_request = hx_target.startswith("item-card-actions-")
+    is_card_request = hx_target.startswith("item-card-")
+
+    def get_banner_type_for_item(item: Item) -> str:
+        """Get banner type from item status (mirrors get_item_banner_type filter)."""
+        from .models import ItemStatus
+
+        status_to_banner: dict[int, str] = {
+            ItemStatus.AVAILABLE: "available",
+            ItemStatus.RESERVED: "reserved",
+            ItemStatus.BORROWED: "reserved",
+        }
+        return status_to_banner.get(item.status, "")
 
     # Build context with variant-specific params
     def build_context(
@@ -82,13 +93,26 @@ def borrow_item(request: HttpRequest, pk: int) -> HttpResponse:
             "action_context": action_context,
         }
         if is_card_request:
-            ctx["variant"] = "card"
-            ctx["container_id"] = f"item-card-actions-{pk}"
-            ctx["modal_suffix"] = f"-{pk}"
+            # Full card context
+            first_photo = item.photos.first()
+            ctx["pk"] = pk
+            ctx["name"] = item.name
+            ctx["description"] = item.description
+            ctx["image"] = first_photo.thumbnail.url if first_photo else ""
+            ctx["is_yours"] = item.owner == user
+            ctx["banner_type"] = get_banner_type_for_item(item)
+            ctx["show_actions"] = True
         if error_message:
             ctx["error_message"] = error_message
             ctx["error_type"] = error_type
         return ctx
+
+    # Choose template based on request type
+    template = (
+        "components/items/item_card.html"
+        if is_card_request
+        else "components/items/action_buttons_with_status.html"
+    )
 
     try:
         req_action = req_action.upper()
@@ -97,7 +121,7 @@ def borrow_item(request: HttpRequest, pk: int) -> HttpResponse:
         action_context = item.get_action_context_for(user=user)
         return render(
             request,
-            template_name="components/items/action_buttons_with_status.html",
+            template_name=template,
             context=build_context(action_context),
             content_type="text/html",
             status=200,
@@ -107,7 +131,7 @@ def borrow_item(request: HttpRequest, pk: int) -> HttpResponse:
         action_context = item.get_action_context_for(user=user)
         return render(
             request,
-            template_name="components/items/action_buttons_with_status.html",
+            template_name=template,
             context=build_context(
                 action_context,
                 error_message="Sorry! Another user requested this item just before you.",
@@ -121,7 +145,7 @@ def borrow_item(request: HttpRequest, pk: int) -> HttpResponse:
         action_context = item.get_action_context_for(user=user)
         return render(
             request,
-            template_name="components/items/action_buttons_with_status.html",
+            template_name=template,
             context=build_context(action_context),
             content_type="text/html",
             status=200,

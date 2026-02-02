@@ -55,7 +55,7 @@ Parameters:
             </div>
         </div>
         {% if show_actions and action_context.actions %}
-            {% include "components/items/action_buttons_with_status.html" with item=item action_context=action_context variant="card" container_id="item-card-actions-"|add:pk modal_suffix="-"|add:pk %}
+            {% include "components/items/action_buttons_with_status.html" with item=item action_context=action_context variant="card" container_id="item-card-actions-"|add:pk swap_target_id="item-card-"|add:pk modal_suffix="-"|add:pk %}
         {% endif %}
     </div>
 
@@ -69,7 +69,7 @@ Parameters:
             htmx.ajax('POST', '{% url 'item-borrow' pk %}', {
                 values: {'action': 'ACCEPT_REQUEST'},
                 swap: 'outerHTML',
-                target: '#item-card-actions-{{ pk }}'
+                target: '#item-card-{{ pk }}'
             });
         }
 
@@ -78,7 +78,7 @@ Parameters:
             htmx.ajax('POST', '{% url 'item-borrow' pk %}', {
                 values: {'action': 'REQUEST_ITEM'},
                 swap: 'outerHTML',
-                target: '#item-card-actions-{{ pk }}'
+                target: '#item-card-{{ pk }}'
             });
         }
         </script>
