@@ -14,11 +14,12 @@ Parameters:
 
 For variant='card', also accepts:
 - container_id: The ID for the container div (default: 'item-card-actions-{{ item.pk }}')
+- swap_target_id: The ID to target for HTMX swaps (default: container_id) - use this to target a parent element like the whole card
 - modal_suffix: Suffix for modal IDs (default: '-{{ item.pk }}')
 {% endcomment %}
 {% load button_styles %}
 
-{% with container_id=container_id|default:"action-status-container" modal_suffix=modal_suffix|default:"" %}
+{% with container_id=container_id|default:"action-status-container" swap_target_id=swap_target_id|default:container_id modal_suffix=modal_suffix|default:"" %}
 
 {% if variant == 'card' %}
 {# Card variant: just buttons, no status box #}
@@ -35,7 +36,7 @@ For variant='card', also accepts:
             hx-vals='{"action": "{{ action.name }}"}'
             hx-trigger="click"
             hx-swap="outerHTML"
-            hx-target="#{{ container_id }}"
+            hx-target="#{{ swap_target_id }}"
             {% endif %}
             class="flex-1 py-2 px-4 rounded-lg font-medium text-sm transition-colors duration-200 cursor-pointer
                 {% if action.name == 'ACCEPT_REQUEST' %}{{ 'green'|button_bg_color }} {{ 'green'|button_text_color }}
@@ -104,7 +105,7 @@ For variant='card', also accepts:
                     hx-vals='{"action": "{{ action.name }}"}'
                     hx-trigger="click"
                     hx-swap="outerHTML"
-                    hx-target="#{{ container_id }}"
+                    hx-target="#{{ swap_target_id }}"
                     {% endif %}
                     class="inline-block w-fit font-medium py-2 px-4 rounded transition-colors duration-200 border-2
                     {% if action.name == 'ACCEPT_REQUEST' %}{{ 'green'|button_bg_color }} {{ 'green'|button_text_color }} {{ 'green'|button_border_color }}
