@@ -18,13 +18,14 @@
         </div>
     {% endif %}
     {% for item in items %}
-        {% with action_context=item|get_action_context_for:request.user banner_type=item|get_item_banner_type %}
+        {% with action_context=item|get_action_context_for:request.user banner_type=item|get_item_banner_type is_yours=item|is_owner:request.user %}
         <c-items.item-card
             pk="{{ item.pk }}"
             name="{{ item.name }}"
             description="{{ item.description }}"
             image="{{ item.photos.all.0.thumbnail.url }}"
             banner_type="{{ banner_type }}"
+            :is_yours="is_yours"
             :item="item"
             :action_context="action_context"
             :show_actions="True"
@@ -32,13 +33,14 @@
         {% endwith %}
     {% endfor %}
     {% for tx in transactions %}
-        {% with action_context=tx.item|get_action_context_for:request.user banner_type=tx|get_banner_type %}
+        {% with action_context=tx.item|get_action_context_for:request.user banner_type=tx|get_banner_type is_yours=tx.item|is_owner:request.user %}
         <c-items.item-card
             pk="{{ tx.item.pk }}"
             name="{{ tx.item.name }}"
             description="{{ tx.item.description }}"
             image="{{ tx.item.photos.all.0.thumbnail.url }}"
             banner_type="{{ banner_type }}"
+            :is_yours="is_yours"
             requester_name="{{ tx.party2.profile.full_name }}"
             time_ago="{{ tx.created_at|timesince_short }}"
             :item="tx.item"
