@@ -19,7 +19,7 @@ For variant='card', also accepts:
 {% endcomment %}
 {% load button_styles %}
 
-{% with container_id=container_id|default:"action-status-container" swap_target_id=swap_target_id|default:container_id modal_suffix=modal_suffix|default:"" %}
+{% with container_id=container_id|default:"action-status-container" swap_target_id=swap_target_id|default:"action-status-container" modal_suffix=modal_suffix|default:"" %}
 
 {% if variant == 'card' %}
 {# Card variant: just buttons, no status box #}
