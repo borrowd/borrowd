@@ -27,7 +27,11 @@ Parameters:
 {% firstof card_id_selector "#item-card-"|add:context|add:"-"|add:pk as card_id_selector %}
 {% firstof request_modal_id "request-item-modal-"|add:context|add:"-"|add:pk as request_modal_id %}
 {% firstof accept_modal_id "accept-request-modal-"|add:context|add:"-"|add:pk as accept_modal_id %}
-<div id="{{ card_id }}" class="bg-white rounded-lg shadow-md overflow-hidden w-72">
+<div id="{{ card_id }}"
+     hx-get="{% url 'item-card' pk %}?context={{ context }}"
+     hx-trigger="item-updated-{{ pk }} from:body"
+     hx-swap="outerHTML"
+     class="bg-white rounded-lg shadow-md overflow-hidden w-72">
     {% if banner_type %}
         {% include "components/items/item_card_header.html" with banner_type=banner_type requester_name=requester_name time_ago=time_ago %}
     {% endif %}

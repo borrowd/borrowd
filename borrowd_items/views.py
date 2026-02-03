@@ -4,7 +4,7 @@ from django.forms import ModelForm
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render
 from django.urls import reverse, reverse_lazy
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_GET, require_POST
 from django.views.generic import CreateView, DeleteView, DetailView, UpdateView
 from django_filters.views import FilterView
 from guardian.mixins import LoginRequiredMixin
@@ -137,17 +137,19 @@ def borrow_item(request: HttpRequest, pk: int) -> HttpResponse:
         item.process_action(user=user, action=ItemAction(req_action))
         # Action succeeded, return success response
         action_context = item.get_action_context_for(user=user)
-        return render(
+        response = render(
             request,
             template_name=template,
             context=build_context(action_context),
             content_type="text/html",
             status=200,
         )
+        response["HX-Trigger"] = f"item-updated-{pk}"
+        return response
     except ItemAlreadyRequested:
         # Specific case: item already requested by another user
         action_context = item.get_action_context_for(user=user)
-        return render(
+        response = render(
             request,
             template_name=template,
             context=build_context(
@@ -158,22 +160,83 @@ def borrow_item(request: HttpRequest, pk: int) -> HttpResponse:
             content_type="text/html",
             status=200,
         )
+        response["HX-Trigger"] = f"item-updated-{pk}"
+        return response
     except InvalidItemAction:
         # Other invalid actions
         action_context = item.get_action_context_for(user=user)
-        return render(
+        response = render(
             request,
             template_name=template,
             context=build_context(action_context),
             content_type="text/html",
             status=200,
         )
+        response["HX-Trigger"] = f"item-updated-{pk}"
+        return response
     except Exception as e:
         # This is maybe too much information to surface to end-users.
         # Leaving in for dev, eventually should probably just log it.
         return HttpResponse(
             f"An error occurred while processing the action: {e}", status=500
         )
+
+
+@require_GET
+def get_item_card(request: HttpRequest, pk: int) -> HttpResponse:
+    """GET endpoint to fetch a single item card for HTMX refresh."""
+    user: BorrowdUser = request.user  # type: ignore[assignment]
+    context = request.GET.get("context", "items")
+
+    try:
+        item = Item.objects.get(pk=pk)
+    except Item.DoesNotExist:
+        return HttpResponse("Not found", status=404)
+
+    if not user.has_perm(ItemOLP.VIEW, item):
+        return HttpResponse("Not found", status=404)
+
+    # Build context similar to borrow_item's build_context for card requests
+    action_context = item.get_action_context_for(user=user)
+    first_photo = item.photos.first()
+
+    # Get banner type from item status
+    from .models import ItemStatus
+
+    status_to_banner: dict[int, str] = {
+        ItemStatus.AVAILABLE: "available",
+        ItemStatus.RESERVED: "reserved",
+        ItemStatus.BORROWED: "reserved",
+    }
+    banner_type = status_to_banner.get(item.status, "")
+
+    ctx: dict[str, Any] = {
+        "item": item,
+        "action_context": action_context,
+        "pk": pk,
+        "context": context,
+        "name": item.name,
+        "description": item.description,
+        "image": first_photo.thumbnail.url if first_photo else "",
+        "is_yours": item.owner == user,
+        "banner_type": banner_type,
+        "show_actions": True,
+        # Pre-computed IDs for template
+        "card_id": f"item-card-{context}-{pk}",
+        "modal_suffix": f"-{context}-{pk}",
+        "actions_container_id": f"item-card-actions-{context}-{pk}",
+        "card_id_selector": f"#item-card-{context}-{pk}",
+        "request_modal_id": f"request-item-modal-{context}-{pk}",
+        "accept_modal_id": f"accept-request-modal-{context}-{pk}",
+    }
+
+    return render(
+        request,
+        template_name="components/items/item_card.html",
+        context=ctx,
+        content_type="text/html",
+        status=200,
+    )
 
 
 class ItemCreateView(
