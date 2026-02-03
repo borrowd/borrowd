@@ -20,7 +20,48 @@ from borrowd_users.models import BorrowdUser
 from .exceptions import InvalidItemAction, ItemAlreadyRequested
 from .filters import ItemFilter
 from .forms import ItemCreateWithPhotoForm, ItemForm, ItemPhotoForm
-from .models import Item, ItemAction, ItemActionContext, ItemPhoto
+from .models import (
+    Item,
+    ItemAction,
+    ItemActionContext,
+    ItemPhoto,
+    ItemStatus,
+    TransactionStatus,
+)
+
+
+def get_banner_info_for_item(item: Item, viewing_user: BorrowdUser) -> dict[str, Any]:
+    """Get banner type and request info, checking for pending requests."""
+    from django.utils.timesince import timesince
+
+    # Check for pending request using item's method (which correctly queries transactions)
+    requesting_user = item.get_requesting_user()
+    if requesting_user:
+        # There's a pending request - show request banner
+        if requesting_user == viewing_user:
+            requester_name = "me"
+        else:
+            requester_name = requesting_user.profile.full_name()
+
+        # Get transaction for timestamp
+        pending_tx = item.transactions.filter(
+            status=TransactionStatus.REQUESTED
+        ).first()
+        time_ago = timesince(pending_tx.created_at).split(",")[0] if pending_tx else ""
+
+        return {
+            "banner_type": "request",
+            "requester_name": requester_name,
+            "time_ago": time_ago,
+        }
+
+    # Fall back to item status
+    status_to_banner: dict[int, str] = {
+        ItemStatus.AVAILABLE: "available",
+        ItemStatus.RESERVED: "reserved",
+        ItemStatus.BORROWED: "reserved",
+    }
+    return {"banner_type": status_to_banner.get(item.status, "")}
 
 
 @require_POST
@@ -81,17 +122,6 @@ def borrow_item(request: HttpRequest, pk: int) -> HttpResponse:
             # Context is everything between "card" and the pk (last element)
             card_context = "-".join(parts[2:-1])
 
-    def get_banner_type_for_item(item: Item) -> str:
-        """Get banner type from item status (mirrors get_item_banner_type filter)."""
-        from .models import ItemStatus
-
-        status_to_banner: dict[int, str] = {
-            ItemStatus.AVAILABLE: "available",
-            ItemStatus.RESERVED: "reserved",
-            ItemStatus.BORROWED: "reserved",
-        }
-        return status_to_banner.get(item.status, "")
-
     # Build context with variant-specific params
     def build_context(
         action_context: ItemActionContext,
@@ -105,13 +135,16 @@ def borrow_item(request: HttpRequest, pk: int) -> HttpResponse:
         if is_card_request:
             # Full card context
             first_photo = item.photos.first()
+            banner_info = get_banner_info_for_item(item, user)
             ctx["pk"] = pk
             ctx["context"] = card_context
             ctx["name"] = item.name
             ctx["description"] = item.description
             ctx["image"] = first_photo.thumbnail.url if first_photo else ""
             ctx["is_yours"] = item.owner == user
-            ctx["banner_type"] = get_banner_type_for_item(item)
+            ctx["banner_type"] = banner_info.get("banner_type", "")
+            ctx["requester_name"] = banner_info.get("requester_name", "")
+            ctx["time_ago"] = banner_info.get("time_ago", "")
             ctx["show_actions"] = True
             # Pre-computed IDs for template (Django template filters in include don't work)
             ctx["card_id"] = f"item-card-{card_context}-{pk}"
@@ -199,16 +232,7 @@ def get_item_card(request: HttpRequest, pk: int) -> HttpResponse:
     # Build context similar to borrow_item's build_context for card requests
     action_context = item.get_action_context_for(user=user)
     first_photo = item.photos.first()
-
-    # Get banner type from item status
-    from .models import ItemStatus
-
-    status_to_banner: dict[int, str] = {
-        ItemStatus.AVAILABLE: "available",
-        ItemStatus.RESERVED: "reserved",
-        ItemStatus.BORROWED: "reserved",
-    }
-    banner_type = status_to_banner.get(item.status, "")
+    banner_info = get_banner_info_for_item(item, user)
 
     ctx: dict[str, Any] = {
         "item": item,
@@ -219,7 +243,9 @@ def get_item_card(request: HttpRequest, pk: int) -> HttpResponse:
         "description": item.description,
         "image": first_photo.thumbnail.url if first_photo else "",
         "is_yours": item.owner == user,
-        "banner_type": banner_type,
+        "banner_type": banner_info.get("banner_type", ""),
+        "requester_name": banner_info.get("requester_name", ""),
+        "time_ago": banner_info.get("time_ago", ""),
         "show_actions": True,
         # Pre-computed IDs for template
         "card_id": f"item-card-{context}-{pk}",

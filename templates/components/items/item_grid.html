@@ -18,7 +18,7 @@
         </div>
     {% endif %}
     {% for item in items %}
-        {% with action_context=item|get_action_context_for:request.user banner_type=item|get_item_banner_type is_yours=item|is_owner:request.user %}
+        {% with action_context=item|get_action_context_for:request.user banner_type=item|get_item_banner_type is_yours=item|is_owner:request.user requester_name=item|get_item_requester_name:request.user time_ago=item|get_item_request_time_ago %}
         <c-items.item-card
             pk="{{ item.pk }}"
             context="{{ context|default:'items' }}"
@@ -27,6 +27,8 @@
             image="{{ item.photos.all.0.thumbnail.url }}"
             banner_type="{{ banner_type }}"
             :is_yours="is_yours"
+            requester_name="{{ requester_name }}"
+            time_ago="{{ time_ago }}"
             :item="item"
             :action_context="action_context"
             :show_actions="True"
