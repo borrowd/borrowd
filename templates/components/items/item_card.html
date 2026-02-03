@@ -31,7 +31,7 @@ Parameters:
      hx-get="{% url 'item-card' pk %}?context={{ context }}"
      hx-trigger="item-updated-{{ pk }} from:body"
      hx-swap="outerHTML"
-     class="bg-white rounded-lg shadow-md overflow-hidden w-72">
+     class="bg-white rounded-lg shadow-md overflow-hidden w-72 min-h-48">
     {% if banner_type %}
         {% include "components/items/item_card_header.html" with banner_type=banner_type requester_name=requester_name time_ago=time_ago %}
     {% endif %}
@@ -60,7 +60,7 @@ Parameters:
                         {% endif %}
                     </div>
                     <h3 class="text-base font-semibold text-gray-900 wrap">{{ name }}</h3>
-                    <p class="text-sm text-gray-900 line-clamp-2 mt-1 wrap">{{ description }}</p>
+                    <p class="text-sm text-gray-900 line-clamp-2 mt-1 wrap overflow-clip">{{ description }}</p>
                 </a>
             </div>
         </div>
