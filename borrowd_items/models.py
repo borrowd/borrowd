@@ -114,8 +114,9 @@ class Item(Model):
         help_text="The current status of the Item.",
     )
 
-    # Hint for mypy (actual field created from reverse relation)
+    # Hints for mypy (actual fields created from reverse relations)
     transactions: QuerySet["Transaction"]
+    photos: QuerySet["ItemPhoto"]
 
     def __str__(self) -> str:
         return self.name
