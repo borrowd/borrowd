@@ -86,18 +86,13 @@
                         }
                     },
 
-                    /* Modal 'Clear filters' action: reset selections and close modal. */
-                    clear() {
+                    clearFilters() {
                         this.selectedIds = [];
                         this.writeSelectedIdsToHiddenSelect();
                         closeModal('item-category-modal');
                     },
 
-                    /*
-                     * Modal 'Filter categories' action.
-                     * Writes selections to hidden select and closes modal.
-                     */
-                    confirm() {
+                    applyFilters() {
                         this.writeSelectedIdsToHiddenSelect();
                         closeModal('item-category-modal');
                     }
