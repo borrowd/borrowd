@@ -17,51 +17,11 @@ from borrowd_permissions.mixins import (
 from borrowd_permissions.models import ItemOLP
 from borrowd_users.models import BorrowdUser
 
+from .card_helpers import build_item_card_context, parse_card_target
 from .exceptions import InvalidItemAction, ItemAlreadyRequested
 from .filters import ItemFilter
 from .forms import ItemCreateWithPhotoForm, ItemForm, ItemPhotoForm
-from .models import (
-    Item,
-    ItemAction,
-    ItemActionContext,
-    ItemPhoto,
-    ItemStatus,
-    TransactionStatus,
-)
-
-
-def get_banner_info_for_item(item: Item, viewing_user: BorrowdUser) -> dict[str, Any]:
-    """Get banner type and request info, checking for pending requests."""
-    from django.utils.timesince import timesince
-
-    # Check for pending request using item's method (which correctly queries transactions)
-    requesting_user = item.get_requesting_user()
-    if requesting_user:
-        # There's a pending request - show request banner
-        if requesting_user == viewing_user:
-            requester_name = "me"
-        else:
-            requester_name = requesting_user.profile.full_name()
-
-        # Get transaction for timestamp
-        pending_tx = item.transactions.filter(
-            status=TransactionStatus.REQUESTED
-        ).first()
-        time_ago = timesince(pending_tx.created_at).split(",")[0] if pending_tx else ""
-
-        return {
-            "banner_type": "request",
-            "requester_name": requester_name,
-            "time_ago": time_ago,
-        }
-
-    # Fall back to item status
-    status_to_banner: dict[int, str] = {
-        ItemStatus.AVAILABLE: "available",
-        ItemStatus.RESERVED: "reserved",
-        ItemStatus.BORROWED: "reserved",
-    }
-    return {"banner_type": status_to_banner.get(item.status, "")}
+from .models import Item, ItemAction, ItemActionContext, ItemPhoto
 
 
 @require_POST
@@ -94,122 +54,70 @@ def borrow_item(request: HttpRequest, pk: int) -> HttpResponse:
     if req_action is None:
         return HttpResponse("No action specified.", status=400)
 
-    # mypy complains that `request.user` is a AbstractBaseUser or
-    # AnonymousUser, but when I follow the code it looks like it's
-    # AbstractUser or AnonymousUser, which we *would* comply with
-    # here (BorrowdUser subclasses AbstractUser).
     user: BorrowdUser = request.user  # type: ignore[assignment]
-
     item = Item.objects.get(pk=pk)
 
-    # Not currently differentiating between viewing and borrowing
-    # permissions; assumed that if a user can "see" an item (and
-    # they're not the owner), then they can request to borrow it.
     if not user.has_perm(ItemOLP.VIEW, item):
         return HttpResponse("Not found", status=404)
 
-    # Detect if request is from item card by checking HX-Target header
-    # Format: item-card-{context}-{pk} (e.g., item-card-search-123)
+    # Parse HX-Target to determine if this is a card request
     hx_target = request.headers.get("HX-Target", "")
-    is_card_request = hx_target.startswith("item-card-")
+    is_card_request, card_context = parse_card_target(hx_target)
 
-    # Extract context from HX-Target (e.g., "item-card-search-123" -> "search")
-    card_context = ""
+    # Choose template and context builder based on request type
     if is_card_request:
-        # Split "item-card-search-123" -> ["item", "card", "search", "123"]
-        parts = hx_target.split("-")
-        if len(parts) >= 4:
-            # Context is everything between "card" and the pk (last element)
-            card_context = "-".join(parts[2:-1])
+        template = "components/items/item_card.html"
 
-    # Build context with variant-specific params
-    def build_context(
+        def build_context(
+            action_context: ItemActionContext,
+            error_message: str | None = None,
+            error_type: str | None = None,
+        ) -> dict[str, Any]:
+            return build_item_card_context(
+                item, user, card_context, action_context, error_message, error_type
+            )
+    else:
+        template = "components/items/action_buttons_with_status.html"
+
+        def build_context(
+            action_context: ItemActionContext,
+            error_message: str | None = None,
+            error_type: str | None = None,
+        ) -> dict[str, Any]:
+            ctx: dict[str, Any] = {"item": item, "action_context": action_context}
+            if error_message:
+                ctx["error_message"] = error_message
+                ctx["error_type"] = error_type
+            return ctx
+
+    def render_response(
         action_context: ItemActionContext,
         error_message: str | None = None,
         error_type: str | None = None,
-    ) -> dict[str, Any]:
-        ctx: dict[str, Any] = {
-            "item": item,
-            "action_context": action_context,
-        }
-        if is_card_request:
-            # Full card context
-            first_photo = item.photos.first()
-            banner_info = get_banner_info_for_item(item, user)
-            ctx["pk"] = pk
-            ctx["context"] = card_context
-            ctx["name"] = item.name
-            ctx["description"] = item.description
-            ctx["image"] = first_photo.thumbnail.url if first_photo else ""
-            ctx["is_yours"] = item.owner == user
-            ctx["banner_type"] = banner_info.get("banner_type", "")
-            ctx["requester_name"] = banner_info.get("requester_name", "")
-            ctx["time_ago"] = banner_info.get("time_ago", "")
-            ctx["show_actions"] = True
-            # Pre-computed IDs for template (Django template filters in include don't work)
-            ctx["card_id"] = f"item-card-{card_context}-{pk}"
-            ctx["modal_suffix"] = f"-{card_context}-{pk}"
-            ctx["actions_container_id"] = f"item-card-actions-{card_context}-{pk}"
-            ctx["card_id_selector"] = f"#item-card-{card_context}-{pk}"
-            ctx["request_modal_id"] = f"request-item-modal-{card_context}-{pk}"
-            ctx["accept_modal_id"] = f"accept-request-modal-{card_context}-{pk}"
-        if error_message:
-            ctx["error_message"] = error_message
-            ctx["error_type"] = error_type
-        return ctx
-
-    # Choose template based on request type
-    template = (
-        "components/items/item_card.html"
-        if is_card_request
-        else "components/items/action_buttons_with_status.html"
-    )
+    ) -> HttpResponse:
+        response = render(
+            request,
+            template_name=template,
+            context=build_context(action_context, error_message, error_type),
+            content_type="text/html",
+            status=200,
+        )
+        response["HX-Trigger"] = f"item-updated-{pk}"
+        return response
 
     try:
         req_action = req_action.upper()
         item.process_action(user=user, action=ItemAction(req_action))
-        # Action succeeded, return success response
-        action_context = item.get_action_context_for(user=user)
-        response = render(
-            request,
-            template_name=template,
-            context=build_context(action_context),
-            content_type="text/html",
-            status=200,
-        )
-        response["HX-Trigger"] = f"item-updated-{pk}"
-        return response
+        return render_response(item.get_action_context_for(user=user))
     except ItemAlreadyRequested:
-        # Specific case: item already requested by another user
-        action_context = item.get_action_context_for(user=user)
-        response = render(
-            request,
-            template_name=template,
-            context=build_context(
-                action_context,
-                error_message="Sorry! Another user requested this item just before you.",
-                error_type="already_requested",
-            ),
-            content_type="text/html",
-            status=200,
+        return render_response(
+            item.get_action_context_for(user=user),
+            error_message="Sorry! Another user requested this item just before you.",
+            error_type="already_requested",
         )
-        response["HX-Trigger"] = f"item-updated-{pk}"
-        return response
     except InvalidItemAction:
-        # Other invalid actions
-        action_context = item.get_action_context_for(user=user)
-        response = render(
-            request,
-            template_name=template,
-            context=build_context(action_context),
-            content_type="text/html",
-            status=200,
-        )
-        response["HX-Trigger"] = f"item-updated-{pk}"
-        return response
+        return render_response(item.get_action_context_for(user=user))
     except Exception as e:
-        # This is maybe too much information to surface to end-users.
-        # Leaving in for dev, eventually should probably just log it.
         return HttpResponse(
             f"An error occurred while processing the action: {e}", status=500
         )
@@ -229,37 +137,10 @@ def get_item_card(request: HttpRequest, pk: int) -> HttpResponse:
     if not user.has_perm(ItemOLP.VIEW, item):
         return HttpResponse("Not found", status=404)
 
-    # Build context similar to borrow_item's build_context for card requests
-    action_context = item.get_action_context_for(user=user)
-    first_photo = item.photos.first()
-    banner_info = get_banner_info_for_item(item, user)
-
-    ctx: dict[str, Any] = {
-        "item": item,
-        "action_context": action_context,
-        "pk": pk,
-        "context": context,
-        "name": item.name,
-        "description": item.description,
-        "image": first_photo.thumbnail.url if first_photo else "",
-        "is_yours": item.owner == user,
-        "banner_type": banner_info.get("banner_type", ""),
-        "requester_name": banner_info.get("requester_name", ""),
-        "time_ago": banner_info.get("time_ago", ""),
-        "show_actions": True,
-        # Pre-computed IDs for template
-        "card_id": f"item-card-{context}-{pk}",
-        "modal_suffix": f"-{context}-{pk}",
-        "actions_container_id": f"item-card-actions-{context}-{pk}",
-        "card_id_selector": f"#item-card-{context}-{pk}",
-        "request_modal_id": f"request-item-modal-{context}-{pk}",
-        "accept_modal_id": f"accept-request-modal-{context}-{pk}",
-    }
-
     return render(
         request,
         template_name="components/items/item_card.html",
-        context=ctx,
+        context=build_item_card_context(item, user, context),
         content_type="text/html",
         status=200,
     )
