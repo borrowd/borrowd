@@ -113,6 +113,13 @@ def borrow_item(request: HttpRequest, pk: int) -> HttpResponse:
             ctx["is_yours"] = item.owner == user
             ctx["banner_type"] = get_banner_type_for_item(item)
             ctx["show_actions"] = True
+            # Pre-computed IDs for template (Django template filters in include don't work)
+            ctx["card_id"] = f"item-card-{card_context}-{pk}"
+            ctx["modal_suffix"] = f"-{card_context}-{pk}"
+            ctx["actions_container_id"] = f"item-card-actions-{card_context}-{pk}"
+            ctx["card_id_selector"] = f"#item-card-{card_context}-{pk}"
+            ctx["request_modal_id"] = f"request-item-modal-{card_context}-{pk}"
+            ctx["accept_modal_id"] = f"accept-request-modal-{card_context}-{pk}"
         if error_message:
             ctx["error_message"] = error_message
             ctx["error_type"] = error_type
