@@ -21,7 +21,12 @@ Parameters:
 
 {% endcomment %}
 {% load static %}
-{% with card_id="item-card-"|add:context|add:"-"|add:pk modal_suffix="-"|add:context|add:"-"|add:pk %}
+{% firstof card_id "item-card-"|add:context|add:"-"|add:pk as card_id %}
+{% firstof modal_suffix "-"|add:context|add:"-"|add:pk as modal_suffix %}
+{% firstof actions_container_id "item-card-actions-"|add:context|add:"-"|add:pk as actions_container_id %}
+{% firstof card_id_selector "#item-card-"|add:context|add:"-"|add:pk as card_id_selector %}
+{% firstof request_modal_id "request-item-modal-"|add:context|add:"-"|add:pk as request_modal_id %}
+{% firstof accept_modal_id "accept-request-modal-"|add:context|add:"-"|add:pk as accept_modal_id %}
 <div id="{{ card_id }}" class="bg-white rounded-lg shadow-md overflow-hidden w-72">
     {% if banner_type %}
         {% include "components/items/item_card_header.html" with banner_type=banner_type requester_name=requester_name time_ago=time_ago %}
@@ -56,13 +61,12 @@ Parameters:
             </div>
         </div>
         {% if show_actions and action_context.actions %}
-            {% include "components/items/action_buttons_with_status.html" with item=item action_context=action_context variant="card" container_id="item-card-actions"|add:modal_suffix swap_target_id=card_id modal_suffix=modal_suffix %}
+            {% include "components/items/action_buttons_with_status.html" with item=item action_context=action_context variant="card" container_id=actions_container_id swap_target_id=card_id modal_suffix=modal_suffix %}
         {% endif %}
     </div>
 
     {% if show_actions %}
-        {% include "components/items/accept_request_modal.html" with item=item card_id=card_id modal_suffix=modal_suffix %}
-        {% include "components/items/request_item_modal.html" with item=item card_id=card_id modal_suffix=modal_suffix %}
+        {% include "components/items/accept_request_modal.html" with item=item card_id_selector=card_id_selector modal_id=accept_modal_id %}
+        {% include "components/items/request_item_modal.html" with item=item card_id_selector=card_id_selector modal_id=request_modal_id %}
     {% endif %}
 </div>
-{% endwith %}
