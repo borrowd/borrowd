@@ -47,16 +47,14 @@
             }
         },
 
-        /* Clear all selections, sync to hidden select, close modal, and submit form. */
-        clear() {
+        clearFilters() {
             this.selectedIds = [];
             this.writeSelectedIdsToHiddenSelect();
             closeModal('category-filter-modal');
             this.$el.closest('form').submit();
         },
 
-        /* Sync selections to hidden select, close modal, and submit form to apply filters. */
-        confirm() {
+        applyFilters() {
             this.writeSelectedIdsToHiddenSelect();
             closeModal('category-filter-modal');
             this.$el.closest('form').submit();
