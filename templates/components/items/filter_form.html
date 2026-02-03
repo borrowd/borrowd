@@ -2,15 +2,14 @@
 <form method="get" class="flex flex-col space-y-4"
     x-data="{
         /*
-         * Alpine state for the category filter modal.
-         * selectedIds is pre-populated from Django's filter form values
-         * so that already-applied URL query params are reflected on page load.
-         * categories is the full list of available choices from the Django filter field.
-         */
+        * Alpine UI state: which category IDs are currently selected.
+        * Pre-populated from Django form's current value on page load.
+        * (Empty on create, has values on edit.)
+        */
         selectedIds: [{% for val in filter.form.categories.value %}'{{ val }}'{% if not forloop.last %},{% endif %}{% endfor %}],
         categories: [{% for choice in filter.form.categories.field.choices %}{ id: '{{ choice.0 }}', name: '{{ choice.1 }}' }{% if not forloop.last %},{% endif %}{% endfor %}],
 
-        /* Add or remove a category ID from the selection. */
+        /* Toggle a category by id: add if not selected, remove if already selected. */
         toggle(id) {
             const idx = this.selectedIds.indexOf(id);
             if (idx === -1) { this.selectedIds.push(id); }
@@ -21,11 +20,13 @@
             return this.selectedIds.includes(id);
         },
 
-        /*
-         * Truncation logic for the trigger button label.
-         * Shows full name for a single selection, or the first name
-         * truncated to 12 chars with '... + N more' for multiple.
-         */
+         /*
+        * Display text for the trigger button.
+        * No selection: 'Select an item category'
+        * One selected: full category name
+        * Multiple: first name truncated (12 chars) + '... + N more'
+        *   e.g.: 'Home & Kitch... + 3 more'
+        */
         get buttonText() {
             if (this.selectedIds.length === 0) return 'Filter by category';
             const firstName = this.categories.find(c => c.id === this.selectedIds[0])?.name || '';
@@ -39,7 +40,7 @@
          * This ensures Django's FilterSet receives the correct category values
          * when the form is submitted via GET.
          */
-        syncToSelect() {
+        writeSelectedIdsToHiddenSelect() {
             const select = this.$refs.hiddenSelect;
             for (const opt of select.options) {
                 opt.selected = this.selectedIds.includes(opt.value);
@@ -49,14 +50,14 @@
         /* Clear all selections, sync to hidden select, close modal, and submit form. */
         clear() {
             this.selectedIds = [];
-            this.syncToSelect();
+            this.writeSelectedIdsToHiddenSelect();
             closeModal('category-filter-modal');
             this.$el.closest('form').submit();
         },
 
         /* Sync selections to hidden select, close modal, and submit form to apply filters. */
         confirm() {
-            this.syncToSelect();
+            this.writeSelectedIdsToHiddenSelect();
             closeModal('category-filter-modal');
             this.$el.closest('form').submit();
         }
@@ -87,7 +88,7 @@
         <button type="button"
             x-show="selectedIds.length > 0"
             x-cloak
-            @click="selectedIds = []; syncToSelect(); $el.closest('form').submit();"
+            @click="selectedIds = []; writeSelectedIdsToHiddenSelect(); $el.closest('form').submit();"
             class="btn btn-outline btn-primary btn-xs font-semibold">
             Clear
         </button>

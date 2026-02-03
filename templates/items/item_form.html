@@ -40,7 +40,6 @@
                      * (Empty on create, has values on edit.)
                      */
                     selectedIds: [{% for val in field.value %}{% if val %}'{{ val }}'{% if not forloop.last %},{% endif %}{% endif %}{% endfor %}],
-                    /* All available categories, rendered from Django's form field choices. */
                     categories: [{% for choice in field.field.choices %}{ id: '{{ choice.0 }}', name: '{{ choice.1 }}' }{% if not forloop.last %},{% endif %}{% endfor %}],
 
                     /* Toggle a category by id: add if not selected, remove if already selected. */
