@@ -1,5 +1,5 @@
 <!-- Item Filter Form Component -->
-<form method="get" class="flex flex-col space-y-4"
+<form method="get" class="flex flex-col gap-4"
     x-data="{
         /*
         * Alpine UI state: which category IDs are currently selected.
@@ -76,28 +76,14 @@
     </div>
 
     <!-- Category filter trigger badge -->
-    <div class="flex flex-wrap gap-4 items-center">
+    <div>
         <button type="button" @click="showModal('category-filter-modal')"
             :class="selectedIds.length > 0
-                ? 'badge badge-neutral font-medium text-sm leading-6 cursor-pointer p-3 gap-2'
-                : 'badge badge-soft font-medium text-sm leading-6 cursor-pointer p-3 gap-2'">
-            <!-- Heroicons: adjustments-horizontal -->
-         <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 11 11" fill="none">
-  <g filter="url(#filter0_d_1656_1190)">
-    <path d="M3.5 7C4.22487 7 4.8125 7.58763 4.8125 8.3125C4.8125 9.03737 4.22487 9.625 3.5 9.625C2.77513 9.625 2.1875 9.03737 2.1875 8.3125C2.1875 7.58763 2.77513 7 3.5 7ZM1.3125 7.875C1.55412 7.875 1.75 8.07088 1.75 8.3125C1.75 8.55412 1.55412 8.75 1.3125 8.75H0.4375C0.195878 8.75 2.49282e-06 8.55412 0 8.3125C4.20738e-06 8.07088 0.19588 7.875 0.4375 7.875H1.3125ZM10.0625 7.875C10.3041 7.875 10.5 8.07088 10.5 8.3125C10.5 8.55412 10.3041 8.75 10.0625 8.75H5.6875C5.44588 8.75 5.25 8.55412 5.25 8.3125C5.25 8.07088 5.44588 7.875 5.6875 7.875H10.0625ZM7 3.5C7.72487 3.5 8.3125 4.08763 8.3125 4.8125C8.3125 5.53737 7.72487 6.125 7 6.125C6.27513 6.125 5.6875 5.53737 5.6875 4.8125C5.6875 4.08763 6.27513 3.5 7 3.5ZM4.8125 4.375C5.05412 4.375 5.25 4.57088 5.25 4.8125C5.25 5.05413 5.05412 5.25 4.8125 5.25H0.4375C0.195876 5.25 -1.05617e-08 5.05412 0 4.8125C1.05617e-08 4.57088 0.195876 4.375 0.4375 4.375H4.8125ZM10.0625 4.375C10.3041 4.375 10.5 4.57088 10.5 4.8125C10.5 5.05412 10.3041 5.25 10.0625 5.25H9.1875C8.94588 5.25 8.75 5.05412 8.75 4.8125C8.75001 4.57088 8.94588 4.375 9.1875 4.375H10.0625ZM3.5 0C4.22487 3.16852e-08 4.8125 0.587626 4.8125 1.3125C4.8125 2.03737 4.22487 2.625 3.5 2.625C2.77513 2.625 2.1875 2.03737 2.1875 1.3125C2.1875 0.587626 2.77513 2.26017e-07 3.5 0ZM1.3125 0.875C1.55412 0.875 1.75 1.07088 1.75 1.3125C1.75 1.55412 1.55412 1.75 1.3125 1.75H0.4375C0.195878 1.75 2.49282e-06 1.55412 0 1.3125C4.27178e-06 1.07088 0.19588 0.875002 0.4375 0.875H1.3125ZM10.0625 0.875C10.3041 0.875001 10.5 1.07088 10.5 1.3125C10.5 1.55412 10.3041 1.75 10.0625 1.75H5.6875C5.44588 1.75 5.25 1.55412 5.25 1.3125C5.25 1.07088 5.44588 0.875 5.6875 0.875H10.0625Z" fill="#181818"/>
-  </g>
-  <defs>
-    <filter id="filter0_d_1656_1190" x="0" y="0" width="10.5" height="10.125" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
-      <feFlood flood-opacity="0" result="BackgroundImageFix"/>
-      <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
-      <feOffset dy="0.5"/>
-      <feComposite in2="hardAlpha" operator="out"/>
-      <feColorMatrix type="matrix" values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.15 0"/>
-      <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_1656_1190"/>
-      <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_1656_1190" result="shape"/>
-    </filter>
-  </defs>
-</svg>
+                ? 'badge badge-neutral font-medium text-sm leading-6 cursor-pointer p-3'
+                : 'badge badge-soft font-medium text-sm leading-6 cursor-pointer p-3'">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="size-3">
+                <path d="M10 3.75a2 2 0 1 0-4 0 2 2 0 0 0 4 0ZM17.25 4.5a.75.75 0 0 0 0-1.5h-5.5a.75.75 0 0 0 0 1.5h5.5ZM5 3.75a.75.75 0 0 1-.75.75h-1.5a.75.75 0 0 1 0-1.5h1.5a.75.75 0 0 1 .75.75ZM4.25 17a.75.75 0 0 0 0-1.5h-1.5a.75.75 0 0 0 0 1.5h1.5ZM17.25 17a.75.75 0 0 0 0-1.5h-5.5a.75.75 0 0 0 0 1.5h5.5ZM9 10a2 2 0 1 1 4 0 2 2 0 0 1-4 0ZM7.25 10.75a.75.75 0 0 0 0-1.5h-4.5a.75.75 0 0 0 0 1.5h4.5ZM17.25 10.75a.75.75 0 0 0 0-1.5h-1.5a.75.75 0 0 0 0 1.5h1.5ZM14 16.25a2 2 0 1 0-4 0 2 2 0 0 0 4 0Z"/>
+            </svg>
             <span x-text="buttonText"></span>
         </button>
         <!-- Inline clear button, only visible when categories are selected -->
