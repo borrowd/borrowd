@@ -1,13 +1,191 @@
 {% extends "layouts/default.html" %}
-{% load i18n %}
+{% load static %}
 
-{% block head_title  %}{{ profile.user.username }}'s profile{% endblock %}
+{% block head_title %}Inventory{% endblock %}
 
 {% block content %}
-<div class="flex flex-col space-y-4 bg-white shadow-lg rounded-lg p-8 w-full max-w-2xl">
-    <c-items.item-grid title='My Requests' context="my-requests" :item_cards="requests_from_user" />
-    <c-items.item-grid title='Requests for Me' context="requests-for-me" :item_cards="requests_to_user" />
-    <c-items.item-grid title='Borrowed' context="borrowed" :item_cards="borrowed" />
-    <c-items.item-grid title='My Items' context="my-items" :item_cards="user_items" />
+<div class="flex flex-col w-full px-4 max-w-2xl bg-base-100" x-data="{ yourItems: true }">
+
+    <!-- Page Header -->
+    <c-page-header title="Inventory" />
+
+    <!-- Toggle Row -->
+    <div class="flex items-center justify-between mb-6">
+        <label class="flex items-center gap-3 cursor-pointer">
+            <input type="checkbox" class="toggle toggle-base" x-model="yourItems" />
+            <span class="text-sm font-medium">Your items</span>
+        </label>
+        <a href="{% url 'item-create' %}" class="btn btn-soft text-primary btn-sm">
+            Add item
+        </a>
+    </div>
+
+    <!-- Your Items Mode (toggle ON) -->
+    <template x-if="yourItems">
+        <div>
+            {% if has_owned_items %}
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 justify-items-center sm:justify-items-start">
+                <!-- Items Needing Approval -->
+                {% for tx in items_needing_approval %}
+                <c-items.item-box
+                    pk="{{ tx.item.pk }}"
+                    name="{{ tx.item.name }}"
+                    description="{{ tx.item.description }}"
+                    image="{{ tx.item.photos.all.0.thumbnail.url }}"
+                    status="{{ tx.get_status_display }}"
+                    box_size="sm"
+                >
+                    <c-slot name="label">
+                        <c-avatar src="{{ tx.party2.profile.profile_pic }}" class="inline !h-7 !w-7" />
+                        By {{ tx.party2.profile.full_name }}
+                    </c-slot>
+                </c-items.item-box>
+                {% endfor %}
+
+                <!-- Owned Items Being Borrowed Out -->
+                {% for item in owned_items_borrowed %}
+                <c-items.item-box
+                    pk="{{ item.pk }}"
+                    name="{{ item.name }}"
+                    description="{{ item.description }}"
+                    image="{{ item.photos.all.0.thumbnail.url }}"
+                    status="{{ item.get_status_display }}"
+                    label_color="red"
+                    box_size="sm"
+                >
+                    {% if item.borrower %}
+                    <c-slot name="label">
+                        <c-avatar src="{{ item.borrower.profile.profile_pic }}" class="inline !h-7 !w-7" />
+                        With {{ item.borrower.username }}
+                    </c-slot>
+                    {% endif %}
+                </c-items.item-box>
+                {% endfor %}
+
+                <!-- Available Owned Items -->
+                {% for item in owned_items_available %}
+                <c-items.item-box
+                    pk="{{ item.pk }}"
+                    name="{{ item.name }}"
+                    description="{{ item.description }}"
+                    image="{{ item.photos.all.0.thumbnail.url }}"
+                    status="{{ item.get_status_display }}"
+                    box_size="sm"
+                />
+                {% endfor %}
+            </div>
+            {% else %}
+            <!-- Empty State: No owned items -->
+            <div class="flex flex-col items-center justify-center py-12 px-4">
+                <img src="{% static 'users/inventory/frame-illustration-2.png' %}" alt="No items" class="w-32 h-32 mb-6">
+                <p class="text-gray-800 text-xl text-center font-semibold mb-2">You have no items</p>
+                <p class="text-gray-600 text-center mb-6">Add an item to start sharing.</p>
+                <a href="{% url 'item-create' %}" class="btn btn-primary">
+                    Add an item
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </template>
+
+    <!-- All Items Mode (toggle OFF) -->
+    <template x-if="!yourItems">
+        <div>
+            {% if has_activity or has_owned_items %}
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 justify-items-center sm:justify-items-start">
+                <!-- Items Needing Approval -->
+                {% for tx in items_needing_approval %}
+                <c-items.item-box
+                    pk="{{ tx.item.pk }}"
+                    name="{{ tx.item.name }}"
+                    description="{{ tx.item.description }}"
+                    image="{{ tx.item.photos.all.0.thumbnail.url }}"
+                    status="{{ tx.get_status_display }}"
+                    box_size="sm"
+                >
+                    <c-slot name="label">
+                        <c-avatar src="{{ tx.party2.profile.profile_pic }}" class="inline !h-7 !w-7" />
+                        By {{ tx.party2.profile.full_name }}
+                    </c-slot>
+                </c-items.item-box>
+                {% endfor %}
+
+                <!-- Items User Has Requested -->
+                {% for tx in user_requested_items %}
+                <c-items.item-box
+                    pk="{{ tx.item.pk }}"
+                    name="{{ tx.item.name }}"
+                    description="{{ tx.item.description }}"
+                    image="{{ tx.item.photos.all.0.thumbnail.url }}"
+                    status="{{ tx.get_status_display }}"
+                    box_size="sm"
+                >
+                    <c-slot name="label">
+                        <c-avatar src="{% static 'icons/handshake.svg' %}" class="inline !h-7 !w-7" />
+                        {{ tx.get_status_display }}
+                    </c-slot>
+                </c-items.item-box>
+                {% endfor %}
+
+                <!-- Items User Is Borrowing -->
+                {% for tx in user_borrowed_items %}
+                <c-items.item-box
+                    pk="{{ tx.item.pk }}"
+                    name="{{ tx.item.name }}"
+                    description="{{ tx.item.description }}"
+                    image="{{ tx.item.photos.all.0.thumbnail.url }}"
+                    status="{{ tx.get_status_display }}"
+                    label_color="green"
+                    box_size="sm"
+                >
+                    <c-slot name="label">
+                        <c-avatar src="{{ tx.party1.profile.profile_pic }}" class="inline !h-7 !w-7" />
+                        From {{ tx.party1.username }}
+                    </c-slot>
+                </c-items.item-box>
+                {% endfor %}
+
+                <!-- Owned Items Being Borrowed Out -->
+                {% for item in owned_items_borrowed %}
+                <c-items.item-box
+                    pk="{{ item.pk }}"
+                    name="{{ item.name }}"
+                    description="{{ item.description }}"
+                    image="{{ item.photos.all.0.thumbnail.url }}"
+                    status="{{ item.get_status_display }}"
+                    label_color="red"
+                    box_size="sm"
+                >
+                    {% if item.borrower %}
+                    <c-slot name="label">
+                        <c-avatar src="{{ item.borrower.profile.profile_pic }}" class="inline !h-7 !w-7" />
+                        With {{ item.borrower.username }}
+                    </c-slot>
+                    {% endif %}
+                </c-items.item-box>
+                {% endfor %}
+
+                <!-- Available Owned Items -->
+                {% for item in owned_items_available %}
+                <c-items.item-box
+                    pk="{{ item.pk }}"
+                    name="{{ item.name }}"
+                    description="{{ item.description }}"
+                    image="{{ item.photos.all.0.thumbnail.url }}"
+                    status="{{ item.get_status_display }}"
+                    box_size="sm"
+                />
+                {% endfor %}
+            </div>
+            {% else %}
+            <!-- Empty State: No requests/borrowed items -->
+            <div class="flex flex-col items-center justify-center py-12 px-4">
+                <img src="{% static 'users/inventory/relax-1.png' %}" alt="No requests" class="w-32 h-32 mb-6">
+                <p class="text-gray-800 text-xl text-center font-semibold mb-2">No requests yet</p>
+                <p class="text-gray-600 text-center">Once someone requests your items, they will be here for your approval and tracking.</p>
+            </div>
+            {% endif %}
+        </div>
+    </template>
 </div>
 {% endblock %}
