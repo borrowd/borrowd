@@ -114,6 +114,20 @@ def delete_profile_photo_view(request: HttpRequest) -> JsonResponse:
 
 @login_required
 def inventory_view(request: HttpRequest) -> HttpResponse:
+    """
+    Inventory page with users own items and currently requested/borrowed items
+
+    Data is organized for a toggle UI:
+    - Toggle ON (Your Items): Shows owned items only
+    - Toggle OFF (All Items): Shows all activity including borrowed items
+
+    Separated into following sections:
+    items_needing_approval: user-owned items that have been requested to be borrowed
+    owned_items_borrowed: user-owned items that are currently being borrowed out (not available)
+    owned_items_available: user-owned items that are available to be borrowed (not requested)
+    user_requested_items: items the current user has requested to borrow from others
+    user_borrowed_items: items the current user is currently borrowing from others
+    """
     user: BorrowdUser = request.user  # type: ignore[assignment]
 
     # Prefetch photos to minimize database queries
