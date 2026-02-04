@@ -12,7 +12,7 @@ from django.views.generic import (
     CreateView,
 )
 
-from borrowd_items.models import Item, ItemStatus, Transaction
+from borrowd_items.models import Item, ItemStatus, Transaction, TransactionStatus
 
 from .forms import ChangePasswordForm, CustomSignupForm, ProfileUpdateForm
 from .models import BorrowdUser
@@ -80,27 +80,84 @@ def delete_profile_photo_view(request: HttpRequest) -> JsonResponse:
 
 @login_required
 def inventory_view(request: HttpRequest) -> HttpResponse:
+    """
+    Inventory page with users own items and currently requested/borrowed items
+
+    Data is organized for a toggle UI:
+    - Toggle ON (Your Items): Shows owned items only
+    - Toggle OFF (All Items): Shows all activity including borrowed items
+
+    Separated into following sections:
+    items_needing_approval: user-owned items that have been requested to be borrowed
+    owned_items_borrowed: user-owned items that are currently being borrowed out (not available)
+    owned_items_available: user-owned items that are available to be borrowed (not requested)
+    user_requested_items: items the current user has requested to borrow from others
+    user_borrowed_items: items the current user is currently borrowing from others
+    """
     user: BorrowdUser = request.user  # type: ignore[assignment]
 
-    requests_from_user = Transaction.get_borrow_requests_from_user(user)
-    requests_to_user = Transaction.get_borrow_requests_to_user(user)
-    borrowed = Transaction.get_current_borrows_for_user(user)
-    user_items = Item.objects.filter(owner=user)
-    # Add borrower info to user's items that are currently borrowed
-    for item in user_items:
-        if item.status == ItemStatus.BORROWED:
-            tx = item.get_current_transaction_for_user(user)
-            if tx:
-                item.borrower = tx.party2  # type: ignore[attr-defined]
+    # Items needing approval: pending requests where user is the owner (party1)
+    items_needing_approval = Transaction.objects.filter(
+        party1=user,
+        status=TransactionStatus.REQUESTED,
+    ).select_related("item", "party2", "party2__profile")
+
+    # User-owned items that are currently being borrowed out (not available)
+    owned_items_borrowed = Item.objects.filter(
+        owner=user,
+        status__in=[ItemStatus.RESERVED, ItemStatus.BORROWED],
+    ).prefetch_related("photos")
+
+    # Add borrower info to borrowed items
+    for item in owned_items_borrowed:
+        tx = item.get_current_transaction_for_user(user)
+        if tx:
+            item.borrower = tx.party2  # type: ignore[attr-defined]
+
+    # Owned items that are available for borrowing
+    owned_items_available = Item.objects.filter(
+        owner=user,
+        status=ItemStatus.AVAILABLE,
+    ).prefetch_related("photos")
+
+    # Items user has requested from others (pending requests)
+    user_requested_items = Transaction.objects.filter(
+        party2=user,
+        status__in=[
+            TransactionStatus.REQUESTED,
+            TransactionStatus.ACCEPTED,
+            TransactionStatus.COLLECTION_ASSERTED,
+        ],
+    ).select_related("item", "party1", "party1__profile", "item__owner")
+
+    # Items user is currently borrowing
+    user_borrowed_items = Transaction.objects.filter(
+        party2=user,
+        status__in=[
+            TransactionStatus.COLLECTED,
+            TransactionStatus.RETURN_ASSERTED,
+        ],
+    ).select_related("item", "party1", "party1__profile", "item__owner")
+
+    # Boolean flags for empty state detection
+    has_owned_items = (
+        owned_items_borrowed.exists()
+        or owned_items_available.exists()
+        or items_needing_approval.exists()
+    )
+    has_activity = user_requested_items.exists() or user_borrowed_items.exists()
 
     return render(
         request,
         "users/inventory.html",
         {
-            "requests_from_user": requests_from_user,
-            "requests_to_user": requests_to_user,
-            "borrowed": borrowed,
-            "user_items": user_items,
+            "items_needing_approval": items_needing_approval,
+            "owned_items_borrowed": owned_items_borrowed,
+            "owned_items_available": owned_items_available,
+            "user_requested_items": user_requested_items,
+            "user_borrowed_items": user_borrowed_items,
+            "has_owned_items": has_owned_items,
+            "has_activity": has_activity,
         },
     )
 
