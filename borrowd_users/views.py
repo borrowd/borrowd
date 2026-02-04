@@ -114,7 +114,7 @@ class CustomSignupView(CreateView[BorrowdUser, CustomSignupForm]):
     model = BorrowdUser
     form_class = CustomSignupForm
     template_name = "account/signup.html"
-    success_url = reverse_lazy("item-list")  # Redirect after successful signup
+    success_url = reverse_lazy("onboarding_step1")  # Redirect after successful signup
 
     def dispatch(
         self, request: HttpRequest, *args: Any, **kwargs: Any
