@@ -14,15 +14,50 @@
     </div>
     <!-- member actions -->
     {% if is_moderator and member.user_id != user.id %}
-    <div class="relative" x-data="{ open: false }">
-      <button @click="open = !open" class="text-gray-400 hover:text-gray-600 focus:outline-none">
+    <div class="relative" x-data="{ open: false, placement:'top', getBoundaryEl() {return this.$refs.btn?.closest('[members-list-boundary]') || document.body;},
+                                    toggle() {
+                                      if (this.open) { this.open = false; return;}
+
+                                      this.open = true;
+
+                                      //  Compute the best placement for the menu (top or bottom)
+                                      // based on available space within the parent boundary panel/card.
+                                      // works with scrolling containers and for a dynamic menu size.
+
+                                      this.$nextTick(() => {
+                                        const btn = this.$refs.btn;
+                                        const menu = this.$refs.menu;
+                                        const boundary = this.getBoundaryEl();
+
+                                        if (!btn || !menu || !boundary) return;
+
+                                        const btnRect = btn.getBoundingClientRect();
+                                        const menuRect = menu.getBoundingClientRect();
+                                        const boundaryRect = boundary.getBoundingClientRect();
+
+                                        // Space within the boundary
+                                        const spaceBelow = boundaryRect.bottom - btnRect.bottom;
+                                        const spaceAbove = btnRect.top - boundaryRect.top;
+
+                                        this.placement =
+                                          (spaceBelow < menuRect.height && spaceAbove > spaceBelow)
+                                            ? 'top'
+                                            : 'bottom';
+                                      });
+                                    }
+                                  }"
+        @keydown.escape.window="open = false"
+        @resize.window="open && toggle()"
+        @scroll.window="open && toggle()">
+      <button x-ref="btn" @click="toggle()" class="text-gray-400 hover:text-gray-600 focus:outline-none">
           <!-- super ugly, but draws a nice vertical 3-dot for now, will be replaced with proper icon library -->
         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
           <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
         </svg>
       </button>
       <!-- todo: promote member to moderator logic -->
-      <div x-show="open" @click.away="open = false" class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10">
+      <div x-ref="menu" x-show="open" @click.away="open = false"
+        class="absolute right-0 w-48 bg-white rounded-md shadow-lg py-1 z-10" :class="placement === 'top' ? 'bottom-full mb-2' : 'top-full mt-2'">
         <form method="post" action="{% url 'borrowd_groups:remove-member' object.pk member.user_id %}" onsubmit="return confirm('Are you sure you want to remove this member?');">
           {% csrf_token %}
           <button type="submit" class="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100">
