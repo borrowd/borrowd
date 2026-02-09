@@ -127,7 +127,20 @@ class GroupDetailView(
 
         group: BorrowdGroup = self.object
 
+        # Prevent pending members from seeing group content
+        if self.request.user.is_authenticated:
+            try:
+                membership = Membership.objects.get(user=self.request.user, group=group)
+                if membership.status != "ACTIVE" and not membership.is_moderator:
+                    messages.error(self.request, "Your membership is pending approval.")
+                    return redirect("borrowd_groups:group-list")  # type: ignore[return-value]
+            except Membership.DoesNotExist:
+                #255: redirect non-members elsewhere?
+                messages.error(self.request, "You are not a member of this group.")
+                return redirect("borrowd_groups:group-list")  # type: ignore[return-value]
+
         context["members_data"] = get_members_data(group)
+
         if self.request.user.is_authenticated:
             context["is_moderator"] = Membership.objects.filter(
                 user=self.request.user, group=group, is_moderator=True
@@ -140,6 +153,13 @@ class GroupDetailView(
                 context["user_trust_level"] = user_membership.trust_level
             except Membership.DoesNotExist:
                 context["user_trust_level"] = None
+
+            #  255: Show pending members to moderators only
+            if context["is_moderator"]:
+                context["pending_members"] = Membership.objects.filter(
+                    group=group, status="PENDING"
+                ).select_related("user")
+
         return context
 
 
@@ -219,7 +239,7 @@ class GroupJoinView(LoginRequiredMixin, View):  # type: ignore[misc]
         # Check if the user is already a member
         if Membership.objects.filter(user=self.request.user, group=group).exists():
             messages.info(request, "You are already a member of this group.")
-            return redirect("borrowd_groups:group-detail", pk=group.pk)
+            return redirect("borrowd_groups:group-detail", pk=group.pk)  # type: ignore[return-value]
 
         return group
 
@@ -248,7 +268,6 @@ class GroupJoinView(LoginRequiredMixin, View):  # type: ignore[misc]
         if isinstance(val_res, HttpResponse):
             return val_res
 
-        # Just rename the var to avoid confusion
         group: BorrowdGroup = val_res
 
         form = GroupJoinForm(request.POST)
@@ -256,13 +275,17 @@ class GroupJoinView(LoginRequiredMixin, View):  # type: ignore[misc]
         if not form.is_valid():
             return render(request, "groups/group_join.html", {"form": form})
 
-        # Wonder what we can do to cast request.user to our
-        # custom user model, so mypy doesn't complain here?
-        group.add_user(request.user, trust_level=form.cleaned_data["trust_level"])  # type: ignore[arg-type]
+        # Check if membership_requires_approval, set pending
+        membership = group.add_user(  # type: ignore[arg-type]
+            request.user, trust_level=form.cleaned_data["trust_level"]
+        )
+        if membership.status == "PENDING":
+            messages.info(request, "Your request is pending approval by a moderator.")
+        else:
+            messages.success(request, f"Thanks for joining {group.name}!")
 
-        messages.success(request, f"Thanks for joining {group.name}!")
         # Redirect to the group detail page
-        return redirect("borrowd_groups:group-detail", pk=group.pk)
+        return redirect("borrowd_groups:group-detail", pk=group.pk)  # type: ignore[return-value]
 
 
 # No typing for django_filter, so mypy doesn't like us subclassing.
@@ -302,13 +325,13 @@ class UpdateTrustLevelView(LoginRequiredMixin, View):  # type: ignore[misc]
             group = BorrowdGroup.objects.get(pk=pk)
         except BorrowdGroup.DoesNotExist:
             messages.error(request, "Group not found.")
-            return redirect("borrowd_groups:group-list")
+            return redirect("borrowd_groups:group-list")  # type: ignore[return-value]
 
         try:
             membership = Membership.objects.get(user=request.user, group=group)
         except Membership.DoesNotExist:
             messages.error(request, "You are not a member of this group.")
-            return redirect("borrowd_groups:group-detail", pk=pk)
+            return redirect("borrowd_groups:group-detail", pk=pk)  # type: ignore[return-value]
 
         form = UpdateTrustLevelForm(request.POST)
         if form.is_valid():
@@ -323,7 +346,7 @@ class UpdateTrustLevelView(LoginRequiredMixin, View):  # type: ignore[misc]
         else:
             messages.error(request, "Invalid trust level selected.")
 
-        return redirect("borrowd_groups:group-detail", pk=pk)
+        return redirect("borrowd_groups:group-detail", pk=pk)  # type: ignore[return-value]
 
 
 class RemoveMemberView(LoginRequiredMixin, View):  # type: ignore[misc]
@@ -338,7 +361,7 @@ class RemoveMemberView(LoginRequiredMixin, View):  # type: ignore[misc]
             group = BorrowdGroup.objects.get(pk=pk)
         except BorrowdGroup.DoesNotExist:
             messages.error(request, "Group not found.")
-            return redirect("borrowd_groups:group-list")
+            return redirect("borrowd_groups:group-list")  # type: ignore[return-value]
 
         # Check if the requesting user is a moderator
         is_moderator = Membership.objects.filter(
@@ -347,23 +370,76 @@ class RemoveMemberView(LoginRequiredMixin, View):  # type: ignore[misc]
 
         if not is_moderator:
             messages.error(request, "You do not have permission to remove members.")
-            return redirect("borrowd_groups:group-detail", pk=pk)
+            return redirect("borrowd_groups:group-detail", pk=pk)  # type: ignore[return-value]
 
         # Get the membership to remove
         try:
             membership = Membership.objects.get(user_id=user_id, group=group)
         except Membership.DoesNotExist:
             messages.error(request, "Member not found in this group.")
-            return redirect("borrowd_groups:group-detail", pk=pk)
+            return redirect("borrowd_groups:group-detail", pk=pk)  # type: ignore[return-value]
 
         # Prevent removing yourself
         if membership.user == request.user:
             messages.error(request, "You cannot remove yourself from the group.")
-            return redirect("borrowd_groups:group-detail", pk=pk)
+            return redirect("borrowd_groups:group-detail", pk=pk)  # type: ignore[return-value]
 
         # Remove the member
         member_name = membership.user.profile.full_name()  # type: ignore
         membership.delete()
         messages.success(request, f"{member_name} has been removed from the group.")
 
-        return redirect("borrowd_groups:group-detail", pk=pk)
+        return redirect("borrowd_groups:group-detail", pk=pk)  # type: ignore[return-value]
+
+
+# 255; Handles approving pending members, which is just changing their status to active. Only moderators can approve.
+class ApproveMemberView(LoginRequiredMixin, View):  # type: ignore[misc]
+    def post(self, request: HttpRequest, membership_id: int) -> HttpResponse:
+        try:
+            membership = Membership.objects.get(id=membership_id)
+        except Membership.DoesNotExist:
+            messages.error(request, "Membership not found.")
+            return redirect("borrowd_groups:group-list")  # type: ignore[return-value]
+
+        # Only moderators can approve
+        if not Membership.objects.filter(
+            user=request.user, group=membership.group, is_moderator=True
+        ).exists():
+            messages.error(request, "You do not have permission to approve members.")
+            return redirect("borrowd_groups:group-detail", pk=membership.group.pk)  # type: ignore[return-value]
+
+        membership.status = "ACTIVE"
+        membership.save()
+
+        # Add user to Django auth group
+        perms_group = membership.group.perms_group
+        if perms_group:
+            membership.user.groups.add(perms_group)
+
+        messages.success(
+            request, f"{membership.user.profile.full_name()} has been approved."
+        )
+        return redirect("borrowd_groups:group-detail", pk=membership.group.pk)  # type: ignore[return-value]
+
+
+#255:  handles denial of membership requests by moderators. Similar to ApproveMemberView, but deletes the Membership object instead of activating it.
+class DenyMemberView(LoginRequiredMixin, View):  # type: ignore[misc]
+    def post(self, request: HttpRequest, membership_id: int) -> HttpResponse:
+        try:
+            membership = Membership.objects.get(id=membership_id)
+        except Membership.DoesNotExist:
+            messages.error(request, "Membership not found.")
+            return redirect("borrowd_groups:group-list")  # type: ignore[return-value]
+
+        # Only moderators can deny
+        if not Membership.objects.filter(
+            user=request.user, group=membership.group, is_moderator=True
+        ).exists():
+            messages.error(request, "You do not have permission to deny members.")
+            return redirect("borrowd_groups:group-detail", pk=membership.group.pk)  # type: ignore[return-value]
+
+        membership.delete()
+        messages.success(
+            request, f"{membership.user.profile.full_name()} has been denied."
+        )
+        return redirect("borrowd_groups:group-detail", pk=membership.group.pk)  # type: ignore[return-value]
