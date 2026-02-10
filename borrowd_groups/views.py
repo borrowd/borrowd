@@ -277,6 +277,11 @@ class GroupListView(LoginRequiredMixin, FilterView):  # type: ignore[misc]
     model = Membership
     filterset_class = GroupFilter
 
+    def get_template_names(self) -> list[str]:
+        if self.request.headers.get("HX-Request"):
+            return ["groups/group_list_card.html"]
+        return [self.template_name]
+
 
 class GroupUpdateView(
     LoginOr404PermissionMixin,
