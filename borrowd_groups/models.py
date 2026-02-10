@@ -165,8 +165,10 @@ class BorrowdGroup(Model):
             is_moderator=is_moderator,
         )
 
-        perms_group = Group.objects.get(name=self.name)
-        user.groups.add(perms_group)
+        # 255: only add to group if membership is active
+        if membership.status == MembershipStatus.ACTIVE:
+            perms_group = Group.objects.get(name=self.name)
+            user.groups.add(perms_group)
 
         return membership
 
