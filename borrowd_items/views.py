@@ -4,7 +4,7 @@ from django.forms import ModelForm
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render
 from django.urls import reverse, reverse_lazy
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_GET, require_POST
 from django.views.generic import CreateView, DeleteView, DetailView, UpdateView
 from django_filters.views import FilterView
 from guardian.mixins import LoginRequiredMixin
@@ -17,10 +17,11 @@ from borrowd_permissions.mixins import (
 from borrowd_permissions.models import ItemOLP
 from borrowd_users.models import BorrowdUser
 
+from .card_helpers import build_item_card_context, parse_card_target
 from .exceptions import InvalidItemAction, ItemAlreadyRequested
 from .filters import ItemFilter
 from .forms import ItemCreateWithPhotoForm, ItemForm, ItemPhotoForm
-from .models import Item, ItemAction, ItemPhoto
+from .models import Item, ItemAction, ItemActionContext, ItemPhoto
 
 
 @require_POST
@@ -53,69 +54,96 @@ def borrow_item(request: HttpRequest, pk: int) -> HttpResponse:
     if req_action is None:
         return HttpResponse("No action specified.", status=400)
 
-    # mypy complains that `request.user` is a AbstractBaseUser or
-    # AnonymousUser, but when I follow the code it looks like it's
-    # AbstractUser or AnonymousUser, which we *would* comply with
-    # here (BorrowdUser subclasses AbstractUser).
     user: BorrowdUser = request.user  # type: ignore[assignment]
-
     item = Item.objects.get(pk=pk)
 
-    # Not currently differentiating between viewing and borrowing
-    # permissions; assumed that if a user can "see" an item (and
-    # they're not the owner), then they can request to borrow it.
     if not user.has_perm(ItemOLP.VIEW, item):
         return HttpResponse("Not found", status=404)
+
+    # Parse HX-Target to determine if this is a card request
+    hx_target = request.headers.get("HX-Target", "")
+    is_card_request, card_context = parse_card_target(hx_target)
+
+    # Choose template and context builder based on request type
+    if is_card_request:
+        template = "components/items/item_card.html"
+
+        def build_context(
+            action_context: ItemActionContext,
+            error_message: str | None = None,
+            error_type: str | None = None,
+        ) -> dict[str, Any]:
+            return build_item_card_context(
+                item, user, card_context, action_context, error_message, error_type
+            )
+    else:
+        template = "components/items/action_buttons_with_status.html"
+
+        def build_context(
+            action_context: ItemActionContext,
+            error_message: str | None = None,
+            error_type: str | None = None,
+        ) -> dict[str, Any]:
+            ctx: dict[str, Any] = {"item": item, "action_context": action_context}
+            if error_message:
+                ctx["error_message"] = error_message
+                ctx["error_type"] = error_type
+            return ctx
+
+    def render_response(
+        action_context: ItemActionContext,
+        error_message: str | None = None,
+        error_type: str | None = None,
+    ) -> HttpResponse:
+        response = render(
+            request,
+            template_name=template,
+            context=build_context(action_context, error_message, error_type),
+            content_type="text/html",
+            status=200,
+        )
+        response["HX-Trigger"] = f"item-updated-{pk}"
+        return response
 
     try:
         req_action = req_action.upper()
         item.process_action(user=user, action=ItemAction(req_action))
-        # Action succeeded, return success response
-        action_context = item.get_action_context_for(user=user)
-        return render(
-            request,
-            template_name="components/items/action_buttons_with_status.html",
-            context={
-                "item": item,
-                "action_context": action_context,
-            },
-            content_type="text/html",
-            status=200,
-        )
+        return render_response(item.get_action_context_for(user=user))
     except ItemAlreadyRequested:
-        # Specific case: item already requested by another user
-        action_context = item.get_action_context_for(user=user)
-        return render(
-            request,
-            template_name="components/items/action_buttons_with_status.html",
-            context={
-                "item": item,
-                "action_context": action_context,
-                "error_message": "Sorry! Another user requested this item just before you.",
-                "error_type": "already_requested",
-            },
-            content_type="text/html",
-            status=200,
+        return render_response(
+            item.get_action_context_for(user=user),
+            error_message="Sorry! Another user requested this item just before you.",
+            error_type="already_requested",
         )
     except InvalidItemAction:
-        # Other invalid actions
-        action_context = item.get_action_context_for(user=user)
-        return render(
-            request,
-            template_name="components/items/action_buttons_with_status.html",
-            context={
-                "item": item,
-                "action_context": action_context,
-            },
-            content_type="text/html",
-            status=200,
-        )
+        return render_response(item.get_action_context_for(user=user))
     except Exception as e:
-        # This is maybe too much information to surface to end-users.
-        # Leaving in for dev, eventually should probably just log it.
         return HttpResponse(
             f"An error occurred while processing the action: {e}", status=500
         )
+
+
+@require_GET
+def get_item_card(request: HttpRequest, pk: int) -> HttpResponse:
+    """GET endpoint to fetch a single item card for HTMX refresh."""
+    user: BorrowdUser = request.user  # type: ignore[assignment]
+    context = request.GET.get("context", "items")
+
+    try:
+        item = Item.objects.get(pk=pk)
+    except Item.DoesNotExist:
+        return HttpResponse("Not found", status=404)
+
+    if not user.has_perm(ItemOLP.VIEW, item):
+        return HttpResponse("Not found", status=404)
+
+    return render(
+        request,
+        template_name="components/items/item_card.html",
+        context=build_item_card_context(item, user, context),
+        content_type="text/html",
+        status=200,
+    )
 
 
 class ItemCreateView(
