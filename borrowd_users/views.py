@@ -11,12 +11,21 @@ from django.views.decorators.http import require_POST
 from django.views.generic import (
     CreateView,
 )
+from django.shortcuts import get_object_or_404, render
+
 
 from borrowd_items.models import Item, ItemStatus, Transaction
 
 from .forms import ChangePasswordForm, CustomSignupForm, ProfileUpdateForm
 from .models import BorrowdUser
 
+def public_profile_view(request: HttpRequest, user_id : int) -> HttpResponse:
+    user = get_object_or_404(BorrowdUser, id=user_id)
+    profile = user.profile
+    return render(request, "users/public-profile.html", {
+        "profile": profile,
+        "user_obj": user
+    })
 
 @login_required
 def profile_view(request: HttpRequest) -> HttpResponse:
@@ -178,3 +187,5 @@ class CustomPasswordChangeView(PasswordChangeView):  # type: ignore[misc]
             messages.warning(self.request, error_message)
 
         return super().form_invalid(form)  # type: ignore[no-any-return]
+
+
