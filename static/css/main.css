@@ -20,7 +20,7 @@ Borrow'd theme for DaisyUI
   --color-accent-content: oklch(100% 0 0);
   --color-neutral: #314157;
   --color-neutral-content: #ffffff;
-  --color-info: oklch(50% 0.134 242.749);
+  --color-info: #2469FF;
   --color-info-content: #ffffff;
   --color-success: #00891d;
   --color-success-content: #ffffff;
@@ -59,6 +59,7 @@ TODO: Transfer over all to daisy */
   --color-tertiary: #537533;
   --color-tertiary-content: #ffffff;
   --color-base-content-scale-70: #5e5e61;
+  --color-base-content-scale-60: #9ca3af;
   --color-base-content-scale-50: #8c8c8d;
   --font-roboto-slab: "Roboto Slab", "serif";
 }
