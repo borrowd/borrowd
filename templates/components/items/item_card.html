@@ -33,7 +33,7 @@ Parameters:
      hx-swap="outerHTML"
      class="bg-white rounded-lg shadow-md overflow-hidden w-72 min-h-48">
     {% if banner_type %}
-        {% include "components/items/item_card_header.html" with banner_type=banner_type requester_name=requester_name time_ago=time_ago %}
+        {% include "components/items/item_card_header.html" with banner_type=banner_type banner_bg=banner_bg banner_text=banner_text banner_icon=banner_icon requester_name=requester_name time_ago=time_ago %}
     {% endif %}
 
     <div class="flex-col p-4">

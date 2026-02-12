@@ -7,10 +7,26 @@ the application, providing consistent context building for item cards.
 
 from typing import TYPE_CHECKING, Any
 
+from django.utils.html import format_html
+
 if TYPE_CHECKING:
     from borrowd_users.models import BorrowdUser
 
     from .models import Item, ItemActionContext
+
+
+# Banner styling configuration
+BANNER_ICONS = {
+    "request": '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>',
+    "available": '<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z"/></svg>',
+    "reserved": '<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path fill-rule="evenodd" d="M6.32 2.577a49.255 49.255 0 0111.36 0c1.497.174 2.57 1.46 2.57 2.93V21a.75.75 0 01-1.085.67L12 18.089l-7.165 3.583A.75.75 0 013.75 21V5.507c0-1.47 1.073-2.756 2.57-2.93z" clip-rule="evenodd"/></svg>',
+}
+
+BANNER_STYLES = {
+    "request": {"bg": "bg-borrowd-plum-300", "text": "text-borrowd-plum-600"},
+    "available": {"bg": "bg-borrowd-fern-300", "text": "text-borrowd-fern-600"},
+    "reserved": {"bg": "bg-borrowd-honey-300", "text": "text-borrowd-honey-600"},
+}
 
 
 def parse_card_target(hx_target: str) -> tuple[bool, str]:
@@ -171,6 +187,13 @@ def build_item_card_context(
     banner_info = get_banner_info_for_item(item, user)
     card_ids = build_card_ids(context, item.pk)
 
+    # Get banner styling
+    banner_type = banner_info.get("banner_type", "")
+    banner_style = BANNER_STYLES.get(banner_type, {})
+    # format_html necessary to display svg, otherwise it just gets shown as plaintext
+    # https://docs.djangoproject.com/en/6.0/ref/utils/#django.utils.html.format_html
+    banner_icon = format_html(BANNER_ICONS.get(banner_type, ""))
+
     ctx: dict[str, Any] = {
         "item": item,
         "action_context": action_context,
@@ -180,7 +203,10 @@ def build_item_card_context(
         "description": item.description,
         "image": first_photo.thumbnail.url if first_photo else "",
         "is_yours": item.owner == user,
-        "banner_type": banner_info.get("banner_type", ""),
+        "banner_type": banner_type,
+        "banner_bg": banner_style.get("bg", ""),
+        "banner_text": banner_style.get("text", ""),
+        "banner_icon": banner_icon,
         "requester_name": banner_info.get("requester_name", ""),
         "time_ago": banner_info.get("time_ago", ""),
         "show_actions": True,
@@ -254,6 +280,12 @@ def build_item_cards_for_transactions(
         first_photo = item.photos.first()
         card_ids = build_card_ids(context, item.pk)
 
+        # Get banner styling
+        banner_style = BANNER_STYLES.get(banner_type, {})
+        # format_html necessary to display svg, otherwise it just gets shown as plaintext
+        # https://docs.djangoproject.com/en/6.0/ref/utils/#django.utils.html.format_html
+        banner_icon = format_html(BANNER_ICONS.get(banner_type, ""))
+
         ctx: dict[str, Any] = {
             "item": item,
             "action_context": action_context,
@@ -264,6 +296,9 @@ def build_item_cards_for_transactions(
             "image": first_photo.thumbnail.url if first_photo else "",
             "is_yours": item.owner == user,
             "banner_type": banner_type,
+            "banner_bg": banner_style.get("bg", ""),
+            "banner_text": banner_style.get("text", ""),
+            "banner_icon": banner_icon,
             "requester_name": requester_name,
             "time_ago": f"{time_ago} ago",
             "show_actions": True,

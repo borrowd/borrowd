@@ -3,17 +3,17 @@ Item Card Header Sub-component
 
 Parameters:
 - banner_type: 'request' | 'available' | 'reserved' (required)
+- banner_bg: Background color classes
+- banner_text: Text color classes
+- banner_icon: SVG icon markup
 - requester_name: Name of requester (for 'request' banner)
 - time_ago: Time since request, e.g., "2h ago" (for 'request' banner)
 {% endcomment %}
-{% load banner_filters %}
 
 {% if banner_type %}
-{% with config=banner_type|get_banner_config %}
-{% if config %}
-<div class="flex items-center gap-2 px-3 py-2 {{ config.bg_class }} rounded-t-lg">
-    <span class="{{ config.text_class }}">{{ config.icon }}</span>
-    <span class="text-sm font-medium {{ config.text_class }}">
+<div class="flex items-center gap-2 px-3 py-2 {{ banner_bg }} rounded-t-lg">
+    <span class="{{ banner_text }}">{{ banner_icon }}</span>
+    <span class="text-sm font-medium {{ banner_text }}">
         {% if banner_type == 'request' %}
             Requested {{ time_ago }} by {{ requester_name }}
         {% elif banner_type == 'available' %}
@@ -23,6 +23,4 @@ Parameters:
         {% endif %}
     </span>
 </div>
-{% endif %}
-{% endwith %}
 {% endif %}
