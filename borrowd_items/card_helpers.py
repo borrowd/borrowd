@@ -192,3 +192,83 @@ def build_item_card_context(
         ctx["error_type"] = error_type
 
     return ctx
+
+
+def build_item_cards_for_items(
+    items: list["Item"], user: "BorrowdUser", context: str
+) -> list[dict[str, Any]]:
+    """
+    Build card contexts for a list of items.
+
+    Args:
+        items: List of Item objects to render
+        user: The viewing user
+        context: The card context/section (e.g., "search", "my-items")
+
+    Returns:
+        List of context dicts for item_card.html template.
+    """
+    return [build_item_card_context(item, user, context) for item in items]
+
+
+def build_item_cards_for_transactions(
+    transactions: list[Any], user: "BorrowdUser", context: str
+) -> list[dict[str, Any]]:
+    """
+    Build card contexts for a list of transactions.
+
+    Extracts the item from each transaction and builds card context,
+    using transaction metadata for banner info.
+
+    Args:
+        transactions: List of Transaction objects
+        user: The viewing user
+        context: The card context/section (e.g., "my-requests")
+
+    Returns:
+        List of context dicts for item_card.html template.
+    """
+    from django.utils.timesince import timesince
+
+    from .models import TransactionStatus
+
+    cards = []
+    for tx in transactions:
+        item = tx.item
+        action_context = item.get_action_context_for(user=user)
+
+        # Get banner type from transaction status
+        status_to_banner: dict[int, str] = {
+            TransactionStatus.REQUESTED: "request",
+            TransactionStatus.ACCEPTED: "reserved",
+            TransactionStatus.COLLECTION_ASSERTED: "reserved",
+            TransactionStatus.COLLECTED: "reserved",
+            TransactionStatus.RETURN_ASSERTED: "reserved",
+        }
+        banner_type = status_to_banner.get(tx.status, "")
+
+        # Get requester info
+        requester_name = tx.party2.profile.full_name()
+        time_ago = timesince(tx.created_at).split(",")[0]
+
+        first_photo = item.photos.first()
+        card_ids = build_card_ids(context, item.pk)
+
+        ctx: dict[str, Any] = {
+            "item": item,
+            "action_context": action_context,
+            "pk": item.pk,
+            "context": context,
+            "name": item.name,
+            "description": item.description,
+            "image": first_photo.thumbnail.url if first_photo else "",
+            "is_yours": item.owner == user,
+            "banner_type": banner_type,
+            "requester_name": requester_name,
+            "time_ago": f"{time_ago} ago",
+            "show_actions": True,
+            **card_ids,
+        }
+        cards.append(ctx)
+
+    return cards
