@@ -1,0 +1,39 @@
+{% extends "layouts/default.html" %} {% load static %} {% block content %}
+<section
+  class="flex flex-col items-center justify-center min-h-[344px] gap-6 md:gap-8 px-[40px] py-[12px]"
+>
+  <!-- Progress bar -->
+  <progress
+    class="progress progress-primary w-[224px] md:w-[340px] h-[10px] md:h-[16px]"
+    value="50"
+    max="100"
+  ></progress>
+
+  <img
+    class="w-[157px] h-[105px] md:w-[220px] md:h-[130px] object-contain"
+    src="{% static 'group.png' %}"
+  />
+
+  <h2
+    class="text-center text-[24px] font-normal tracking-tight leading-[120%] font-roboto-slab"
+  >
+    Groups
+  </h2>
+
+  <p class="font-roboto text-[16px] font-normal leading-[140%] max-w-[42ch]">
+    Groups are made up of people you know in real life and choose to share with.
+  </p>
+
+  <p class="font-roboto text-[16px] font-normal leading-[140%] max-w-[42ch]">
+    You can create different groups for different parts of your life — and share
+    different things with each.
+  </p>
+
+  <a
+    href="/onboarding/3"
+    class="bg-[#2C51A1] text-white py-2 px-6 md:px-10 rounded-lg mt-10 font-medium shadow-md hover:shadow-lg hover:bg-[#25448A] active:scale-[0.98] transition"
+  >
+    Continue
+  </a>
+</section>
+{% endblock %}
