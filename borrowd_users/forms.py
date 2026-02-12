@@ -20,12 +20,7 @@ def create_email_field() -> forms.EmailField:
     """Create an EmailField with consistent styling."""
     return forms.EmailField(
         required=True,
-        widget=forms.EmailInput(
-            attrs={
-                "class": INPUT_CLASSES,
-                "placeholder": "Email address",
-            }
-        ),
+        widget=forms.EmailInput(attrs={"class": INPUT_CLASSES}),
     )
 
 
@@ -34,12 +29,7 @@ def create_first_name_field() -> forms.CharField:
     return forms.CharField(
         max_length=150,
         required=True,
-        widget=forms.TextInput(
-            attrs={
-                "class": INPUT_CLASSES,
-                "placeholder": "First name",
-            }
-        ),
+        widget=forms.TextInput(attrs={"class": INPUT_CLASSES}),
     )
 
 
@@ -48,39 +38,34 @@ def create_last_name_field() -> forms.CharField:
     return forms.CharField(
         max_length=150,
         required=True,
-        widget=forms.TextInput(
-            attrs={
-                "class": INPUT_CLASSES,
-                "placeholder": "Last name",
-            }
-        ),
+        widget=forms.TextInput(attrs={"class": INPUT_CLASSES}),
     )
 
 
-def create_bio_field() -> forms.CharField:
+def create_bio_field(
+    placeholder: str = "Tell others a bit about yourself",
+    alpine_model: str = "",
+) -> forms.CharField:
     """Create a textarea field for bio with consistent styling."""
+    attrs = {
+        "class": "textarea  w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-borrowd-indigo-500 focus:border-borrowd-indigo-500 placeholder:text-base-content-scale-50",
+        "placeholder": placeholder,
+        "rows": 3,
+        "maxlength": 200,
+    }
+    if alpine_model:
+        attrs["x-model"] = alpine_model
+
     return forms.CharField(
         required=False,
-        max_length=120,
-        widget=forms.Textarea(
-            attrs={
-                "class": "textarea  w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-borrowd-indigo-500 focus:border-borrowd-indigo-500",
-                "placeholder": "Tell others a bit about yourself",
-                "rows": 3,
-                "maxlength": 120,
-            }
-        ),
+        max_length=200,
+        widget=forms.Textarea(attrs=attrs),
     )
 
 
-def create_password_input(placeholder: str = "Password") -> forms.PasswordInput:
+def create_password_input() -> forms.PasswordInput:
     """Create a PasswordInput widget with consistent styling."""
-    return forms.PasswordInput(
-        attrs={
-            "class": INPUT_CLASSES,
-            "placeholder": placeholder,
-        }
-    )
+    return forms.PasswordInput(attrs={"class": INPUT_CLASSES})
 
 
 # Validation utilities
@@ -119,6 +104,10 @@ class CustomSignupForm(UserCreationForm[BorrowdUser]):
     email = create_email_field()
     first_name = create_first_name_field()
     last_name = create_last_name_field()
+    bio = create_bio_field(
+        placeholder="Add a little information about yourself! (optional)",
+        alpine_model="bioText",
+    )
 
     password1 = forms.CharField(
         widget=create_password_input(),
@@ -126,18 +115,13 @@ class CustomSignupForm(UserCreationForm[BorrowdUser]):
     )
 
     password2 = forms.CharField(
-        widget=create_password_input("Confirm password"),
+        widget=create_password_input(),
         help_text="Enter the same password as before, for verification.",
-    )
-
-    signup_agreements = forms.BooleanField(
-        required=True,
-        label='I have read and agree to the <a href="https://borrowd.org/terms-of-use/" target="_blank" rel="noopener noreferrer" class="underline">Terms of Use</a> and <a href="https://borrowd.org/liability-agreement/" target="_blank" rel="noopener noreferrer" class="underline">Liability Agreement</a>.',
     )
 
     class Meta:
         model = User
-        fields = ("email", "first_name", "last_name", "password1", "password2")
+        fields = ("email", "first_name", "last_name", "bio", "password1", "password2")
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
@@ -170,6 +154,9 @@ class CustomSignupForm(UserCreationForm[BorrowdUser]):
 
         if commit:
             user.save()
+            if hasattr(user, "profile"):
+                user.profile.bio = self.cleaned_data.get("bio", "")
+                user.profile.save()
         return user
 
 
