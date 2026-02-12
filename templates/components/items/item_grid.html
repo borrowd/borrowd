@@ -1,11 +1,9 @@
-{% load time_filters %}
-{% load banner_filters %}
 <div class="{{ class|default:'' }}">
     {% if title %}
         <c-h2>{{title}}</c-h2>
     {% endif %}
     <div class="flex flex-wrap gap-4 justify-center sm:justify-start">
-    {% if not items and not transactions %}
+    {% if not item_cards %}
         <div class="col-span-full flex flex-col items-center justify-center py-12 px-4">
             {% load static %}
             <img src="{% static 'items/no-items-img.png' %}" alt="Add an item" class="w-32 h-32 mb-6">
@@ -17,41 +15,21 @@
             </c-button-nav>
         </div>
     {% endif %}
-    {% for item in items %}
-        {% with action_context=item|get_action_context_for:request.user banner_type=item|get_item_banner_type is_yours=item|is_owner:request.user requester_name=item|get_item_requester_name:request.user time_ago=item|get_item_request_time_ago %}
+    {% for item_ctx in item_cards %}
         <c-items.item-card
-            pk="{{ item.pk }}"
-            context="{{ context|default:'items' }}"
-            name="{{ item.name }}"
-            description="{{ item.description }}"
-            image="{{ item.photos.all.0.thumbnail.url }}"
-            banner_type="{{ banner_type }}"
-            :is_yours="is_yours"
-            requester_name="{{ requester_name }}"
-            time_ago="{{ time_ago }}"
-            :item="item"
-            :action_context="action_context"
-            :show_actions="True"
+            pk="{{ item_ctx.pk }}"
+            context="{{ item_ctx.context }}"
+            name="{{ item_ctx.name }}"
+            description="{{ item_ctx.description }}"
+            image="{{ item_ctx.image }}"
+            banner_type="{{ item_ctx.banner_type }}"
+            :is_yours="item_ctx.is_yours"
+            requester_name="{{ item_ctx.requester_name }}"
+            time_ago="{{ item_ctx.time_ago }}"
+            :item="item_ctx.item"
+            :action_context="item_ctx.action_context"
+            :show_actions="item_ctx.show_actions"
         />
-        {% endwith %}
-    {% endfor %}
-    {% for tx in transactions %}
-        {% with action_context=tx.item|get_action_context_for:request.user banner_type=tx|get_banner_type is_yours=tx.item|is_owner:request.user %}
-        <c-items.item-card
-            pk="{{ tx.item.pk }}"
-            context="{{ context|default:'transactions' }}"
-            name="{{ tx.item.name }}"
-            description="{{ tx.item.description }}"
-            image="{{ tx.item.photos.all.0.thumbnail.url }}"
-            banner_type="{{ banner_type }}"
-            :is_yours="is_yours"
-            requester_name="{{ tx.party2.profile.full_name }}"
-            time_ago="{{ tx.created_at|timesince_short }}"
-            :item="tx.item"
-            :action_context="action_context"
-            :show_actions="True"
-        />
-        {% endwith %}
     {% endfor %}
     </div>
 </div>
