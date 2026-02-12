@@ -3,6 +3,7 @@ from django.http import FileResponse, HttpRequest, HttpResponse
 from django.template import loader
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
+from django.shortcuts import redirect
 
 
 def favicon(request: HttpRequest) -> FileResponse:
@@ -25,3 +26,13 @@ def onboarding_step2(request: HttpRequest) -> HttpResponse:
 @login_required
 def onboarding_step3(request: HttpRequest) -> HttpResponse:
     return render(request, "onboarding/step3.html")
+
+# View to handle "complete onboading"
+@login_required
+def onboarding_complete(request: HttpRequest) -> HttpResponse:
+    # Get next in session and remove it from session
+    next_url = request.session.pop("post_onboarding_redirect", None)
+    if next_url:
+        return redirect(next_url)
+    
+    return redirect("item-list")

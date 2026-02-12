@@ -140,9 +140,9 @@ class CustomSignupView(CreateView[BorrowdUser, CustomSignupForm]):
             self.request, "Welcome! Your account has been created successfully."
         )
 
-        # Honor next parameter if it exists
-        if "next" in self.request.GET:
-            return redirect(self.request.GET["next"])
+        next_url = self.request.GET.get("next")
+        if next_url:
+            self.request.session["post_onboarding_redirect"] = next_url
 
         return redirect(self.success_url)
 
