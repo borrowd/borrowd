@@ -79,7 +79,7 @@
                     <div>
                         {{ form.bio }}
                         <div class="mt-1 text-xs text-base-content-scale-60">
-                            <span x-text="bioText.length.toString().padStart(2, '0')"></span>/200
+                            <span x-text="bioText.length"></span>/200
                         </div>
                         {% if form.bio.errors %}
                             <div class="mt-1 text-sm text-red-600">
