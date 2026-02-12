@@ -17,7 +17,11 @@ from borrowd_permissions.mixins import (
 from borrowd_permissions.models import ItemOLP
 from borrowd_users.models import BorrowdUser
 
-from .card_helpers import build_item_card_context, parse_card_target
+from .card_helpers import (
+    build_item_card_context,
+    build_item_cards_for_items,
+    parse_card_target,
+)
 from .exceptions import InvalidItemAction, ItemAlreadyRequested
 from .filters import ItemFilter
 from .forms import ItemCreateWithPhotoForm, ItemForm, ItemPhotoForm
@@ -208,6 +212,20 @@ class ItemListView(
     model = Item
     template_name_suffix = "_list"  # Reusing template from ListView
     filterset_class = ItemFilter
+
+    def get_queryset(self):  # type: ignore[no-untyped-def]
+        queryset = super().get_queryset()
+        return queryset.prefetch_related("photos")
+
+    def get_context_data(self, **kwargs: str) -> dict[str, Any]:
+        context: dict[str, Any] = super().get_context_data(**kwargs)
+        user: BorrowdUser = self.request.user
+
+        # Build card contexts for all items
+        items = list(context["object_list"])
+        context["item_cards"] = build_item_cards_for_items(items, user, "search")
+
+        return context
 
 
 class ItemUpdateView(
