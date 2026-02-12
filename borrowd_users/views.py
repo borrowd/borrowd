@@ -12,7 +12,11 @@ from django.views.generic import (
     CreateView,
 )
 
-from borrowd_items.models import Item, ItemStatus, Transaction
+from borrowd_items.card_helpers import (
+    build_item_cards_for_items,
+    build_item_cards_for_transactions,
+)
+from borrowd_items.models import Item, Transaction
 
 from .forms import ChangePasswordForm, CustomSignupForm, ProfileUpdateForm
 from .models import BorrowdUser
@@ -82,25 +86,35 @@ def delete_profile_photo_view(request: HttpRequest) -> JsonResponse:
 def inventory_view(request: HttpRequest) -> HttpResponse:
     user: BorrowdUser = request.user  # type: ignore[assignment]
 
-    requests_from_user = Transaction.get_borrow_requests_from_user(user)
-    requests_to_user = Transaction.get_borrow_requests_to_user(user)
-    borrowed = Transaction.get_current_borrows_for_user(user)
-    user_items = Item.objects.filter(owner=user)
-    # Add borrower info to user's items that are currently borrowed
-    for item in user_items:
-        if item.status == ItemStatus.BORROWED:
-            tx = item.get_current_transaction_for_user(user)
-            if tx:
-                item.borrower = tx.party2  # type: ignore[attr-defined]
+    # Prefetch photos to minimize database queries
+    requests_from_user = Transaction.get_borrow_requests_from_user(
+        user
+    ).prefetch_related("item__photos")
+    requests_to_user = Transaction.get_borrow_requests_to_user(user).prefetch_related(
+        "item__photos"
+    )
+    borrowed = Transaction.get_current_borrows_for_user(user).prefetch_related(
+        "item__photos"
+    )
+    user_items = Item.objects.filter(owner=user).prefetch_related("photos")
+
+    requests_from_cards = build_item_cards_for_transactions(
+        list(requests_from_user), user, "my-requests"
+    )
+    requests_to_cards = build_item_cards_for_transactions(
+        list(requests_to_user), user, "requests-for-me"
+    )
+    borrowed_cards = build_item_cards_for_transactions(list(borrowed), user, "borrowed")
+    user_items_cards = build_item_cards_for_items(list(user_items), user, "my-items")
 
     return render(
         request,
         "users/inventory.html",
         {
-            "requests_from_user": requests_from_user,
-            "requests_to_user": requests_to_user,
-            "borrowed": borrowed,
-            "user_items": user_items,
+            "requests_from_user": requests_from_cards,
+            "requests_to_user": requests_to_cards,
+            "borrowed": borrowed_cards,
+            "user_items": user_items_cards,
         },
     )
 

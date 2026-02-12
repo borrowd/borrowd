@@ -5,9 +5,9 @@
 
 {% block content %}
 <div class="flex flex-col space-y-4 bg-white shadow-lg rounded-lg p-8 w-full max-w-2xl">
-    <c-items.item-grid title='My Requests' context="my-requests" :transactions="requests_from_user" />
-    <c-items.item-grid title='Requests for Me' context="requests-for-me" :transactions="requests_to_user" />
-    <c-items.item-grid title='Borrowed' context="borrowed" :transactions="borrowed" />
-    <c-items.item-grid title='My Items' context="my-items" :items="user_items" />
+    <c-items.item-grid title='My Requests' context="my-requests" :item_cards="requests_from_user" />
+    <c-items.item-grid title='Requests for Me' context="requests-for-me" :item_cards="requests_to_user" />
+    <c-items.item-grid title='Borrowed' context="borrowed" :item_cards="borrowed" />
+    <c-items.item-grid title='My Items' context="my-items" :item_cards="user_items" />
 </div>
 {% endblock %}
