@@ -61,5 +61,7 @@ TODO: Transfer over all to daisy */
   --color-base-content-scale-70: #5e5e61;
   --color-base-content-scale-60: #9ca3af;
   --color-base-content-scale-50: #8c8c8d;
+  --color-black: #000000;
+  --color-gray-800: #1F2937;
   --font-roboto-slab: "Roboto Slab", "serif";
 }
