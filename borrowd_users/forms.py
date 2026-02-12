@@ -44,19 +44,22 @@ def create_last_name_field() -> forms.CharField:
 
 def create_bio_field(
     placeholder: str = "Tell others a bit about yourself",
+    alpine_model: str = "",
 ) -> forms.CharField:
     """Create a textarea field for bio with consistent styling."""
+    attrs = {
+        "class": "textarea  w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-borrowd-indigo-500 focus:border-borrowd-indigo-500 placeholder:text-base-content-scale-50",
+        "placeholder": placeholder,
+        "rows": 3,
+        "maxlength": 200,
+    }
+    if alpine_model:
+        attrs["x-model"] = alpine_model
+
     return forms.CharField(
         required=False,
-        max_length=120,
-        widget=forms.Textarea(
-            attrs={
-                "class": "textarea  w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-borrowd-indigo-500 focus:border-borrowd-indigo-500",
-                "placeholder": placeholder,
-                "rows": 3,
-                "maxlength": 200,
-            }
-        ),
+        max_length=200,
+        widget=forms.Textarea(attrs=attrs),
     )
 
 
@@ -102,7 +105,8 @@ class CustomSignupForm(UserCreationForm[BorrowdUser]):
     first_name = create_first_name_field()
     last_name = create_last_name_field()
     bio = create_bio_field(
-        placeholder="Add a little information about yourself! (optional)"
+        placeholder="Add a little information about yourself! (optional)",
+        alpine_model="bioText",
     )
 
     password1 = forms.CharField(

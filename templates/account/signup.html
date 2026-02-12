@@ -4,11 +4,11 @@
 {% block head_title %}Sign Up{% endblock %}
 
 {% block layout %}
-<div class="flex justify-center py-16  items-center">
+<div class="flex justify-center items-center">
     <div class="  rounded-lg p-8 w-full max-w-2xl">
         <div class="text-center">
-            <c-h1 class="font-normal text-2xl">Create your account</c-h1>
-            <p class="mt-2 text-center text-sm text-gray-600">
+            <c-h1 class="font-normal text-2xl text-black">Create your account</c-h1>
+            <p class="mt-2 text-center text-m text-black">
                 We’re building a community based on trust. Using your real name helps others know who they’re sharing with!
             </p>
         </div>
@@ -27,10 +27,9 @@
             <div class="rounded-md  space-y-4">
 
 
-
                 <!-- First name field -->
                 <div>
-                    <label for="{{ form.first_name.id_for_label }}" class="block text-sm font-medium text-base-content-scale-60 mb-1">
+                    <label for="{{ form.first_name.id_for_label }}" class="block text-xs font-medium text-base-content-scale-60 mb-1.5">
                         {% trans "First name" %}
                     </label>
                     <div>
@@ -45,7 +44,7 @@
 
                 <!-- Last name field -->
                 <div>
-                    <label for="{{ form.last_name.id_for_label }}" class="block text-sm font-medium text-base-content-scale-60 mb-1">
+                    <label for="{{ form.last_name.id_for_label }}" class="block text-xs font-medium text-base-content-scale-60 mb-1.5">
                         {% trans "Last name" %}
                     </label>
                     <div>
@@ -60,7 +59,7 @@
 
                 <!-- Email field -->
                 <div>
-                    <label for="{{ form.email.id_for_label }}" class="block text-sm font-medium text-base-content-scale-60 mb-1">
+                    <label for="{{ form.email.id_for_label }}" class="block text-xs font-medium text-base-content-scale-60 mb-1.5">
                         {% trans "Email address" %}
                     </label>
                     <div>
@@ -73,12 +72,15 @@
                     </div>
                 </div>
                     <!-- Bio field -->
-                <div>
-                    <label for="{{ form.bio.id_for_label }}" class="block text-sm font-medium text-base-content-scale-60 mb-1">
+                <div x-data="{ bioText: '{{ form.bio.value|default:'' }}' }">
+                    <label for="{{ form.bio.id_for_label }}" class="block text-xs font-medium text-base-content-scale-60 mb-1.5">
                         {% trans "Tell us about yourself and what you can share." %}
                     </label>
                     <div>
                         {{ form.bio }}
+                        <div class="mt-1 text-xs text-base-content-scale-60">
+                            <span x-text="bioText.length.toString().padStart(2, '0')"></span>/200
+                        </div>
                         {% if form.bio.errors %}
                             <div class="mt-1 text-sm text-red-600">
                                 {{ form.bio.errors }}
@@ -88,13 +90,13 @@
                 </div>
                 <!-- Password field -->
                 <div>
-                    <label for="{{ form.password1.id_for_label }}" class="block text-sm font-medium text-base-content-scale-60 mb-1">
+                    <label for="{{ form.password1.id_for_label }}" class="block text-xs font-medium text-base-content-scale-60 mb-1.5">
                         {% trans "Password" %}
                     </label>
                     <div>
                         {{ form.password1 }}
                         {% if form.password1.help_text %}
-                            <div class="mt-1 text-sm text-gray-500">
+                            <div class="mt-1 text-xs text-base-content-scale-60">
                                 {{ form.password1.help_text }}
                             </div>
                         {% endif %}
@@ -108,18 +110,13 @@
 
                 <!-- Password confirmation field -->
                 <div>
-                    <label for="{{ form.password2.id_for_label }}" class="block text-sm font-medium text-base-content-scale-60 mb-1">
+                    <label for="{{ form.password2.id_for_label }}" class="block text-xs font-medium text-base-content-scale-60 mb-1.5">
                         {% trans "Confirm password" %}
                     </label>
                     <div>
                         {{ form.password2 }}
-                        {% if form.password2.help_text %}
-                            <div class="mt-1 text-sm text-gray-500">
-                                {{ form.password2.help_text }}
-                            </div>
-                        {% endif %}
                         {% if form.password2.errors %}
-                            <div class="mt-1 text-sm text-red-600">
+                            <div class="mt-1 text-xs text-red-600">
                                 {{ form.password2.errors }}
                             </div>
                         {% endif %}
@@ -128,9 +125,9 @@
             </div>
 
             <div class="mb-4 flex items-center">
-                <label for="id_signup_agreements" class="ml-2 text-sm font-semibold">
-                    By continuing registration, you agree to <a href="https://borrowd.org/terms-of-use/" target="_blank" rel="noopener noreferrer" class="text-info">Terms of Use</a> and
-                    <a href="https://borrowd.org/liability-agreement/" target="_blank" rel="noopener noreferrer" class="text-info">Liability Agreement</a>.
+                <label for="id_signup_agreements" class="ml-2 text-xs font-semibold text-gray-800">
+                    By continuing registration, you agree to <a href="https://borrowd.org/terms-of-use/" target="_blank" rel="noopener noreferrer" class="text-info">Borrow’ds Terms & Conditions</a> and
+                    <a href="https://borrowd.org/privacy-policy/" target="_blank" rel="noopener noreferrer" class="text-info">Liability Agreement</a>.
                 </label>
             </div>
             <div class="mx-auto w-fit">
