@@ -1,12 +1,7 @@
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
 
 from django import template
 from django.utils.safestring import mark_safe
-
-if TYPE_CHECKING:
-    from borrowd_items.models import Item, Transaction
-    from borrowd_users.models import BorrowdUser
 
 register = template.Library()
 
@@ -71,78 +66,3 @@ def get_banner_config(banner_type: str, context_str: str = "") -> BannerConfig |
         icon=mark_safe(icon),
         text=text,
     )
-
-
-@register.filter
-def get_banner_type(transaction: "Transaction") -> str:
-    """
-    Get banner type from transaction status.
-
-    Usage: {{ tx|get_banner_type }}
-    """
-    from borrowd_items.models import TransactionStatus
-
-    status_to_banner: dict[int, str] = {
-        TransactionStatus.REQUESTED: "request",
-        TransactionStatus.ACCEPTED: "reserved",
-        TransactionStatus.COLLECTION_ASSERTED: "reserved",
-        TransactionStatus.COLLECTED: "reserved",
-        TransactionStatus.RETURN_ASSERTED: "reserved",
-    }
-    return status_to_banner.get(transaction.status, "")
-
-
-@register.filter
-def get_item_banner_type(item: "Item") -> str:
-    """
-    Get banner type from item status, checking for pending requests first.
-
-    Usage: {{ item|get_item_banner_type }}
-    """
-    from borrowd_items.models import ItemStatus
-
-    # Check for pending request transaction first
-    if item.get_requesting_user() is not None:
-        return "request"
-
-    # Fall back to item status
-    status_to_banner: dict[int, str] = {
-        ItemStatus.AVAILABLE: "available",
-        ItemStatus.RESERVED: "reserved",
-        ItemStatus.BORROWED: "reserved",
-    }
-    return status_to_banner.get(item.status, "")
-
-
-@register.filter
-def get_item_requester_name(item: "Item", viewing_user: "BorrowdUser") -> str:
-    """
-    Get the requester's name for an item with a pending request.
-    Returns "me" if the viewing user is the requester.
-
-    Usage: {{ item|get_item_requester_name:request.user }}
-    """
-    requesting_user = item.get_requesting_user()
-    if requesting_user is None:
-        return ""
-    if requesting_user == viewing_user:
-        return "me"
-    return requesting_user.profile.full_name()
-
-
-@register.filter
-def get_item_request_time_ago(item: "Item") -> str:
-    """
-    Get time since the pending request was made.
-
-    Usage: {{ item|get_item_request_time_ago }}
-    """
-    from django.utils.timesince import timesince
-
-    from borrowd_items.models import TransactionStatus
-
-    pending_tx = item.transactions.filter(status=TransactionStatus.REQUESTED).first()
-    if pending_tx is None:
-        return ""
-    # Return just the first part (e.g., "2 hours" instead of "2 hours, 3 minutes")
-    return timesince(pending_tx.created_at).split(",")[0]
