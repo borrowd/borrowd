@@ -6,18 +6,17 @@
      - modal_size: Optional, 'half' or 'full' (default: 'half')
      - button_layout: Optional, 'end' (default), 'between', or 'equal' for button arrangement
      - cancel_button: Optional, text for secondary button (left side)
-     - cancel_action: Optional, onclick action for secondary button (if not provided, closes modal)
+     - cancel_action: Optional, Alpine @click action for secondary button (if not provided, closes modal)
      - cancel_button_class: Optional, CSS classes for secondary button (default: 'btn btn-ghost font-semibold')
      - confirm_button: Optional, text for primary button (right side)
-     - confirm_action: Optional, onclick action for primary button
+     - confirm_action: Optional, Alpine @click action for primary button
      - confirm_button_class: Optional, CSS classes for primary button (default: 'btn btn-primary font-semibold')
 -->
 <dialog id="{{ modal_id }}" class="modal modal-bottom sm:modal-middle">
     <div class="modal-box rounded-t-2xl sm:rounded-2xl max-w-lg {% if modal_size == 'full' %}max-h-[85vh]{% else %}max-h-[60vh]{% endif %} flex flex-col">
         <!-- Close button -->
-        <form method="dialog">
-            <button class="btn btn-ghost absolute top-0 right-0 h-16 w-16 p-2 flex flex-col align-items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 22 22" fill="none">
+        <button type="button" onclick="this.closest('dialog').close()" class="btn btn-ghost absolute top-0 right-0 h-16 w-16 p-2 flex flex-col align-items-center">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 22 22" fill="none">
   <g filter="url(#filter0_d_1222_4949)">
     <path fill-rule="evenodd" clip-rule="evenodd" d="M5.01386 5.01386C5.28235 4.74538 5.71765 4.74538 5.98614 5.01386L11 10.0277L16.0139 5.01386C16.2824 4.74538 16.7177 4.74538 16.9861 5.01386C17.2546 5.28235 17.2546 5.71765 16.9861 5.98614L11.9723 11L16.9861 16.0139C17.2546 16.2824 17.2546 16.7177 16.9861 16.9861C16.7177 17.2546 16.2824 17.2546 16.0139 16.9861L11 11.9723L5.98614 16.9861C5.71765 17.2546 5.28235 17.2546 5.01386 16.9861C4.74538 16.7177 4.74538 16.2824 5.01386 16.0139L10.0277 11L5.01386 5.98614C4.74538 5.71765 4.74538 5.28235 5.01386 5.01386Z" fill="#181818"/>
   </g>
@@ -33,8 +32,7 @@
     </filter>
   </defs>
 </svg>
-            </button>
-        </form>
+        </button>
 
         <!-- Modal Title -->
         {% if modal_title %}
@@ -51,23 +49,19 @@
         <div class="pt-6 gap-2 {% if button_layout == 'equal' %}grid grid-cols-2{% else %}modal-action {% if button_layout == 'between' %}justify-between{% else %}justify-end{% endif %}{% endif %}">
             {% if cancel_button %}
                 {% if cancel_action %}
-                <button type="button" onclick="{{ cancel_action }}" class="{{ cancel_button_class|default:'btn btn-ghost font-semibold' }}{% if button_layout == 'equal' %} w-full{% endif %}">{{ cancel_button }}</button>
+                <button type="button" @click="{{ cancel_action }}" class="{{ cancel_button_class|default:'btn btn-ghost font-semibold' }}{% if button_layout == 'equal' %} w-full{% endif %}">{{ cancel_button }}</button>
                 {% else %}
-                <form method="dialog">
-                    <button class="{{ cancel_button_class|default:'btn btn-ghost font-semibold' }}{% if button_layout == 'equal' %} w-full{% endif %}">{{ cancel_button }}</button>
-                </form>
+                <button type="button" onclick="this.closest('dialog').close()" class="{{ cancel_button_class|default:'btn btn-ghost font-semibold' }}{% if button_layout == 'equal' %} w-full{% endif %}">{{ cancel_button }}</button>
                 {% endif %}
             {% endif %}
 
             {% if confirm_button %}
-            <button type="button" onclick="{{ confirm_action }}" class="{{ confirm_button_class|default:'btn btn-primary font-semibold' }}{% if button_layout == 'equal' %} w-full{% endif %}">{{ confirm_button }}</button>
+            <button type="button" @click="{{ confirm_action }}" class="{{ confirm_button_class|default:'btn btn-primary font-semibold' }}{% if button_layout == 'equal' %} w-full{% endif %}">{{ confirm_button }}</button>
             {% endif %}
         </div>
         {% endif %}
     </div>
-    <form method="dialog" class="modal-backdrop">
-        <button>close</button>
-    </form>
+    <button type="button" class="modal-backdrop" onclick="this.closest('dialog').close()">close</button>
 </dialog>
 
 <script>
