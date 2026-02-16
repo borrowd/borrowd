@@ -8,13 +8,23 @@ from django.urls import reverse
 from notifications.models import Notification
 
 from borrowd_groups.models import BorrowdGroup, Membership
-from borrowd_items.models import Transaction, TransactionStatus
+from borrowd_items.models import (
+    AvailabilitySubscription,
+    Transaction,
+    TransactionStatus,
+)
 
 
 class NotificationType(Enum):
     ITEM_REQUESTED = "Item requested"
     ITEM_REQUEST_ACCEPTED = "Item request accepted"
     ITEM_REQUEST_DENIED = "Item request denied"
+    ITEM_SUBSCRIBED_TO = (
+        "Item subscribed to"  # For users who subscribe to get notified about an item
+    )
+    ITEM_SUBSCRIBED_TO_AVAILABLE = (
+        "Item subscribed to available"  # When the item becomes available
+    )
     ITEM_RETURNED = "Item returned"
     GROUP_MEMBER_JOINED = "Change to group membership"
 
@@ -93,6 +103,14 @@ class NotificationService:
                     "group_member_name": notification.recipient.profile.full_name(),
                     "new_member_name": membership.user.profile.full_name(),  # type: ignore[attr-defined]
                     "group_name": membership.group.name,  # type: ignore[attr-defined]
+                }
+            )
+        elif isinstance(notification.target, AvailabilitySubscription):
+            subscription: AvailabilitySubscription = notification.target
+            context.update(
+                {
+                    "subscriber_name": subscription.user.profile.full_name(),  # type: ignore[attr-defined]
+                    "item_name": subscription.item.name,  # type: ignore[attr-defined]
                 }
             )
         return context
