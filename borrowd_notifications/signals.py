@@ -20,7 +20,12 @@ from notifications.models import Notification
 from notifications.signals import notify
 
 from borrowd_groups.models import Membership, MembershipStatus
-from borrowd_items.models import Transaction, TransactionStatus
+from borrowd_items.models import (
+    AvailabilitySubscription,
+    AvailabilitySubscriptionStatus,
+    Transaction,
+    TransactionStatus,
+)
 
 from .services import NotificationService, NotificationType
 
@@ -110,3 +115,38 @@ def send_group_member_joined_notifications(
             target=instance.group,
             description=f"A new member just joined your {instance.group.name} group",  # type: ignore[attr-defined]
         )
+
+
+@receiver(post_save, sender=AvailabilitySubscription)
+def send_availability_subscription_notifications(
+    sender: AvailabilitySubscription,
+    instance: AvailabilitySubscription,
+    created: bool,
+    **kwargs: str,
+) -> None:
+    """
+    Send notifications when an availability subscription is created,
+    or when an item subscribed to becomes available.
+    """
+
+    if created:
+        notify.send(
+            instance.user,
+            recipient=[instance.user],
+            verb=NotificationType.ITEM_SUBSCRIBED_TO.value,
+            action_object=instance.item,
+            target=instance,
+            description=f"You subscribed to {instance.item.name}",  # type: ignore[attr-defined]
+        )
+
+    elif instance.status == AvailabilitySubscriptionStatus.ACTIVE:
+        notify.send(
+            instance.user,
+            recipient=[instance.user],
+            verb=NotificationType.ITEM_SUBSCRIBED_TO_AVAILABLE.value,
+            action_object=instance.item,
+            target=instance,
+            description=f"{instance.item.name} is now available",  # type: ignore[attr-defined]
+        )
+        instance.status = AvailabilitySubscriptionStatus.NOTIFIED
+        instance.save()
