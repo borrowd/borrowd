@@ -9,9 +9,10 @@ Parameters:
 - description: Description text
 - image: Thumbnail URL
 - is_yours: Boolean - show "Yours" badge
-- banner_type: 'request' | 'available' | 'reserved' | none
-- requester_name: For request banner
-- time_ago: For request banner ("2h ago")
+- banner_type: 'requested' | 'available' | 'reserved' | 'borrowed' | none
+- person_name: Name of person for banners (requested/reserved/borrowed)
+- person_url: Profile URL for person_name link
+- time_ago: Time since action (e.g., "2 hours")
 - item: Item object (for HTMX URLs)
 - action_context: ItemActionContext with .actions and .status_text (from get_action_context_for)
 - show_actions: Boolean - render action buttons
@@ -33,7 +34,7 @@ Parameters:
      hx-swap="outerHTML"
      class="bg-white rounded-lg shadow-md overflow-hidden w-72 min-h-48">
     {% if banner_type %}
-        {% include "components/items/item_card_header.html" with banner_type=banner_type banner_bg=banner_bg banner_text=banner_text banner_icon=banner_icon requester_name=requester_name time_ago=time_ago %}
+        {% include "components/items/item_card_header.html" with banner_type=banner_type banner_bg=banner_bg banner_text=banner_text banner_icon=banner_icon person_name=person_name person_url=person_url time_ago=time_ago %}
     {% endif %}
 
     <div class="flex-col p-4">

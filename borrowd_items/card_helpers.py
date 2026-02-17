@@ -17,15 +17,17 @@ if TYPE_CHECKING:
 
 # Banner styling configuration
 BANNER_ICONS = {
-    "request": '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>',
     "available": '<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z"/></svg>',
+    "requested": '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>',
     "reserved": '<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path fill-rule="evenodd" d="M6.32 2.577a49.255 49.255 0 0111.36 0c1.497.174 2.57 1.46 2.57 2.93V21a.75.75 0 01-1.085.67L12 18.089l-7.165 3.583A.75.75 0 013.75 21V5.507c0-1.47 1.073-2.756 2.57-2.93z" clip-rule="evenodd"/></svg>',
+    "borrowed": '<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path fill-rule="evenodd" d="M7.5 6v.75H5.513c-.96 0-1.764.724-1.865 1.679l-1.263 12A1.875 1.875 0 004.25 22.5h15.5a1.875 1.875 0 001.865-2.071l-1.263-12a1.875 1.875 0 00-1.865-1.679H16.5V6a4.5 4.5 0 10-9 0zM12 3a3 3 0 00-3 3v.75h6V6a3 3 0 00-3-3zm-3 8.25a3 3 0 106 0v-.75a.75.75 0 011.5 0v.75a4.5 4.5 0 11-9 0v-.75a.75.75 0 011.5 0v.75z" clip-rule="evenodd"/></svg>',
 }
 
 BANNER_STYLES = {
-    "request": {"bg": "bg-borrowd-plum-300", "text": "text-borrowd-plum-600"},
     "available": {"bg": "bg-borrowd-fern-300", "text": "text-borrowd-fern-600"},
-    "reserved": {"bg": "bg-borrowd-honey-300", "text": "text-borrowd-honey-600"},
+    "requested": {"bg": "bg-borrowd-indigo-300", "text": "text-borrowd-indigo-600"},
+    "reserved": {"bg": "bg-borrowd-plum-300", "text": "text-borrowd-plum-600"},
+    "borrowed": {"bg": "bg-borrowd-indigo-300", "text": "text-borrowd-indigo-600"},
 }
 
 
@@ -123,36 +125,66 @@ def get_banner_info_for_item(
     """
     from django.utils.timesince import timesince
 
-    from .models import ItemStatus, TransactionStatus
+    from .models import TransactionStatus
 
-    # Check for pending request using item's method
+    # Check for active transaction to determine banner state
+    current_borrower = item.get_current_borrower()
     requesting_user = item.get_requesting_user()
-    if requesting_user:
-        # There's a pending request - show request banner
-        if requesting_user == viewing_user:
-            requester_name = "me"
-        else:
-            requester_name = requesting_user.profile.full_name()
 
-        # Get transaction for timestamp
-        pending_tx = item.transactions.filter(
-            status=TransactionStatus.REQUESTED
+    # Get current transaction for this item
+    current_tx = None
+    if current_borrower or requesting_user:
+        from .models import TransactionStatus
+
+        current_tx = item.transactions.filter(
+            status__in=[
+                TransactionStatus.REQUESTED,
+                TransactionStatus.ACCEPTED,
+                TransactionStatus.COLLECTION_ASSERTED,
+                TransactionStatus.COLLECTED,
+                TransactionStatus.RETURN_ASSERTED,
+            ]
         ).first()
-        time_ago = timesince(pending_tx.created_at).split(",")[0] if pending_tx else ""
+
+    if current_tx:
+        # Determine banner based on transaction status
+        if current_tx.status == TransactionStatus.REQUESTED:
+            banner_type = "requested"
+            person = current_tx.party2
+        elif current_tx.status in [
+            TransactionStatus.ACCEPTED,
+            TransactionStatus.COLLECTION_ASSERTED,
+        ]:
+            banner_type = "reserved"
+            person = current_tx.party2
+        elif current_tx.status in [
+            TransactionStatus.COLLECTED,
+            TransactionStatus.RETURN_ASSERTED,
+        ]:
+            banner_type = "borrowed"
+            person = current_tx.party2
+        else:
+            # Fallback to available
+            return {"banner_type": "available"}
+
+        # Build person display info
+        if person == viewing_user:
+            person_name = "me"
+        else:
+            person_name = person.first_name.capitalize()  # type: ignore[attr-defined]
+
+        person_url = f"/profile/{person.pk}/"  # type: ignore[attr-defined]
+        time_ago = timesince(current_tx.updated_at).split(",")[0]
 
         return {
-            "banner_type": "request",
-            "requester_name": requester_name,
+            "banner_type": banner_type,
+            "person_name": person_name,
+            "person_url": person_url,
             "time_ago": time_ago,
         }
 
-    # Fall back to item status
-    status_to_banner: dict[int, str] = {
-        ItemStatus.AVAILABLE: "available",
-        ItemStatus.RESERVED: "reserved",
-        ItemStatus.BORROWED: "reserved",
-    }
-    return {"banner_type": status_to_banner.get(item.status, "")}
+    # No active transaction - item is available
+    return {"banner_type": "available"}
 
 
 def build_item_card_context(
@@ -207,7 +239,8 @@ def build_item_card_context(
         "banner_bg": banner_style.get("bg", ""),
         "banner_text": banner_style.get("text", ""),
         "banner_icon": banner_icon,
-        "requester_name": banner_info.get("requester_name", ""),
+        "person_name": banner_info.get("person_name", ""),
+        "person_url": banner_info.get("person_url", ""),
         "time_ago": banner_info.get("time_ago", ""),
         "show_actions": True,
         **card_ids,
@@ -263,19 +296,21 @@ def build_item_cards_for_transactions(
         item = tx.item
         action_context = item.get_action_context_for(user=user)
 
-        # Get banner type from transaction status
+        # Map transaction status to banner type
         status_to_banner: dict[int, str] = {
-            TransactionStatus.REQUESTED: "request",
+            TransactionStatus.REQUESTED: "requested",
             TransactionStatus.ACCEPTED: "reserved",
             TransactionStatus.COLLECTION_ASSERTED: "reserved",
-            TransactionStatus.COLLECTED: "reserved",
-            TransactionStatus.RETURN_ASSERTED: "reserved",
+            TransactionStatus.COLLECTED: "borrowed",
+            TransactionStatus.RETURN_ASSERTED: "borrowed",
         }
         banner_type = status_to_banner.get(tx.status, "")
 
-        # Get requester info
-        requester_name = tx.party2.profile.full_name()
-        time_ago = timesince(tx.created_at).split(",")[0]
+        # Get borrower/requester info
+        person = tx.party2
+        person_name = person.first_name.capitalize()
+        person_url = f"/profile/{person.pk}/"
+        time_ago = timesince(tx.updated_at).split(",")[0]
 
         first_photo = item.photos.first()
         card_ids = build_card_ids(context, item.pk)
@@ -299,7 +334,8 @@ def build_item_cards_for_transactions(
             "banner_bg": banner_style.get("bg", ""),
             "banner_text": banner_style.get("text", ""),
             "banner_icon": banner_icon,
-            "requester_name": requester_name,
+            "person_name": person_name,
+            "person_url": person_url,
             "time_ago": f"{time_ago} ago",
             "show_actions": True,
             **card_ids,
