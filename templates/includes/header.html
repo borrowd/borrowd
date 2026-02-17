@@ -24,22 +24,13 @@
   </div>
   <div class="navbar-center">
     <a href="{% url 'index' %}" class="btn btn-ghost">
-      <img
-        class="w-48"
-        src="{% static 'borrowd-logo.svg' %}"
-        alt="Borrow'd's logo, complete with friendly bumble bee"
-      />
+      <img class="w-30" src="{% static 'borrowd-logo.svg' %}" alt="Borrow'd's logo, complete with friendly bumble bee" />
     </a>
   </div>
   <div class="navbar-end">
-    {% if not user.is_authenticated %} {% url 'account_request_login_code' as
-    login_url_ %} {% if login_url_ %}
-    <a href="{{ login_url_ }}" class="btn btn-ghost"> {% trans "Sign In" %} </a>
-    {% endif %} {% url 'account_signup' as signup_url_ %} {% if signup_url_ %}
-    <a href="{% url 'account_signup' %}" class="btn btn-primary"> Sign Up </a>
-    {% endif %} {% else %}
-    <!-- currently empty. Avatar picture in future? -->
-    <div class="w-12"></div>
+    {% if user.is_authenticated %}
+      <!-- currently empty. Avatar picture in future? -->
+      <div class="w-12"></div>
     {% endif %}
   </div>
 </div>
