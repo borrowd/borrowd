@@ -76,7 +76,7 @@
                           action="{% url 'account_logout' %}"
                           onsubmit="this.querySelector('button[type=submit]').disabled = true">
                         {% csrf_token %}
-                        <button type="submit" class="flex items-center gap-3 py-3 w-full text-left">
+                        <button type="submit" class="flex items-center gap-3 py-3 w-full text-left cursor-pointer">
                             <i class="fas fa-right-from-bracket text-lg"></i>
                             <span>Logout</span>
                         </button>
