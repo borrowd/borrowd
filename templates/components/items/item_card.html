@@ -13,7 +13,7 @@ Parameters:
 - person_name: Name of person for banners (requested/reserved/borrowed)
 - person_url: Profile URL for person_name link
 - time_ago: Time since action (e.g., "2 hours")
-- item: Item object (for HTMX URLs)
+- item: Item object (for form action URLs)
 - action_context: ItemActionContext with .actions and .status_text (from get_action_context_for)
 - show_actions: Boolean - render action buttons
 - variant: 'default' | 'compact'
@@ -25,13 +25,9 @@ Parameters:
 {% firstof card_id "item-card-"|add:context|add:"-"|add:pk as card_id %}
 {% firstof modal_suffix "-"|add:context|add:"-"|add:pk as modal_suffix %}
 {% firstof actions_container_id "item-card-actions-"|add:context|add:"-"|add:pk as actions_container_id %}
-{% firstof card_id_selector "#item-card-"|add:context|add:"-"|add:pk as card_id_selector %}
 {% firstof request_modal_id "request-item-modal-"|add:context|add:"-"|add:pk as request_modal_id %}
 {% firstof accept_modal_id "accept-request-modal-"|add:context|add:"-"|add:pk as accept_modal_id %}
 <div id="{{ card_id }}"
-     hx-get="{% url 'item-card' pk %}?context={{ context }}"
-     hx-trigger="item-updated-{{ pk }} from:body"
-     hx-swap="outerHTML"
      class="bg-white rounded-lg shadow-md overflow-hidden w-72 min-h-48">
     {% if banner_type %}
         {% include "components/items/item_card_header.html" with banner_type=banner_type banner_bg=banner_bg banner_text=banner_text banner_icon=banner_icon person_name=person_name person_url=person_url time_ago=time_ago %}
