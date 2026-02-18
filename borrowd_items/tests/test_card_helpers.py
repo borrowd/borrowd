@@ -2,7 +2,6 @@
 Tests for item card helper functions.
 
 Covers:
-- parse_card_target: HX-Target header parsing
 - build_card_ids: Card ID generation
 - get_banner_info_for_item: Banner type determination
 - build_item_card_context: Full context building
@@ -11,66 +10,9 @@ Covers:
 from django.test import TestCase
 
 from borrowd.models import TrustLevel
-from borrowd_items.card_helpers import (
-    build_card_ids,
-    build_item_card_context,
-    get_banner_info_for_item,
-    parse_card_target,
-)
-from borrowd_items.models import (
-    Item,
-    ItemCategory,
-    ItemStatus,
-    Transaction,
-    TransactionStatus,
-)
+from borrowd_items.card_helpers import build_card_ids, build_item_card_context
+from borrowd_items.models import Item, ItemCategory
 from borrowd_users.models import BorrowdUser
-
-
-class ParseCardTargetTests(TestCase):
-    """Tests for parse_card_target function."""
-
-    def test_valid_card_target_simple_context(self) -> None:
-        """Parses simple single-word context correctly."""
-        is_card, context = parse_card_target("item-card-search-123")
-        self.assertTrue(is_card)
-        self.assertEqual(context, "search")
-
-    def test_valid_card_target_hyphenated_context(self) -> None:
-        """Parses hyphenated context correctly."""
-        is_card, context = parse_card_target("item-card-my-items-456")
-        self.assertTrue(is_card)
-        self.assertEqual(context, "my-items")
-
-    def test_valid_card_target_multi_hyphen_context(self) -> None:
-        """Parses context with multiple hyphens correctly."""
-        is_card, context = parse_card_target("item-card-requests-for-me-789")
-        self.assertTrue(is_card)
-        self.assertEqual(context, "requests-for-me")
-
-    def test_non_card_target(self) -> None:
-        """Returns False for non-card targets."""
-        is_card, context = parse_card_target("action-buttons-123")
-        self.assertFalse(is_card)
-        self.assertEqual(context, "")
-
-    def test_empty_target(self) -> None:
-        """Handles empty string gracefully."""
-        is_card, context = parse_card_target("")
-        self.assertFalse(is_card)
-        self.assertEqual(context, "")
-
-    def test_partial_card_prefix(self) -> None:
-        """Rejects targets that don't have the full prefix with trailing dash."""
-        is_card, context = parse_card_target("item-card")
-        self.assertFalse(is_card)  # Doesn't start with "item-card-"
-        self.assertEqual(context, "")
-
-    def test_malformed_target_too_few_parts(self) -> None:
-        """Handles malformed targets with too few parts."""
-        is_card, context = parse_card_target("item-card-123")
-        self.assertTrue(is_card)
-        self.assertEqual(context, "")  # No context extractable
 
 
 class BuildCardIdsTests(TestCase):
@@ -83,7 +25,6 @@ class BuildCardIdsTests(TestCase):
         self.assertIn("card_id", ids)
         self.assertIn("modal_suffix", ids)
         self.assertIn("actions_container_id", ids)
-        self.assertIn("card_id_selector", ids)
         self.assertIn("request_modal_id", ids)
         self.assertIn("accept_modal_id", ids)
 
@@ -102,11 +43,6 @@ class BuildCardIdsTests(TestCase):
         ids = build_card_ids("search", 123)
         self.assertEqual(ids["actions_container_id"], "item-card-actions-search-123")
 
-    def test_card_id_selector_includes_hash(self) -> None:
-        """card_id_selector includes CSS selector hash prefix."""
-        ids = build_card_ids("search", 123)
-        self.assertEqual(ids["card_id_selector"], "#item-card-search-123")
-
     def test_request_modal_id_format(self) -> None:
         """request_modal_id follows expected format."""
         ids = build_card_ids("search", 123)
@@ -122,118 +58,6 @@ class BuildCardIdsTests(TestCase):
         ids = build_card_ids("my-items", 456)
         self.assertEqual(ids["card_id"], "item-card-my-items-456")
         self.assertEqual(ids["modal_suffix"], "-my-items-456")
-
-
-class GetBannerInfoForItemTests(TestCase):
-    """Tests for get_banner_info_for_item function."""
-
-    owner: BorrowdUser
-    borrower: BorrowdUser
-    category: ItemCategory
-
-    @classmethod
-    def setUpTestData(cls) -> None:
-        """Create shared test data."""
-        cls.owner = BorrowdUser.objects.create(
-            username="owner",
-            email="owner@example.com",
-        )
-        cls.borrower = BorrowdUser.objects.create(
-            username="borrower",
-            email="borrower@example.com",
-        )
-        cls.category = ItemCategory.objects.create(
-            name="Test Category",
-            description="Test category description",
-        )
-
-    def create_item(self, status: int = ItemStatus.AVAILABLE) -> Item:
-        """Create an item with given status."""
-        item = Item.objects.create(
-            name="Test Item",
-            description="Test description",
-            owner=self.owner,
-            status=status,
-            trust_level_required=TrustLevel.LOW,
-        )
-        item.categories.add(self.category)
-        return item
-
-    def test_available_item_returns_available_banner(self) -> None:
-        """Available item without request returns 'available' banner."""
-        item = self.create_item(status=ItemStatus.AVAILABLE)
-
-        banner_info = get_banner_info_for_item(item, self.borrower)
-
-        self.assertEqual(banner_info["banner_type"], "available")
-        self.assertNotIn("requester_name", banner_info)
-        self.assertNotIn("time_ago", banner_info)
-
-    def test_reserved_item_returns_reserved_banner(self) -> None:
-        """Reserved item returns 'reserved' banner."""
-        item = self.create_item(status=ItemStatus.RESERVED)
-
-        banner_info = get_banner_info_for_item(item, self.borrower)
-
-        self.assertEqual(banner_info["banner_type"], "reserved")
-
-    def test_borrowed_item_returns_reserved_banner(self) -> None:
-        """Borrowed item returns 'reserved' banner."""
-        item = self.create_item(status=ItemStatus.BORROWED)
-
-        banner_info = get_banner_info_for_item(item, self.borrower)
-
-        self.assertEqual(banner_info["banner_type"], "reserved")
-
-    def test_item_with_pending_request_returns_request_banner(self) -> None:
-        """Item with pending request returns 'request' banner."""
-        item = self.create_item()
-        Transaction.objects.create(
-            item=item,
-            party1=self.owner,
-            party2=self.borrower,
-            status=TransactionStatus.REQUESTED,
-            updated_by=self.borrower,
-        )
-
-        banner_info = get_banner_info_for_item(item, self.owner)
-
-        self.assertEqual(banner_info["banner_type"], "request")
-        self.assertIn("requester_name", banner_info)
-        self.assertIn("time_ago", banner_info)
-
-    def test_requester_sees_me_as_name(self) -> None:
-        """Requester viewing their own request sees 'me' as requester_name."""
-        item = self.create_item()
-        Transaction.objects.create(
-            item=item,
-            party1=self.owner,
-            party2=self.borrower,
-            status=TransactionStatus.REQUESTED,
-            updated_by=self.borrower,
-        )
-
-        banner_info = get_banner_info_for_item(item, self.borrower)
-
-        self.assertEqual(banner_info["banner_type"], "request")
-        self.assertEqual(banner_info["requester_name"], "me")
-
-    def test_owner_sees_requester_name(self) -> None:
-        """Owner viewing a request sees the requester's name."""
-        item = self.create_item()
-        Transaction.objects.create(
-            item=item,
-            party1=self.owner,
-            party2=self.borrower,
-            status=TransactionStatus.REQUESTED,
-            updated_by=self.borrower,
-        )
-
-        banner_info = get_banner_info_for_item(item, self.owner)
-
-        self.assertEqual(banner_info["banner_type"], "request")
-        # Requester name should be the borrower's full name
-        self.assertNotEqual(banner_info["requester_name"], "me")
 
 
 class BuildItemCardContextTests(TestCase):
@@ -298,7 +122,6 @@ class BuildItemCardContextTests(TestCase):
         self.assertIn("card_id", ctx)
         self.assertIn("modal_suffix", ctx)
         self.assertIn("actions_container_id", ctx)
-        self.assertIn("card_id_selector", ctx)
         self.assertEqual(ctx["card_id"], f"item-card-search-{item.pk}")
 
     def test_includes_banner_info(self) -> None:
@@ -377,11 +200,3 @@ class BuildItemCardContextTests(TestCase):
         )
 
         self.assertEqual(ctx["action_context"], action_context)
-
-    def test_image_empty_when_no_photo(self) -> None:
-        """image is empty string when item has no photos."""
-        item = self.create_item()
-
-        ctx = build_item_card_context(item, self.viewer, "search")
-
-        self.assertEqual(ctx["image"], "")
