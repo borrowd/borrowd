@@ -1,6 +1,7 @@
 from typing import Any
 
 from django.contrib import messages
+from django.contrib.messages.api import MessageFailure
 from django.forms import ModelForm
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect
@@ -23,6 +24,35 @@ from .exceptions import InvalidItemAction, ItemAlreadyRequested
 from .filters import ItemFilter
 from .forms import ItemCreateWithPhotoForm, ItemForm, ItemPhotoForm
 from .models import Item, ItemAction, ItemPhoto
+
+
+def _build_item_action_success_message(item_name: str, action: ItemAction) -> str:
+    """
+    Return a user-facing success message for a completed item action.
+    """
+    action_to_result = {
+        ItemAction.REQUEST_ITEM: "requested",
+        ItemAction.ACCEPT_REQUEST: "request accepted",
+        ItemAction.REJECT_REQUEST: "request declined",
+        ItemAction.MARK_COLLECTED: "marked as collected",
+        ItemAction.CONFIRM_COLLECTED: "collection confirmed",
+        ItemAction.MARK_RETURNED: "marked as returned",
+        ItemAction.CONFIRM_RETURNED: "return confirmed",
+        ItemAction.CANCEL_REQUEST: "request canceled",
+    }
+    return f"{item_name} {action_to_result[action]}."
+
+
+def _add_message_safe(request: HttpRequest, level: int, message_text: str) -> None:
+    """
+    Add a Django message when message storage is available on the request.
+    """
+    try:
+        messages.add_message(request, level, message_text)
+    except MessageFailure:
+        # Some unit tests call views directly with RequestFactory requests
+        # that skip middleware and therefore have no message storage.
+        return
 
 
 @require_POST
@@ -69,17 +99,34 @@ def borrow_item(request: HttpRequest, pk: int) -> HttpResponse:
     redirect_url = request.META.get("HTTP_REFERER", fallback_url)
 
     try:
-        req_action = req_action.upper()
-        item.process_action(user=user, action=ItemAction(req_action))
-    except ItemAlreadyRequested:
-        messages.warning(
+        action = ItemAction(req_action.upper())
+    except ValueError:
+        _add_message_safe(
             request,
+            messages.ERROR,
+            f"Unknown action for '{item.name}'.",
+        )
+        return redirect(redirect_url)
+
+    try:
+        item.process_action(user=user, action=action)
+    except ItemAlreadyRequested:
+        _add_message_safe(
+            request,
+            messages.WARNING,
             "Sorry! Another user requested this item just before you.",
         )
     except InvalidItemAction:
-        messages.error(
+        _add_message_safe(
             request,
+            messages.ERROR,
             f"Unable to perform that action on '{item.name}' right now.",
+        )
+    else:
+        _add_message_safe(
+            request,
+            messages.SUCCESS,
+            _build_item_action_success_message(item.name, action),
         )
 
     return redirect(redirect_url)
