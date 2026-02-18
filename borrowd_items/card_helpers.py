@@ -1,8 +1,8 @@
 """
 Helper functions for building item card context and related utilities.
 
-These functions support the HTMX-driven item card rendering used throughout
-the application, providing consistent context building for item cards.
+These functions provide consistent context building for item card rendering
+used throughout the application.
 """
 
 from typing import TYPE_CHECKING, Any
@@ -32,36 +32,6 @@ BANNER_STYLES = {
 }
 
 
-def parse_card_target(hx_target: str) -> tuple[bool, str]:
-    """
-    Parse HX-Target header to determine if request is from an item card.
-
-    Args:
-        hx_target: The HX-Target header value (e.g., "item-card-search-123")
-
-    Returns:
-        Tuple of (is_card_request, card_context).
-        card_context is the section identifier (e.g., "search", "my-items").
-
-    Examples:
-        >>> parse_card_target("item-card-search-123")
-        (True, 'search')
-        >>> parse_card_target("item-card-my-items-456")
-        (True, 'my-items')
-        >>> parse_card_target("some-other-target")
-        (False, '')
-    """
-    is_card_request = hx_target.startswith("item-card-")
-    card_context = ""
-    if is_card_request:
-        # Split "item-card-search-123" -> ["item", "card", "search", "123"]
-        parts = hx_target.split("-")
-        if len(parts) >= 4:
-            # Context is everything between "card" and the pk (last element)
-            card_context = "-".join(parts[2:-1])
-    return is_card_request, card_context
-
-
 def build_card_ids(context: str, pk: int) -> dict[str, str]:
     """
     Generate pre-computed IDs for item card template.
@@ -75,7 +45,7 @@ def build_card_ids(context: str, pk: int) -> dict[str, str]:
 
     Returns:
         Dict with card_id, modal_suffix, actions_container_id,
-        card_id_selector, request_modal_id, accept_modal_id.
+        request_modal_id, accept_modal_id.
 
     Example:
         >>> build_card_ids("search", 123)
@@ -83,7 +53,6 @@ def build_card_ids(context: str, pk: int) -> dict[str, str]:
             'card_id': 'item-card-search-123',
             'modal_suffix': '-search-123',
             'actions_container_id': 'item-card-actions-search-123',
-            'card_id_selector': '#item-card-search-123',
             'request_modal_id': 'request-item-modal-search-123',
             'accept_modal_id': 'accept-request-modal-search-123',
         }
@@ -92,7 +61,6 @@ def build_card_ids(context: str, pk: int) -> dict[str, str]:
         "card_id": f"item-card-{context}-{pk}",
         "modal_suffix": f"-{context}-{pk}",
         "actions_container_id": f"item-card-actions-{context}-{pk}",
-        "card_id_selector": f"#item-card-{context}-{pk}",
         "request_modal_id": f"request-item-modal-{context}-{pk}",
         "accept_modal_id": f"accept-request-modal-{context}-{pk}",
     }
