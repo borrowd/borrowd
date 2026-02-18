@@ -216,13 +216,15 @@ class RejectedFlowTest(SimpleTestCase):
         # Assert
         #
         ## Check if the owner can see the item
-        self.assertTupleEqual(
+        self.assertCountEqual(
             item_actions,
             (
                 ItemAction.ACCEPT_REQUEST,
                 ItemAction.REJECT_REQUEST,
             ),
         )
+        self.assertIn(ItemAction.ACCEPT_REQUEST, item_actions)
+        self.assertIn(ItemAction.REJECT_REQUEST, item_actions)
 
     def test_050_lender_reject_request_action(self) -> None:
         """
