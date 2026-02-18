@@ -71,7 +71,7 @@ Parameters:
     </div>
 
     {% if show_actions %}
-        {% include "components/items/accept_request_modal.html" with item=item card_id_selector=card_id_selector modal_id=accept_modal_id %}
-        {% include "components/items/request_item_modal.html" with item=item card_id_selector=card_id_selector modal_id=request_modal_id %}
+        {% include "components/items/accept_request_modal.html" with item=item modal_id=accept_modal_id %}
+        {% include "components/items/request_item_modal.html" with item=item modal_id=request_modal_id %}
     {% endif %}
 </div>
