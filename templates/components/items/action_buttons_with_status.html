@@ -3,10 +3,11 @@ Action Buttons Component
 
 Displays action buttons for items with optional status box and error messages.
 
-Note: Originally these were properly separate components but when apart Alpine wouldn't properly pick up the htmx swap so styling would lag behind.
+Note: Originally these were properly separate components but when apart Alpine wouldn't
+properly pick up the htmx swap so styling would lag behind.
 
 Parameters:
-- item: Item object (for HTMX URLs) - required
+- item: Item object (for form action URLs) - required
 - action_context: ItemActionContext with .actions and .status_text
 - variant: 'detail' (default) or 'card' - controls layout and styling
 - error_message: Optional error message to display
@@ -14,51 +15,55 @@ Parameters:
 
 For variant='card', also accepts:
 - container_id: The ID for the container div (default: 'item-card-actions-{{ item.pk }}')
-- swap_target_id: The ID to target for HTMX swaps (default: container_id) - use this to target a parent element like the whole card
 - modal_suffix: Suffix for modal IDs (default: '-{{ item.pk }}')
 {% endcomment %}
-{% load button_styles %}
-
-{% with container_id=container_id|default:"action-status-container" swap_target_id=swap_target_id|default:"action-status-container" modal_suffix=modal_suffix|default:"" %}
+{% with container_id=container_id|default:"action-status-container" modal_suffix=modal_suffix|default:"" %}
 
 {% if variant == 'card' %}
-{# Card variant: just buttons, no status box #}
+<!-- Card variant: just buttons, no status box -->
 <div id="{{ container_id }}" class="flex gap-2 mt-3">
     {% for action in action_context.actions %}
+        <!-- Modal actions -->
+        <!-- Modal's hidden form handles the actual POST -->
+        {% if action.name == 'REQUEST_ITEM' %}
         <button
             type="button"
-            {% if action.name == 'REQUEST_ITEM' %}
             onclick="showModal('request-item-modal{{ modal_suffix }}')"
-            {% elif action.name == 'ACCEPT_REQUEST' %}
+            class="btn btn-soft btn-primary btn-sm flex-1"
+        >Request item</button>
+        {% elif action.name == 'ACCEPT_REQUEST' %}
+        <button
+            type="button"
             onclick="showModal('accept-request-modal{{ modal_suffix }}')"
-            {% else %}
-            hx-post="{% url 'item-borrow' item.pk %}"
-            hx-vals='{"action": "{{ action.name }}"}'
-            hx-trigger="click"
-            hx-swap="outerHTML"
-            hx-target="#{{ swap_target_id }}"
-            {% endif %}
-            class="flex-1 py-2 px-4 rounded-lg font-medium text-sm transition-colors duration-200 cursor-pointer
-                {% if action.name == 'ACCEPT_REQUEST' %}{{ 'green'|button_bg_color }} {{ 'green'|button_text_color }}
-                {% elif action.name == 'MARK_COLLECTED' %}{{ 'green'|button_bg_color }} {{ 'green'|button_text_color }}
-                {% elif action.name == 'REJECT_REQUEST' %}{{ 'red'|button_bg_color }} {{ 'red'|button_text_color }}
-                {% elif action.name == 'REQUEST_ITEM' %}{{ 'blue'|button_bg_color }} {{ 'blue'|button_text_color }}
-                {% elif action.name == 'CANCEL_REQUEST' %}{{ 'light_gray'|button_bg_color }} {{ 'blue_reverse'|button_text_color }}
-                {% else %}{{ 'light_gray'|button_bg_color }} {{ 'blue_reverse'|button_text_color }}
-                {% endif %}"
-        >
-            {% if action.name == 'ACCEPT_REQUEST' %}Accept
-            {% elif action.name == 'REJECT_REQUEST' %}Decline
-            {% elif action.name == 'REQUEST_ITEM' %}Request item
-            {% elif action.name == 'CANCEL_REQUEST' %}Cancel Request
-            {% else %}{{ action.label }}
-            {% endif %}
-        </button>
+            class="btn btn-soft btn-success btn-sm flex-1"
+        >Accept</button>
+        {% else %}
+        <!-- Direct actions -->
+        <!-- Submit immediately via standard form POST without modal -->
+        <form method="POST" action="{% url 'item-borrow' item.pk %}" class="flex-1">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="{{ action.name }}">
+            <button
+                type="submit"
+                class="btn btn-sm w-full
+                    {% if action.name == 'MARK_COLLECTED' %}btn-soft btn-success
+                    {% elif action.name == 'REJECT_REQUEST' %}btn-soft btn-error
+                    {% elif action.name == 'CANCEL_REQUEST' %}btn-ghost
+                    {% else %}btn-ghost
+                    {% endif %}"
+            >
+                {% if action.name == 'REJECT_REQUEST' %}Decline
+                {% elif action.name == 'CANCEL_REQUEST' %}Cancel Request
+                {% else %}{{ action.label }}
+                {% endif %}
+            </button>
+        </form>
+        {% endif %}
     {% endfor %}
 </div>
 
 {% else %}
-{# Detail variant: full layout with status box #}
+<!-- Detail variant: full layout with status box -->
 <div id="{{ container_id }}" class="flex flex-col items-center my-2 gap-2 w-full">
     <div class="flex flex-col items-center gap-4 w-full">
         <!-- Error Message (if any) -->
@@ -94,53 +99,39 @@ For variant='card', also accepts:
         <!-- Action Buttons -->
         <div class="flex flex-wrap items-center space-x-2">
             {% for action in action_context.actions %}
+                <!-- Modal actions -->
+                <!-- modal's hidden form handles the POST -->
+                {% if action.name == 'REQUEST_ITEM' %}
                 <button
                     type="button"
-                    {% if action.name == 'REQUEST_ITEM' %}
                     onclick="showModal('request-item-modal{{ modal_suffix }}')"
-                    {% elif action.name == 'ACCEPT_REQUEST' %}
+                    class="btn btn-success"
+                >{{ action.label }}</button>
+                {% elif action.name == 'ACCEPT_REQUEST' %}
+                <button
+                    type="button"
                     onclick="showModal('accept-request-modal{{ modal_suffix }}')"
-                    {% else %}
-                    hx-post="{% url 'item-borrow' item.pk %}"
-                    hx-vals='{"action": "{{ action.name }}"}'
-                    hx-trigger="click"
-                    hx-swap="outerHTML"
-                    hx-target="#{{ swap_target_id }}"
-                    {% endif %}
-                    class="inline-block w-fit font-medium py-2 px-4 rounded transition-colors duration-200 border-2
-                    {% if action.name == 'ACCEPT_REQUEST' %}{{ 'green'|button_bg_color }} {{ 'green'|button_text_color }} {{ 'green'|button_border_color }}
-                    {% elif action.name == 'REJECT_REQUEST' or action.name == 'CANCEL_REQUEST' %}{{ 'red'|button_bg_color }} {{ 'red'|button_text_color }} {{ 'red'|button_border_color }}
-                    {% elif action.name == 'REQUEST_ITEM' %}{{ 'green'|button_bg_color }} {{ 'green'|button_text_color }} {{ 'green'|button_border_color }}
-                    {% else %}{{ 'blue'|button_bg_color }} {{ 'blue'|button_text_color }} {{ 'blue'|button_border_color }}
-                    {% endif %}"
-                >
-                    {{ action.label }}
-                </button>
+                    class="btn btn-success"
+                >{{ action.label }}</button>
+                {% else %}
+                <!-- Direct actions: submit immediately via standard form POST -->
+                <form method="POST" action="{% url 'item-borrow' item.pk %}" class="inline-block">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="{{ action.name }}">
+                    <button
+                        type="submit"
+                        class="btn
+                        {% if action.name == 'REJECT_REQUEST' or action.name == 'CANCEL_REQUEST' %}btn-error
+                        {% else %}btn-primary
+                        {% endif %}"
+                    >{{ action.label }}</button>
+                </form>
+                {% endif %}
             {% endfor %}
         </div>
 
         {% include "components/items/request_item_modal.html" with modal_suffix=modal_suffix %}
         {% include "components/items/accept_request_modal.html" with modal_suffix=modal_suffix %}
-
-        <script>
-        function confirmRequestItem{{ modal_suffix|cut:"-" }}() {
-            closeModal('request-item-modal{{ modal_suffix }}');
-            htmx.ajax('POST', '{% url 'item-borrow' item.pk %}', {
-                values: {'action': 'REQUEST_ITEM'},
-                swap: 'innerHTML',
-                target: '#{{ container_id }}'
-            });
-        }
-
-        function confirmAcceptRequest{{ modal_suffix|cut:"-" }}() {
-            closeModal('accept-request-modal{{ modal_suffix }}');
-            htmx.ajax('POST', '{% url 'item-borrow' item.pk %}', {
-                values: {'action': 'ACCEPT_REQUEST'},
-                swap: 'innerHTML',
-                target: '#{{ container_id }}'
-            });
-        }
-        </script>
     </div>
 </div>
 {% endif %}
