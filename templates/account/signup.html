@@ -4,8 +4,8 @@
 {% block head_title %}Sign Up{% endblock %}
 
 {% block layout %}
-<div class="flex justify-center items-center bg-base-200">
-    <div class="p-8 w-full max-w-2xl shadow-lg">
+        <div class="flex justify-center items-center bg-base-200 md:p-8" >
+    <div class="p-8 w-full max-w-2xl shadow-sm relative">
         <div class="text-center">
             <c-h1 class="font-normal text-2xl text-black">Create your account</c-h1>
             <p class="mt-2 text-center text-m text-black">
@@ -105,7 +105,7 @@
                                 {{ form.password1.errors }}
                             </div>
                         {% endif %}
-                    </div>.
+                    </div>
                 </div>
 
                 <!-- Password confirmation field -->
