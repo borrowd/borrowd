@@ -36,7 +36,7 @@ Parameters:
     <div class="flex-col p-4">
         <div class="flex gap-3 flex-row items-top p-3">
             <!-- Thumbnail -->
-            <div class="relative">
+            <div class="relative shrink-0">
                 <a href="{% url 'item-detail' pk %}" class="block no-underline min-w-0 flex-1">
                     <img
                         src="{{ image|default:'/static/items/categories/logo-tools.png' }}"
@@ -47,7 +47,7 @@ Parameters:
             </div>
 
             <!-- Content -->
-            <div class="flex-col">
+            <div class="flex-col min-w-0">
                 <a href="{% url 'item-detail' pk %}">
                     <div class="mb-2">
                         {% if is_yours %}
