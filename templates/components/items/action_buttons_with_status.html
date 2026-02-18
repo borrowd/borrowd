@@ -130,8 +130,8 @@ For variant='card', also accepts:
             {% endfor %}
         </div>
 
-        {% include "components/items/request_item_modal.html" with modal_suffix=modal_suffix %}
-        {% include "components/items/accept_request_modal.html" with modal_suffix=modal_suffix %}
+        {% include "components/items/request_item_modal.html" with item=item modal_id="request-item-modal"|add:modal_suffix %}
+        {% include "components/items/accept_request_modal.html" with item=item modal_id="accept-request-modal"|add:modal_suffix %}
     </div>
 </div>
 {% endif %}
