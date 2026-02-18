@@ -1,5 +1,5 @@
 {# Confirmation modal shown when a lender clicks "Accept" on a pending request. #}
-{# Hidden form submitted by the modal's confirm button via confirm_action. #}
+{# Hidden form submitted by the modal confirm button via confirm_submit_form_id. #}
 {# Form ID uses modal_id which includes context + pk (e.g. "accept-request-modal-search-42"). #}
 {# context originates from the view (see card_helpers.build_card_ids), and #}
 {# modal_id is assembled in item_card.html via {% firstof %}. #}
@@ -9,8 +9,10 @@
     borrowd_items/card_helpers.py #}
 
 {% url 'item-borrow' item.pk as borrow_url %}
-<form id="form-{{ modal_id }}" method="POST" action="{{ borrow_url }}" class="hidden">
+{% with form_id="form-"|add:modal_id %}
+<form id="{{ form_id }}" method="POST" action="{{ borrow_url }}" class="hidden">
     {% csrf_token %}
     <input type="hidden" name="action" value="ACCEPT_REQUEST">
 </form>
-{% include "components/modal.html" with modal_id=modal_id modal_title="Accept Request" button_layout="equal" confirm_button="Agree" cancel_button="Decline" cancel_button_class="btn btn-soft btn-error font-semibold" confirm_button_class="btn btn-soft btn-success font-semibold" confirm_action="document.getElementById('form-'+'{{ modal_id }}').submit()" modal_content="<p>Let's lend with care!</p><p class='mt-2 text-sm'>We keep our community strong by lending responsibly. Please confirm you agree to:</p><ul class='list-none list-inside mt-2 text-sm'><li><a href='https://borrowd.org/borrower-lender-agreement/' target='_blank' class='underline'>Borrower–Lender Liability Agreement</a> (keeps us safe)</li><li><a href='https://borrowd.org/code-of-conduct/' target='_blank' class='underline'>Borrow'd Code of Conduct</a> (keeps trust strong)</li></ul>" %}
+{% include "components/modal.html" with modal_id=modal_id modal_title="Accept Request" button_layout="equal" confirm_button_text="Agree" cancel_button_text="Decline" cancel_button_class="btn btn-soft btn-error font-semibold" confirm_button_class="btn btn-soft btn-success font-semibold" confirm_submit_form_id=form_id modal_content="<p>Let's lend with care!</p><p class='mt-2 text-sm'>We keep our community strong by lending responsibly. Please confirm you agree to:</p><ul class='list-none list-inside mt-2 text-sm'><li><a href='https://borrowd.org/borrower-lender-agreement/' target='_blank' class='underline'>Borrower–Lender Liability Agreement</a> (keeps us safe)</li><li><a href='https://borrowd.org/code-of-conduct/' target='_blank' class='underline'>Borrow'd Code of Conduct</a> (keeps trust strong)</li></ul>" %}
+{% endwith %}

@@ -5,11 +5,17 @@
      - modal_content: Required, HTML content for modal body
      - modal_size: Optional, 'half' or 'full' (default: 'half')
      - button_layout: Optional, 'end' (default), 'between', or 'equal' for button arrangement
-     - cancel_button: Optional, text for secondary button (left side)
+     - cancel_button_text: Optional, text for secondary button (left side)
      - cancel_action: Optional, Alpine @click action for secondary button (if not provided, closes modal)
      - cancel_button_class: Optional, CSS classes for secondary button (default: 'btn btn-ghost font-semibold')
-     - confirm_button: Optional, text for primary button (right side)
-     - confirm_action: Optional, Alpine @click action for primary button
+     - confirm_button_text: Optional, text for primary button (right side)
+     - confirm_submit_form_id: Optional, HTML form ID submitted by confirm.
+       Use when confirm has one job: submit a known form.
+       Example: "Delete account" modal that submits a hidden POST form.
+     - confirm_click_expression: Optional, Alpine expression run on confirm click.
+       Use when confirm must run client-side logic before submit.
+       Example: copy selected IDs into hidden inputs, then submit a filter form.
+       If both are provided, confirm_submit_form_id takes precedence.
      - confirm_button_class: Optional, CSS classes for primary button (default: 'btn btn-primary font-semibold')
 -->
 <dialog id="{{ modal_id }}" class="modal modal-bottom sm:modal-middle">
@@ -45,21 +51,32 @@
         </div>
 
         <!-- Modal actions -->
-        {% if cancel_button or confirm_button %}
+        {% if cancel_button_text or confirm_button_text %}
         <div class="pt-6 gap-2 {% if button_layout == 'equal' %}grid grid-cols-2{% else %}modal-action {% if button_layout == 'between' %}justify-between{% else %}justify-end{% endif %}{% endif %}">
-            {% if cancel_button %}
+            {% if cancel_button_text %}
                 {% if cancel_action %}
-                <button type="button" @click="{{ cancel_action }}" class="{{ cancel_button_class|default:'btn btn-ghost font-semibold' }}{% if button_layout == 'equal' %} w-full{% endif %}">{{ cancel_button }}</button>
+                <button type="button" @click="{{ cancel_action }}" class="{{ cancel_button_class|default:'btn btn-ghost font-semibold' }}{% if button_layout == 'equal' %} w-full{% endif %}">{{ cancel_button_text }}</button>
                 {% else %}
-                <button type="button" onclick="this.closest('dialog').close()" class="{{ cancel_button_class|default:'btn btn-ghost font-semibold' }}{% if button_layout == 'equal' %} w-full{% endif %}">{{ cancel_button }}</button>
+                <button type="button" onclick="this.closest('dialog').close()" class="{{ cancel_button_class|default:'btn btn-ghost font-semibold' }}{% if button_layout == 'equal' %} w-full{% endif %}">{{ cancel_button_text }}</button>
                 {% endif %}
             {% endif %}
 
-            {% if confirm_button %}
-            <button type="button"
-                @click="{{ confirm_action }}"
-                onclick="closeModal('{{ modal_id }}')"
-                class="{{ confirm_button_class|default:'btn btn-primary font-semibold' }}{% if button_layout == 'equal' %} w-full{% endif %}">{{ confirm_button }}</button>
+            {% if confirm_button_text %}
+                {% if confirm_submit_form_id %}
+                <button
+                    type="submit"
+                    form="{{ confirm_submit_form_id }}"
+                    onclick="closeModal('{{ modal_id }}')"
+                    class="{{ confirm_button_class|default:'btn btn-primary font-semibold' }}{% if button_layout == 'equal' %} w-full{% endif %}"
+                >{{ confirm_button_text }}</button>
+                {% else %}
+                <button
+                    type="button"
+                    {% if confirm_click_expression %}@click="{{ confirm_click_expression }}"{% endif %}
+                    onclick="closeModal('{{ modal_id }}')"
+                    class="{{ confirm_button_class|default:'btn btn-primary font-semibold' }}{% if button_layout == 'equal' %} w-full{% endif %}"
+                >{{ confirm_button_text }}</button>
+                {% endif %}
             {% endif %}
         </div>
         {% endif %}
