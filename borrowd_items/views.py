@@ -1,10 +1,11 @@
 from typing import Any
 
+from django.contrib import messages
 from django.forms import ModelForm
 from django.http import HttpRequest, HttpResponse
-from django.shortcuts import render
+from django.shortcuts import redirect
 from django.urls import reverse, reverse_lazy
-from django.views.decorators.http import require_GET, require_POST
+from django.views.decorators.http import require_POST
 from django.views.generic import CreateView, DeleteView, DetailView, UpdateView
 from django_filters.views import FilterView
 from guardian.mixins import LoginRequiredMixin
@@ -17,15 +18,11 @@ from borrowd_permissions.mixins import (
 from borrowd_permissions.models import ItemOLP
 from borrowd_users.models import BorrowdUser
 
-from .card_helpers import (
-    build_item_card_context,
-    build_item_cards_for_items,
-    parse_card_target,
-)
+from .card_helpers import build_item_cards_for_items
 from .exceptions import InvalidItemAction, ItemAlreadyRequested
 from .filters import ItemFilter
 from .forms import ItemCreateWithPhotoForm, ItemForm, ItemPhotoForm
-from .models import Item, ItemAction, ItemActionContext, ItemPhoto
+from .models import Item, ItemAction, ItemPhoto
 
 
 @require_POST
@@ -38,11 +35,8 @@ def borrow_item(request: HttpRequest, pk: int) -> HttpResponse:
     :py:meth:`.models.Item.process_action` and
     :py:meth:`.models.Item.get_actions_for`.
 
-    On success, after progressing the borrowing workflow - which may
-    entail updates to both the Item *and* associated an Transaction -
-    an updated set of action buttons are returned to the client as
-    HTML. This is intended to be used in conjunction with a
-    hypermedia library like HTMX, Alpine.js, Datastar, etc.
+    On success, redirects back to the referring page (or the item
+    detail page as a fallback).
 
     Raises:
         InvalidItemAction: If the provided action is not valid for
@@ -64,90 +58,31 @@ def borrow_item(request: HttpRequest, pk: int) -> HttpResponse:
     if not user.has_perm(ItemOLP.VIEW, item):
         return HttpResponse("Not found", status=404)
 
-    # Parse HX-Target to determine if this is a card request
-    hx_target = request.headers.get("HX-Target", "")
-    is_card_request, card_context = parse_card_target(hx_target)
+    # reverse() resolves a URL name to its path, e.g. "item-detail"
+    # with pk=42 becomes "/items/42/".
+    # https://docs.djangoproject.com/en/5.2/ref/urlresolvers/#reverse
+    fallback_url = reverse("item-detail", kwargs={"pk": pk})
 
-    # Choose template and context builder based on request type
-    if is_card_request:
-        template = "components/items/item_card.html"
-
-        def build_context(
-            action_context: ItemActionContext,
-            error_message: str | None = None,
-            error_type: str | None = None,
-        ) -> dict[str, Any]:
-            return build_item_card_context(
-                item, user, card_context, action_context, error_message, error_type
-            )
-    else:
-        template = "components/items/action_buttons_with_status.html"
-
-        def build_context(
-            action_context: ItemActionContext,
-            error_message: str | None = None,
-            error_type: str | None = None,
-        ) -> dict[str, Any]:
-            ctx: dict[str, Any] = {"item": item, "action_context": action_context}
-            if error_message:
-                ctx["error_message"] = error_message
-                ctx["error_type"] = error_type
-            return ctx
-
-    def render_response(
-        action_context: ItemActionContext,
-        error_message: str | None = None,
-        error_type: str | None = None,
-    ) -> HttpResponse:
-        response = render(
-            request,
-            template_name=template,
-            context=build_context(action_context, error_message, error_type),
-            content_type="text/html",
-            status=200,
-        )
-        response["HX-Trigger"] = f"item-updated-{pk}"
-        return response
+    # HTTP_REFERER is the page the user was on when they submitted the form
+    # e.g. "/items/?q=drill" or "/inventory/"
+    # https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Referer
+    redirect_url = request.META.get("HTTP_REFERER", fallback_url)
 
     try:
         req_action = req_action.upper()
         item.process_action(user=user, action=ItemAction(req_action))
-        return render_response(item.get_action_context_for(user=user))
     except ItemAlreadyRequested:
-        return render_response(
-            item.get_action_context_for(user=user),
-            error_message="Sorry! Another user requested this item just before you.",
-            error_type="already_requested",
+        messages.warning(
+            request,
+            "Sorry! Another user requested this item just before you.",
         )
     except InvalidItemAction:
-        return render_response(item.get_action_context_for(user=user))
-    except Exception as e:
-        return HttpResponse(
-            f"An error occurred while processing the action: {e}", status=500
+        messages.error(
+            request,
+            f"Unable to perform that action on '{item.name}' right now.",
         )
 
-
-@require_GET
-def get_item_card(request: HttpRequest, pk: int) -> HttpResponse:
-    """GET endpoint to fetch a single item card for HTMX refresh."""
-    user: BorrowdUser = request.user  # type: ignore[assignment]
-    context = request.GET.get("context", "items")
-
-    try:
-        item = Item.objects.get(pk=pk)
-    except Item.DoesNotExist:
-        return HttpResponse("Not found", status=404)
-
-    if not user.has_perm(ItemOLP.VIEW, item):
-        return HttpResponse("Not found", status=404)
-
-    return render(
-        request,
-        template_name="components/items/item_card.html",
-        context=build_item_card_context(item, user, context),
-        content_type="text/html",
-        status=200,
-    )
+    return redirect(redirect_url)
 
 
 class ItemCreateView(
