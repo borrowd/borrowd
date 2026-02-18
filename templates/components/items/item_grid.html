@@ -2,7 +2,7 @@
     {% if title %}
         <c-h2>{{title}}</c-h2>
     {% endif %}
-    <div class="flex flex-wrap gap-4 justify-center sm:justify-start">
+    <div class="flex flex-wrap gap-4 justify-start items-start content-start md:grid md:grid-cols-2 lg:grid-cols-3 md:items-stretch">
     {% if not item_cards %}
         <div class="col-span-full flex flex-col items-center justify-center py-12 px-4">
             {% load static %}

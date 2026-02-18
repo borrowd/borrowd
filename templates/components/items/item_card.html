@@ -28,36 +28,34 @@ Parameters:
 {% firstof request_modal_id "request-item-modal-"|add:context|add:"-"|add:pk as request_modal_id %}
 {% firstof accept_modal_id "accept-request-modal-"|add:context|add:"-"|add:pk as accept_modal_id %}
 <div id="{{ card_id }}"
-     class="bg-white rounded-lg shadow-md overflow-hidden w-72 min-h-48">
+     class="bg-base-100 rounded-lg shadow-md overflow-hidden w-full">
     {% if banner_type %}
         {% include "components/items/item_card_header.html" with banner_type=banner_type banner_bg=banner_bg banner_text=banner_text banner_icon=banner_icon person_name=person_name person_url=person_url time_ago=time_ago %}
     {% endif %}
 
-    <div class="flex-col p-4">
-        <div class="flex gap-3 flex-row items-top p-3">
+    <div class="flex flex-col">
+        <div class="flex flex-row items-start gap-3 p-3">
             <!-- Thumbnail -->
-            <div class="relative shrink-0">
-                <a href="{% url 'item-detail' pk %}" class="block no-underline min-w-0 flex-1">
+            <div class="w-1/2 shrink-0">
+                <a href="{% url 'item-detail' pk %}">
                     <img
                         src="{{ image|default:'/static/items/categories/logo-tools.png' }}"
                         alt="{{ name|default:'Item image' }}"
-                        class="w-32 h-32 object-cover rounded-lg"
+                        class="w-full aspect-square object-cover rounded-lg"
                     />
                 </a>
             </div>
 
             <!-- Content -->
-            <div class="flex-col min-w-0">
+            <div class="flex flex-col w-1/2">
                 <a href="{% url 'item-detail' pk %}">
-                    <div class="mb-2">
-                        {% if is_yours %}
-                            <div class="rounded-4xl h-xs max-w-xs w-fit p-1 pl-2 pr-2 bg-gray-100 border-solid border-2 border-gray-200">
-                                <span class="text-sm text-gray-900 text-center">Yours</span>
-                            </div>
-                        {% endif %}
-                    </div>
-                    <h3 class="text-base font-semibold text-gray-900 wrap">{{ name }}</h3>
-                    <p class="text-sm text-gray-900 line-clamp-2 mt-1 wrap overflow-clip">{{ description }}</p>
+                    {% if is_yours %}
+                        <div class="rounded-4xl h-xs max-w-xs w-fit p-1 pl-2 pr-2 bg-gray-100 border-solid border-2 border-gray-200 mt-1 mb-3 sm:mb-4">
+                            <span class="text-sm text-gray-900 text-center">Yours</span>
+                        </div>
+                    {% endif %}
+                    <h3 class="text-base sm:text-xl md:text-2xl font-semibold text-gray-900 line-clamp-2">{{ name }}</h3>
+                    <p class="text-sm sm:text-base text-gray-900 line-clamp-5 md:line-clamp-[11] mt-2">{{ description }}</p>
                 </a>
             </div>
         </div>

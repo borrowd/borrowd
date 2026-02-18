@@ -21,7 +21,7 @@ For variant='card', also accepts:
 
 {% if variant == 'card' %}
 <!-- Card variant: just buttons, no status box -->
-<div id="{{ container_id }}" class="flex gap-2 mt-3">
+<div id="{{ container_id }}" class="flex gap-2 p-3">
     {% for action in action_context.actions %}
         <!-- Modal actions -->
         <!-- Modal's hidden form handles the actual POST -->
@@ -29,13 +29,13 @@ For variant='card', also accepts:
         <button
             type="button"
             onclick="showModal('request-item-modal{{ modal_suffix }}')"
-            class="btn btn-soft btn-primary btn-sm flex-1"
+            class="btn btn-soft btn-primary btn-sm md:btn-md flex-1"
         >Request item</button>
         {% elif action.name == 'ACCEPT_REQUEST' %}
         <button
             type="button"
             onclick="showModal('accept-request-modal{{ modal_suffix }}')"
-            class="btn btn-soft btn-success btn-sm flex-1"
+            class="btn btn-soft btn-success btn-sm md:btn-md flex-1"
         >Accept</button>
         {% else %}
         <!-- Direct actions -->
@@ -45,7 +45,7 @@ For variant='card', also accepts:
             <input type="hidden" name="action" value="{{ action.name }}">
             <button
                 type="submit"
-                class="btn btn-sm w-full
+                class="btn btn-sm md:btn-md w-full
                     {% if action.name == 'MARK_COLLECTED' %}btn-soft btn-success
                     {% elif action.name == 'REJECT_REQUEST' %}btn-soft btn-error
                     {% elif action.name == 'CANCEL_REQUEST' %}btn-ghost
