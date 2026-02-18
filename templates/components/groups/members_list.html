@@ -1,6 +1,6 @@
 <div>
   <c-h2 class="border-b pb-4">Members ({{ members|length }})</c-h2>
-  <div class="max-h-96 overflow-y-auto">
+  <div class="max-h-96 overflow-y-auto" members-list-boundary>
     <div class="divide-y divide-gray-200">
       {% for member in members %}
         <c-groups.member-row :member="member" :is_moderator="is_moderator" />
