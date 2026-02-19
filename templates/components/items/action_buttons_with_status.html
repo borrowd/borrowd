@@ -26,60 +26,60 @@ For variant='card', also accepts:
         <!-- Modal actions -->
         <!-- Modal's hidden form handles the actual POST -->
         {% if action.name == 'REQUEST_ITEM' %}
-        <button
-            type="button"
-            onclick="showModal('request-item-modal{{ modal_suffix }}')"
-            class="btn btn-soft btn-primary btn-sm md:btn-md flex-1"
-        >Request item</button>
+        <div class="flex-1">
+            <button type="button" onclick="showModal('request-item-modal{{ modal_suffix }}')"
+                class="btn btn-primary btn-sm md:btn-md w-full"
+            >Request item</button>
+        </div>
         {% elif action.name == 'ACCEPT_REQUEST' %}
-        <button
-            type="button"
-            onclick="showModal('accept-request-modal{{ modal_suffix }}')"
-            class="btn btn-soft btn-success btn-sm md:btn-md flex-1"
-        >Accept</button>
+        <div class="flex-1">
+            <button type="button" onclick="showModal('accept-request-modal{{ modal_suffix }}')"
+                class="btn btn-soft btn-success btn-sm md:btn-md w-full"
+            >Accept</button>
+        </div>
         {% elif action.name == 'MARK_COLLECTED' %}
-        <button
-            type="button"
-            onclick="showModal('mark-collected-modal{{ modal_suffix }}')"
-            class="btn btn-soft btn-success btn-sm md:btn-md flex-1"
-        >{{ action.label }}</button>
+        <div class="flex-1">
+            <button type="button" onclick="showModal('mark-collected-modal{{ modal_suffix }}')"
+                class="btn btn-primary btn-sm md:btn-md w-full"
+            >Confirm picked up</button>
+        </div>
         {% elif action.name == 'CONFIRM_COLLECTED' %}
-        <button
-            type="button"
-            onclick="showModal('confirm-collected-modal{{ modal_suffix }}')"
-            class="btn btn-soft btn-success btn-sm md:btn-md flex-1"
-        >{{ action.label }}</button>
+        <div class="flex-1">
+            <button type="button" onclick="showModal('confirm-collected-modal{{ modal_suffix }}')"
+                class="btn btn-primary btn-sm md:btn-md w-full"
+            >Confirm picked up</button>
+        </div>
         {% elif action.name == 'MARK_RETURNED' %}
-        <button
-            type="button"
-            onclick="showModal('mark-returned-modal{{ modal_suffix }}')"
-            class="btn btn-ghost btn-sm md:btn-md flex-1"
-        >{{ action.label }}</button>
+        <div class="flex-1">
+            <button type="button" onclick="showModal('mark-returned-modal{{ modal_suffix }}')"
+                class="btn btn-soft btn-primary btn-sm md:btn-md w-full"
+            >Confirm returned</button>
+        </div>
         {% elif action.name == 'CONFIRM_RETURNED' %}
-        <button
-            type="button"
-            onclick="showModal('confirm-returned-modal{{ modal_suffix }}')"
-            class="btn btn-ghost btn-sm md:btn-md flex-1"
-        >{{ action.label }}</button>
-        {% else %}
+        <div class="flex-1">
+            <button type="button" onclick="showModal('confirm-returned-modal{{ modal_suffix }}')"
+                class="btn btn-soft btn-primary btn-sm md:btn-md w-full"
+            >Confirm returned</button>
+        </div>
         <!-- Direct actions -->
         <!-- Submit immediately via standard form POST without modal -->
+        {% elif action.name == 'REJECT_REQUEST' %}
+        <form method="POST" action="{% url 'item-borrow' item.pk %}" class="flex-1">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="REJECT_REQUEST">
+            <button type="submit" class="btn btn-soft btn-error btn-sm md:btn-md w-full">Decline</button>
+        </form>
+        {% elif action.name == 'CANCEL_REQUEST' %}
+        <form method="POST" action="{% url 'item-borrow' item.pk %}" class="flex-1">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="CANCEL_REQUEST">
+            <button type="submit" class="btn btn-soft btn-primary btn-sm md:btn-md w-full">Cancel Request</button>
+        </form>
+        {% else %}
         <form method="POST" action="{% url 'item-borrow' item.pk %}" class="flex-1">
             {% csrf_token %}
             <input type="hidden" name="action" value="{{ action.name }}">
-            <button
-                type="submit"
-                class="btn btn-sm md:btn-md w-full
-                    {% if action.name == 'REJECT_REQUEST' %}btn-soft btn-error
-                    {% elif action.name == 'CANCEL_REQUEST' %}btn-ghost
-                    {% else %}btn-ghost
-                    {% endif %}"
-            >
-                {% if action.name == 'REJECT_REQUEST' %}Decline
-                {% elif action.name == 'CANCEL_REQUEST' %}Cancel Request
-                {% else %}{{ action.label }}
-                {% endif %}
-            </button>
+            <button type="submit" class="btn btn-ghost btn-sm md:btn-md w-full">{{ action.label }}</button>
         </form>
         {% endif %}
     {% endfor %}
@@ -120,58 +120,52 @@ For variant='card', also accepts:
         </div>
 
         <!-- Action Buttons -->
-        <div class="flex flex-wrap items-center space-x-2">
+        <div class="flex gap-2 w-full">
             {% for action in action_context.actions %}
                 <!-- Modal actions -->
                 <!-- modal's hidden form handles the POST -->
                 {% if action.name == 'REQUEST_ITEM' %}
-                <button
-                    type="button"
-                    onclick="showModal('request-item-modal{{ modal_suffix }}')"
-                    class="btn btn-success"
-                >{{ action.label }}</button>
+                <button type="button" onclick="showModal('request-item-modal{{ modal_suffix }}')"
+                    class="btn btn-primary flex-1"
+                >Request item</button>
                 {% elif action.name == 'ACCEPT_REQUEST' %}
-                <button
-                    type="button"
-                    onclick="showModal('accept-request-modal{{ modal_suffix }}')"
-                    class="btn btn-success"
-                >{{ action.label }}</button>
+                <button type="button" onclick="showModal('accept-request-modal{{ modal_suffix }}')"
+                    class="btn btn-success flex-1"
+                >Accept</button>
                 {% elif action.name == 'MARK_COLLECTED' %}
-                <button
-                    type="button"
-                    onclick="showModal('mark-collected-modal{{ modal_suffix }}')"
-                    class="btn btn-primary"
+                <button type="button" onclick="showModal('mark-collected-modal{{ modal_suffix }}')"
+                    class="btn btn-primary flex-1"
                 >{{ action.label }}</button>
                 {% elif action.name == 'CONFIRM_COLLECTED' %}
-                <button
-                    type="button"
-                    onclick="showModal('confirm-collected-modal{{ modal_suffix }}')"
-                    class="btn btn-primary"
-                >{{ action.label }}</button>
+                <button type="button" onclick="showModal('confirm-collected-modal{{ modal_suffix }}')"
+                    class="btn btn-primary flex-1"
+                >Confirm picked up</button>
                 {% elif action.name == 'MARK_RETURNED' %}
-                <button
-                    type="button"
-                    onclick="showModal('mark-returned-modal{{ modal_suffix }}')"
-                    class="btn btn-primary"
+                <button type="button" onclick="showModal('mark-returned-modal{{ modal_suffix }}')"
+                    class="btn btn-soft btn-primary flex-1"
                 >{{ action.label }}</button>
                 {% elif action.name == 'CONFIRM_RETURNED' %}
-                <button
-                    type="button"
-                    onclick="showModal('confirm-returned-modal{{ modal_suffix }}')"
-                    class="btn btn-primary"
-                >{{ action.label }}</button>
-                {% else %}
+                <button type="button" onclick="showModal('confirm-returned-modal{{ modal_suffix }}')"
+                    class="btn btn-soft btn-primary flex-1"
+                >Confirm returned</button>
                 <!-- Direct actions: submit immediately via standard form POST -->
-                <form method="POST" action="{% url 'item-borrow' item.pk %}" class="inline-block">
+                {% elif action.name == 'REJECT_REQUEST' %}
+                <form method="POST" action="{% url 'item-borrow' item.pk %}" class="flex-1">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="REJECT_REQUEST">
+                    <button type="submit" class="btn btn-soft btn-error w-full">Decline</button>
+                </form>
+                {% elif action.name == 'CANCEL_REQUEST' %}
+                <form method="POST" action="{% url 'item-borrow' item.pk %}" class="flex-1">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="CANCEL_REQUEST">
+                    <button type="submit" class="btn btn-soft btn-primary w-full">Cancel Request</button>
+                </form>
+                {% else %}
+                <form method="POST" action="{% url 'item-borrow' item.pk %}" class="flex-1">
                     {% csrf_token %}
                     <input type="hidden" name="action" value="{{ action.name }}">
-                    <button
-                        type="submit"
-                        class="btn
-                        {% if action.name == 'REJECT_REQUEST' or action.name == 'CANCEL_REQUEST' %}btn-error
-                        {% else %}btn-primary
-                        {% endif %}"
-                    >{{ action.label }}</button>
+                    <button type="submit" class="btn btn-primary w-full">{{ action.label }}</button>
                 </form>
                 {% endif %}
             {% endfor %}

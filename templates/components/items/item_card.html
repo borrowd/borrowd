@@ -28,7 +28,7 @@ Parameters:
 {% firstof request_modal_id "request-item-modal-"|add:context|add:"-"|add:pk as request_modal_id %}
 {% firstof accept_modal_id "accept-request-modal-"|add:context|add:"-"|add:pk as accept_modal_id %}
 <div id="{{ card_id }}"
-     class="bg-base-100 rounded-lg shadow-md overflow-hidden w-full">
+     class="bg-base-100 rounded-2xl shadow-md overflow-hidden w-full">
     {% if banner_type %}
         {% include "components/items/item_card_header.html" with banner_type=banner_type banner_bg=banner_bg banner_text=banner_text banner_icon=banner_icon person_name=person_name person_url=person_url time_ago=time_ago %}
     {% endif %}
@@ -41,21 +41,21 @@ Parameters:
                     <img
                         src="{{ image|default:'/static/items/categories/logo-tools.png' }}"
                         alt="{{ name|default:'Item image' }}"
-                        class="w-full aspect-square object-cover rounded-lg"
+                        class="w-full aspect-square object-cover rounded-md"
                     />
                 </a>
             </div>
 
             <!-- Content -->
-            <div class="flex flex-col w-1/2">
+            <div class="flex flex-col w-1/2 min-w-0">
                 <a href="{% url 'item-detail' pk %}">
                     {% if is_yours %}
                         <div class="rounded-4xl h-xs max-w-xs w-fit p-1 pl-2 pr-2 bg-gray-100 border-solid border-2 border-gray-200 mt-1 mb-3 sm:mb-4">
                             <span class="text-sm text-gray-900 text-center">Yours</span>
                         </div>
                     {% endif %}
-                    <h3 class="text-base sm:text-xl md:text-2xl font-semibold text-gray-900 line-clamp-2">{{ name }}</h3>
-                    <p class="text-sm sm:text-base text-gray-900 line-clamp-5 md:line-clamp-[11] mt-2">{{ description }}</p>
+                    <h3 class="text-base sm:text-xl md:text-2xl font-semibold text-gray-900 line-clamp-2 break-words">{{ name }}</h3>
+                    <p class="text-sm sm:text-base text-gray-900 line-clamp-5 md:line-clamp-[11] mt-2 break-words">{{ description }}</p>
                 </a>
             </div>
         </div>
