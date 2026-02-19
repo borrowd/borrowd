@@ -82,9 +82,16 @@ def borrow_item(request: HttpRequest, pk: int) -> HttpResponse:
     if req_action is None:
         return HttpResponse("No action specified.", status=400)
 
+    # mypy complains that `request.user` is a AbstractBaseUser or
+    # AnonymousUser, but when I follow the code it looks like it's
+    # AbstractUser or AnonymousUser, which we *would* comply with
+    # here (BorrowdUser subclasses AbstractUser).
     user: BorrowdUser = request.user  # type: ignore[assignment]
     item = Item.objects.get(pk=pk)
 
+    # Not currently differentiating between viewing and borrowing
+    # permissions; assumed that if a user can "see" an item (and
+    # they're not the owner), then they can request to borrow it.
     if not user.has_perm(ItemOLP.VIEW, item):
         return HttpResponse("Not found", status=404)
 
