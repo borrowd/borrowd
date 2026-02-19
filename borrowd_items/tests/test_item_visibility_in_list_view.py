@@ -33,13 +33,13 @@ class ItemListViewVisibilityTests(TestCase):
             name="Item 1",
             description="Description 1",
             owner=owner,
-            trust_level_required=TrustLevel.LOW,
+            trust_level_required=TrustLevel.STANDARD,
         )
         item2 = Item.objects.create(
             name="Item 2",
             description="Description 2",
             owner=owner,
-            trust_level_required=TrustLevel.LOW,
+            trust_level_required=TrustLevel.STANDARD,
         )
 
         ## Create Group and add member (owner is in by default)
@@ -86,7 +86,7 @@ class ItemListViewVisibilityTests(TestCase):
             name="Item 1",
             description="Description 1",
             owner=owner,
-            trust_level_required=TrustLevel.LOW,
+            trust_level_required=TrustLevel.STANDARD,
         )
 
         ## Create Group and add member (owner is in by default)
@@ -97,7 +97,7 @@ class ItemListViewVisibilityTests(TestCase):
             trust_level=TrustLevel.HIGH,
             membership_requires_approval=False,
         )
-        group.add_user(member, trust_level=TrustLevel.LOW)
+        group.add_user(member, trust_level=TrustLevel.STANDARD)
 
         ## Preare the request
         request = self.factory.get("/items/")
@@ -134,13 +134,13 @@ class ItemListViewVisibilityTests(TestCase):
             name="Item 1",
             description="Description 1",
             owner=owner,
-            trust_level_required=TrustLevel.LOW,
+            trust_level_required=TrustLevel.STANDARD,
         )
         item2 = Item.objects.create(
             name="Item 1",
             description="Description 1",
             owner=member,
-            trust_level_required=TrustLevel.LOW,
+            trust_level_required=TrustLevel.STANDARD,
         )
 
         ## Create Group and add member (owner is in by default)
@@ -151,7 +151,7 @@ class ItemListViewVisibilityTests(TestCase):
             trust_level=TrustLevel.HIGH,
             membership_requires_approval=False,
         )
-        group.add_user(member, trust_level=TrustLevel.LOW)
+        group.add_user(member, trust_level=TrustLevel.STANDARD)
 
         ## Preare the request
         request_owner = self.factory.get("/items/")
@@ -182,9 +182,9 @@ class ItemListViewVisibilityTests(TestCase):
 
     def test_list_items_from_group_membership_with_different_trust_level(self) -> None:
         """
-        `owner` has one High trust item and one Low trust item, is in
-        a Medium trust group with `member`, therefore `member` should
-        only see the Low trust item in the ItemListView.
+        `owner` has one High trust item and one Standard trust item, is in
+        a Standard trust group with `member`, therefore `member` should
+        only see the Standard trust item in the ItemListView.
         """
         #
         #  Arrange
@@ -205,7 +205,7 @@ class ItemListViewVisibilityTests(TestCase):
             name="Item Low",
             description="Description Low",
             owner=owner,
-            trust_level_required=TrustLevel.LOW,
+            trust_level_required=TrustLevel.STANDARD,
         )
 
         ## Create Group and add member (owner is in by default)
@@ -213,7 +213,7 @@ class ItemListViewVisibilityTests(TestCase):
             name="Test Group",
             created_by=owner,
             updated_by=owner,
-            trust_level=TrustLevel.MEDIUM,
+            trust_level=TrustLevel.STANDARD,
             membership_requires_approval=False,
         )
         ## Member trusts the group a lot, although that doesn't matter
