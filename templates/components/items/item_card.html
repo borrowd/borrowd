@@ -67,5 +67,9 @@ Parameters:
     {% if show_actions %}
         {% include "components/items/accept_request_modal.html" with item=item modal_id=accept_modal_id %}
         {% include "components/items/request_item_modal.html" with item=item modal_id=request_modal_id %}
+        {% include "components/items/mark_collected_modal.html" with item=item modal_id="mark-collected-modal"|add:modal_suffix %}
+        {% include "components/items/mark_collected_modal.html" with item=item modal_id="confirm-collected-modal"|add:modal_suffix collected_action="CONFIRM_COLLECTED" %}
+        {% include "components/items/mark_returned_modal.html" with item=item modal_id="mark-returned-modal"|add:modal_suffix %}
+        {% include "components/items/mark_returned_modal.html" with item=item modal_id="confirm-returned-modal"|add:modal_suffix returned_action="CONFIRM_RETURNED" %}
     {% endif %}
 </div>

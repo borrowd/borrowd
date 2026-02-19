@@ -37,6 +37,30 @@ For variant='card', also accepts:
             onclick="showModal('accept-request-modal{{ modal_suffix }}')"
             class="btn btn-soft btn-success btn-sm md:btn-md flex-1"
         >Accept</button>
+        {% elif action.name == 'MARK_COLLECTED' %}
+        <button
+            type="button"
+            onclick="showModal('mark-collected-modal{{ modal_suffix }}')"
+            class="btn btn-soft btn-success btn-sm md:btn-md flex-1"
+        >{{ action.label }}</button>
+        {% elif action.name == 'CONFIRM_COLLECTED' %}
+        <button
+            type="button"
+            onclick="showModal('confirm-collected-modal{{ modal_suffix }}')"
+            class="btn btn-soft btn-success btn-sm md:btn-md flex-1"
+        >{{ action.label }}</button>
+        {% elif action.name == 'MARK_RETURNED' %}
+        <button
+            type="button"
+            onclick="showModal('mark-returned-modal{{ modal_suffix }}')"
+            class="btn btn-ghost btn-sm md:btn-md flex-1"
+        >{{ action.label }}</button>
+        {% elif action.name == 'CONFIRM_RETURNED' %}
+        <button
+            type="button"
+            onclick="showModal('confirm-returned-modal{{ modal_suffix }}')"
+            class="btn btn-ghost btn-sm md:btn-md flex-1"
+        >{{ action.label }}</button>
         {% else %}
         <!-- Direct actions -->
         <!-- Submit immediately via standard form POST without modal -->
@@ -46,8 +70,7 @@ For variant='card', also accepts:
             <button
                 type="submit"
                 class="btn btn-sm md:btn-md w-full
-                    {% if action.name == 'MARK_COLLECTED' %}btn-soft btn-success
-                    {% elif action.name == 'REJECT_REQUEST' %}btn-soft btn-error
+                    {% if action.name == 'REJECT_REQUEST' %}btn-soft btn-error
                     {% elif action.name == 'CANCEL_REQUEST' %}btn-ghost
                     {% else %}btn-ghost
                     {% endif %}"
@@ -113,6 +136,30 @@ For variant='card', also accepts:
                     onclick="showModal('accept-request-modal{{ modal_suffix }}')"
                     class="btn btn-success"
                 >{{ action.label }}</button>
+                {% elif action.name == 'MARK_COLLECTED' %}
+                <button
+                    type="button"
+                    onclick="showModal('mark-collected-modal{{ modal_suffix }}')"
+                    class="btn btn-primary"
+                >{{ action.label }}</button>
+                {% elif action.name == 'CONFIRM_COLLECTED' %}
+                <button
+                    type="button"
+                    onclick="showModal('confirm-collected-modal{{ modal_suffix }}')"
+                    class="btn btn-primary"
+                >{{ action.label }}</button>
+                {% elif action.name == 'MARK_RETURNED' %}
+                <button
+                    type="button"
+                    onclick="showModal('mark-returned-modal{{ modal_suffix }}')"
+                    class="btn btn-primary"
+                >{{ action.label }}</button>
+                {% elif action.name == 'CONFIRM_RETURNED' %}
+                <button
+                    type="button"
+                    onclick="showModal('confirm-returned-modal{{ modal_suffix }}')"
+                    class="btn btn-primary"
+                >{{ action.label }}</button>
                 {% else %}
                 <!-- Direct actions: submit immediately via standard form POST -->
                 <form method="POST" action="{% url 'item-borrow' item.pk %}" class="inline-block">
@@ -132,6 +179,10 @@ For variant='card', also accepts:
 
         {% include "components/items/request_item_modal.html" with item=item modal_id="request-item-modal"|add:modal_suffix %}
         {% include "components/items/accept_request_modal.html" with item=item modal_id="accept-request-modal"|add:modal_suffix %}
+        {% include "components/items/mark_collected_modal.html" with item=item modal_id="mark-collected-modal"|add:modal_suffix %}
+        {% include "components/items/mark_collected_modal.html" with item=item modal_id="confirm-collected-modal"|add:modal_suffix collected_action="CONFIRM_COLLECTED" %}
+        {% include "components/items/mark_returned_modal.html" with item=item modal_id="mark-returned-modal"|add:modal_suffix %}
+        {% include "components/items/mark_returned_modal.html" with item=item modal_id="confirm-returned-modal"|add:modal_suffix returned_action="CONFIRM_RETURNED" %}
     </div>
 </div>
 {% endif %}

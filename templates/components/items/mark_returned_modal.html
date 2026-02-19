@@ -1,0 +1,12 @@
+{# Confirmation modal shown when a user clicks "Mark as Returned". #}
+{# Hidden form submitted by the modal confirm button via confirm_submit_form_id. #}
+{# See accept_request_modal.html for the same pattern. #}
+
+{% url 'item-borrow' item.pk as borrow_url %}
+{% with form_id="form-"|add:modal_id %}
+<form id="{{ form_id }}" method="POST" action="{{ borrow_url }}" class="hidden">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="{{ returned_action|default:'MARK_RETURNED' }}">
+</form>
+{% include "components/modal.html" with modal_id=modal_id modal_title="Confirm Return" button_layout="equal" confirm_button_text="Confirm" cancel_button_text="Cancel" cancel_button_class="btn btn-ghost font-semibold" confirm_button_class="btn btn-soft btn-success font-semibold" confirm_submit_form_id=form_id modal_content="<p>Please confirm that this item has been returned.</p><p class='mt-2 text-sm'>Both the lender and borrower must confirm before the loan is marked complete.</p>" %}
+{% endwith %}
