@@ -9,10 +9,12 @@ from typing import TYPE_CHECKING, Any
 
 from django.utils.html import format_html
 
+from .models import ItemAction, ItemActionContext
+
 if TYPE_CHECKING:
     from borrowd_users.models import BorrowdUser
 
-    from .models import Item, ItemActionContext
+    from .models import Item
 
 
 # Banner styling configuration
@@ -186,6 +188,19 @@ def build_item_card_context(
     """
     if action_context is None:
         action_context = item.get_action_context_for(user=user)
+
+    # Once the request is approved, the card only shows "Confirm picked up".
+    # Cancel is still accessible on the item detail page.
+    if (
+        ItemAction.CANCEL_REQUEST in action_context.actions
+        and ItemAction.MARK_COLLECTED in action_context.actions
+    ):
+        action_context = ItemActionContext(
+            actions=tuple(
+                a for a in action_context.actions if a != ItemAction.CANCEL_REQUEST
+            ),
+            status_text=action_context.status_text,
+        )
 
     first_photo = item.photos.first()
     banner_info = get_banner_info_for_item(item, user)
