@@ -1,0 +1,47 @@
+{% extends "layouts/auth_card.html" %}
+{% load i18n %}
+
+{% block auth_title %}{% trans "Enter Login Code" %}{% endblock %}
+{% block auth_mobile_title %}{% trans "Enter code" %}{% endblock %}
+
+{% block auth_content %}
+  {% if form.non_field_errors %}
+    <div class="alert alert-error text-sm py-2">
+      {{ form.non_field_errors }}
+    </div>
+  {% endif %}
+
+  <p class="text-sm text-base-content/60">
+    {% trans "We sent a code to your email. Enter it below to sign in." %}
+  </p>
+
+  <form method="post" class="flex flex-col gap-4">
+    {% csrf_token %}
+    {% for field in form.hidden_fields %}{{ field }}{% endfor %}
+
+    {# Code field #}
+    <fieldset class="fieldset">
+      <legend class="fieldset-legend text-sm font-medium">{% trans "Code" %}</legend>
+      <input
+        type="text"
+        name="code"
+        id="id_code"
+        class="input w-full tracking-widest text-center text-lg"
+        placeholder="______"
+        autocomplete="one-time-code"
+        inputmode="numeric"
+      />
+      {% if form.code.errors %}
+        <p class="label text-error text-xs">{{ form.code.errors|join:", " }}</p>
+      {% endif %}
+    </fieldset>
+
+    <button type="submit" class="btn btn-primary w-full">
+      {% trans "Confirm" %}
+    </button>
+
+    <a href="{% url 'account_login' %}" class="btn btn-ghost border border-base-300 w-full">
+      {% trans "Back to login" %}
+    </a>
+  </form>
+{% endblock %}

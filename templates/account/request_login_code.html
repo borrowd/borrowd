@@ -1,0 +1,48 @@
+{% extends "layouts/auth_card.html" %}
+{% load i18n %}
+
+{% block auth_title %}{% trans "Request Login Code" %}{% endblock %}
+{% block auth_mobile_title %}{% trans "Request code" %}{% endblock %}
+
+{% block auth_content %}
+  {% if form.non_field_errors %}
+    <div class="alert alert-error text-sm py-2">
+      {{ form.non_field_errors }}
+    </div>
+  {% endif %}
+
+  <p class="text-sm text-base-content/60">
+    {% trans "Enter your email and we'll send you a one-time sign-in code." %}
+  </p>
+
+  <form method="post" class="flex flex-col gap-4">
+    {% csrf_token %}
+    {{ redirect_field }}
+    {% for field in form.hidden_fields %}{{ field }}{% endfor %}
+
+    {# Email field #}
+    <fieldset class="fieldset">
+      <legend class="fieldset-legend text-sm font-medium">{% trans "Email" %}</legend>
+      <input
+        type="email"
+        name="email"
+        id="id_email"
+        class="input w-full"
+        placeholder="Email"
+        value="{{ form.email.value|default:'' }}"
+        autocomplete="email"
+      />
+      {% if form.email.errors %}
+        <p class="label text-error text-xs">{{ form.email.errors|join:", " }}</p>
+      {% endif %}
+    </fieldset>
+
+    <button type="submit" class="btn btn-primary w-full">
+      {% trans "Request login code" %}
+    </button>
+
+    <a href="{% url 'account_login' %}" class="btn btn-ghost  w-full">
+      {% trans "Cancel" %}
+    </a>
+  </form>
+{% endblock %}
