@@ -15,6 +15,7 @@ from django.db.models import (
     Q,
     QuerySet,
     TextChoices,
+    UniqueConstraint,
 )
 from django.urls import reverse
 from imagekit.models import ImageSpecField, ProcessedImageField
@@ -471,12 +472,18 @@ class Item(Model):
             )
             return
 
-        # TODO: For the REQUEST_NOTIFICATION action, we may want to create a
-        # separate model to track notification requests, instead of creating Transactions
-        # with a special status.
-        # That would simplify the logic and avoid overloading the Transaction model with multiple concepts.
-        # For now, we'll just ignore the REQUEST_NOTIFICATION action here since it doesn't correspond to a
-        # state change in the Transaction model.
+        # For the REQUEST_NOTIFICATION action, we don't need to create a Transaction,
+        # we just need to create an AvailabilitySubscription.
+        if action == ItemAction.REQUEST_NOTIFICATION and self.status in [
+            ItemStatus.BORROWED,
+            ItemStatus.RESERVED,
+        ]:
+            AvailabilitySubscription.objects.create(
+                user=user,
+                item=self,
+                status=AvailabilitySubscriptionStatus.ACTIVE,
+            )
+            return
 
         current_tx = self.get_current_transaction_for_user(user=user)
         if current_tx is None:
@@ -801,12 +808,6 @@ class AvailabilitySubscription(Model):
                 status=AvailabilitySubscriptionStatus.ACTIVE,
             ).first()
 
-    def notify_user_of_availability(self) -> None:
-        """
-        Notify the user that the item they subscribed to is now available.
-        This would typically be called by a background task when an Item's status changes to Available.
-        """
-
     def cancel_subscription(self) -> None:
         """
         Cancel the given subscription, e.g. if the user manually cancels it or if they request to be notified again.
@@ -820,3 +821,12 @@ class AvailabilitySubscription(Model):
         """
         self.status = AvailabilitySubscriptionStatus.EXPIRED
         self.save()
+
+    class Meta:
+        constraints = [
+            UniqueConstraint(
+                fields=["item", "user"],
+                condition=Q(status=AvailabilitySubscriptionStatus.ACTIVE),
+                name="unique_active_subscription_per_user_and_item",
+            )
+        ]

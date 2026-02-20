@@ -14,6 +14,7 @@ To add a new Notification:
 django-notifications repo: https://github.com/django-notifications/django-notifications
 """
 
+from django.db import transaction
 from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
 from notifications.models import Notification
@@ -23,6 +24,8 @@ from borrowd_groups.models import Membership, MembershipStatus
 from borrowd_items.models import (
     AvailabilitySubscription,
     AvailabilitySubscriptionStatus,
+    Item,
+    ItemStatus,
     Transaction,
     TransactionStatus,
 )
@@ -130,23 +133,45 @@ def send_availability_subscription_notifications(
     """
 
     if created:
-        notify.send(
-            instance.user,
-            recipient=[instance.user],
-            verb=NotificationType.ITEM_SUBSCRIBED_TO.value,
-            action_object=instance.item,
-            target=instance,
-            description=f"You subscribed to {instance.item.name}",  # type: ignore[attr-defined]
-        )
 
-    elif instance.status == AvailabilitySubscriptionStatus.ACTIVE:
-        notify.send(
-            instance.user,
-            recipient=[instance.user],
-            verb=NotificationType.ITEM_SUBSCRIBED_TO_AVAILABLE.value,
-            action_object=instance.item,
-            target=instance,
-            description=f"{instance.item.name} is now available",  # type: ignore[attr-defined]
+        def _on_commit() -> None:
+            notify.send(
+                instance.user,
+                recipient=[instance.user],
+                verb=NotificationType.ITEM_SUBSCRIBED_TO.value,
+                action_object=instance.item,
+                target=instance,
+                description=f"You subscribed to {instance.item.name}",  # type: ignore[attr-defined]
+            )
+
+        transaction.on_commit(_on_commit)
+        return
+
+
+@receiver(post_save, sender=AvailabilitySubscription)
+def send_item_available_notification(
+    sender: Item,
+    instance: Item,
+    created: bool,
+    **kwargs: str,
+) -> None:
+    """
+    Send notifications when an item subscribed to becomes available.
+    """
+    if not created and instance.status == ItemStatus.AVAILABLE:
+        subscriptions = AvailabilitySubscription.get_active_subscriptions_for_item(
+            instance
         )
-        instance.status = AvailabilitySubscriptionStatus.NOTIFIED
-        instance.save()
+        for subscription in subscriptions:
+            notify.send(
+                subscription.user,
+                recipient=[subscription.user],
+                verb=NotificationType.ITEM_SUBSCRIBED_TO_AVAILABLE.value,
+                action_object=instance,
+                target=subscription,
+                description=f"{instance.name} is now available",
+            )
+
+        AvailabilitySubscription.objects.filter(
+            item=instance, status=AvailabilitySubscriptionStatus.ACTIVE
+        ).update(status=AvailabilitySubscriptionStatus.NOTIFIED)
