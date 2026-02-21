@@ -11,7 +11,7 @@ Enum trust_level {
 Table user {
   id int [pk]
   email_address varchar [not null]
-  first_name varchar 
+  first_name varchar
   last_name varchar
   role varchar
 }
@@ -41,7 +41,7 @@ Table community_group {
 
 // when a user joins a community group, they can assign a trust level
 Table community_group_user {
-  communitry_group_id int [ref: > community_group.id, not null]
+  community_group_id int [ref: > community_group.id, not null]
   user_id int [ref: > user.id, not null]
   trust_level trust_level [not null]
   // this value would override the community group's default sharing disposition
@@ -50,7 +50,7 @@ Table community_group_user {
 
 // m2m table for directly assigning items to groups
 Table community_group_item {
-  communitry_group_id int [ref: > community_group.id, not null]
+  community_group_id int [ref: > community_group.id, not null]
   item_id int [ref: > item.id, not null]
 }
 
@@ -103,11 +103,11 @@ Table transaction {
   item_id int [ref: > item.id, not null]
   from_user_id int [ref: > user.id, not null]
   to_user_id int [ref: > user.id, not null]
-  summary text 
+  summary text
   transaction_type transaction_type [not null]
   status transaction_status [not null]
   expected_at timestamp [not null]
-  completed_at timestamp 
+  completed_at timestamp
 }
 
 Table transaction_review {
@@ -116,8 +116,8 @@ Table transaction_review {
   id int [pk]
   transaction_id int [ref: > transaction.id, not null]
   user_id int [ref: > user.id, not null]
-  item_condition enum 
-  timeliness enum 
+  item_condition enum
+  timeliness enum
   cordiality enum
 }
 
