@@ -65,7 +65,7 @@ class RejectedFlowTest(SimpleTestCase):
             name="Test Item",
             description="Test Description",
             owner=cls.lender,
-            trust_level_required=TrustLevel.LOW,
+            trust_level_required=TrustLevel.STANDARD,
         )
         cls.factory = RequestFactory()
 

@@ -2,8 +2,8 @@
     <span class="text-sm text-gray-600">Your Trust Level:</span>
 
     <div x-show="!editing" class="flex items-center gap-2">
-        <span x-text="trustLevel === 1 ? 'Low' : trustLevel === 2 ? 'Medium' : 'High'" class="text-sm font-medium text-gray-900"></span>
-        <c-trust-pill :level="trustLevel === 1 ? 'Low' : trustLevel === 2 ? 'Medium' : 'High'" />
+        <span x-text="trustLevel === 1 ? 'Standard' : 'High'" class="text-sm font-medium text-gray-900"></span>
+        <c-trust-pill :level="trustLevel === 1 ? 'Standard' : 'High'" />
         <button @click="editing = true" class="text-gray-400 hover:text-gray-600 transition-colors" title="Edit trust level">
             <!-- Alpine not happy with django template tag so inline svg here... it's a pencil -->
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -19,9 +19,8 @@
             <select name="trust_level"
                     x-model="trustLevel"
                     class="px-2 py-1 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                <option value="1">Low</option>
-                <option value="2">Medium</option>
-                <option value="3">High</option>
+                <option value="1">Standard</option>
+                <option value="2">High</option>
             </select>
             <button type="submit"
                     :disabled="saving"

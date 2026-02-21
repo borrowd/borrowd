@@ -21,7 +21,7 @@ class GroupCreationTests(TestCase):
             name="Group 1",
             created_by=owner,
             updated_by=owner,
-            trust_level=TrustLevel.LOW,
+            trust_level=TrustLevel.STANDARD,
         )
 
         # Assert
@@ -31,6 +31,6 @@ class GroupCreationTests(TestCase):
                 user=owner,
                 group=group,
                 is_moderator=True,
-                trust_level=TrustLevel.LOW,
+                trust_level=TrustLevel.STANDARD,
             )
         )

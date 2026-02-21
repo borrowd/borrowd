@@ -23,7 +23,7 @@ class GroupBasedItemPermissionsTests(TestCase):
         owner = self.owner
         ## Create an item and assign it to the owner
         item = Item.objects.create(
-            name="Test Item", owner=owner, trust_level_required=TrustLevel.LOW
+            name="Test Item", owner=owner, trust_level_required=TrustLevel.STANDARD
         )
 
         # Assert
@@ -43,13 +43,13 @@ class GroupBasedItemPermissionsTests(TestCase):
 
         ## Owner creates an Item
         item = Item.objects.create(
-            name="Test Item", owner=owner, trust_level_required=TrustLevel.LOW
+            name="Test Item", owner=owner, trust_level_required=TrustLevel.STANDARD
         )
 
         # Act
         ## Create another user who is a member of the Group
         member = self.member
-        group.add_user(member, trust_level=TrustLevel.LOW)
+        group.add_user(member, trust_level=TrustLevel.STANDARD)
 
         # Assert
         ## Check if the group member can see the item
@@ -68,12 +68,12 @@ class GroupBasedItemPermissionsTests(TestCase):
 
         ## Create another user who is a member of the group
         member = self.member
-        group.add_user(member, trust_level=TrustLevel.LOW)
+        group.add_user(member, trust_level=TrustLevel.STANDARD)
 
         # Act
         ## Create an item and assign it to the owner
         item = Item.objects.create(
-            name="Test Item", owner=owner, trust_level_required=TrustLevel.LOW
+            name="Test Item", owner=owner, trust_level_required=TrustLevel.STANDARD
         )
 
         # Assert
@@ -95,12 +95,12 @@ class GroupBasedItemPermissionsTests(TestCase):
 
         ## Create an item and assign it to the owner
         item = Item.objects.create(
-            name="Test Item", owner=owner, trust_level_required=TrustLevel.LOW
+            name="Test Item", owner=owner, trust_level_required=TrustLevel.STANDARD
         )
 
         # Act
         ## Create another user who is a member of the group
-        group.add_user(member, trust_level=TrustLevel.LOW)
+        group.add_user(member, trust_level=TrustLevel.STANDARD)
 
         # Assert
         ## Check if the group member can see the item
@@ -121,7 +121,7 @@ class GroupBasedItemPermissionsTests(TestCase):
             name="Test Group",
             created_by=owner,
             updated_by=owner,
-            trust_level=TrustLevel.LOW,
+            trust_level=TrustLevel.STANDARD,
             membership_requires_approval=False,
         )
 
@@ -150,12 +150,12 @@ class GroupBasedItemPermissionsTests(TestCase):
 
         ## Create an item and assign it to the owner
         item = Item.objects.create(
-            name="Test Item", owner=owner, trust_level_required=TrustLevel.LOW
+            name="Test Item", owner=owner, trust_level_required=TrustLevel.STANDARD
         )
 
         # Act
         ## Create another user who is a member of the group
-        group.add_user(member, trust_level=TrustLevel.LOW)
+        group.add_user(member, trust_level=TrustLevel.STANDARD)
 
         # Assert
         ## Check if the group member can see the item
@@ -177,12 +177,12 @@ class GroupBasedItemPermissionsTests(TestCase):
 
         ## Create an item, owned by *Member*
         item = Item.objects.create(
-            name="Test Item", owner=member, trust_level_required=TrustLevel.LOW
+            name="Test Item", owner=member, trust_level_required=TrustLevel.STANDARD
         )
 
         # Act
         ## Add the member to the group
-        group.add_user(member, trust_level=TrustLevel.LOW)
+        group.add_user(member, trust_level=TrustLevel.STANDARD)
 
         # Assert
         ## Check if the group Moderator can see the item
@@ -209,11 +209,11 @@ class GroupBasedItemPermissionsTests(TestCase):
             updated_by=owner,
             membership_requires_approval=False,
         )
-        group.add_user(member, trust_level=TrustLevel.LOW)
+        group.add_user(member, trust_level=TrustLevel.STANDARD)
 
         ## Create an item and assign it to the owner
         item = Item.objects.create(
-            name="Test Item", owner=owner, trust_level_required=TrustLevel.LOW
+            name="Test Item", owner=owner, trust_level_required=TrustLevel.STANDARD
         )
 
         # Act
@@ -240,10 +240,10 @@ class GroupBasedItemPermissionsTests(TestCase):
         # Act
         ## Create an Items with low, med and high levels
         item1 = Item.objects.create(
-            name="Test Item 1", owner=owner, trust_level_required=TrustLevel.LOW
+            name="Test Item 1", owner=owner, trust_level_required=TrustLevel.STANDARD
         )
         item2 = Item.objects.create(
-            name="Test Item 2", owner=owner, trust_level_required=TrustLevel.MEDIUM
+            name="Test Item 2", owner=owner, trust_level_required=TrustLevel.STANDARD
         )
         item3 = Item.objects.create(
             name="Test Item 3", owner=owner, trust_level_required=TrustLevel.HIGH
@@ -264,27 +264,23 @@ class GroupBasedItemPermissionsTests(TestCase):
             name="Test Group",
             created_by=owner,
             updated_by=owner,
-            trust_level=TrustLevel.LOW,
+            trust_level=TrustLevel.STANDARD,
         )
         perms_group = borrowd_group.perms_group
 
         # Act
-        ## Create an Items with low, med and high levels
+        ## Create an Items with standard and high levels
         item1 = Item.objects.create(
-            name="Test Item 1", owner=owner, trust_level_required=TrustLevel.LOW
+            name="Test Item 1", owner=owner, trust_level_required=TrustLevel.STANDARD
         )
         item2 = Item.objects.create(
-            name="Test Item 2", owner=owner, trust_level_required=TrustLevel.MEDIUM
-        )
-        item3 = Item.objects.create(
-            name="Test Item 3", owner=owner, trust_level_required=TrustLevel.HIGH
+            name="Test Item 2", owner=owner, trust_level_required=TrustLevel.HIGH
         )
 
         # Assert
-        ## Check the group can only see item1, since it only has a LOW trust level
+        ## Check the group can only see item1, since it only has a STANDARD trust level
         self.assertTrue(ItemOLP.VIEW in get_perms(perms_group, item1))
         self.assertFalse(ItemOLP.VIEW in get_perms(perms_group, item2))
-        self.assertFalse(ItemOLP.VIEW in get_perms(perms_group, item3))
 
     def test_item_visibility_revoked_when_group_trust_lowered(self) -> None:
         # Arrange
@@ -306,7 +302,7 @@ class GroupBasedItemPermissionsTests(TestCase):
 
         # Act
         ## Lower the group's trust level
-        borrowd_group.update_user_membership(owner, TrustLevel.LOW)
+        borrowd_group.update_user_membership(owner, TrustLevel.STANDARD)
 
         # Assert
         ## Check that the group can no longer see the item
@@ -321,7 +317,7 @@ class GroupBasedItemPermissionsTests(TestCase):
             name="Test Group",
             created_by=owner,
             updated_by=owner,
-            trust_level=TrustLevel.LOW,
+            trust_level=TrustLevel.STANDARD,
         )
         perms_group = borrowd_group.perms_group
 
@@ -352,11 +348,11 @@ class GroupBasedItemPermissionsTests(TestCase):
             updated_by=owner,
             membership_requires_approval=False,
         )
-        group.add_user(member, trust_level=TrustLevel.LOW)
+        group.add_user(member, trust_level=TrustLevel.STANDARD)
 
         ## Create an item
         item = Item.objects.create(
-            name="Test Item", owner=owner, trust_level_required=TrustLevel.LOW
+            name="Test Item", owner=owner, trust_level_required=TrustLevel.STANDARD
         )
 
         # Assert initial visibility
@@ -384,7 +380,7 @@ class GroupBasedItemPermissionsTests(TestCase):
 
         ## Create an item
         item = Item.objects.create(
-            name="Test Item", owner=owner, trust_level_required=TrustLevel.LOW
+            name="Test Item", owner=owner, trust_level_required=TrustLevel.STANDARD
         )
 
         # Assert initial visibility
@@ -410,7 +406,7 @@ class GroupBasedItemPermissionsTests(TestCase):
             updated_by=owner,
             membership_requires_approval=False,
         )
-        group1.add_user(member, trust_level=TrustLevel.LOW)
+        group1.add_user(member, trust_level=TrustLevel.STANDARD)
 
         ## Same again with another group
         group2: BorrowdGroup = BorrowdGroup.objects.create(
@@ -419,11 +415,11 @@ class GroupBasedItemPermissionsTests(TestCase):
             updated_by=owner,
             membership_requires_approval=False,
         )
-        group2.add_user(member, trust_level=TrustLevel.LOW)
+        group2.add_user(member, trust_level=TrustLevel.STANDARD)
 
         ## Create an item
         item = Item.objects.create(
-            name="Test Item", owner=owner, trust_level_required=TrustLevel.LOW
+            name="Test Item", owner=owner, trust_level_required=TrustLevel.STANDARD
         )
 
         # Assert initial visibility
