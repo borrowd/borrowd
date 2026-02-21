@@ -20,7 +20,113 @@
                     <a href="javascript:void(0)" onclick="showModal('trust-level-info-modal')" class="label-text-alt text-blue-600 hover:text-blue-800 underline ml-2">What is this?</a>
                 {% endif %}
             </label>
-            {{ field }}
+            {% if field.name == "categories" %}
+                <!--
+                    Category field
+
+                    1. Keep the <select multiple> in the DOM but hide it visually
+                    2. Use Alpine.js to manage selected categories (selectedIds array)
+                    3. When user confirms modal selections, copy Alpine state to the
+                       hidden <select> by marking matching <option>s as selected
+                    4. When user clicks "Save item", browser submits the form with
+                       POST data like: categories=3&categories=7
+                    5. Django's ItemForm processes this (borrowd_items/forms.py)
+
+                -->
+                <div x-data="{
+                    /*
+                     * Alpine UI state: which category IDs are currently selected.
+                     * Pre-populated from Django form's current value on page load.
+                     * (Empty on create, has values on edit.)
+                     */
+                    selectedIds: [{% for val in field.value %}{% if val %}'{{ val }}'{% if not forloop.last %},{% endif %}{% endif %}{% endfor %}],
+                    categories: [{% for choice in field.field.choices %}{ id: '{{ choice.0 }}', name: '{{ choice.1 }}' }{% if not forloop.last %},{% endif %}{% endfor %}],
+
+                    /* Toggle a category by id: add if not selected, remove if already selected. */
+                    toggle(id) {
+                        const idx = this.selectedIds.indexOf(id);
+                        if (idx === -1) { this.selectedIds.push(id); }
+                        else { this.selectedIds.splice(idx, 1); }
+                    },
+
+                    isSelected(id) {
+                        return this.selectedIds.includes(id);
+                    },
+
+                    /*
+                     * Display text for the trigger button.
+                     * No selection: 'Select an item category'
+                     * One selected: full category name
+                     * Multiple: first name truncated (12 chars) + '... + N more'
+                     *   e.g.: 'Home & Kitch... + 3 more'
+                     */
+                    get buttonText() {
+                        if (this.selectedIds.length === 0) return 'Select an item category';
+                        const firstName = this.categories.find(c => c.id === this.selectedIds[0])?.name || '';
+                        if (this.selectedIds.length === 1) return firstName;
+                        const truncated = firstName.length > 12 ? firstName.slice(0, 12) + '...' : firstName;
+                        return truncated + ' + ' + (this.selectedIds.length - 1) + ' more';
+                    },
+
+                    /*
+                     * Copy selectedIds to the hidden <select> element.
+                     *
+                     * e.g.:
+                     *   selectedIds = ['3', '7']
+                     *   <option value='1'>Tools</option>        -> selected = false
+                     *   <option value='3'>Electronics</option>  -> selected = true
+                     *   <option value='7'>Kitchen</option>      -> selected = true
+                     *
+                     * POST sends categories=3&categories=7
+                     */
+                    writeSelectedIdsToHiddenSelect() {
+                        const select = this.$refs.categoryFormSelect;
+                        for (const opt of select.options) {
+                            opt.selected = this.selectedIds.includes(opt.value);
+                        }
+                    },
+
+                    clearFilters() {
+                        this.selectedIds = [];
+                        this.writeSelectedIdsToHiddenSelect();
+                        closeModal('item-category-modal');
+                    },
+
+                    applyFilters() {
+                        this.writeSelectedIdsToHiddenSelect();
+                        closeModal('item-category-modal');
+                    }
+                }">
+                    <!-- Trigger button: opens the category selection modal -->
+                    <button type="button"
+                        @click="showModal('item-category-modal')"
+                        class="select select-bordered w-full text-left flex items-center"
+                        x-text="buttonText">
+                    </button>
+
+                    <!--
+                        Hidden <select multiple> for multiple item categories.
+                        This is the actual form field that Django's ItemForm reads.
+                        Alpine writes to this via writeSelectedIdsToHiddenSelect().
+                        See borrowd_items/forms.py for widget configuration.
+                    -->
+                    <select x-ref="categoryFormSelect"
+                            name="{{ field.html_name }}"
+                            id="{{ field.id_for_label }}"
+                            multiple
+                            class="hidden">
+                        {% for choice in field.field.choices %}
+                        <option value="{{ choice.0 }}" {% if field.value and choice.0|stringformat:"s" in field.value %}selected{% endif %}>
+                            {{ choice.1 }}
+                        </option>
+                        {% endfor %}
+                    </select>
+
+                    {% include "components/items/category_filter_modal.html" with modal_id="item-category-modal" confirm_button_text="Filter categories" %}
+                </div>
+            {% else %}
+                {{ field }}
+            {% endif %}
             {% if field.errors %}
                 <label class="label">
                     <span class="label-text-alt text-error">{{ field.errors }}</span>
@@ -75,5 +181,5 @@
     </form>
 </div>
 
-{% include "components/modal.html" with modal_id="trust-level-info-modal" modal_title="Group trust levels" modal_size="full" cancel_button="Got it" modal_content="<div class='text-left'><p class='mb-4'>At the heart of Borrow'd is trust. Each group you join gets a trust level (High, Medium, or Low), which determines what kinds of items they can request from you. For example:</p><div class='mb-4'><p class='font-bold mb-2'><span class='text-tertiary'>High trust:</span> Super Best Friends</p><p>A small circle of people you've known for years. You trust them with your life – and also, electronics, appliances, and other high-value items.</p></div><div class='mb-4'><p class='font-bold mb-2'><span class='text-accent'>Medium trust:</span> Sports Ball Team</p><p>You may have only known each other for a few seasons, but you know you can count on them to score points (and return your items). You're comfortable sharing things like hobby tools or gardening supplies.</p></div><div><p class='font-bold mb-2'><span class='text-secondary'>Low trust:</span> Neighborhood Community</p><p>You recognize your neighbors, but don't necessarily see each other often. You're happy to lend out low-cost, hard-to-break items like books, toys, or decorations.</p></div></div>" %}
+{% include "components/modal.html" with modal_id="trust-level-info-modal" modal_title="Group trust levels" modal_size="full" cancel_button_text="Got it" modal_content="<div class='text-left'><p class='mb-4'>At the heart of Borrow'd is trust. Each group you join gets a trust level (High, Medium, or Low), which determines what kinds of items they can request from you. For example:</p><div class='mb-4'><p class='font-bold mb-2'><span class='text-tertiary'>High trust:</span> Super Best Friends</p><p>A small circle of people you've known for years. You trust them with your life – and also, electronics, appliances, and other high-value items.</p></div><div class='mb-4'><p class='font-bold mb-2'><span class='text-accent'>Medium trust:</span> Sports Ball Team</p><p>You may have only known each other for a few seasons, but you know you can count on them to score points (and return your items). You're comfortable sharing things like hobby tools or gardening supplies.</p></div><div><p class='font-bold mb-2'><span class='text-secondary'>Low trust:</span> Neighborhood Community</p><p>You recognize your neighbors, but don't necessarily see each other often. You're happy to lend out low-cost, hard-to-break items like books, toys, or decorations.</p></div></div>" %}
 {% endblock %}
