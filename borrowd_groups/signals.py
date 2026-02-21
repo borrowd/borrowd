@@ -8,7 +8,7 @@ from guardian.shortcuts import assign_perm, remove_perm
 
 from borrowd.models import TrustLevel
 from borrowd_groups.exceptions import ModeratorRequiredException
-from borrowd_groups.models import BorrowdGroup, Membership
+from borrowd_groups.models import BorrowdGroup, Membership, MembershipStatus
 from borrowd_items.models import Item
 from borrowd_permissions.models import BorrowdGroupOLP, ItemOLP
 from borrowd_users.models import BorrowdUser
@@ -105,40 +105,50 @@ def refresh_permissions_on_membership_update(
     #
     user = instance.user
     borrowd_group = instance.group
-    # error: "_ST" has no attribute "name"  [attr-defined]
-    group = Group.objects.get(name=borrowd_group.name)  # type: ignore[attr-defined]
+    group = borrowd_group.perms_group or Group.objects.get(name=borrowd_group.name)
     new_trust_level = instance.trust_level
     membership = instance
 
-    # Get all items associated with the group
-    items_requiring_higher_trust = Item.objects.filter(
-        owner=user, trust_level_required__gt=new_trust_level
-    )
-    items_requiring_lower_trust = Item.objects.filter(
-        owner=user, trust_level_required__lte=new_trust_level
-    )
-
-    for item_perm in [ItemOLP.VIEW]:  # will have more later
-        remove_perm(item_perm, group, items_requiring_higher_trust)
-        assign_perm(item_perm, group, items_requiring_lower_trust)
-
-    #
     # Handle Group permissions
-    #
-    member_perms = [BorrowdGroupOLP.VIEW]
+    all_group_perms = [BorrowdGroupOLP.VIEW, BorrowdGroupOLP.EDIT, BorrowdGroupOLP.DELETE,]
     moderator_perms = [
         BorrowdGroupOLP.EDIT,
         BorrowdGroupOLP.DELETE,
     ]
-    if membership.is_moderator:
-        member_perms += moderator_perms
-    else:
-        # Remove moderator permissions if the user is no longer a moderator
-        for group_perm in moderator_perms:
-            remove_perm(group_perm, user, borrowd_group)
+    items_of_user = Item.objects.filter(owner=user)
 
-    for group_perm in member_perms:
-        assign_perm(group_perm, user, borrowd_group)
+    if membership.status == MembershipStatus.ACTIVE:
+        # Keep auth group membership in sync with ACTIVE status.
+        user.groups.add(group)
+
+        # Get all items associated with the group
+        items_requiring_higher_trust = Item.objects.filter(
+            owner=user, trust_level_required__gt=new_trust_level
+        )
+        items_requiring_lower_trust = Item.objects.filter(
+            owner=user, trust_level_required__lte=new_trust_level
+        )
+
+        for item_perm in [ItemOLP.VIEW]:  # will have more later
+            remove_perm(item_perm, group, items_requiring_higher_trust)
+            assign_perm(item_perm, group, items_requiring_lower_trust)
+
+        member_perms = [BorrowdGroupOLP.VIEW]
+        if membership.is_moderator:
+            member_perms += moderator_perms
+        else:
+            # Remove moderator permissions if the user is no longer a moderator
+            for group_perm in moderator_perms:
+                remove_perm(group_perm, user, borrowd_group)
+
+        for group_perm in member_perms:
+            assign_perm(group_perm, user, borrowd_group)
+    else:
+        user.groups.remove(group)
+        for group_perm in all_group_perms:
+            remove_perm(group_perm, user, borrowd_group)
+        for item_perm in [ItemOLP.VIEW]:  # will have more later
+            remove_perm(item_perm, group, items_of_user)
 
 
 @receiver(pre_delete, sender=Membership)
