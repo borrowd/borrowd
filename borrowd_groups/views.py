@@ -1,7 +1,6 @@
 from collections import namedtuple
 from typing import Any
 
-# from django.conf import settings
 from django.contrib import messages
 from django.core.signing import SignatureExpired, TimestampSigner
 from django.forms import ModelForm
@@ -20,6 +19,7 @@ from borrowd_permissions.mixins import (
 )
 from borrowd_permissions.models import BorrowdGroupOLP
 
+from .exceptions import ModeratorRequiredException
 from .filters import GroupFilter
 from .forms import GroupCreateForm, GroupJoinForm, UpdateTrustLevelForm
 from .models import BorrowdGroup, Membership
@@ -372,9 +372,18 @@ class RemoveMemberView(LoginRequiredMixin, View):  # type: ignore[misc]
             messages.error(request, "You cannot remove yourself from the group.")
             return redirect("borrowd_groups:group-detail", pk=pk)
 
-        # Remove the member
+        # Remove the member using the model method, which also removes the
+        # user from the underlying Django auth Group (perms_group), revoking
+        # their inherited object-level permissions on other members' items.
         member_name = membership.user.profile.full_name()  # type: ignore
-        membership.delete()
+        try:
+            group.remove_user(membership.user)  # type: ignore[arg-type]
+        except ModeratorRequiredException:
+            messages.error(
+                request,
+                f"Cannot remove {member_name}: they are the last moderator of this group.",
+            )
+            return redirect("borrowd_groups:group-detail", pk=pk)
         messages.success(request, f"{member_name} has been removed from the group.")
 
         return redirect("borrowd_groups:group-detail", pk=pk)

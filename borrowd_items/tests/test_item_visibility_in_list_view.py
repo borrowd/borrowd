@@ -1,7 +1,7 @@
 from django.test import RequestFactory, TestCase
 
 from borrowd.models import TrustLevel
-from borrowd_groups.models import BorrowdGroup
+from borrowd_groups.models import BorrowdGroup, Membership
 from borrowd_items.models import Item
 from borrowd_items.views import ItemListView
 from borrowd_users.models import BorrowdUser
@@ -236,3 +236,84 @@ class ItemListViewVisibilityTests(TestCase):
         self.assertEqual(len(items), 1)
         self.assertIn(item_low, items)
         self.assertNotIn(item_high, items)
+
+    def test_removed_member_loses_access_to_group_items(self) -> None:
+        """
+        `member` is removed from `group`, therefore `member` should no longer
+        see items owned by `owner` in the ItemListView.
+        """
+        owner = self.owner
+        member = self.member
+
+        item = Item.objects.create(
+            name="Owner Item",
+            description="Owned by group owner.",
+            owner=owner,
+            trust_level_required=TrustLevel.LOW,
+        )
+
+        group = BorrowdGroup.objects.create(
+            name="Test Group",
+            created_by=owner,
+            updated_by=owner,
+            trust_level=TrustLevel.HIGH,
+            membership_requires_approval=False,
+        )
+        group.add_user(member, trust_level=TrustLevel.LOW)
+
+        # Confirm access before removal
+        request = self.factory.get("/items/")
+        request.user = member
+        items_before = ItemListView.as_view()(request).context_data["item_list"]
+        self.assertIn(item, items_before)
+
+        # Remove via the model method
+        group.remove_user(member)
+
+        # Access must be revoked
+        request = self.factory.get("/items/")
+        request.user = member
+        items_after = ItemListView.as_view()(request).context_data["item_list"]
+        self.assertNotIn(item, items_after)
+        self.assertEqual(len(items_after), 0)
+
+    def test_direct_membership_deletion_revokes_access_to_group_items(self) -> None:
+        """
+        `member` is removed from `group` via `membership.delete()`,
+        therefore `member` should no longer see items owned by `owner`
+        in the ItemListView.
+        """
+        owner = self.owner
+        member = self.member
+
+        item = Item.objects.create(
+            name="Owner Item",
+            description="Owned by group owner.",
+            owner=owner,
+            trust_level_required=TrustLevel.LOW,
+        )
+
+        group = BorrowdGroup.objects.create(
+            name="Test Group 2",
+            created_by=owner,
+            updated_by=owner,
+            trust_level=TrustLevel.HIGH,
+            membership_requires_approval=False,
+        )
+        group.add_user(member, trust_level=TrustLevel.LOW, is_moderator=True)
+
+        # Confirm access before removal
+        request = self.factory.get("/items/")
+        request.user = member
+        items_before = ItemListView.as_view()(request).context_data["item_list"]
+        self.assertIn(item, items_before)
+
+        # Delete the Membership directly, bypassing group.remove_user()
+        Membership.objects.get(user=member, group=group).delete()
+
+        # Access must still be revoked via the pre_delete signal
+        request = self.factory.get("/items/")
+        request.user = member
+        items_after = ItemListView.as_view()(request).context_data["item_list"]
+        self.assertNotIn(item, items_after)
+        self.assertEqual(len(items_after), 0)
