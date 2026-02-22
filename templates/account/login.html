@@ -17,54 +17,45 @@
     {{ redirect_field }}
     {% for field in form.hidden_fields %}{{ field }}{% endfor %}
 
-    {# Email field #}
-    <fieldset class="fieldset">
-      <legend class="fieldset-legend text-sm font-medium">{% trans "Email" %}</legend>
-      <input
-        type="email"
-        name="login"
-        id="id_login"
-        class="input w-full"
-        placeholder="Email"
-        value="{{ form.login.value|default:'' }}"
-        autocomplete="email"
-      />
-      {% if form.login.errors %}
-        <p class="label text-error text-xs">{{ form.login.errors|join:", " }}</p>
-      {% endif %}
-    </fieldset>
+    <c-form.field
+      label="{% trans 'Email' %}"
+      type="email"
+      name="login"
+      id="id_login"
+      placeholder="Email"
+      value="{{ form.login.value|default:'' }}"
+      autocomplete="email"
+      errors="{{ form.login.errors|join:', ' }}"
+    />
 
     {# Password field #}
-    <fieldset class="fieldset">
-      <legend class="fieldset-legend text-sm font-medium">{% trans "Password" %}</legend>
-      <input
-        type="password"
-        name="password"
-        id="id_password"
-        class="input w-full"
-        placeholder="Password"
-        autocomplete="current-password"
-      />
-      {% if form.password.errors %}
-        <p class="label text-error text-xs">{{ form.password.errors|join:", " }}</p>
-      {% endif %}
-    </fieldset>
+    <c-form.field
+      label="{% trans 'Password' %}"
+      type="password"
+      name="password"
+      id="id_password"
+      placeholder="Password"
+      autocomplete="current-password"
+      errors="{{ form.password.errors|join:', ' }}"
+    />
 
     {# Forgot password link #}
     <div class="-mt-2">
-      <a href="{% url 'account_reset_password' %}" class="text-sm text-primary hover:underline">
+      <c-button-nav
+        class="text-sm text-primary hover:underline"
+        url="{% url 'account_reset_password' %}"
+        >
         {% trans "Forgot password?" %}
-      </a>
+        </c-button-nav>
+
     </div>
 
-    {# Primary action #}
     <c-button type="submit" class="btn btn-primary
         w-full
         {% if form.login.value %}btn-active{% endif %}  ">
       {% trans "Login" %}
     </c-button>
 
-    {# Secondary action #}
     {% url 'account_request_login_code' as req_code_url %}
     {% if req_code_url %}
      <c-button-nav

@@ -1,0 +1,18 @@
+<c-vars type="text" value="" input_class="" autocomplete="" inputmode="" />
+
+<fieldset class="fieldset">
+  <legend class="fieldset-legend text-sm font-medium">{{ label }}</legend>
+  <input
+    type="{{ type }}"
+    name="{{ name }}"
+    id="{{ id }}"
+    class="input w-full {{ input_class }}"
+    placeholder="{{ placeholder }}"
+    value="{{ value }}"
+    {% if autocomplete %}autocomplete="{{ autocomplete }}"{% endif %}
+    {% if inputmode %}inputmode="{{ inputmode }}"{% endif %}
+  />
+  {% if errors %}
+    <p class="label text-error text-xs">{{ errors }}</p>
+  {% endif %}
+</fieldset>

@@ -12,7 +12,7 @@
   {% endif %}
 
   <p class="text-sm text-base-content/60">
-    {% trans "Enter your email and we'll send you a one-time sign-in code." %}
+    {% trans "Enter your email address for your account and we will send you a code to login." %}
   </p>
 
   <form method="post" class="flex flex-col gap-4">
@@ -20,29 +20,26 @@
     {{ redirect_field }}
     {% for field in form.hidden_fields %}{{ field }}{% endfor %}
 
-    {# Email field #}
-    <fieldset class="fieldset">
-      <legend class="fieldset-legend text-sm font-medium">{% trans "Email" %}</legend>
-      <input
-        type="email"
-        name="email"
-        id="id_email"
-        class="input w-full"
-        placeholder="Email"
-        value="{{ form.email.value|default:'' }}"
-        autocomplete="email"
-      />
-      {% if form.email.errors %}
-        <p class="label text-error text-xs">{{ form.email.errors|join:", " }}</p>
-      {% endif %}
-    </fieldset>
+    <c-form.field
+      label="{% trans 'Email' %}"
+      type="email"
+      name="email"
+      id="id_email"
+      placeholder="Email"
+      value="{{ form.email.value|default:'' }}"
+      autocomplete="email"
+      errors="{{ form.email.errors|join:', ' }}"
+    />
 
-    <button type="submit" class="btn btn-primary w-full">
+      <c-button type="submit" class="btn btn-primary w-full
+        {% if form.email.value %}btn-active{% endif %}  ">
       {% trans "Request login code" %}
-    </button>
-
-    <a href="{% url 'account_login' %}" class="btn btn-ghost  w-full">
+    </c-button>
+    <c-button-nav
+      class="btn btn-ghost w-full"
+      url="{% url 'account_login' %}"
+      >
       {% trans "Cancel" %}
-    </a>
+    </c-button-nav>
   </form>
 {% endblock %}
