@@ -7,10 +7,10 @@
 {% block layout %}
 <main class="flex-grow flex justify-center items-center py-8 px-4">
   <div class="w-full max-w-3xl">
-    <c-box class=" flex flex-col md:flex-row">
-    <!-- <div class="bg-white rounded-2xl shadow-lg overflow-hidden flex flex-col md:flex-row"> -->
+   <div class="bg-white rounded-2xl shadow-lg overflow-hidden flex flex-col md:flex-row">
 
       {# ── Left: illustration panel (desktop only) ─────────────────────── #}
+      {% block auth_illustration %}
       <div class="hidden md:flex md:w-1/2 bg-blue-50 items-center justify-center p-8">
         <img
           src="{% static 'auth/auth-img.png' %}"
@@ -18,25 +18,30 @@
           class="w-full max-w-xs object-contain"
         />
       </div>
+      {% endblock %}
 
       {# ── Right: form panel ───────────────────────────────────────────── #}
-      <div class="w-full md:w-1/2 flex flex-col justify-center gap-5 p-8">
+      <div class="{% block auth_form_class %}w-full md:w-1/2{% endblock %} flex flex-col justify-center gap-5 p-8">
 
         {# Logo — desktop only #}
+        {% block auth_logo %}
         <div class="hidden md:flex justify-center mb-2">
           <img src="{% static 'borrowd-logo.svg' %}" alt="Borrow'd" class="h-10" />
         </div>
+        {% endblock %}
 
-        {# Heading — mobile only #}
-        <h1 class="md:hidden text-xl font-bold text-base-content">
-          {% block auth_mobile_title %}{% endblock %}
-        </h1>
+        {# On mobile: fieldset card with legend title matching Figma design #}
+        {# On desktop: plain container (border/legend hidden) #}
+        <fieldset class="fieldset border border-base-300 rounded-2xl p-6 md:border-0 md:rounded-none md:p-0">
+          <legend class="fieldset-legend text-sm font-semibold md:hidden">
+            {% block auth_mobile_title %}{% endblock %}
+          </legend>
 
-        {% block auth_content %}{% endblock %}
+          {% block auth_content %}{% endblock %}
+        </fieldset>
 
       </div>
-    <!-- </div> -->
-</c-box>
+</div>
 </div>
 </main>
 {% endblock %}
