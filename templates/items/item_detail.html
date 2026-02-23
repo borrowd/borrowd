@@ -1,43 +1,99 @@
-{% extends "items/layout.html" %}
+{% extends "items/layout.html" %} {% block head_title %}View Item{% endblock %}
+{% block items_content %} {% load static %}
+<c-box class="relative flex flex-col gap-3 items-center py-8">
+  <div class="w-full flex relative items-center">
+    <c-button-nav
+      url="{% url 'item-list' %}"
+      class="absolute top-0 left-0 translate-y-1.5"
+      >{% include "icons/arrow-left.svg" %}
+    </c-button-nav>
 
-{% block head_title %}View Item{% endblock %}
-{% block items_content %}
-<c-box class="relative flex flex-col items-center">
-    <div class="w-full flex">
-        <c-button-nav url="{% url 'item-list' %}" class="btn btn-ghost"><span>&larr;</span> Back to List</c-button-nav>
-
-        {% if user.is_authenticated and object.owner == user %}
-        <c-button-nav class="btn btn-warning flex items-center ml-auto"
-        url="{% url 'item-edit' object.pk %}">
-            <span class="inline-block mr-2 fill-white">{% include "icons/handyman.svg" %}</span>
-            Manage
-        </c-button-nav>
-        {% endif %}
+    <c-h1 class="font-normal text-[24px] w-full text-center"
+      >{{ object.name }}</c-h1
+    >
+  </div>
+  <div class="flex flex-col shadow-xl rounded-xl overflow-hidden">
+    <div
+      class="badge badge-soft badge-success w-full flex items-center justify-start px-3 p-5 rounded-b-none"
+    >
+      <span>{% include "icons/sparkles.svg" %}</span>
+      {% if object.status == 10 %}
+      <span class="font-medium">Available</span>
+      {% elif object.status == 20 %}
+      <span class="font-medium">Reserved</span>
+      {% elif object.status == 30 %}
+      <span class="font-medium">Borrowed</span>
+      {% endif %}
     </div>
-    <div class="flex flex-col w-3/4 items-center">
-        <c-h1>{{ object.name }}</c-h1>
-        {% if user.is_authenticated and object.owner == user %}
-        <div class="mb-2">
-            <c-trust-pill level="{{object.get_trust_level_required_display}}">
-                Trust Level: {{object.get_trust_level_required_display}}
-            </c-trust-pill>
-        </div>
-        {% endif %}
 
-        <c-gallery>
-            {% for photo in view.object.photos.all %}
-            <c-photo src="{{ photo.image.url }}"
-            alt="{{ view.object.name }} Photo {{ forloop.counter }}" />
-            {% endfor %}
-        </c-gallery>
+    <div class="py-1 px-3">
+      {% if view.object.photos.all %}
+      <c-gallery>
+        {% for photo in view.object.photos.all %}
+        <c-photo
+          src="{{ photo.image.url }}"
+          alt="{{ view.object.name }} Photo {{ forloop.counter }}"
+        />
+        {% endfor %}
+      </c-gallery>
+      {% else %}
+      <div class="relative py-1">
+        <img class="w-full h-full" src="{% static '/border-dashed.png' %}" />
+        <a
+          href="{% url 'itemphoto-create' item_pk=object.pk %}?next={% url 'item-detail' object.pk %}"
+          class="absolute btn border-none btn-soft top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
+        >
+          Add a photo
+        </a>
+      </div>
+      {% endif %}
+    </div>
 
-        <c-items.action-buttons-with-status
-            :action-context="action_context"
-        ></c-items.action-buttons-with-status>
+    <div class="px-3 flex items-center gap-3">
+      <div class="text-[#181818] font-semibold">{{ object.name }}</div>
+      <div class="badge badge-ghost text-xs p-3 font-medium">Yours</div>
     </div>
-    <div class="flex flex-col bg-borrowd-indigo-300/50 p-4 rounded-lg w-full">
-        <c-h2>Description</c-h2>
-        <p>{{ object.description }}</p>
+
+    <div class="px-3 text-[15px]">{{ object.description }}</div>
+
+    <div class="px-3 mt-8 flex items-center gap-3">
+      <div
+        class="text-xs font-normal underline underline-offset-2 decoration-dotted bg-base-content/60 bg-clip-text text-transparent"
+      >
+        Trust level:
+      </div>
+      {% if user.is_authenticated and object.owner == user %} {% if "High" in
+      object.get_trust_level_required_display %}
+      <div
+        class="badge badge-success badge-soft font-medium text-[14px] border-xl p-3"
+      >
+        {% include "icons/arrow-up.svg" %}
+        {{object.get_trust_level_required_display}} Trust
+      </div>
+      {% elif "Medium" in object.get_trust_level_required_display %}
+      <div
+        class="badge badge-warning badge-soft font-medium text-[14px] border-xl p-3"
+      >
+        {% include "icons/medium-icon.svg" %}
+        {{object.get_trust_level_required_display}} Trust
+      </div>
+      {% elif "Low" in object.get_trust_level_required_display %}
+      <div
+        class="badge badge-error badge-soft font-medium text-[14px] border-xl p-3"
+      >
+        {% include "icons/arrow-down.svg" %}
+        {{object.get_trust_level_required_display}} Trust
+      </div>
+      {% endif %} {% endif %}
     </div>
+
+    <div class="p-3 w-full">
+      <c-button-nav
+        url="{% url 'item-edit' object.pk %}"
+        class="btn btn-primary w-full"
+        >Edit item</c-button-nav
+      >
+    </div>
+  </div>
 </c-box>
 {% endblock %}

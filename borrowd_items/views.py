@@ -218,6 +218,7 @@ class ItemPhotoCreateView(
         context = super().get_context_data(**kwargs)
         item_pk = self.kwargs["item_pk"]
         context["item_pk"] = item_pk
+        context["next"] = self.request.GET.get("next")
         return context
 
     def form_valid(self, form: ItemPhotoForm) -> HttpResponse:
@@ -228,7 +229,14 @@ class ItemPhotoCreateView(
     def get_success_url(self) -> str:
         instance: ItemPhoto = self.object  # type: ignore[assignment]
         if instance is None:
-            return
+            return reverse("item-list")
+        
+        # Check if a 'next' parameter was provided
+        next_url = self.request.GET.get("next")
+        if next_url:
+            return next_url
+        
+        # Default to item edit page
         return reverse("item-edit", args=[instance.item_id])
 
 
