@@ -1,24 +1,37 @@
-{% extends "layouts/default.html" %}
+{% extends "base.html" %}
 {% load static %}
-{% block head_title %}Welcome{% endblock %}
-{% block content %}
-<section class="flex flex-col w-5/6 bg-white font-roboto-slab">
-    <h1 class="text-5xl text-center md:text-start text-gray-400 p-6 md:p-10">Welcome to Borrow'd!</h1>
-    <div class="flex flex-col lg:flex-row text-xl p-8 lg:px-12 gap-8">
-        <div class="flex flex-col gap-8 mt-4 lg:order-1 order-2 text-gray-600">
-            <p>
-               Borrow’d is a community-powered platform that helps you share with the people you trust in real life. It’s built around Groups - your friends, neighbors, and community members.
-            </p>
-            <p>
-                If you’re not in any Groups, you won’t see any items available to borrow - because sharing only happens within your chosen communities.
-            </p>
-            <p>
-                To join a group, use the invitation link that you received.
-            </p>
-            <p>
-                No invitation link? Create your own group, add some items to share, and invite your friends to join!
-            </p>
-        </div>
-        <img class="w-2/3 mx-auto max-w-xs lg:max-w-lg object-contain order-1 lg:order-2 drop-shadow-xl" src="{% static 'landing/index/landing-page-img.png' %}" />
-</section>
+{% load i18n %}
+{% block layout %}
+<main class="flex-grow flex justify-center items-center py-8 bg-white">
+<div class="flex flex-col items-center gap-4 font-roboto-slab max-w-4xl mx-auto px-6">
+    <img class="w-full max-w-md object-contain drop-shadow-xl" src="{% static 'landing/index/landing-page-img.png' %}" alt="Borrow'd illustration" />
+
+    <h1 class="text-4xl text-center text-gray-700">Welcome!</h1>
+
+    <div class="p-4 text-center">
+        Borrow'd is a community-powered platform that helps you share with the people you trust in real life.
+        <br/>
+        <br/>
+
+        By sharing what we already have, we lighten our environmental footprint and strengthen our communities.
+    </div>
+
+    {% if not user.is_authenticated %}
+    <div class="flex sm:flex-row gap-4 justify-center items-center mb-8">
+        {% url 'account_request_login_code' as login_url_ %}
+        {% if login_url_ %}
+            <a href="{{ login_url_ }}" class="btn btn-lg">
+                {% trans "Log In" %}
+            </a>
+        {% endif %}
+        {% url 'account_signup' as signup_url_ %}
+        {% if signup_url_ %}
+            <a href="{% url 'account_signup' %}" class="btn btn-primary btn-lg">
+                Sign up
+            </a>
+        {% endif %}
+    </div>
+    {% endif %}
+</main>
+</div>
 {% endblock %}

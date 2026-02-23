@@ -1,0 +1,54 @@
+<div id="groups-card-container" class="rounded-2xl shadow-md bg-white overflow-hidden">
+
+    <!-- Header -->
+    <div class="flex items-center gap-3 px-2.5 py-2.5 bg-white border-b border-gray-200">
+        <div class="label flex-1">
+            <span class=" text-xs font-semibold text-base-content-scale-70">
+            Group & trust level
+            </span>
+        </div>
+        <div class="label">
+            <span class="text-xs font-semibold text-base-content-scale-70">
+            Members
+            </span>
+        </div>
+    </div>
+
+    <!-- Group List -->
+    {% for membership in object_list %}
+        <div class="flex items-center gap-3 px-2.5 py-2.5 bg-white {% if not forloop.last %}border-b border-gray-200{% endif %}">
+            <!-- Group Logo -->
+            <div class="flex-shrink-0 w-12 h-12 overflow-hidden rounded-md">
+                {% if membership.group.logo %}
+                    <img class="w-full h-full object-cover"
+                        src="{{ membership.group.logo.url }}"
+                        alt="{{ membership.group.name }} Logo">
+                {% else %}
+                    <div class="w-full h-full bg-gray-200 flex items-center justify-center">
+                        <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                        </svg>
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Group Info -->
+            <div class="flex-1 flex flex-col gap-3 min-w-0">
+                <a href="{% url 'borrowd_groups:group-detail' membership.group.pk %}"
+                   class="text-base font-semibold text-base-content hover:underline truncate">
+                    {{ membership.group.name }}
+                </a>
+                <c-trust-level-badge level="{{ membership.get_trust_level_display }}" />
+            </div>
+
+            <!-- Member Count -->
+            <div class="text-base font-semibold text-base-content-scale-50 text-right w-5">
+                {{ membership.group.users.count }}
+            </div>
+        </div>
+    {% empty %}
+        <div class="px-6 py-8 text-center text-sm text-gray-500">
+            No groups found.
+        </div>
+    {% endfor %}
+</div>
