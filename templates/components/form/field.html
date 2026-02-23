@@ -9,7 +9,7 @@
         x-bind:type="show ? 'text' : 'password'"
         name="{{ name }}"
         id="{{ id }}"
-        class="input w-full pr-10  {{ input_class }}"
+        class="input w-full pr-10 placeholder:text-base-content/50 placeholder:text-xs {{ input_class }}"
         placeholder="{{ placeholder }}"
         value="{{ value }}"
         {% if autocomplete %}autocomplete="{{ autocomplete }}"{% endif %}
@@ -34,7 +34,7 @@
       type="{{ type }}"
       name="{{ name }}"
       id="{{ id }}"
-      class="input w-full {{ input_class }}"
+      class="input w-full placeholder:text-base-content/50 placeholder:text-xs {{ input_class }}"
       placeholder="{{ placeholder }}"
       value="{{ value }}"
       {% if autocomplete %}autocomplete="{{ autocomplete }}"{% endif %}
