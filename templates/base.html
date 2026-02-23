@@ -19,7 +19,9 @@
     {% include "includes/beta.html" %}
     {% endif %}
     {% include "includes/messages.html" %}
+    {% if user.is_authenticated %}
     {% include "includes/header.html" %}
+    {% endif %}
 
     {% block layout %}
     {% endblock %}
