@@ -25,7 +25,7 @@
       placeholder="Email"
       value="{{ form.login.value|default:'' }}"
       autocomplete="email"
-      errors="{{ form.login.errors|join:', ' }}"
+      input_class="text-base-content/50 text-xs "
     />
 
     {# Password field #}
@@ -37,12 +37,13 @@
       placeholder="Password"
       autocomplete="current-password"
       errors="{{ form.password.errors|join:', ' }}"
+        input_class="text-base-content/50 text-xs"
     />
 
     {# Forgot password link #}
     <div class="-mt-2">
       <c-button-nav
-        class="text-sm text-primary hover:underline"
+        class="text-xs text-info font-normal hover:underline"
         url="{% url 'account_reset_password' %}"
         >
         {% trans "Forgot password?" %}
@@ -58,19 +59,21 @@
 
     {% url 'account_request_login_code' as req_code_url %}
     {% if req_code_url %}
-     <c-button-nav
-            class="btn btn-soft text-primary btn-sm"
+
+         <c-button-nav
+            class="btn btn-soft text-primary w-full btn-sm font-semibold text-sm"
             url="{{ req_code_url }}"
             >
             {% trans "Request login code" %}
             </c-button-nav>
 
+
     {% endif %}
 
     {# Sign-up link #}
-    <p class="text-center text-sm text-base-content/60">
+    <p class="text-center text-xs  text-base-content/80 font-semibold">
       {% trans "Don't have an account?" %}
-       <c-button-nav class="text-primary hover:underline font-medium" url="{% url 'account_signup'%}">
+       <c-button-nav class="text-info underline " url="{% url 'account_signup'%}">
         {% trans "Sign up" %}
       </c-button-nav>
     </p>

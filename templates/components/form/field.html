@@ -1,7 +1,7 @@
 <c-vars type="text" value="" input_class="" autocomplete="" inputmode="" required="false" help_text="" show_toggle="false" />
 
 <fieldset class="fieldset">
-  <legend class="fieldset-legend text-sm font-medium">{{ label }}</legend>
+  <legend class="fieldset-legend text-xs font-normal text-base-content/60">{{ label }}</legend>
 
   {% if show_toggle == "true" %}
     <div x-data="{ show: false }" class="relative">
@@ -9,7 +9,7 @@
         x-bind:type="show ? 'text' : 'password'"
         name="{{ name }}"
         id="{{ id }}"
-        class="input w-full pr-10 {{ input_class }}"
+        class="input w-full pr-10  {{ input_class }}"
         placeholder="{{ placeholder }}"
         value="{{ value }}"
         {% if autocomplete %}autocomplete="{{ autocomplete }}"{% endif %}
