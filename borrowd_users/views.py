@@ -4,14 +4,21 @@ from allauth.account.views import PasswordChangeView
 from django.contrib import messages
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
-from django.http import HttpRequest, HttpResponse, HttpResponseBase, JsonResponse
-from django.shortcuts import redirect, render
+from django.http import (
+    Http404,
+    HttpRequest,
+    HttpResponse,
+    HttpResponseBase,
+    JsonResponse,
+)
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse_lazy
 from django.views.decorators.http import require_POST
 from django.views.generic import (
     CreateView,
 )
 
+from borrowd_groups.models import Membership
 from borrowd_items.card_helpers import (
     build_item_cards_for_items,
     build_item_cards_for_transactions,
@@ -20,6 +27,29 @@ from borrowd_items.models import Item, Transaction
 
 from .forms import ChangePasswordForm, CustomSignupForm, ProfileUpdateForm
 from .models import BorrowdUser
+
+
+@login_required
+def public_profile_view(request: HttpRequest, user_id: int) -> HttpResponse:
+    user = get_object_or_404(BorrowdUser, id=user_id)
+    profile = user.profile
+
+    # Allow users to view their own profile
+    if user == request.user:
+        return render(
+            request, "users/public-profile.html", {"profile": profile, "user_obj": user}
+        )
+
+    shared_groups_exist = Membership.objects.filter(
+        group__membership__user=request.user, user=user
+    ).exists()
+
+    if not shared_groups_exist:
+        raise Http404
+
+    return render(
+        request, "users/public-profile.html", {"profile": profile, "user_obj": user}
+    )
 
 
 @login_required

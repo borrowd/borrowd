@@ -1,0 +1,57 @@
+{% extends "layouts/default.html" %} {% block content %}
+<div class="w-full px-[32px] self-start rounded-md md:w-[500px] lg:w-[700px]">
+  <div class="flex items-center justify-center w-full relative">
+    <svg
+      class="absolute left-0 hover:text-black/60 cursor-pointer duration-150 stroke-[2] text-black"
+      width="24"
+      height="24"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path d="M19 12H5" stroke-linecap="round" stroke-linejoin="round" />
+      <path
+        d="M12 19L5 12L12 5"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      />
+    </svg>
+
+    <h4 class="text-center md:text-lg font-semibold leading-6">Profile</h4>
+  </div>
+
+  <div
+    class="lg:py-[30px] w-full flex flex-col justify-center items-center self-stretch gap-5 px-[16px] py-[14px] rounded-[4px] shadow-2xl mt-5 bg-white"
+  >
+    {% if profile.image %}
+    <img
+      src="{{ profile.image.url }}"
+      alt="Profile Picture"
+      id="avatar-preview"
+    />
+    {% else %}
+    <img
+      class="rounded-full w-20 h-20"
+      src="https://ui-avatars.com/api/?name={{ profile.full_name|urlencode }}&background=random"
+      alt="Profile Picture"
+      id="avatar-preview"
+    />
+    {% endif %}
+    <div
+      class="text-black text-center font-inter text-base font-medium leading-normal tracking-[-0.5px]"
+    >
+      {{profile.full_name}}
+    </div>
+    <div
+      class="text-center font-inter text-sm font-normal leading-normal tracking-[-0.5px]"
+    >
+      {{profile.bio|default:"This user hasn't added a bio yet."}}
+    </div>
+    <div class="text-[#757575]">
+      <span class="font-semibold">Email:</span> {{user.email}}
+    </div>
+  </div>
+</div>
+
+{% endblock %}
