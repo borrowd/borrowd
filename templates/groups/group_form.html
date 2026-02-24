@@ -1,40 +1,111 @@
-{% extends "groups/layout.html" %}
+{% extends "groups/layout.html" %} {% comment %} This template is used for both
+creating and editing. Checking `view.object.pk` is strangely the best way to
+check if we are creating or editing. {% endcomment %} {% block head_title %}{%
+if not view.object.pk %}Create{% else %}Edit{% endif %} Group{% endblock %} {%
+block groups_content %} {% load static %}
 
-{% comment %}
-    This template is used for both creating and editing.
-    Checking `view.object.pk` is strangely the best way to check
-    if we are creating or editing.
-{% endcomment %}
-{% block head_title %}{% if not view.object.pk %}Create{% else %}Edit{% endif %} Group{% endblock %}
-
-{% block groups_content %}
 <c-box>
-    <c-h1>{% if not view.object.pk %}Create{% else %}Edit{% endif %} Group</c-h1>
-    <form method="post" enctype="multipart/form-data" class="flex flex-col space-y-2" onsubmit="this.querySelector('button[type=submit]').disabled = true;">
-        {% csrf_token %}
-        {% for field in form %}
-        <div class="">
-            {{ field.errors }}
-            <b>{{ field.label_tag }}</b>
-            <p class="help italic" id="{{ field.auto_id }}_helptext">
-                {{ field.help_text|safe }}
-            </p>
-            <div class="border-2 border-gray-200 w-fit">{{ field }} </div>
-            {% if field.help_text %}
-            {% endif %}
+  <div class="relative">
+    <div class="absolute top-0 left-0">
+      {% include "icons/arrow-left.svg" %}
+    </div>
+    <c-h1 class="text-3xl font-normal mb-4 text-center"
+      >{% if not view.object.pk %}Create a{% else %}Edit{% endif %} group</c-h1
+    >
+  </div>
+  <form
+    method="post"
+    enctype="multipart/form-data"
+    class="flex flex-col space-y-2"
+    onsubmit="this.querySelector('button[type=submit]').disabled = true"
+  >
+    {% csrf_token %} {% for field in form %}
+    <div class="">
+      {{ field.errors }} {% if field.field.widget.input_type == "checkbox" %}
+      <div
+        class="mt-2 flex mb-3 items-center gap-3 font-sans font-normal leading-snug text-sm text-black/60"
+      >
+        {{ field }}
+        <div>
+          <label
+            for="{{ field.id_for_label }}"
+            class="font-sans font-normal leading-[1.8] text-black/60"
+          >
+            {{ field.label }}
+          </label>
+          {% if field.help_text %}
+          <p class="help" id="{{ field.auto_id }}_helptext">
+            {{ field.help_text|safe }}
+          </p>
+          {% endif %}
         </div>
-        {% endfor %}
-        <div class="flex gap-4">
-            <c-button type="submit">Save</c-button>
-            {% if form.instance.pk %}
-                <c-button-nav url="{% url 'borrowd_groups:group-detail' form.instance.pk %}" class="btn btn-ghost">
-                    Cancel
-                </c-button-nav>
-                <c-button-nav url="{% url 'borrowd_groups:group-delete' form.instance.pk %}" class="btn btn-error">
-                    Delete
-                </c-button-nav>
-            {% endif %}
-        </div>
-    </form>
+      </div>
+
+      {% else %}
+      <label
+        for="{{ field.id_for_label }}"
+        class="font-sans font-normal leading-[1.8] text-black/60"
+      >
+        {{ field.label }}
+      </label>
+
+      {% if field.help_text %}
+      <p class="help italic" id="{{ field.auto_id }}_helptext">
+        {{ field.help_text|safe }}
+      </p>
+      {% endif %}
+
+      <div class="relative border-2 border-gray-200 w-full mt-1.5 rounded-md">
+        {{ field }} {% if field.field.widget.input_type == "select" %}
+        <svg
+          class="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 pointer-events-none"
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M19 9l-7 7-7-7"
+          />
+        </svg>
+        {% endif %}
+      </div>
+
+      {% if field.name == "banner" %}
+      <div class="font-sans font-normal leading-[1.8] text-black/60 text-sm">
+        Max size 2MB
+      </div>
+      {% endif %} {% endif %}
+    </div>
+    {% endfor %}
+    <div class="flex gap-4">
+      <c-button class="btn btn-primary" type="submit">Save group</c-button>
+      {% if form.instance.pk %}
+      <c-button-nav
+        url="{% url 'borrowd_groups:group-detail' form.instance.pk %}"
+        class="btn btn-ghost"
+      >
+        Cancel
+      </c-button-nav>
+
+      <c-button-nav
+        url="{% url 'borrowd_groups:group-delete' form.instance.pk %}"
+        class="btn btn-error"
+      >
+        Delete
+      </c-button-nav>
+      {% else %}
+      <c-button-nav
+        url="{% url 'borrowd_groups:group-list' %}"
+        class="btn btn-soft"
+      >
+        Cancel
+      </c-button-nav>
+      {% endif %}
+    </div>
+  </form>
 </c-box>
 {% endblock %}

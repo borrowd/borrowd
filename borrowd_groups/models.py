@@ -90,7 +90,7 @@ class BorrowdGroup(Model):
     )
     membership_requires_approval: BooleanField[Never, Never] = BooleanField(
         default=True,
-        help_text="If true, new members will require Moderator approval to join the group.",
+        help_text="New members require Moderator approval to join the group",
     )
     users: ManyToManyField[BorrowdUser, BorrowdUser] = ManyToManyField(
         BorrowdUser,
