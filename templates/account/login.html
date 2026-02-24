@@ -61,7 +61,7 @@
     {% if req_code_url %}
 
          <c-button-nav
-            class="btn btn-soft text-primary w-full btn-sm font-semibold text-sm"
+            class="btn btn-soft text-primary w-full font-semibold"
             url="{{ req_code_url }}"
             >
             {% trans "Request login code" %}
@@ -69,13 +69,15 @@
 
 
     {% endif %}
-
-    {# Sign-up link #}
-    <p class="text-center text-xs  text-base-content/80 font-semibold">
-      {% trans "Don't have an account?" %}
-       <c-button-nav class="text-info underline " url="{% url 'account_signup'%}">
-        {% trans "Sign up" %}
-      </c-button-nav>
-    </p>
   </form>
+{% endblock %}
+
+{% block auth_footer %}
+  {# Sign-up link #}
+  <p class="text-center text-xs  text-base-content/80 font-semibold">
+    {% trans "Don't have an account?" %}
+     <c-button-nav class="text-info underline " url="{% url 'account_signup'%}">
+      {% trans "Sign up" %}
+    </c-button-nav>
+  </p>
 {% endblock %}

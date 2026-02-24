@@ -2,7 +2,7 @@
 {% load i18n %}
 
 {% block auth_title %}{% trans "Enter Login Code" %}{% endblock %}
-{% block auth_mobile_title %}{% trans "Enter code" %}{% endblock %}
+{% block auth_mobile_title %}{% trans "Enter sign-in code" %}{% endblock %}
 
 {% block auth_content %}
   {% if form.non_field_errors %}
@@ -11,7 +11,7 @@
     </div>
   {% endif %}
 
-  <p class="text-sm text-base-content/60">
+  <p class="text-sm text-base-content leading-5">
     {% trans "We've sent a login code to your email, please enter it below." %}
   </p>
 
@@ -28,7 +28,6 @@
       placeholder="{% trans 'Enter your code' %}"
       autocomplete="one-time-code"
       inputmode="numeric"
-      input_class="tracking-widest text-center text-lg"
       errors="{{ form.code.errors|join:', ' }}"
     />
 
