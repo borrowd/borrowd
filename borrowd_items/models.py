@@ -101,7 +101,7 @@ class Item(Model):
     )
     trust_level_required: IntegerField[TrustLevel, int] = IntegerField(
         choices=TrustLevel,
-        default=TrustLevel.HIGH,
+        default=TrustLevel.STANDARD,
         help_text=(
             "The minimum required Group trust level required for"
             " this Item to be visible to and borrowable by members"

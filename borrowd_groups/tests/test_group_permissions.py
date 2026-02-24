@@ -34,7 +34,7 @@ class GroupPermissionTests(TestCase):
             name="Group 1",
             created_by=owner,
             updated_by=owner,
-            trust_level=TrustLevel.LOW,
+            trust_level=TrustLevel.STANDARD,
             membership_requires_approval=False,
         )
 
@@ -53,9 +53,9 @@ class GroupPermissionTests(TestCase):
             name="Group 1",
             created_by=owner,
             updated_by=owner,
-            trust_level=TrustLevel.LOW,
+            trust_level=TrustLevel.STANDARD,
         )
-        group.add_user(member, trust_level=TrustLevel.LOW, is_moderator=False)
+        group.add_user(member, trust_level=TrustLevel.STANDARD, is_moderator=False)
 
         # Assert
         self.assertTrue(member.has_perm(BorrowdGroupOLP.VIEW, group))
@@ -77,11 +77,11 @@ class GroupPermissionTests(TestCase):
             name="Group 1",
             created_by=owner,
             updated_by=owner,
-            trust_level=TrustLevel.LOW,
+            trust_level=TrustLevel.STANDARD,
             membership_requires_approval=False,
         )
-        group.add_user(member, trust_level=TrustLevel.LOW, is_moderator=False)
-        group.add_user(moderator, trust_level=TrustLevel.LOW, is_moderator=True)
+        group.add_user(member, trust_level=TrustLevel.STANDARD, is_moderator=False)
+        group.add_user(moderator, trust_level=TrustLevel.STANDARD, is_moderator=True)
 
         # Assert
         self.assertTrue(owner.has_perm(BorrowdGroupOLP.VIEW, group))
@@ -105,10 +105,10 @@ class GroupPermissionTests(TestCase):
             name="Group 1",
             created_by=owner,
             updated_by=owner,
-            trust_level=TrustLevel.LOW,
+            trust_level=TrustLevel.STANDARD,
             membership_requires_approval=False,
         )
-        group.add_user(moderator, trust_level=TrustLevel.LOW, is_moderator=True)
+        group.add_user(moderator, trust_level=TrustLevel.STANDARD, is_moderator=True)
 
         ## Check initial permissions
         self.assertTrue(moderator.has_perm(BorrowdGroupOLP.EDIT, group))
@@ -130,10 +130,10 @@ class GroupPermissionTests(TestCase):
             name="Group 1",
             created_by=owner,
             updated_by=owner,
-            trust_level=TrustLevel.LOW,
+            trust_level=TrustLevel.STANDARD,
             membership_requires_approval=False,
         )
-        group.add_user(member, trust_level=TrustLevel.LOW, is_moderator=False)
+        group.add_user(member, trust_level=TrustLevel.STANDARD, is_moderator=False)
 
         ## Check initial permissions
         self.assertTrue(member.has_perm(BorrowdGroupOLP.VIEW, group))
