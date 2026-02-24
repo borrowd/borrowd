@@ -72,14 +72,15 @@ block groups_content %} {% load static %}
       </div>
 
       {% if field.name == "banner" %}
-      <div class="font-sans font-normal leading-[1.8] text-black/60 text-sm">
+      <div
+        class="font-sans font-normal leading-[1.8] text-black/60 text-sm mt-2"
+      >
         Max size 2MB
       </div>
       {% endif %} {% endif %}
     </div>
     {% endfor %}
-    <div class="flex gap-4">
-      <c-button class="btn btn-primary" type="submit">Save group</c-button>
+    <div class="flex gap-4 w-full justify-end">
       {% if form.instance.pk %}
       <c-button-nav
         url="{% url 'borrowd_groups:group-detail' form.instance.pk %}"
@@ -91,11 +92,12 @@ block groups_content %} {% load static %}
       {% else %}
       <c-button-nav
         url="{% url 'borrowd_groups:group-list' %}"
-        class="btn btn-soft"
+        class="btn btn-ghost"
       >
         Cancel
       </c-button-nav>
       {% endif %}
+      <c-button class="btn btn-primary" type="submit">Save group</c-button>
     </div>
   </form>
 </c-box>
