@@ -172,7 +172,7 @@ class RejectedFlowTest(SimpleTestCase):
         # Assert
         #
         ## Check return code
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 302)
         ## Check that one Transaction was created
         self.assertEqual(self.item.transactions.count(), 1)
         ## Check that the transaction is in the correct state
@@ -180,11 +180,10 @@ class RejectedFlowTest(SimpleTestCase):
         if tx is None:
             self.fail("Should have a Transaction")
         self.assertEqual(tx.status, TransactionStatus.REQUESTED)
-        ## Rendered in a component that creates buttons
-        ## for next actions.
-        self.assertContains(
-            response,
-            "Cancel Request",
+        ## Redirects to item detail page after processing action
+        self.assertEqual(
+            response.url,  # type: ignore[attr-defined]
+            reverse("item-detail", kwargs={"pk": self.item.pk}),
         )
 
     def test_040_lender_item_actions_following_request(self) -> None:
@@ -217,13 +216,15 @@ class RejectedFlowTest(SimpleTestCase):
         # Assert
         #
         ## Check if the owner can see the item
-        self.assertTupleEqual(
+        self.assertCountEqual(
             item_actions,
             (
                 ItemAction.ACCEPT_REQUEST,
                 ItemAction.REJECT_REQUEST,
             ),
         )
+        self.assertIn(ItemAction.ACCEPT_REQUEST, item_actions)
+        self.assertIn(ItemAction.REJECT_REQUEST, item_actions)
 
     def test_050_lender_reject_request_action(self) -> None:
         """
@@ -250,7 +251,7 @@ class RejectedFlowTest(SimpleTestCase):
         # Assert
         #
         ## Check return code
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 302)
         ## Check that one Transaction was created
         self.assertEqual(self.item.transactions.count(), 1)
         ## Check that the transaction is in the correct state

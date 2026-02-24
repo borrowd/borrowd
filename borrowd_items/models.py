@@ -114,8 +114,9 @@ class Item(Model):
         help_text="The current status of the Item.",
     )
 
-    # Hint for mypy (actual field created from reverse relation)
+    # Hints for mypy (actual fields created from reverse relations)
     transactions: QuerySet["Transaction"]
+    photos: QuerySet["ItemPhoto"]
 
     def __str__(self) -> str:
         return self.name
@@ -303,8 +304,8 @@ class Item(Model):
                 # Transaction is a Request from another User.
                 # The owner can either Accept or Reject the Request.
                 return (
-                    ItemAction.ACCEPT_REQUEST,
                     ItemAction.REJECT_REQUEST,
+                    ItemAction.ACCEPT_REQUEST,
                 )
             else:
                 # The User is the requestor and the current
@@ -315,8 +316,8 @@ class Item(Model):
         elif current_tx.status == TransactionStatus.ACCEPTED:
             # Either borrower or lender can assert collection.
             return (
-                ItemAction.MARK_COLLECTED,
                 ItemAction.CANCEL_REQUEST,
+                ItemAction.MARK_COLLECTED,
             )
         elif current_tx.status == TransactionStatus.COLLECTION_ASSERTED:
             # Make sure the same person doesn't confirm the assertion
