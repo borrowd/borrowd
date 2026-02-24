@@ -88,12 +88,6 @@ block groups_content %} {% load static %}
         Cancel
       </c-button-nav>
 
-      <c-button-nav
-        url="{% url 'borrowd_groups:group-delete' form.instance.pk %}"
-        class="btn btn-error"
-      >
-        Delete
-      </c-button-nav>
       {% else %}
       <c-button-nav
         url="{% url 'borrowd_groups:group-list' %}"
