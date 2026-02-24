@@ -14,13 +14,14 @@
     {% vite_hmr_client %}
     {% vite_asset 'static/js/main.js' %}
 </head>
-<body x-data class="flex flex-col justify-center min-h-screen bg-gray-100" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
-
+<body x-data class="flex flex-col justify-center min-h-screen bg-base-200" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
     {% if borrowd_beta_enabled %}
     {% include "includes/beta.html" %}
     {% endif %}
     {% include "includes/messages.html" %}
+    {% if user.is_authenticated %}
     {% include "includes/header.html" %}
+    {% endif %}
 
     {% block layout %}
     {% endblock %}

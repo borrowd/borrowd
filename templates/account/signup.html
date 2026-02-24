@@ -4,138 +4,138 @@
 {% block head_title %}Sign Up{% endblock %}
 
 {% block layout %}
-        <div class="flex justify-center items-center bg-base-200 md:p-8" >
-    <div class="p-8 w-full max-w-2xl shadow-sm relative">
-        <div class="text-center">
-            <c-h1 class="font-normal text-2xl text-black">Create your account</c-h1>
-            <p class="mt-2 text-center text-m text-black">
-                We're building a community based on trust. Using your real name helps others know who they're sharing with!
-            </p>
-        </div>
+    <div class="flex justify-center items-center md:p-8" >
+    <div class="p-8 w-full max-w-2xl shadow-sm relative max-w-[485px] md:bg-primary-content" >
+     <div class="text-center">
+         <c-h1 class="font-normal text-2xl text-black">Create your account</c-h1>
+         <p class="mt-2 text-center text-m text-black">
+          We're building a community based on trust. Using your real name helps others know who they're sharing with!
+         </p>
+     </div>
 
-        <form class="mt-8 space-y-6" method="post" onsubmit="this.querySelector('button[type=submit]').disabled = true;">
-            {% csrf_token %}
+     <form class="mt-8 space-y-6 [&_input]:bg-primary-content [&_textarea]:bg-primary-content [&_input]:border-base-content/20 [&_textarea]:border-base-content/20" method="post" onsubmit="this.querySelector('button[type=submit]').disabled = true;">
+         {% csrf_token %}
 
-            {% if form.non_field_errors %}
-                <div class="rounded-md bg-red-50 p-4">
-                    <div class="text-sm text-red-700">
-                        {{ form.non_field_errors }}
-                    </div>
+         {% if form.non_field_errors %}
+          <div class="rounded-md bg-red-50 p-4">
+              <div class="text-sm text-red-700">
+               {{ form.non_field_errors }}
+              </div>
+          </div>
+         {% endif %}
+
+         <div class="rounded-md  space-y-4">
+
+
+          <!-- First name field -->
+          <div>
+              <label for="{{ form.first_name.id_for_label }}" class="block text-xs font-normal text-base-content/60 mb-1.5">
+               {% trans "First name" %}
+              </label>
+              <div>
+               {{ form.first_name }}
+               {% if form.first_name.errors %}
+                <div class="mt-1 text-sm text-red-600">
+                    {{ form.first_name.errors }}
                 </div>
-            {% endif %}
+               {% endif %}
+              </div>
+          </div>
 
-            <div class="rounded-md  space-y-4">
-
-
-                <!-- First name field -->
-                <div>
-                    <label for="{{ form.first_name.id_for_label }}" class="block text-xs font-medium text-base-content-scale-60 mb-1.5">
-                        {% trans "First name" %}
-                    </label>
-                    <div>
-                        {{ form.first_name }}
-                        {% if form.first_name.errors %}
-                            <div class="mt-1 text-sm text-red-600">
-                                {{ form.first_name.errors }}
-                            </div>
-                        {% endif %}
-                    </div>
+          <!-- Last name field -->
+          <div>
+              <label for="{{ form.last_name.id_for_label }}" class="block text-xs font-normal text-base-content/60 mb-1.5">
+               {% trans "Last name" %}
+              </label>
+              <div>
+               {{ form.last_name }}
+               {% if form.last_name.errors %}
+                <div class="mt-1 text-sm text-red-600">
+                    {{ form.last_name.errors }}
                 </div>
+               {% endif %}
+              </div>
+          </div>
 
-                <!-- Last name field -->
-                <div>
-                    <label for="{{ form.last_name.id_for_label }}" class="block text-xs font-medium text-base-content-scale-60 mb-1.5">
-                        {% trans "Last name" %}
-                    </label>
-                    <div>
-                        {{ form.last_name }}
-                        {% if form.last_name.errors %}
-                            <div class="mt-1 text-sm text-red-600">
-                                {{ form.last_name.errors }}
-                            </div>
-                        {% endif %}
-                    </div>
+          <!-- Email field -->
+          <div>
+              <label for="{{ form.email.id_for_label }}" class="block text-xs font-normal text-base-content/60 mb-1.5">
+               {% trans "Email" %}
+              </label>
+              <div>
+               {{ form.email }}
+               {% if form.email.errors %}
+                <div class="mt-1 text-sm text-red-600">
+                    {{ form.email.errors }}
                 </div>
+               {% endif %}
+              </div>
+          </div>
+              <!-- Bio field -->
+          <div x-data="{ bioText: '{{ form.bio.value|default:'' }}' }">
+              <label for="{{ form.bio.id_for_label }}" class="block text-xs font-normal text-base-content/60 mb-1.5">
+               {% trans "Tell us about yourself and what you can share." %}
+              </label>
+              <div>
+               {{ form.bio }}
+               <div class="mt-1 text-sm text-base-content/60">
+                <span x-text="bioText.length"></span>/200
+               </div>
+               {% if form.bio.errors %}
+                <div class="mt-1 text-sm text-red-600">
+                    {{ form.bio.errors }}
+                </div>
+               {% endif %}
+              </div>
+          </div>
+          <!-- Password field -->
+          <div>
+              <label for="{{ form.password1.id_for_label }}" class="block text-xs font-normal text-base-content/60 mb-1.5">
+               {% trans "Password" %}
+              </label>
+              <div>
+               {{ form.password1 }}
+               {% if form.password1.help_text %}
+                <div class="mt-1 text-xs text-base-content/60">
+                    {{ form.password1.help_text }}
+                </div>
+               {% endif %}
+               {% if form.password1.errors %}
+                <div class="mt-1 text-sm text-red-600">
+                    {{ form.password1.errors }}
+                </div>
+               {% endif %}
+              </div>
+          </div>
 
-                <!-- Email field -->
-                <div>
-                    <label for="{{ form.email.id_for_label }}" class="block text-xs font-medium text-base-content-scale-60 mb-1.5">
-                        {% trans "Email" %}
-                    </label>
-                    <div>
-                        {{ form.email }}
-                        {% if form.email.errors %}
-                            <div class="mt-1 text-sm text-red-600">
-                                {{ form.email.errors }}
-                            </div>
-                        {% endif %}
-                    </div>
+          <!-- Password confirmation field -->
+          <div>
+              <label for="{{ form.password2.id_for_label }}" class="block text-xs font-normal text-base-content/60 mb-1.5">
+               {% trans "Confirm password" %}
+              </label>
+              <div>
+               {{ form.password2 }}
+               {% if form.password2.errors %}
+                <div class="mt-1 text-xs text-red-600">
+                    {{ form.password2.errors }}
                 </div>
-                    <!-- Bio field -->
-                <div x-data="{ bioText: '{{ form.bio.value|default:'' }}' }">
-                    <label for="{{ form.bio.id_for_label }}" class="block text-xs font-medium text-base-content-scale-60 mb-1.5">
-                        {% trans "Tell us about yourself and what you can share." %}
-                    </label>
-                    <div>
-                        {{ form.bio }}
-                        <div class="mt-1 text-xs text-base-content-scale-60">
-                            <span x-text="bioText.length"></span>/200
-                        </div>
-                        {% if form.bio.errors %}
-                            <div class="mt-1 text-sm text-red-600">
-                                {{ form.bio.errors }}
-                            </div>
-                        {% endif %}
-                    </div>
-                </div>
-                <!-- Password field -->
-                <div>
-                    <label for="{{ form.password1.id_for_label }}" class="block text-xs font-medium text-base-content-scale-60 mb-1.5">
-                        {% trans "Password" %}
-                    </label>
-                    <div>
-                        {{ form.password1 }}
-                        {% if form.password1.help_text %}
-                            <div class="mt-1 text-xs text-base-content-scale-60">
-                                {{ form.password1.help_text }}
-                            </div>
-                        {% endif %}
-                        {% if form.password1.errors %}
-                            <div class="mt-1 text-sm text-red-600">
-                                {{ form.password1.errors }}
-                            </div>
-                        {% endif %}
-                    </div>
-                </div>
+               {% endif %}
+              </div>
+          </div>
+         </div>
 
-                <!-- Password confirmation field -->
-                <div>
-                    <label for="{{ form.password2.id_for_label }}" class="block text-xs font-medium text-base-content-scale-60 mb-1.5">
-                        {% trans "Confirm password" %}
-                    </label>
-                    <div>
-                        {{ form.password2 }}
-                        {% if form.password2.errors %}
-                            <div class="mt-1 text-xs text-red-600">
-                                {{ form.password2.errors }}
-                            </div>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-
-            <div class="mb-4 flex items-center">
-                <label for="id_signup_agreements" class="ml-2 text-xs font-semibold text-gray-800">
-                    By continuing registration, you agree to <a href="https://borrowd.org/terms-of-use/" target="_blank" rel="noopener noreferrer" class="text-info">Terms of Use</a> and
-                    <a href="https://borrowd.org/liability-agreement/" target="_blank" rel="noopener noreferrer" class="text-info">Liability Agreement</a>.
-                </label>
-            </div>
-            <div class="mx-auto w-fit">
-                <c-button type="submit" class="btn btn-primary mr-2">
-                    {% trans "Continue" %}
-                </c-button>
-            </div>
-        </form>
+         <div class="mb-4 flex items-center">
+          <label for="id_signup_agreements" class="ml-2 text-xs font-semibold text-gray-800">
+              By continuing registration, you agree to <a href="https://borrowd.org/terms-of-use/" target="_blank" rel="noopener noreferrer" class="text-info">Terms of Use</a> and
+              <a href="https://borrowd.org/liability-agreement/" target="_blank" rel="noopener noreferrer" class="text-info">Liability Agreement</a>.
+          </label>
+         </div>
+         <div class="mx-auto w-fit md:w-full">
+          <c-button type="submit" class="btn btn-primary mr-2 md:w-full">
+              {% trans "Continue" %}
+          </c-button>
+         </div>
+     </form>
     </div>
 </div>
 {% endblock %}
