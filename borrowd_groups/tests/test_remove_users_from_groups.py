@@ -24,7 +24,7 @@ class RemoveUsersFromGroupsTests(TestCase):
             updated_by=user,
             membership_requires_approval=False,
         )
-        group.add_user(member, trust_level=TrustLevel.LOW)
+        group.add_user(member, trust_level=TrustLevel.STANDARD)
 
         # Act
         ## Remove the user from the group
@@ -51,7 +51,7 @@ class RemoveUsersFromGroupsTests(TestCase):
             membership_requires_approval=False,
         )
         for user in [user2, user3]:
-            group.add_user(user, is_moderator=True, trust_level=TrustLevel.MEDIUM)
+            group.add_user(user, is_moderator=True, trust_level=TrustLevel.STANDARD)
 
         # Act
         ## Remove all users from the group
@@ -95,7 +95,7 @@ class RemoveUsersFromGroupsTests(TestCase):
             name="Group 1",
             created_by=owner,
             updated_by=owner,
-            trust_level=TrustLevel.LOW,
+            trust_level=TrustLevel.STANDARD,
         )
 
         # Assert
@@ -114,7 +114,7 @@ class RemoveUsersFromGroupsTests(TestCase):
             name="Group 1",
             created_by=owner,
             updated_by=owner,
-            trust_level=TrustLevel.LOW,
+            trust_level=TrustLevel.STANDARD,
         )
 
         # Assert

@@ -1,0 +1,75 @@
+{% comment %}
+Item Card Component
+
+A horizontal card layout for displaying items with contextual headers and inline action buttons.
+
+Parameters:
+- pk: Item ID
+- name: Title
+- description: Description text
+- image: Thumbnail URL
+- is_yours: Boolean - show "Yours" badge
+- banner_type: 'requested' | 'available' | 'reserved' | 'borrowed' | none
+- person_name: Name of person for banners (requested/reserved/borrowed)
+- person_url: Profile URL for person_name link
+- time_ago: Time since action (e.g., "2 hours")
+- item: Item object (for form action URLs)
+- action_context: ItemActionContext with .actions and .status_text (from get_action_context_for)
+- show_actions: Boolean - render action buttons
+- variant: 'default' | 'compact'
+
+ {% if variant == 'compact' %}max-w-sm{% else %}w-[18rem] h-[9.375rem]{% endif %}
+
+{% endcomment %}
+{% load static %}
+{% firstof card_id "item-card-"|add:context|add:"-"|add:pk as card_id %}
+{% firstof modal_suffix "-"|add:context|add:"-"|add:pk as modal_suffix %}
+{% firstof actions_container_id "item-card-actions-"|add:context|add:"-"|add:pk as actions_container_id %}
+{% firstof request_modal_id "request-item-modal-"|add:context|add:"-"|add:pk as request_modal_id %}
+{% firstof accept_modal_id "accept-request-modal-"|add:context|add:"-"|add:pk as accept_modal_id %}
+<div id="{{ card_id }}"
+     class="bg-base-100 rounded-2xl shadow-md overflow-hidden w-full">
+    {% if banner_type %}
+        {% include "components/items/item_card_header.html" with banner_type=banner_type banner_bg=banner_bg banner_text=banner_text banner_icon=banner_icon person_name=person_name person_url=person_url time_ago=time_ago %}
+    {% endif %}
+
+    <div class="flex flex-col">
+        <div class="flex flex-row items-start gap-3 p-3">
+            <!-- Thumbnail -->
+            <div class="w-1/2 shrink-0">
+                <a href="{% url 'item-detail' pk %}">
+                    <img
+                        src="{{ image|default:'/static/items/categories/logo-tools.png' }}"
+                        alt="{{ name|default:'Item image' }}"
+                        class="w-full aspect-square object-cover rounded-md"
+                    />
+                </a>
+            </div>
+
+            <!-- Content -->
+            <div class="flex flex-col w-1/2 min-w-0">
+                <a href="{% url 'item-detail' pk %}">
+                    {% if is_yours %}
+                        <div class="rounded-4xl h-xs max-w-xs w-fit p-1 pl-2 pr-2 bg-gray-100 border-solid border-2 border-gray-200 mt-1 mb-3 sm:mb-4">
+                            <span class="text-sm text-gray-900 text-center">Yours</span>
+                        </div>
+                    {% endif %}
+                    <h3 class="text-base sm:text-xl md:text-2xl font-semibold text-gray-900 line-clamp-2 break-words">{{ name }}</h3>
+                    <p class="text-sm sm:text-base text-gray-900 line-clamp-5 md:line-clamp-[11] mt-2 break-words">{{ description }}</p>
+                </a>
+            </div>
+        </div>
+        {% if show_actions and action_context.actions %}
+            {% include "components/items/action_buttons_with_status.html" with item=item action_context=action_context variant="card" container_id=actions_container_id modal_suffix=modal_suffix %}
+        {% endif %}
+    </div>
+
+    {% if show_actions %}
+        {% include "components/items/accept_request_modal.html" with item=item modal_id=accept_modal_id %}
+        {% include "components/items/request_item_modal.html" with item=item modal_id=request_modal_id %}
+        {% include "components/items/mark_collected_modal.html" with item=item modal_id="mark-collected-modal"|add:modal_suffix %}
+        {% include "components/items/mark_collected_modal.html" with item=item modal_id="confirm-collected-modal"|add:modal_suffix collected_action="CONFIRM_COLLECTED" %}
+        {% include "components/items/mark_returned_modal.html" with item=item modal_id="mark-returned-modal"|add:modal_suffix %}
+        {% include "components/items/mark_returned_modal.html" with item=item modal_id="confirm-returned-modal"|add:modal_suffix returned_action="CONFIRM_RETURNED" %}
+    {% endif %}
+</div>

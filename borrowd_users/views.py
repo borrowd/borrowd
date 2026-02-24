@@ -4,50 +4,53 @@ from allauth.account.views import PasswordChangeView
 from django.contrib import messages
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
-from django.http import HttpRequest, HttpResponse, HttpResponseBase, JsonResponse
-from django.shortcuts import redirect, render
+from django.http import (
+    Http404,
+    HttpRequest,
+    HttpResponse,
+    HttpResponseBase,
+    JsonResponse,
+)
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse_lazy
 from django.views.decorators.http import require_POST
 from django.views.generic import (
     CreateView,
 )
-from django.shortcuts import get_object_or_404, render
-from django.http import Http404
 
-
-from borrowd_items.models import Item, ItemStatus, Transaction
-from django.http import HttpResponseForbidden
 from borrowd_groups.models import Membership
+from borrowd_items.card_helpers import (
+    build_item_cards_for_items,
+    build_item_cards_for_transactions,
+)
+from borrowd_items.models import Item, Transaction
 
 from .forms import ChangePasswordForm, CustomSignupForm, ProfileUpdateForm
 from .models import BorrowdUser
 
+
 @login_required
-def public_profile_view(request: HttpRequest, user_id : int) -> HttpResponse:
+def public_profile_view(request: HttpRequest, user_id: int) -> HttpResponse:
     user = get_object_or_404(BorrowdUser, id=user_id)
     profile = user.profile
 
     # Allow users to view their own profile
     if user == request.user:
-        return render(request, "users/public-profile.html", {
-            "profile": profile,
-            "user_obj":user
+        return render(
+            request, "users/public-profile.html", {"profile": profile, "user_obj": user}
+        )
 
-        })
-    
     shared_groups_exist = Membership.objects.filter(
-        group__membership__user=request.user,
-        user=user
+        group__membership__user=request.user, user=user
     ).exists()
 
     if not shared_groups_exist:
         raise Http404
 
-    return render(request, "users/public-profile.html", {
-        "profile": profile,
-        "user_obj": user
-    })
-    
+    return render(
+        request, "users/public-profile.html", {"profile": profile, "user_obj": user}
+    )
+
 
 @login_required
 def profile_view(request: HttpRequest) -> HttpResponse:
@@ -113,25 +116,35 @@ def delete_profile_photo_view(request: HttpRequest) -> JsonResponse:
 def inventory_view(request: HttpRequest) -> HttpResponse:
     user: BorrowdUser = request.user  # type: ignore[assignment]
 
-    requests_from_user = Transaction.get_borrow_requests_from_user(user)
-    requests_to_user = Transaction.get_borrow_requests_to_user(user)
-    borrowed = Transaction.get_current_borrows_for_user(user)
-    user_items = Item.objects.filter(owner=user)
-    # Add borrower info to user's items that are currently borrowed
-    for item in user_items:
-        if item.status == ItemStatus.BORROWED:
-            tx = item.get_current_transaction_for_user(user)
-            if tx:
-                item.borrower = tx.party2  # type: ignore[attr-defined]
+    # Prefetch photos to minimize database queries
+    requests_from_user = Transaction.get_borrow_requests_from_user(
+        user
+    ).prefetch_related("item__photos")
+    requests_to_user = Transaction.get_borrow_requests_to_user(user).prefetch_related(
+        "item__photos"
+    )
+    borrowed = Transaction.get_current_borrows_for_user(user).prefetch_related(
+        "item__photos"
+    )
+    user_items = Item.objects.filter(owner=user).prefetch_related("photos")
+
+    requests_from_cards = build_item_cards_for_transactions(
+        list(requests_from_user), user, "my-requests"
+    )
+    requests_to_cards = build_item_cards_for_transactions(
+        list(requests_to_user), user, "requests-for-me"
+    )
+    borrowed_cards = build_item_cards_for_transactions(list(borrowed), user, "borrowed")
+    user_items_cards = build_item_cards_for_items(list(user_items), user, "my-items")
 
     return render(
         request,
         "users/inventory.html",
         {
-            "requests_from_user": requests_from_user,
-            "requests_to_user": requests_to_user,
-            "borrowed": borrowed,
-            "user_items": user_items,
+            "requests_from_user": requests_from_cards,
+            "requests_to_user": requests_to_cards,
+            "borrowed": borrowed_cards,
+            "user_items": user_items_cards,
         },
     )
 
@@ -209,5 +222,3 @@ class CustomPasswordChangeView(PasswordChangeView):  # type: ignore[misc]
             messages.warning(self.request, error_message)
 
         return super().form_invalid(form)  # type: ignore[no-any-return]
-
-
