@@ -6,9 +6,12 @@ block groups_content %} {% load static %}
 
 <c-box>
   <div class="relative">
-    <div class="absolute top-0 left-0">
+    <a
+      href="{% url 'borrowd_groups:group-list' %}"
+      class="absolute top-0 left-0"
+    >
       {% include "icons/arrow-left.svg" %}
-    </div>
+    </a>
     <c-h1 class="text-3xl font-normal mb-4 text-center"
       >{% if not view.object.pk %}Create a{% else %}Edit{% endif %} group</c-h1
     >
@@ -25,14 +28,8 @@ block groups_content %} {% load static %}
       <div
         class="mt-2 flex mb-3 items-center gap-3 font-sans font-normal leading-snug text-sm text-black/60"
       >
-        {{ field }}
+        {{ field.as_widget }}
         <div>
-          <label
-            for="{{ field.id_for_label }}"
-            class="font-sans font-normal leading-[1.8] text-black/60"
-          >
-            {{ field.label }}
-          </label>
           {% if field.help_text %}
           <p class="help" id="{{ field.auto_id }}_helptext">
             {{ field.help_text|safe }}
