@@ -57,7 +57,7 @@ class ItemCategoryTestBase(TestCase):
             name=name,
             description=description,
             owner=self.owner,
-            trust_level_required=TrustLevel.LOW,
+            trust_level_required=TrustLevel.STANDARD,
         )
         if categories:
             item.categories.add(*categories)
@@ -198,7 +198,7 @@ class ItemFormCategoryValidationTests(ItemCategoryTestBase):
             "name": name,
             "description": description,
             "categories": [c.pk for c in categories],
-            "trust_level_required": TrustLevel.LOW,
+            "trust_level_required": TrustLevel.STANDARD,
         }
 
     def test_form_valid_with_single_category(self) -> None:
@@ -223,7 +223,7 @@ class ItemFormCategoryValidationTests(ItemCategoryTestBase):
             "name": "Test Item",
             "description": "A test item description",
             "categories": [],
-            "trust_level_required": TrustLevel.LOW,
+            "trust_level_required": TrustLevel.STANDARD,
         }
         form = ItemForm(data=form_data)
 
@@ -361,7 +361,7 @@ class ItemFormCategoryValidationTests(ItemCategoryTestBase):
             "name": "Test Item",
             "description": "A test item description",
             "categories": [99999],  # Non-existent category ID
-            "trust_level_required": TrustLevel.LOW,
+            "trust_level_required": TrustLevel.STANDARD,
         }
         form = ItemForm(data=form_data)
 
@@ -403,7 +403,7 @@ class ItemFilterCategoryTests(ItemCategoryTestBase):
             name="Cordless Drill",
             description="18V cordless drill",
             owner=cls.owner,
-            trust_level_required=TrustLevel.LOW,
+            trust_level_required=TrustLevel.STANDARD,
         )
         cls.item_drill.categories.add(cls.category_tools)
 
@@ -411,7 +411,7 @@ class ItemFilterCategoryTests(ItemCategoryTestBase):
             name="Laptop",
             description="Development laptop",
             owner=cls.owner,
-            trust_level_required=TrustLevel.LOW,
+            trust_level_required=TrustLevel.STANDARD,
         )
         cls.item_laptop.categories.add(cls.category_electronics)
 
@@ -419,7 +419,7 @@ class ItemFilterCategoryTests(ItemCategoryTestBase):
             name="Camping Tent",
             description="4-person tent",
             owner=cls.owner,
-            trust_level_required=TrustLevel.LOW,
+            trust_level_required=TrustLevel.STANDARD,
         )
         cls.item_tent.categories.add(cls.category_outdoor)
 
@@ -428,7 +428,7 @@ class ItemFilterCategoryTests(ItemCategoryTestBase):
             name="Multimeter",
             description="Digital multimeter for electronics work",
             owner=cls.owner,
-            trust_level_required=TrustLevel.LOW,
+            trust_level_required=TrustLevel.STANDARD,
         )
         cls.item_multitool.categories.add(cls.category_electronics, cls.category_tools)
 
