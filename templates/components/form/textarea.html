@@ -1,0 +1,33 @@
+{% load i18n %}
+
+<c-vars rows="4" max_length="200" input_class="" required="false" help_text="" />
+
+<fieldset class="fieldset">
+  <legend class="fieldset-legend text-xs font-normal text-base-content/60">{{ label }}</legend>
+
+  <div x-data="{ charCount: {{ value|length|default:0 }} }">
+    <textarea
+      name="{{ name }}"
+      id="{{ id }}"
+      class="textarea w-full bg-primary-content placeholder:text-base-content/50 placeholder:text-xs resize-none {{ input_class }}"
+      placeholder="{{ placeholder }}"
+      rows="{{ rows }}"
+      maxlength="{{ max_length }}"
+      @input="charCount = $event.target.value.length"
+      {% if required == "true" %}required{% endif %}
+    >{{ value }}</textarea>
+
+    <div class="flex justify-end mt-1">
+      <span class="text-xs text-base-content/50">
+        <span x-text="charCount">{{ value|length|default:0 }}</span>/{{ max_length }}
+      </span>
+    </div>
+  </div>
+
+  {% if help_text %}
+    <p class="label text-xs text-base-content/50">{{ help_text }}</p>
+  {% endif %}
+  {% if errors %}
+    <p class="label text-error text-xs">{{ errors }}</p>
+  {% endif %}
+</fieldset>
