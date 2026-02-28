@@ -690,3 +690,24 @@ class Transaction(Model):
                 ]
             )
         )
+
+    @staticmethod
+    def get_items_lent_by_user(user: BorrowdUser) -> QuerySet["Transaction"]:
+        """
+        Returns Transactions for Items the given User has lent out to others.
+
+        Mirrors get_current_borrows_for_user but from the lender's perspective
+        (party1 instead of party2). Includes all active lending states after
+        the owner approves: ACCEPTED through RETURN_ASSERTED.
+        """
+        return Transaction.objects.filter(
+            Q(party1=user)
+            & ~Q(
+                status__in=[
+                    TransactionStatus.RETURNED,
+                    TransactionStatus.REQUESTED,
+                    TransactionStatus.REJECTED,
+                    TransactionStatus.CANCELLED,
+                ]
+            )
+        )
