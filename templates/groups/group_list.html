@@ -48,6 +48,9 @@
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Group member
                                 </th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Membership status
+                                </th>
                             </tr>
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-200">
@@ -64,10 +67,14 @@
                                             {% endif %}
                                             <div class="ml-4">
                                                 <div class="text-sm font-medium text-gray-900">
+                                                    {% if membership.status == "ACTIVE" %}
                                                     <a class="hover:underline text-blue-800"
                                                         href="{% url 'borrowd_groups:group-detail' membership.group.pk %}">
                                                         {{ membership.group.name }}
                                                     </a>
+                                                    {% else %}
+                                                    <span class="text-gray-700">{{ membership.group.name }}</span>
+                                                    {% endif %}
                                                 </div>
                                             </div>
                                         </div>
@@ -78,10 +85,19 @@
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                         {{ membership.group.users.count }}
                                     </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                        {% if membership.status == "PENDING" %}
+                                            <span class="px-2 py-1 rounded bg-yellow-100 text-yellow-800">Pending</span>
+                                        {% elif membership.status == "ACTIVE" %}
+                                            <span class="px-2 py-1 rounded bg-green-100 text-green-800">Active</span>
+                                        {% else %}
+                                            <span class="px-2 py-1 rounded bg-gray-100 text-gray-700">{{ membership.status }}</span>
+                                        {% endif %}
+                                    </td>
                                 </tr>
                             {% empty %}
                                 <tr>
-                                    <td colspan="3" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
+                                    <td colspan="4" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
                                         No groups found.
                                     </td>
                                 </tr>
