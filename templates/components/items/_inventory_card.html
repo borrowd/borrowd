@@ -1,0 +1,20 @@
+{# Thin include wrapper so inventory.html can render a card context dict in one line. #}
+{# Avoids duplicating the full c-items.item-card attribute list in every for-loop. #}
+<c-items.item-card
+    pk="{{ ctx.pk }}"
+    context="{{ ctx.context }}"
+    name="{{ ctx.name }}"
+    description="{{ ctx.description }}"
+    image="{{ ctx.image }}"
+    banner_type="{{ ctx.banner_type }}"
+    banner_bg="{{ ctx.banner_bg }}"
+    banner_text="{{ ctx.banner_text }}"
+    :banner_icon="ctx.banner_icon"
+    :is_yours="ctx.is_yours"
+    person_name="{{ ctx.person_name }}"
+    person_url="{{ ctx.person_url }}"
+    time_ago="{{ ctx.time_ago }}"
+    :item="ctx.item"
+    :action_context="ctx.action_context"
+    :show_actions="ctx.show_actions"
+/>

@@ -25,53 +25,19 @@
         <div>
             {% if has_owned_items %}
             <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 justify-items-center sm:justify-items-start">
-                <!-- Items Needing Approval -->
-                {% for tx in items_needing_approval %}
-                <c-items.item-box
-                    pk="{{ tx.item.pk }}"
-                    name="{{ tx.item.name }}"
-                    description="{{ tx.item.description }}"
-                    image="{{ tx.item.photos.all.0.thumbnail.url }}"
-                    status="{{ tx.get_status_display }}"
-                    box_size="sm"
-                >
-                    <c-slot name="label">
-                        <c-avatar src="{{ tx.party2.profile.profile_pic }}" class="inline !h-7 !w-7" />
-                        By {{ tx.party2.profile.full_name }}
-                    </c-slot>
-                </c-items.item-box>
+                <!-- Items you own that other users have requested to borrow — you need to approve or decline -->
+                {% for card in requests_to_approve %}
+                    {% include "components/items/_inventory_card.html" with ctx=card %}
                 {% endfor %}
 
-                <!-- Owned Items Being Borrowed Out -->
-                {% for item in owned_items_borrowed %}
-                <c-items.item-box
-                    pk="{{ item.pk }}"
-                    name="{{ item.name }}"
-                    description="{{ item.description }}"
-                    image="{{ item.photos.all.0.thumbnail.url }}"
-                    status="{{ item.get_status_display }}"
-                    label_color="red"
-                    box_size="sm"
-                >
-                    {% if item.borrower %}
-                    <c-slot name="label">
-                        <c-avatar src="{{ item.borrower.profile.profile_pic }}" class="inline !h-7 !w-7" />
-                        With {{ item.borrower.username }}
-                    </c-slot>
-                    {% endif %}
-                </c-items.item-box>
+                <!-- Items you own that are currently being borrowed by someone else -->
+                {% for card in lent_out %}
+                    {% include "components/items/_inventory_card.html" with ctx=card %}
                 {% endfor %}
 
-                <!-- Available Owned Items -->
-                {% for item in owned_items_available %}
-                <c-items.item-box
-                    pk="{{ item.pk }}"
-                    name="{{ item.name }}"
-                    description="{{ item.description }}"
-                    image="{{ item.photos.all.0.thumbnail.url }}"
-                    status="{{ item.get_status_display }}"
-                    box_size="sm"
-                />
+                <!-- Items you own that are available and not requested by anyone -->
+                {% for card in available %}
+                    {% include "components/items/_inventory_card.html" with ctx=card %}
                 {% endfor %}
             </div>
             {% else %}
@@ -93,88 +59,29 @@
         <div>
             {% if has_activity or has_owned_items %}
             <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 justify-items-center sm:justify-items-start">
-                <!-- Items Needing Approval -->
-                {% for tx in items_needing_approval %}
-                <c-items.item-box
-                    pk="{{ tx.item.pk }}"
-                    name="{{ tx.item.name }}"
-                    description="{{ tx.item.description }}"
-                    image="{{ tx.item.photos.all.0.thumbnail.url }}"
-                    status="{{ tx.get_status_display }}"
-                    box_size="sm"
-                >
-                    <c-slot name="label">
-                        <c-avatar src="{{ tx.party2.profile.profile_pic }}" class="inline !h-7 !w-7" />
-                        By {{ tx.party2.profile.full_name }}
-                    </c-slot>
-                </c-items.item-box>
+                <!-- Items you own that other users have requested to borrow — you need to approve or decline -->
+                {% for card in requests_to_approve %}
+                    {% include "components/items/_inventory_card.html" with ctx=card %}
                 {% endfor %}
 
-                <!-- Items User Has Requested -->
-                {% for tx in user_requested_items %}
-                <c-items.item-box
-                    pk="{{ tx.item.pk }}"
-                    name="{{ tx.item.name }}"
-                    description="{{ tx.item.description }}"
-                    image="{{ tx.item.photos.all.0.thumbnail.url }}"
-                    status="{{ tx.get_status_display }}"
-                    box_size="sm"
-                >
-                    <c-slot name="label">
-                        <c-avatar src="{% static 'icons/handshake.svg' %}" class="inline !h-7 !w-7" />
-                        {{ tx.get_status_display }}
-                    </c-slot>
-                </c-items.item-box>
+                <!-- Items you requested to borrow from others — waiting on the owner's decision -->
+                {% for card in pending_requests %}
+                    {% include "components/items/_inventory_card.html" with ctx=card %}
                 {% endfor %}
 
-                <!-- Items User Is Borrowing -->
-                {% for tx in user_borrowed_items %}
-                <c-items.item-box
-                    pk="{{ tx.item.pk }}"
-                    name="{{ tx.item.name }}"
-                    description="{{ tx.item.description }}"
-                    image="{{ tx.item.photos.all.0.thumbnail.url }}"
-                    status="{{ tx.get_status_display }}"
-                    label_color="green"
-                    box_size="sm"
-                >
-                    <c-slot name="label">
-                        <c-avatar src="{{ tx.party1.profile.profile_pic }}" class="inline !h-7 !w-7" />
-                        From {{ tx.party1.username }}
-                    </c-slot>
-                </c-items.item-box>
+                <!-- Items you own that are currently being borrowed by someone else -->
+                {% for card in lent_out %}
+                    {% include "components/items/_inventory_card.html" with ctx=card %}
                 {% endfor %}
 
-                <!-- Owned Items Being Borrowed Out -->
-                {% for item in owned_items_borrowed %}
-                <c-items.item-box
-                    pk="{{ item.pk }}"
-                    name="{{ item.name }}"
-                    description="{{ item.description }}"
-                    image="{{ item.photos.all.0.thumbnail.url }}"
-                    status="{{ item.get_status_display }}"
-                    label_color="red"
-                    box_size="sm"
-                >
-                    {% if item.borrower %}
-                    <c-slot name="label">
-                        <c-avatar src="{{ item.borrower.profile.profile_pic }}" class="inline !h-7 !w-7" />
-                        With {{ item.borrower.username }}
-                    </c-slot>
-                    {% endif %}
-                </c-items.item-box>
+                <!-- Items you are currently borrowing from other users -->
+                {% for card in borrowing %}
+                    {% include "components/items/_inventory_card.html" with ctx=card %}
                 {% endfor %}
 
-                <!-- Available Owned Items -->
-                {% for item in owned_items_available %}
-                <c-items.item-box
-                    pk="{{ item.pk }}"
-                    name="{{ item.name }}"
-                    description="{{ item.description }}"
-                    image="{{ item.photos.all.0.thumbnail.url }}"
-                    status="{{ item.get_status_display }}"
-                    box_size="sm"
-                />
+                <!-- Items you own that are available and not requested by anyone -->
+                {% for card in available %}
+                    {% include "components/items/_inventory_card.html" with ctx=card %}
                 {% endfor %}
             </div>
             {% else %}

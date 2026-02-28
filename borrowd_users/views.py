@@ -23,7 +23,7 @@ from borrowd_items.card_helpers import (
     build_item_cards_for_items,
     build_item_cards_for_transactions,
 )
-from borrowd_items.models import Item, Transaction
+from borrowd_items.models import Item, ItemStatus, Transaction
 
 from .forms import ChangePasswordForm, CustomSignupForm, ProfileUpdateForm
 from .models import BorrowdUser
@@ -115,50 +115,74 @@ def delete_profile_photo_view(request: HttpRequest) -> JsonResponse:
 @login_required
 def inventory_view(request: HttpRequest) -> HttpResponse:
     """
-    Inventory page with users own items and currently requested/borrowed items
+    Inventory page with toggle between owned items and all activity.
 
-    Data is organized for a toggle UI:
-    - Toggle ON (Your Items): Shows owned items only
-    - Toggle OFF (All Items): Shows all activity including borrowed items
+    Toggle ON (Your Items): only user-owned items/sections displayed
+    Toggle OFF (All Items): all sections displayed
 
-    Separated into following sections:
-    items_needing_approval: user-owned items that have been requested to be borrowed
-    owned_items_borrowed: user-owned items that are currently being borrowed out (not available)
-    owned_items_available: user-owned items that are available to be borrowed (not requested)
-    user_requested_items: items the current user has requested to borrow from others
-    user_borrowed_items: items the current user is currently borrowing from others
+    Sections in display order:
+    1. requests_to_approve  — others requesting to borrow user's items
+    2. pending_requests     — user's outgoing requests awaiting response
+    3. lent_out             — user's items actively lent to others
+    4. borrowing            — items user is borrowing from others
+    5. available            — user's items with no active transactions
     """
     user: BorrowdUser = request.user  # type: ignore[assignment]
 
-    # Prefetch photos to minimize database queries
-    requests_from_user = Transaction.get_borrow_requests_from_user(
+    # Borrow requests the user (item owner) needs to accept or decline
+    requests_to_approve = Transaction.get_borrow_requests_to_user(
         user
     ).prefetch_related("item__photos")
-    requests_to_user = Transaction.get_borrow_requests_to_user(user).prefetch_related(
-        "item__photos"
-    )
-    borrowed = Transaction.get_current_borrows_for_user(user).prefetch_related(
-        "item__photos"
-    )
-    user_items = Item.objects.filter(owner=user).prefetch_related("photos")
 
-    requests_from_cards = build_item_cards_for_transactions(
-        list(requests_from_user), user, "my-requests"
+    # Requests the user made that are awaiting the owner's response
+    pending_requests = Transaction.get_borrow_requests_from_user(user).prefetch_related(
+        "item__photos"
     )
-    requests_to_cards = build_item_cards_for_transactions(
-        list(requests_to_user), user, "requests-for-me"
+
+    # User's items currently lent out (approved through returned)
+    lent_out = Transaction.get_items_lent_by_user(user).prefetch_related("item__photos")
+
+    # Items the user is actively borrowing from others
+    borrowing = Transaction.get_current_borrows_for_user(user).prefetch_related(
+        "item__photos"
     )
-    borrowed_cards = build_item_cards_for_transactions(list(borrowed), user, "borrowed")
-    user_items_cards = build_item_cards_for_items(list(user_items), user, "my-items")
+
+    # User's items sitting idle with no active transaction.
+    available = Item.objects.filter(
+        owner=user,
+        status=ItemStatus.AVAILABLE,
+    ).prefetch_related("photos")
+
+    # Build card context
+    requests_to_approve_cards = build_item_cards_for_transactions(
+        list(requests_to_approve), user, "requests-to-approve"
+    )
+    pending_requests_cards = build_item_cards_for_transactions(
+        list(pending_requests), user, "pending-requests"
+    )
+    lent_out_cards = build_item_cards_for_transactions(list(lent_out), user, "lent-out")
+    borrowing_cards = build_item_cards_for_transactions(
+        list(borrowing), user, "borrowing"
+    )
+    available_cards = build_item_cards_for_items(list(available), user, "available")
+
+    # Toggle empty states: "Your Items" shows owned sections, "All Items" adds borrowing activity
+    has_owned_items = bool(
+        requests_to_approve_cards or lent_out_cards or available_cards
+    )
+    has_activity = bool(pending_requests_cards or borrowing_cards)
 
     return render(
         request,
         "users/inventory.html",
         {
-            "requests_from_user": requests_from_cards,
-            "requests_to_user": requests_to_cards,
-            "borrowed": borrowed_cards,
-            "user_items": user_items_cards,
+            "requests_to_approve": requests_to_approve_cards,
+            "pending_requests": pending_requests_cards,
+            "lent_out": lent_out_cards,
+            "borrowing": borrowing_cards,
+            "available": available_cards,
+            "has_owned_items": has_owned_items,
+            "has_activity": has_activity,
         },
     )
 
