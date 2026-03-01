@@ -14,7 +14,7 @@ from .models import ItemAction, ItemActionContext
 if TYPE_CHECKING:
     from borrowd_users.models import BorrowdUser
 
-    from .models import Item
+    from .models import Item, Transaction
 
 
 # Banner styling configuration
@@ -258,75 +258,25 @@ def build_item_cards_for_items(
 
 
 def build_item_cards_for_transactions(
-    transactions: list[Any], user: "BorrowdUser", context: str
+    transactions: list["Transaction"], user: "BorrowdUser", context: str
 ) -> list[dict[str, Any]]:
     """
     Build card contexts for a list of transactions.
 
-    Extracts the item from each transaction and builds card context,
-    using transaction metadata for banner info.
+    Extracts the item from each transaction and builds card context.
 
     Args:
         transactions: List of Transaction objects
         user: The viewing user
-        context: The card context/section (e.g., "my-requests")
+        context: The card context/section (e.g., "incoming-borrow-requests")
 
     Returns:
         List of context dicts for item_card.html template.
     """
-    from django.utils.timesince import timesince
-
-    from .models import TransactionStatus
-
-    cards = []
-    for tx in transactions:
-        item = tx.item
-        action_context = item.get_action_context_for(user=user)
-
-        # Map transaction status to banner type
-        status_to_banner: dict[int, str] = {
-            TransactionStatus.REQUESTED: "requested",
-            TransactionStatus.ACCEPTED: "reserved",
-            TransactionStatus.COLLECTION_ASSERTED: "reserved",
-            TransactionStatus.COLLECTED: "borrowed",
-            TransactionStatus.RETURN_ASSERTED: "borrowed",
-        }
-        banner_type = status_to_banner.get(tx.status, "")
-
-        # Get borrower/requester info
-        person = tx.party2
-        person_name = person.first_name.capitalize()
-        person_url = f"/profile/{person.pk}/"
-        time_ago = timesince(tx.updated_at).split(",")[0]
-
-        first_photo = item.photos.first()
-        card_ids = build_card_ids(context, item.pk)
-
-        # Get banner styling
-        banner_style = BANNER_STYLES.get(banner_type, {})
-        # format_html necessary to display svg, otherwise it just gets shown as plaintext
-        # https://docs.djangoproject.com/en/6.0/ref/utils/#django.utils.html.format_html
-        banner_icon = format_html(BANNER_ICONS.get(banner_type, ""))
-
-        ctx: dict[str, Any] = {
-            "item": item,
-            "action_context": action_context,
-            "pk": item.pk,
-            "context": context,
-            "name": item.name,
-            "description": item.description,
-            "image": first_photo.thumbnail.url if first_photo else "",
-            "is_yours": item.owner == user,
-            "banner_type": banner_type,
-            "banner_bg": banner_style.get("bg", ""),
-            "banner_text": banner_style.get("text", ""),
-            "banner_icon": banner_icon,
-            "person_name": person_name,
-            "person_url": person_url,
-            "time_ago": f"{time_ago} ago",
-            "show_actions": True,
-            **card_ids,
-        }
-        cards.append(ctx)
-
-    return cards
+    return [
+        # ForeignKey type not fully resolved without django-stubs mypy plugin
+        # Ref: https://forum.djangoproject.com/t/mypy-and-type-checking/15787, 
+        # Ref: https://github.com/typeddjango/django-stubs
+        build_item_card_context(transaction.item, user, context)  # type: ignore[arg-type]
+        for transaction in transactions
+    ]
