@@ -24,13 +24,12 @@
                 <!--
                     Category field
 
-                    1. Keep the <select multiple> in the DOM but hide it visually
-                    2. Use Alpine.js to manage selected categories (selectedIds array)
-                    3. When user confirms modal selections, copy Alpine state to the
-                       hidden <select> by marking matching <option>s as selected
-                    4. When user clicks "Save item", browser submits the form with
+                    1. Alpine.js manages selected categories via the selectedIds array
+                    2. A reactive <template x-for> generates hidden <input> fields
+                       for each selected ID, so the form always submits the current state
+                    3. When user clicks "Save item", browser submits the form with
                        POST data like: categories=3&categories=7
-                    5. Django's ItemForm processes this (borrowd_items/forms.py)
+                    4. Django's ItemForm processes this (borrowd_items/forms.py)
 
                 -->
                 <div x-data="{
@@ -68,32 +67,12 @@
                         return truncated + ' + ' + (this.selectedIds.length - 1) + ' more';
                     },
 
-                    /*
-                     * Copy selectedIds to the hidden <select> element.
-                     *
-                     * e.g.:
-                     *   selectedIds = ['3', '7']
-                     *   <option value='1'>Tools</option>        -> selected = false
-                     *   <option value='3'>Electronics</option>  -> selected = true
-                     *   <option value='7'>Kitchen</option>      -> selected = true
-                     *
-                     * POST sends categories=3&categories=7
-                     */
-                    writeSelectedIdsToHiddenSelect() {
-                        const select = this.$refs.categoryFormSelect;
-                        for (const opt of select.options) {
-                            opt.selected = this.selectedIds.includes(opt.value);
-                        }
-                    },
-
                     clearFilters() {
                         this.selectedIds = [];
-                        this.writeSelectedIdsToHiddenSelect();
                         closeModal('item-category-modal');
                     },
 
                     applyFilters() {
-                        this.writeSelectedIdsToHiddenSelect();
                         closeModal('item-category-modal');
                     }
                 }">
@@ -105,22 +84,13 @@
                     </button>
 
                     <!--
-                        Hidden <select multiple> for multiple item categories.
-                        This is the actual form field that Django's ItemForm reads.
-                        Alpine writes to this via writeSelectedIdsToHiddenSelect().
-                        See borrowd_items/forms.py for widget configuration.
+                        Hidden inputs for selected categories.
+                        Alpine reactively generates one <input> per selected ID,
+                        so the form always submits the current selectedIds state.
                     -->
-                    <select x-ref="categoryFormSelect"
-                            name="{{ field.html_name }}"
-                            id="{{ field.id_for_label }}"
-                            multiple
-                            class="hidden">
-                        {% for choice in field.field.choices %}
-                        <option value="{{ choice.0 }}" {% if field.value and choice.0|stringformat:"s" in field.value %}selected{% endif %}>
-                            {{ choice.1 }}
-                        </option>
-                        {% endfor %}
-                    </select>
+                    <template x-for="id in selectedIds" :key="id">
+                        <input type="hidden" name="{{ field.html_name }}" :value="id">
+                    </template>
 
                     {% include "components/items/category_filter_modal.html" with modal_id="item-category-modal" confirm_button_text="Filter categories" %}
                 </div>
