@@ -12,7 +12,11 @@
     <!-- Toggle Row -->
     <div class="flex items-center justify-between mb-6">
         <label class="flex items-center gap-3 cursor-pointer">
-            <input type="checkbox" class="toggle toggle-base" x-model="yourItems" />
+            <input type="checkbox"
+                   class="toggle toggle-base"
+                   x-model="yourItems"
+                   role="switch"
+                   :aria-checked="yourItems.toString()" />
             <span class="text-sm font-medium">Your items</span>
         </label>
         <a href="{% url 'item-create' %}" class="btn btn-soft text-primary btn-sm">
@@ -20,79 +24,82 @@
         </a>
     </div>
 
-    <!-- Your Items Mode (toggle ON) -->
-    <template x-if="yourItems">
-        <div>
-            {% if has_owned_items %}
-            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 justify-items-center sm:justify-items-start">
-                <!-- Items you own that other users have requested to borrow which you need to approve or decline -->
-                {% for card in incoming_borrow_requests %}
-                    {% include "components/items/_inventory_card.html" with ctx=card %}
-                {% endfor %}
+    <!-- aria-live tells screen readers to announce when content changes.-->
+    <div aria-live="polite">
+        <!-- Your Items Mode (toggle ON) -->
+        <template x-if="yourItems">
+            <div>
+                {% if has_owned_items %}
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 justify-items-center sm:justify-items-start">
+                    <!-- Items you own that other users have requested to borrow which you need to approve or decline -->
+                    {% for card in incoming_borrow_requests %}
+                        {% include "components/items/_inventory_card.html" with ctx=card %}
+                    {% endfor %}
 
-                <!-- Items you own that are currently being borrowed by someone else -->
-                {% for card in owned_items_lent %}
-                    {% include "components/items/_inventory_card.html" with ctx=card %}
-                {% endfor %}
+                    <!-- Items you own that are currently being borrowed by someone else -->
+                    {% for card in owned_items_lent %}
+                        {% include "components/items/_inventory_card.html" with ctx=card %}
+                    {% endfor %}
 
-                <!-- Items you own that are available and not requested by anyone -->
-                {% for card in owned_items_available %}
-                    {% include "components/items/_inventory_card.html" with ctx=card %}
-                {% endfor %}
+                    <!-- Items you own that are available and not requested by anyone -->
+                    {% for card in owned_items_available %}
+                        {% include "components/items/_inventory_card.html" with ctx=card %}
+                    {% endfor %}
+                </div>
+                {% else %}
+                <!-- Empty State: No owned items -->
+                <div class="flex flex-col items-center justify-center py-12 px-4">
+                    <img src="{% static 'users/inventory/frame-illustration-2.png' %}" alt="No items" class="w-32 h-32 mb-6">
+                    <p class="text-gray-800 text-xl text-center font-semibold mb-2">You have no items</p>
+                    <p class="text-gray-600 text-center mb-6">Add an item to start sharing.</p>
+                    <a href="{% url 'item-create' %}" class="btn btn-primary">
+                        Add an item
+                    </a>
+                </div>
+                {% endif %}
             </div>
-            {% else %}
-            <!-- Empty State: No owned items -->
-            <div class="flex flex-col items-center justify-center py-12 px-4">
-                <img src="{% static 'users/inventory/frame-illustration-2.png' %}" alt="No items" class="w-32 h-32 mb-6">
-                <p class="text-gray-800 text-xl text-center font-semibold mb-2">You have no items</p>
-                <p class="text-gray-600 text-center mb-6">Add an item to start sharing.</p>
-                <a href="{% url 'item-create' %}" class="btn btn-primary">
-                    Add an item
-                </a>
+        </template>
+
+        <!-- All Items Mode (toggle OFF) -->
+        <template x-if="!yourItems">
+            <div>
+                {% if has_activity or has_owned_items %}
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 justify-items-center sm:justify-items-start">
+                    <!-- Items you own that other users have requested to borrow which you need to approve or decline -->
+                    {% for card in incoming_borrow_requests %}
+                        {% include "components/items/_inventory_card.html" with ctx=card %}
+                    {% endfor %}
+
+                    <!-- Items you requested to borrow from others that are waiting on the owner's decision -->
+                    {% for card in outgoing_borrow_requests %}
+                        {% include "components/items/_inventory_card.html" with ctx=card %}
+                    {% endfor %}
+
+                    <!-- Items you own that are currently being borrowed by someone else -->
+                    {% for card in owned_items_lent %}
+                        {% include "components/items/_inventory_card.html" with ctx=card %}
+                    {% endfor %}
+
+                    <!-- Items you are currently borrowing from other users -->
+                    {% for card in borrowed_items_from_others %}
+                        {% include "components/items/_inventory_card.html" with ctx=card %}
+                    {% endfor %}
+
+                    <!-- Items you own that are available and not requested by anyone -->
+                    {% for card in owned_items_available %}
+                        {% include "components/items/_inventory_card.html" with ctx=card %}
+                    {% endfor %}
+                </div>
+                {% else %}
+                <!-- Empty State: No requests/borrowed items -->
+                <div class="flex flex-col items-center justify-center py-12 px-4">
+                    <img src="{% static 'users/inventory/relax-1.png' %}" alt="No requests" class="w-32 h-32 mb-6">
+                    <p class="text-gray-800 text-xl text-center font-semibold mb-2">No requests yet</p>
+                    <p class="text-gray-600 text-center">Once someone requests your items, they will be here for your approval and tracking.</p>
+                </div>
+                {% endif %}
             </div>
-            {% endif %}
-        </div>
-    </template>
-
-    <!-- All Items Mode (toggle OFF) -->
-    <template x-if="!yourItems">
-        <div>
-            {% if has_activity or has_owned_items %}
-            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 justify-items-center sm:justify-items-start">
-                <!-- Items you own that other users have requested to borrow which you need to approve or decline -->
-                {% for card in incoming_borrow_requests %}
-                    {% include "components/items/_inventory_card.html" with ctx=card %}
-                {% endfor %}
-
-                <!-- Items you requested to borrow from others that are waiting on the owner's decision -->
-                {% for card in outgoing_borrow_requests %}
-                    {% include "components/items/_inventory_card.html" with ctx=card %}
-                {% endfor %}
-
-                <!-- Items you own that are currently being borrowed by someone else -->
-                {% for card in owned_items_lent %}
-                    {% include "components/items/_inventory_card.html" with ctx=card %}
-                {% endfor %}
-
-                <!-- Items you are currently borrowing from other users -->
-                {% for card in borrowed_items_from_others %}
-                    {% include "components/items/_inventory_card.html" with ctx=card %}
-                {% endfor %}
-
-                <!-- Items you own that are available and not requested by anyone -->
-                {% for card in owned_items_available %}
-                    {% include "components/items/_inventory_card.html" with ctx=card %}
-                {% endfor %}
-            </div>
-            {% else %}
-            <!-- Empty State: No requests/borrowed items -->
-            <div class="flex flex-col items-center justify-center py-12 px-4">
-                <img src="{% static 'users/inventory/relax-1.png' %}" alt="No requests" class="w-32 h-32 mb-6">
-                <p class="text-gray-800 text-xl text-center font-semibold mb-2">No requests yet</p>
-                <p class="text-gray-600 text-center">Once someone requests your items, they will be here for your approval and tracking.</p>
-            </div>
-            {% endif %}
-        </div>
-    </template>
+        </template>
+    </div>
 </div>
 {% endblock %}
