@@ -259,10 +259,16 @@ class ChangePasswordForm(SetPasswordForm):  # type: ignore[misc]
     https://www.figma.com/design/wMliTL8KGBlUACk0d8fkZ3/Borrow-d---Mobile-App--mid-fidelity-?node-id=746-18213&m=dev
     """
 
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        msg = "Fill a password to change it."
+        self.fields["password1"].error_messages["required"] = msg
+        self.fields["password2"].error_messages["required"] = msg
+
     def clean_password1(self) -> str:
         """Validate password contains both uppercase and lowercase characters."""
         password1: str | None = self.cleaned_data.get("password1")
         if not password1:
-            raise forms.ValidationError("Password is required.")
+            raise forms.ValidationError("Fill a password to change it.")
         validate_password_mixed_case(password1)
         return password1

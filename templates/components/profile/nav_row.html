@@ -1,0 +1,14 @@
+{% load i18n static %}
+
+<c-vars href="#" label="" />
+
+<a
+  href="{{ href }}"
+  class="card bg-primary-content border border-gray-200 shadow-sm rounded-md flex flex-row items-center justify-between px-4 py-3 hover:bg-base-200 transition-colors"
+>
+  <span class="text-sm  text-base-content font-normal">{{ label }}</span>
+
+  <div class="bg-base-200 shadow-sm rounded w-7 h-7 flex items-center justify-center flex-shrink-0">
+    <img src="{% static 'icons/chevron-right.svg' %}" alt="" class="w-4 h-4 text-base-content/60 opacity-60" />
+  </div>
+</a>
