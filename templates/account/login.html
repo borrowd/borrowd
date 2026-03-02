@@ -1,0 +1,83 @@
+{% extends "layouts/auth_card.html" %}
+{% load i18n %}
+
+{% block auth_title %}{% trans "Log In" %}{% endblock %}
+{% block auth_mobile_title %}{% trans "Login" %}{% endblock %}
+
+{% block auth_content %}
+  {# Non-field errors #}
+  {% if form.non_field_errors %}
+    <div class="alert alert-error text-sm py-2">
+      {{ form.non_field_errors }}
+    </div>
+  {% endif %}
+
+  <form method="post" class="flex flex-col gap-4">
+    {% csrf_token %}
+    {{ redirect_field }}
+    {% for field in form.hidden_fields %}{{ field }}{% endfor %}
+
+    <c-form.field
+      label="{% trans 'Email' %}"
+      type="email"
+      name="login"
+      id="id_login"
+      placeholder="Email"
+      value="{{ form.login.value|default:'' }}"
+      autocomplete="email"
+
+    />
+
+    {# Password field #}
+    <c-form.field
+      label="{% trans 'Password' %}"
+      type="password"
+      name="password"
+      id="id_password"
+      placeholder="Password"
+      autocomplete="current-password"
+      errors="{{ form.password.errors|join:', ' }}"
+        input_class="text-base-content/50 text-xs"
+    />
+
+    {# Forgot password link #}
+    <div class="-mt-2">
+      <c-button-nav
+        class="text-xs text-info  font-semibold hover:underline"
+        url="{% url 'account_reset_password' %}"
+        >
+        {% trans "Forgot password?" %}
+        </c-button-nav>
+
+    </div>
+
+    <c-button type="submit" class="btn btn-primary
+        w-full
+        {% if form.login.value %}btn-active{% endif %}  ">
+      {% trans "Login" %}
+    </c-button>
+
+    {% url 'account_request_login_code' as req_code_url %}
+    {% if req_code_url %}
+
+         <c-button-nav
+            class="btn btn-soft text-primary w-full font-semibold"
+            url="{{ req_code_url }}"
+            >
+            {% trans "Request login code" %}
+            </c-button-nav>
+
+
+    {% endif %}
+  </form>
+{% endblock %}
+
+{% block auth_footer %}
+  {# Sign-up link #}
+  <p class="text-center text-xs  text-base-content/80 font-semibold">
+    {% trans "Don't have an account?" %}
+     <c-button-nav class="text-info underline " url="{% url 'account_signup'%}">
+      {% trans "Sign up" %}
+    </c-button-nav>
+  </p>
+{% endblock %}
