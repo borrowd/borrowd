@@ -39,31 +39,40 @@
       {% else %}
       <div class="relative py-1">
         <img class="w-full h-full" src="{% static '/border-dashed.png' %}" />
+        {% if user.is_authenticated and object.owner == user %}
         <a
           href="{% url 'itemphoto-create' item_pk=object.pk %}?next={% url 'item-detail' object.pk %}"
           class="absolute btn border-none btn-soft top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
         >
           Add a photo
         </a>
+        {% else %}
+        <div
+          class="absolute border-none btn-soft top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
+        >
+          No photo
+        </div>
+        {% endif %}
       </div>
       {% endif %}
     </div>
 
     <div class="px-3 flex items-center gap-3">
       <div class="text-[#181818] font-semibold">{{ object.name }}</div>
+      {% if user.is_authenticated and object.owner == user %}
       <div class="badge badge-ghost text-xs p-3 font-medium">Yours</div>
+      {% endif %}
     </div>
 
     <div class="px-3 text-[15px]">{{ object.description }}</div>
 
-    <div class="px-3 mt-8 flex items-center gap-3">
+    <div class="px-3 mt-8 flex items-center gap-3 mb-4">
       <div
-        class="text-xs font-normal underline underline-offset-2 decoration-dotted bg-base-content/60 bg-clip-text text-transparent"
+        class="text-sm font-normal underline underline-offset-2 decoration-dotted bg-base-content/60 bg-clip-text text-transparent"
       >
         Trust level:
       </div>
-      {% if user.is_authenticated and object.owner == user %} {% if "High" in
-      object.get_trust_level_required_display %}
+      {% if "High" in object.get_trust_level_required_display %}
       <div
         class="badge badge-success badge-soft font-medium text-[14px] border-xl p-3"
       >
@@ -84,8 +93,9 @@
         {% include "icons/arrow-down.svg" %}
         {{object.get_trust_level_required_display}} Trust
       </div>
-      {% endif %} {% endif %}
+      {% endif %}
     </div>
+    {% if user.is_authenticated and object.owner == user %}
 
     <div class="p-3 w-full">
       <c-button-nav
@@ -94,6 +104,7 @@
         >Edit item</c-button-nav
       >
     </div>
+    {% endif %}
   </div>
 </c-box>
 {% endblock %}

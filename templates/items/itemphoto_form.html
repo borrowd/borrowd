@@ -1,33 +1,37 @@
-{% extends "items/layout.html" %}
-
-{% comment %}
-    This template could support editing if needed, however only the create flow
-    is used right now as the model only contains the image which just needs to be created and deleted.
-{% endcomment %}
-{% block head_title %}{% if not view.object.pk %}Upload{% else %}Edit{% endif %} Photo{% endblock %}
-
-{% block items_content %}
+{% extends "items/layout.html" %} {% comment %} This template could support
+editing if needed, however only the create flow is used right now as the model
+only contains the image which just needs to be created and deleted. {%
+endcomment %} {% block head_title %}{% if not view.object.pk %}Upload{% else
+%}Edit{% endif %} Photo{% endblock %} {% block items_content %}
 <c-box>
-    <c-h1>{% if not view.object.pk %}Upload{% else %}Edit{% endif %} Photo</c-h1>
-    <form method="post" enctype="multipart/form-data" class="flex flex-col space-y-2" onsubmit="this.querySelector('button[type=submit]').disabled = true;">
-        {% csrf_token %}
-        {% for field in form %}
-        <div class="fieldset">
-            <label class="label">
-                <span class="label-text ">{{ field.label }}</span>
-            </label>
-            {{ field }}
-            {% if field.errors %}
-                <label class="label">
-                    <span class="label-text-alt text-error">{{ field.errors }}</span>
-                </label>
-            {% endif %}
-        </div>
-        {% endfor %}
-        <div class="mt-6">
-            <c-button type="submit" class="btn btn-primary mr-2">Save</c-button>
-            <c-button-nav url="{% url 'item-edit' item_pk %}" class="btn">Cancel</c-button-nav>
-        </div>
-    </form>
+  <c-h1>{% if not view.object.pk %}Upload{% else %}Edit{% endif %} Photo</c-h1>
+  <form
+    method="post"
+    enctype="multipart/form-data"
+    class="flex flex-col space-y-2"
+    onsubmit="this.querySelector('button[type=submit]').disabled = true"
+  >
+    {% csrf_token %} {% for field in form %}
+    <div class="fieldset">
+      <label class="label">
+        <span class="label-text">{{ field.label }}</span>
+      </label>
+      {{ field }} {% if field.errors %}
+      <label class="label">
+        <span class="label-text-alt text-error">{{ field.errors }}</span>
+      </label>
+      {% endif %}
+    </div>
+    {% endfor %}
+    <div class="mt-6">
+      <c-button type="submit" class="btn btn-primary mr-2">Save</c-button>
+      <c-button-nav
+        url="{% if request.GET.next %}{{ request.GET.next }}{% else %}{% url 'item-edit' item_pk %}{% endif %}"
+        class="btn"
+      >
+        Cancel
+      </c-button-nav>
+    </div>
+  </form>
 </c-box>
 {% endblock %}
