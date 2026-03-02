@@ -160,7 +160,7 @@
                 <div class="mb-2">No photos</div>
             {% endif %}
             {% if view.object.photos.count < 5 %}
-                <c-button-nav url="{% url 'itemphoto-create' form.instance.pk %}" class="btn btn-sm">Add Photo</c-button-nav>
+                <c-button-nav url="{% url 'itemphoto-create' item_pk=object.pk %}?next={% url 'item-edit' object.pk %}">Add Photo</c-button-nav>
             {% else %}
                 <div class="text-gray-500 italic">Photo limit (5) reached. Delete a photo if you want to add another.</div>
             {% endif %}

@@ -1,9 +1,7 @@
-{% with img_class="max-h-[250px] rounded" %}
-{% if link %}
-    <a href="{{ link }}">
-        <img src="{{ src }}" alt="{{ alt }}" class="{{ img_class }}" />
-    </a>
+{% with img_class="h-77 w-70 md:w-90 object-cover rounded" %} {% if link %}
+<a href="{{ link }}">
+  <img src="{{ src }}" alt="{{ alt }}" class="{{ img_class }}" />
+</a>
 {% else %}
-    <img src="{{ src }}" alt="{{ alt }}" class="{{ img_class }}" />
-{% endif %}
-{% endwith %}
+<img src="{{ src }}" alt="{{ alt }}" class="{{ img_class }}" />
+{% endif %} {% endwith %}
