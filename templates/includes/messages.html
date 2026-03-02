@@ -1,32 +1,16 @@
-<!--
-There's a custom toast in:
-    templates/users/profile.html
-That needs to be updated to align with any changes here.
--->
-
 {% load i18n %}
 {% if messages %}
-<div>
-    {% for message in messages %}
-    <div class="toast toast-center z-100">
-        <div class="alert alert-{{ message.tags }} font-bold">
-            <!-- TODO: use icon library not inline svg -->
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
-                <path stroke-linecap="round" stroke-linejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" />
-            </svg>
-            <span>{{ message }}</span>
-        </div>
-    </div>
-    {% endfor %}
+{% for message in messages %}
+{% load i18n static %}
+<div
+  x-data
+  x-init="setTimeout(() => { $el.style.transition = 'opacity 0.3s ease-out'; $el.style.opacity = '0'; setTimeout(() => $el.remove(), 300); }, 5000)"
+  class="toast toast-center z-50"
+>
+  <div role="alert" class="alert alert-{{ message.tags }} w-72 flex items-center gap-4 px-4 py-3 rounded-2xl shadow-[0px_4px_3px_-2px_rgba(0,0,0,0.08)] font-bold">
+    <img src="{% static 'icons/info-circle.svg' %}" alt="info" class="w-6 h-6{% if 'success' in message.tags %} brightness-0 invert{% endif %}" />
+    <span class="text-sm leading-6">{{ message }}</span>
+  </div>
 </div>
-<script>
-    setTimeout(() => {
-        const toast = document.querySelector('.toast');
-        if (toast) {
-            toast.style.transition = 'opacity 0.3s ease-out';
-            toast.style.opacity = '0';
-            setTimeout(() => toast.remove(), 300);
-        }
-    }, 5000);
-</script>
+{% endfor %}
 {% endif %}
