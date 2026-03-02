@@ -75,7 +75,7 @@ class GroupListViewVisibilityTests(TestCase):
             updated_by=owner,
             trust_level=TrustLevel.HIGH,
         )
-        group.add_user(member, trust_level=TrustLevel.LOW)
+        group.add_user(member, trust_level=TrustLevel.STANDARD)
 
         ## Preare the request
         request = self.factory.get("/groups/")
@@ -152,7 +152,7 @@ class GroupListViewVisibilityTests(TestCase):
             updated_by=owner,
             trust_level=TrustLevel.HIGH,
         )
-        group.add_user(member, trust_level=TrustLevel.LOW)
+        group.add_user(member, trust_level=TrustLevel.STANDARD)
 
         ## Preare the request
         request = self.factory.get(f"/groups/{group.pk}/")

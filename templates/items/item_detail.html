@@ -94,6 +94,10 @@
         {{object.get_trust_level_required_display}} Trust
       </div>
       {% endif %}
+        <c-items.action-buttons-with-status
+            :item="object"
+            :action-context="action_context"
+        ></c-items.action-buttons-with-status>
     </div>
     {% if user.is_authenticated and object.owner == user %}
 

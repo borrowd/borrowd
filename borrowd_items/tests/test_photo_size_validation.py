@@ -150,7 +150,7 @@ class ItemCreateWithPhotoFormSizeValidationTests(TestCase):
             "name": "Test Item",
             "description": "A test item description",
             "categories": [self.category.pk],
-            "trust_level_required": TrustLevel.LOW,
+            "trust_level_required": TrustLevel.STANDARD,
         }
 
     def test_form_valid_without_image(self) -> None:
@@ -250,7 +250,7 @@ class ItemPhotoFormSizeValidationTests(TestCase):
             name="Item for Photo Tests",
             description="An item to add photos to",
             owner=cls.owner,
-            trust_level_required=TrustLevel.LOW,
+            trust_level_required=TrustLevel.STANDARD,
         )
         cls.item.categories.add(cls.category)
 
@@ -354,7 +354,7 @@ class ImageEdgeCaseTests(TestCase):
             "name": "Test Item",
             "description": "A test item description",
             "categories": [self.category.pk],
-            "trust_level_required": TrustLevel.LOW,
+            "trust_level_required": TrustLevel.STANDARD,
         }
 
     # Zero byte / empty file tests

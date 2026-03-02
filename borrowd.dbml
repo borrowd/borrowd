@@ -4,8 +4,7 @@
 // this underpins much of the permissioning
 Enum trust_level {
   HIGH
-  MEDIUM
-  LOW
+  STANDARD
 }
 
 Table user {
