@@ -24,7 +24,7 @@ Borrow'd theme for DaisyUI
   --color-info-content: #ffffff;
   --color-success: #00891d;
   --color-success-content: #ffffff;
-  --color-warning: #eeaf00;
+  --color-warning: #D29A00;
   --color-warning-content: oklch(0% 0 0);
   --color-error: #e50006;
   --color-error-content: oklch(100% 0 0);
@@ -66,4 +66,19 @@ TODO: Transfer over all to daisy */
   --font-roboto-slab: "Roboto Slab", "serif";
   --color-borrowd-cancel-light: #f6e7e8;
   --color-borrowd-light-gray: #e6e6ed;
+}
+
+
+/* Toast alert variants */
+@layer utilities {
+  .alert-success {
+    background-color: var(--color-success);
+    color: var(--color-success-content);
+    border-color: var(--color-success);
+  }
+  .alert-warning {
+    background-color: var(--color-warning);
+    color: var(--color-warning-content);
+    border-color: var(--color-warning);
+  }
 }

@@ -4,268 +4,218 @@
 {% block head_title %}{{ profile.user.username }}'s profile{% endblock %}
 
 {% block content %}
-<div class="flex flex-col w-full max-w-2xl mx-auto px-4 py-4">
-    {% include "components/page_header.html" with title="Profile" %}
+<div class="flex flex-col w-full max-w-2xl mx-auto px-4 py-4 gap-6">
 
-    <form method="post" enctype="multipart/form-data" onsubmit="this.querySelector('button[type=submit]').disabled = true;">
-        {% csrf_token %}
+  {% include "components/page_header.html" with title=_("Profile") %}
 
-        <!-- Avatar Section -->
-        <div class="card shadow-md mb-6 p-4 rounded-md border bg-base-100 border-gray-200">
-            <div class="flex items-center justify-between">
-                <!-- Avatar -->
-                <div class="avatar">
-                    <div class="w-15 rounded-full">
-                        {% if profile.image %}
-                            <img src="{{ profile.image.url }}" alt="Profile Picture" id="avatar-preview" />
-                        {% else %}
-                            <img src="https://ui-avatars.com/api/?name={{ profile.full_name|urlencode }}&background=random" alt="Profile Picture" id="avatar-preview" />
-                        {% endif %}
-                    </div>
-                </div>
+  {# ── Personal Information ──────────────────────────────────────── #}
+  <section class="flex flex-col gap-2">
+    <p class="text-xs font-semibold text-base-content px-1">{% trans "Personal information" %}</p>
 
-                <!-- Buttons -->
-                <div class="flex gap-4">
-                    <label for="id_image" class="btn btn-sm border-1 border-base-content-100/7 bg-base-200 rounded-sm">
-                        {% comment %} pencil icon {% endcomment %}
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="size-4">
-  <path fill-rule="evenodd" d="M11.013 2.513a1.75 1.75 0 0 1 2.475 2.474L6.226 12.25a2.751 2.751 0 0 1-.892.596l-2.047.848a.75.75 0 0 1-.98-.98l.848-2.047a2.75 2.75 0 0 1 .596-.892l7.262-7.261Z" clip-rule="evenodd" />
-</svg>
+    <form
+      method="post"
+      enctype="multipart/form-data"
+      class="card bg-primary-content rounded-md border border-gray-200 shadow-[0_1px_3px_rgba(0,0,0,0.1),0_1px_2px_rgba(0,0,0,0.06)] p-4 flex flex-col gap-4"
+      onsubmit="this.querySelector('button[type=submit]').disabled = true;"
+    >
+      {% csrf_token %}
 
-                        Edit
-                    </label>
-                    <button type="button" onclick="openDeleteModal()" class="btn btn-sm btn-error btn-soft rounded-sm" id="delete-avatar-btn" {% if not profile.image %}disabled{% endif %}>
-                        {% comment %} trash icon {% endcomment %}
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="w-4 h-4">
-                            <path fill-rule="evenodd" d="M5 3.25V4H2.75a.75.75 0 0 0 0 1.5h.3l.815 8.15A1.5 1.5 0 0 0 5.357 15h5.285a1.5 1.5 0 0 0 1.493-1.35l.815-8.15h.3a.75.75 0 0 0 0-1.5H11v-.75A2.25 2.25 0 0 0 8.75 1h-1.5A2.25 2.25 0 0 0 5 3.25Zm2.25-.75a.75.75 0 0 0-.75.75V4h3v-.75a.75.75 0 0 0-.75-.75h-1.5ZM6.05 6a.75.75 0 0 1 .787.713l.275 5.5a.75.75 0 0 1-1.498.075l-.275-5.5A.75.75 0 0 1 6.05 6Zm3.9 0a.75.75 0 0 1 .712.787l-.275 5.5a.75.75 0 0 1-1.498-.075l.275-5.5a.75.75 0 0 1 .786-.712Z" clip-rule="evenodd" />
-                        </svg>
-                        Delete
-                    </button>
-                </div>
-            </div>
-            <!-- Hidden file input -->
-            {{ form.image }}
-        </div>
-
-        <!-- Personal Information Section -->
-        <div class="mb-6">
-            <h2 class="text-base-content font-semibold mb-4">Personal information</h2>
-
-            <!-- First Name -->
-            <fieldset class="fieldset">
-                <label class="form-control w-full mb-4">
-                    <div class="label mb-2">
-                        <span class="label-text text-gray-400">First name</span>
-                    </div>
-                    {{ form.first_name }}
-                    {% if form.first_name.errors %}
-                        <div class="label">
-                            <span class="label-text-alt text-error">{{ form.first_name.errors.0 }}</span>
-                        </div>
-                    {% endif %}
-                </label>
-            </fieldset>
-
-            <!-- Last Name -->
-            <fieldset class="fieldset">
-                <label class="form-control w-full mb-4">
-                    <div class="label mb-2">
-                        <span class="label-text text-gray-400">Last name</span>
-                    </div>
-                    {{ form.last_name }}
-                    {% if form.last_name.errors %}
-                        <div class="label">
-                            <span class="label-text-alt text-error">{{ form.last_name.errors.0 }}</span>
-                        </div>
-                    {% endif %}
-                </label>
-            </fieldset>
-
-            <!-- Email -->
-            <fieldset class="fieldset">
-                <label class="form-control w-full mb-4">
-                    <div class="label mb-2">
-                        <span class="label-text text-gray-400">Email</span>
-                    </div>
-                    {{ form.email }}
-                    {% if form.email.errors %}
-                        <div class="label">
-                            <span class="label-text-alt text-error">{{ form.email.errors.0 }}</span>
-                        </div>
-                    {% endif %}
-                </label>
-            </fieldset>
-
-            <!-- About Yourself (Bio) -->
-            <fieldset class="fieldset">
-                <label class="form-control w-full mb-4">
-                    <div class="label mb-2">
-                        <span class="label-text text-gray-400">About yourself</span>
-                    </div>
-                    {{ form.bio }}
-                    <div class="label mt-2">
-                        <span class="label-text-alt text-gray-400">
-                            <span id="bio-counter">{{ form.bio.value|length|default:0 }}</span>/120
-                        </span>
-                    </div>
-                    {% if form.bio.errors %}
-                        <div class="label">
-                            <span class="label-text-alt text-error">{{ form.bio.errors.0 }}</span>
-                        </div>
-                    {% endif %}
-                </label>
-            </fieldset>
-        </div>
-
-        <!-- Security Section -->
-        <div class="mb-6">
-            <h2 class="text-base-content font-semibold mb-4">Security</h2>
-
-            {% url 'account_change_password' as change_password_url %}
-            {% if change_password_url %}
-                <a href="{{ change_password_url }}" class="card border border-gray-200 bg-base-100 shadow-md rounded-md flex flex-row items-center justify-between px-4 py-2 hover:bg-base-200 transition-colors">
-                    <span class="text-base">Change password</span>
-                    <div class="bg-gray-200 rounded w-8 h-8 flex items-center justify-center">
-                        <i class="fa-solid fa-chevron-right text-gray-600 text-sm"></i>
-                    </div>
-                </a>
+      {# Avatar row #}
+      <div class="flex items-center justify-between">
+        <div class="avatar">
+          <div class="w-16 rounded-full ring-2 ring-base-100">
+            {% if profile.image %}
+              <img src="{{ profile.image.url }}" alt="{% trans 'Profile photo' %}" id="avatar-preview" />
+            {% else %}
+              <img
+                src="https://ui-avatars.com/api/?name={{ profile.full_name|urlencode }}&background=random"
+                alt="{% trans 'Profile photo' %}"
+                id="avatar-preview"
+              />
             {% endif %}
+          </div>
         </div>
 
-        <!-- Update Profile Button -->
-        <button type="submit" class="btn btn-primary w-fit rounded-md">
-            Update profile
+        <div class="flex items-center gap-3">
+          <label for="id_image" class="btn btn-sm bg-base-200 border border-base-300 rounded-sm cursor-pointer">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="size-4">
+              <path fill-rule="evenodd" d="M11.013 2.513a1.75 1.75 0 0 1 2.475 2.474L6.226 12.25a2.751 2.751 0 0 1-.892.596l-2.047.848a.75.75 0 0 1-.98-.98l.848-2.047a2.75 2.75 0 0 1 .596-.892l7.262-7.261Z" clip-rule="evenodd" />
+            </svg>
+            {% trans "Edit" %}
+          </label>
+
+          <button
+            type="button"
+            onclick="openDeleteModal()"
+            id="delete-avatar-btn"
+            class="btn btn-sm btn-error btn-soft rounded-sm"
+            {% if not profile.image %}disabled{% endif %}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="size-4">
+              <path fill-rule="evenodd" d="M5 3.25V4H2.75a.75.75 0 0 0 0 1.5h.3l.815 8.15A1.5 1.5 0 0 0 5.357 15h5.285a1.5 1.5 0 0 0 1.493-1.35l.815-8.15h.3a.75.75 0 0 0 0-1.5H11v-.75A2.25 2.25 0 0 0 8.75 1h-1.5A2.25 2.25 0 0 0 5 3.25Zm2.25-.75a.75.75 0 0 0-.75.75V4h3v-.75a.75.75 0 0 0-.75-.75h-1.5ZM6.05 6a.75.75 0 0 1 .787.713l.275 5.5a.75.75 0 0 1-1.498.075l-.275-5.5A.75.75 0 0 1 6.05 6Zm3.9 0a.75.75 0 0 1 .712.787l-.275 5.5a.75.75 0 0 1-1.498-.075l.275-5.5a.75.75 0 0 1 .786-.712Z" clip-rule="evenodd" />
+            </svg>
+            {% trans "Delete" %}
+          </button>
+        </div>
+
+        {# Hidden file input rendered by the form widget #}
+        {{ form.image }}
+      </div>
+
+      <c-divider class="my-0" />
+
+      {# Personal fields #}
+      <c-form.field
+        label="First name"
+        name="{{ form.first_name.html_name }}"
+        id="{{ form.first_name.id_for_label }}"
+        type="text"
+        value="{{ form.first_name.value }}"
+        errors="{{ form.first_name.errors.0 }}"
+      />
+
+      <c-form.field
+        label="Last name"
+        name="{{ form.last_name.html_name }}"
+        id="{{ form.last_name.id_for_label }}"
+        type="text"
+        value="{{ form.last_name.value }}"
+        errors="{{ form.last_name.errors.0 }}"
+      />
+
+      <c-form.field
+        label="Email"
+        name="{{ form.email.html_name }}"
+        id="{{ form.email.id_for_label }}"
+        type="email"
+        value="{{ form.email.value }}"
+        autocomplete="email"
+        errors="{{ form.email.errors.0 }}"
+      />
+
+      <c-form.textarea
+        label="About yourself"
+        name="{{ form.bio.html_name }}"
+        id="{{ form.bio.id_for_label }}"
+        value="{{ form.bio.value|default:'' }}"
+        placeholder="Tell others a bit about yourself"
+        max_length="200"
+        rows="4"
+        errors="{{ form.bio.errors.0 }}"
+      />
+
+      <div class="flex justify-end pt-1">
+        <button type="submit" class="btn btn-primary rounded-md md:w-full">
+          {% trans "Update profile" %}
         </button>
+      </div>
     </form>
+  </section>
+
+  {# ── Security ──────────────────────────────────────────────────── #}
+  <section class="flex flex-col gap-2 ">
+    <p class="text-xs font-semibold text-base-content px-1">{% trans "Security" %}</p>
+
+    {% url 'account_change_password' as change_password_url %}
+    {% if change_password_url %}
+      <c-profile.nav-row href="{{ change_password_url }}" label="Change password" />
+    {% endif %}
+  </section>
+
+  {# ── Account ───────────────────────────────────────────────────── #}
+  <!-- <section class="flex flex-col gap-2">
+    <p class="text-xs font-semibold text-base-content px-1">{% trans "Account" %}</p>
+
+    <div class="card bg-primary-content border border-gray-200 shadow-sm rounded-md flex flex-row items-center justify-between px-4 py-3">
+      <span class="text-sm font-medium text-base-content">{% trans "Delete account" %}</span>
+      {# TODO: wire up delete-account view — see borrowd_users/views.py #}
+      <button
+        type="button"
+        class="btn btn-sm btn-error btn-soft rounded-sm"
+        disabled
+
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="size-4">
+          <path fill-rule="evenodd" d="M5 3.25V4H2.75a.75.75 0 0 0 0 1.5h.3l.815 8.15A1.5 1.5 0 0 0 5.357 15h5.285a1.5 1.5 0 0 0 1.493-1.35l.815-8.15h.3a.75.75 0 0 0 0-1.5H11v-.75A2.25 2.25 0 0 0 8.75 1h-1.5A2.25 2.25 0 0 0 5 3.25Zm2.25-.75a.75.75 0 0 0-.75.75V4h3v-.75a.75.75 0 0 0-.75-.75h-1.5ZM6.05 6a.75.75 0 0 1 .787.713l.275 5.5a.75.75 0 0 1-1.498.075l-.275-5.5A.75.75 0 0 1 6.05 6Zm3.9 0a.75.75 0 0 1 .712.787l-.275 5.5a.75.75 0 0 1-1.498-.075l.275-5.5a.75.75 0 0 1 .786-.712Z" clip-rule="evenodd" />
+        </svg>
+        {% trans "Delete" %}
+      </button>
+    </div>
+  </section> -->
+
 </div>
 
-<!-- Delete Profile Picture Confirmation Modal -->
+{# ── Delete profile picture confirmation modal ────────────────── #}
 <dialog id="delete-avatar-modal" class="modal modal-bottom sm:modal-middle">
-    <div class="modal-box rounded-t-2xl sm:rounded-2xl p-6 max-w-lg max-h-[70rem]">
-        <!-- Close button -->
-        <form method="dialog">
-            <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="w-3 h-3">
-                    <path d="M5.28 4.22a.75.75 0 0 0-1.06 1.06L6.94 8l-2.72 2.72a.75.75 0 1 0 1.06 1.06L8 9.06l2.72 2.72a.75.75 0 1 0 1.06-1.06L9.06 8l2.72-2.72a.75.75 0 0 0-1.06-1.06L8 6.94 5.28 4.22Z"/>
-                </svg>
-            </button>
-        </form>
-
-        <!-- Modal content -->
-        <h3 class="text-xl font-bold leading-7 p-5">Are you sure you want to delete your profile picture?</h3>
-        <p class="px-5 py-2 leading-7 text-xl">We advise everyone to have a profile picture so they can identify each other.</p>
-
-        <!-- Modal actions -->
-        <div class="modal-action justify-end pt-6 gap-3">
-            <form method="dialog">
-                <button class="btn btn-ghost font-semibold">No, cancel</button>
-            </form>
-            <button type="button" onclick="confirmDeleteAvatar()" class="btn btn-soft btn-error font-semibold">Yes, delete</button>
-        </div>
-    </div>
-    <form method="dialog" class="modal-backdrop">
-        <button>close</button>
+  <div class="modal-box rounded-t-2xl sm:rounded-2xl p-6 max-w-lg max-h-[70rem]">
+    <form method="dialog">
+      <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="w-3 h-3">
+          <path d="M5.28 4.22a.75.75 0 0 0-1.06 1.06L6.94 8l-2.72 2.72a.75.75 0 1 0 1.06 1.06L8 9.06l2.72 2.72a.75.75 0 1 0 1.06-1.06L9.06 8l2.72-2.72a.75.75 0 0 0-1.06-1.06L8 6.94 5.28 4.22Z"/>
+        </svg>
+      </button>
     </form>
+
+    <h3 class="text-xl font-bold leading-7 p-5">{% trans "Are you sure you want to delete your profile picture?" %}</h3>
+    <p class="px-5 py-2 leading-7 text-xl">{% trans "We advise everyone to have a profile picture so they can identify each other." %}</p>
+
+    <div class="modal-action justify-end pt-6 gap-3">
+      <form method="dialog">
+        <button class="btn btn-ghost font-semibold">{% trans "No, cancel" %}</button>
+      </form>
+      <button type="button" onclick="confirmDeleteAvatar()" class="btn btn-soft btn-error font-semibold">
+        {% trans "Yes, delete" %}
+      </button>
+    </div>
+  </div>
+  <form method="dialog" class="modal-backdrop">
+    <button>close</button>
+  </form>
 </dialog>
 
 <script>
-    // Character counter for bio field
-    const bioField = document.querySelector('textarea[name="bio"]');
-    const bioCounter = document.getElementById('bio-counter');
+  const imageInput = document.getElementById('id_image');
+  const avatarPreview = document.getElementById('avatar-preview');
+  const deleteBtn = document.getElementById('delete-avatar-btn');
 
-    if (bioField && bioCounter) {
-        bioField.addEventListener('input', function() {
-            bioCounter.textContent = this.value.length;
-        });
-    }
+  // Live preview on new file select
+  if (imageInput) {
+    imageInput.addEventListener('change', function (e) {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function (e) { avatarPreview.src = e.target.result; };
+        reader.readAsDataURL(file);
+      }
+    });
+  }
 
-    // Image preview
-    const imageInput = document.getElementById('id_image');
-    const avatarPreview = document.getElementById('avatar-preview');
-    const deleteBtn = document.getElementById('delete-avatar-btn');
+  function openDeleteModal() {
+    document.getElementById('delete-avatar-modal').showModal();
+  }
 
-    if (imageInput) {
-        imageInput.addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    avatarPreview.src = e.target.result;
-                };
-                reader.readAsDataURL(file);
-            }
-        });
-    }
 
-    // Open delete confirmation modal for avatar
-    function openDeleteModal() {
-        document.getElementById('delete-avatar-modal').showModal();
-    }
+  function confirmDeleteAvatar() {
+    const modal = document.getElementById('delete-avatar-modal');
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
 
-    // Show custom toast notification (needs to be updated to align with templates/includes/messages.html)
-    // Doing this because we don't want page refresh on avatar update (see PR 237)
-    function showToast(message) {
-        const toast = document.createElement('div');
-        toast.id = 'notification-toast';
-        toast.className = 'fixed bottom-6 left-1/2 -translate-x-1/2 z-50';
-        toast.innerHTML = `
-            <div class="flex items-center gap-4 bg-success text-success-content p-3 rounded-2xl shadow-lg text-nowrap">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6 shrink-0">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" />
-                </svg>
-                <span class="text-sm font-bold leading-6">${message}</span>
-            </div>
-        `;
-        document.body.appendChild(toast);
-
-        setTimeout(function() {
-            toast.style.transition = 'opacity 0.3s ease-out';
-            toast.style.opacity = '0';
-            setTimeout(function() { toast.remove(); }, 300);
-        }, 5000);
-    }
-
-    // Confirm delete avatar via AJAX
-    function confirmDeleteAvatar() {
-        const modal = document.getElementById('delete-avatar-modal');
-        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-
-        fetch('{% url "profile-delete-photo" %}', {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': csrfToken,
-                'Content-Type': 'application/json',
-            },
-        })
-        .then(function(response) { return response.json(); })
-        .then(function(data) {
-            if (data.success) {
-                // Update avatar to show ui-avatars fallback
-                var avatarUrl = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(data.full_name) + '&background=random';
-                avatarPreview.src = avatarUrl;
-
-                // Disable delete button
-                if (deleteBtn) {
-                    deleteBtn.disabled = true;
-                }
-
-                // Clear file input
-                if (imageInput) {
-                    imageInput.value = '';
-                }
-
-                // Show success toast
-                showToast(data.message);
-            } else {
-                showToast(data.message || 'An error occurred.');
-            }
-        })
-        .catch(function() {
-            showToast('An error occurred while deleting your profile picture.');
-        })
-        .finally(function() {
-            modal.close();
-        });
-    }
+    fetch('{% url "profile-delete-photo" %}', {
+      method: 'POST',
+      headers: { 'X-CSRFToken': csrfToken, 'Content-Type': 'application/json' },
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+      if (data.success) {
+        avatarPreview.src = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(data.full_name) + '&background=random';
+        if (deleteBtn) deleteBtn.disabled = true;
+        if (imageInput) imageInput.value = '';
+        showToast(data.message);
+      } else {
+        showToast(data.message || 'An error occurred.');
+      }
+    })
+    .catch(function () { showToast('An error occurred while deleting your profile picture.'); })
+    .finally(function () { modal.close(); });
+  }
 </script>
 {% endblock %}
