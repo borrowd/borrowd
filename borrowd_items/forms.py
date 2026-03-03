@@ -39,12 +39,6 @@ class ItemForm(forms.ModelForm[Item]):
                     "placeholder": "Enter a detailed description of your item...",
                 }
             ),
-            # The category filter modal manages the UI and sends the chosen
-            # categories back to this widget.
-            # See:
-            # `templates/items/item_form.html`
-            # `templates/components/items/category_filter_modal.html`
-            "categories": forms.SelectMultiple(attrs={"class": "hidden"}),
             "trust_level_required": forms.Select(
                 attrs={"class": "select select-bordered w-full"}
             ),

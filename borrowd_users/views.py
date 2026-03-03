@@ -17,17 +17,49 @@ from django.views.decorators.http import require_POST
 from django.views.generic import (
     CreateView,
 )
+from django.shortcuts import get_object_or_404, render
+from django.http import Http404
 
+
+from borrowd_items.models import Item, ItemStatus, Transaction
+from django.http import HttpResponseForbidden
+from borrowd_groups.models import Membership
 from borrowd_groups.models import Membership
 from borrowd_items.card_helpers import (
     build_item_cards_for_items,
     build_item_cards_for_transactions,
 )
-from borrowd_items.models import Item, Transaction
+from borrowd_items.models import Item, ItemStatus, Transaction
 
 from .forms import ChangePasswordForm, CustomSignupForm, ProfileUpdateForm
 from .models import BorrowdUser
 
+@login_required
+def public_profile_view(request: HttpRequest, user_id : int) -> HttpResponse:
+    user = get_object_or_404(BorrowdUser, id=user_id)
+    profile = user.profile
+
+    # Allow users to view their own profile
+    if user == request.user:
+        return render(request, "users/public-profile.html", {
+            "profile": profile,
+            "user_obj":user
+
+        })
+    
+    shared_groups_exist = Membership.objects.filter(
+        group__membership__user=request.user,
+        user=user
+    ).exists()
+
+    if not shared_groups_exist:
+        raise Http404
+
+    return render(request, "users/public-profile.html", {
+        "profile": profile,
+        "user_obj": user
+    })
+    
 
 @login_required
 def public_profile_view(request: HttpRequest, user_id: int) -> HttpResponse:
@@ -114,37 +146,85 @@ def delete_profile_photo_view(request: HttpRequest) -> JsonResponse:
 
 @login_required
 def inventory_view(request: HttpRequest) -> HttpResponse:
+    """
+    Inventory page with toggle between owned items and all activity.
+
+    Toggle ON (Your Items): only user-owned items/sections displayed
+    Toggle OFF (All Items): all sections displayed
+
+    Sections in display order:
+    1. incoming_borrow_requests   — others requesting to borrow user's items
+    2. outgoing_borrow_requests   — user's outgoing requests awaiting response
+    3. owned_items_lent           — user's items actively lent to others
+    4. borrowed_items_from_others — items user is borrowing from others
+    5. owned_items_available      — user's items with no active transactions
+    """
     user: BorrowdUser = request.user  # type: ignore[assignment]
 
-    # Prefetch photos to minimize database queries
-    requests_from_user = Transaction.get_borrow_requests_from_user(
+    # Borrow requests the user (item owner) needs to accept or decline
+    incoming_borrow_requests = Transaction.get_borrow_requests_to_user(
         user
     ).prefetch_related("item__photos")
-    requests_to_user = Transaction.get_borrow_requests_to_user(user).prefetch_related(
-        "item__photos"
-    )
-    borrowed = Transaction.get_current_borrows_for_user(user).prefetch_related(
-        "item__photos"
-    )
-    user_items = Item.objects.filter(owner=user).prefetch_related("photos")
 
-    requests_from_cards = build_item_cards_for_transactions(
-        list(requests_from_user), user, "my-requests"
+    # Requests the user made that are awaiting the owner's response
+    outgoing_borrow_requests = Transaction.get_borrow_requests_from_user(
+        user
+    ).prefetch_related("item__photos")
+
+    # User's items currently lent out (approved through returned)
+    owned_items_lent = Transaction.get_items_lent_by_user(user).prefetch_related(
+        "item__photos"
     )
-    requests_to_cards = build_item_cards_for_transactions(
-        list(requests_to_user), user, "requests-for-me"
+
+    # Items the user is actively borrowing from others
+    borrowed_items_from_others = Transaction.get_current_borrows_for_user(
+        user
+    ).prefetch_related("item__photos")
+
+    # User's items sitting idle with no active transaction.
+    owned_items_available = Item.objects.filter(
+        owner=user,
+        status=ItemStatus.AVAILABLE,
+    ).prefetch_related("photos")
+
+    # Build card context
+    incoming_borrow_requests_cards = build_item_cards_for_transactions(
+        list(incoming_borrow_requests), user, "incoming-borrow-requests"
     )
-    borrowed_cards = build_item_cards_for_transactions(list(borrowed), user, "borrowed")
-    user_items_cards = build_item_cards_for_items(list(user_items), user, "my-items")
+    outgoing_borrow_requests_cards = build_item_cards_for_transactions(
+        list(outgoing_borrow_requests), user, "outgoing-borrow-requests"
+    )
+    owned_items_lent_cards = build_item_cards_for_transactions(
+        list(owned_items_lent), user, "owned-items-lent"
+    )
+    borrowed_items_from_others_cards = build_item_cards_for_transactions(
+        list(borrowed_items_from_others), user, "borrowed-items-from-others"
+    )
+    owned_items_available_cards = build_item_cards_for_items(
+        list(owned_items_available), user, "owned-items-available"
+    )
+
+    # Toggle empty states: "Your Items" shows owned sections, "All Items" adds borrowing activity
+    has_owned_items = bool(
+        incoming_borrow_requests_cards
+        or owned_items_lent_cards
+        or owned_items_available_cards
+    )
+    has_activity = bool(
+        outgoing_borrow_requests_cards or borrowed_items_from_others_cards
+    )
 
     return render(
         request,
         "users/inventory.html",
         {
-            "requests_from_user": requests_from_cards,
-            "requests_to_user": requests_to_cards,
-            "borrowed": borrowed_cards,
-            "user_items": user_items_cards,
+            "incoming_borrow_requests": incoming_borrow_requests_cards,
+            "outgoing_borrow_requests": outgoing_borrow_requests_cards,
+            "owned_items_lent": owned_items_lent_cards,
+            "borrowed_items_from_others": borrowed_items_from_others_cards,
+            "owned_items_available": owned_items_available_cards,
+            "has_owned_items": has_owned_items,
+            "has_activity": has_activity,
         },
     )
 
@@ -222,3 +302,5 @@ class CustomPasswordChangeView(PasswordChangeView):  # type: ignore[misc]
             messages.warning(self.request, error_message)
 
         return super().form_invalid(form)  # type: ignore[no-any-return]
+
+
