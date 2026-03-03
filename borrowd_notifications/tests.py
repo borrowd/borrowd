@@ -35,7 +35,7 @@ class GroupMemberJoinedNotificationTests(TestCase):
             name="Test Group",
             created_by=self.user1,
             updated_by=self.user1,
-            trust_level=TrustLevel.LOW,
+            trust_level=TrustLevel.STANDARD,
         )
 
         membership = Membership.objects.get(user=self.user1, group=group)
@@ -54,13 +54,13 @@ class GroupMemberJoinedNotificationTests(TestCase):
             name="Test Group",
             created_by=self.user1,
             updated_by=self.user1,
-            trust_level=TrustLevel.LOW,
+            trust_level=TrustLevel.STANDARD,
         )
 
         # Clear any notifications from group creation
         Notification.objects.all().delete()
 
-        group.add_user(self.user2, trust_level=TrustLevel.MEDIUM)
+        group.add_user(self.user2, trust_level=TrustLevel.STANDARD)
 
         membership = Membership.objects.get(user=self.user2, group=group)
 
@@ -80,13 +80,13 @@ class GroupMemberJoinedNotificationTests(TestCase):
             name="Test Group",
             created_by=self.user1,
             updated_by=self.user1,
-            trust_level=TrustLevel.LOW,
+            trust_level=TrustLevel.STANDARD,
         )
 
         # Clear any notifications from group creation
         Notification.objects.all().delete()
 
-        group.add_user(self.user2, trust_level=TrustLevel.MEDIUM)
+        group.add_user(self.user2, trust_level=TrustLevel.STANDARD)
 
         # User1 (creator) should receive a notification
         user1_notifications = Notification.objects.filter(recipient=self.user1)
@@ -112,14 +112,14 @@ class GroupMemberJoinedNotificationTests(TestCase):
             name="Test Group",
             created_by=self.user1,
             updated_by=self.user1,
-            trust_level=TrustLevel.LOW,
+            trust_level=TrustLevel.STANDARD,
         )
 
         # Clear any notifications from group creation
         Notification.objects.all().delete()
 
-        group.add_user(self.user2, trust_level=TrustLevel.MEDIUM)
-        group.add_user(self.user3, trust_level=TrustLevel.MEDIUM)
+        group.add_user(self.user2, trust_level=TrustLevel.STANDARD)
+        group.add_user(self.user3, trust_level=TrustLevel.STANDARD)
 
         # User1 (creator) should receive 2 notifications
         user1_notifications = Notification.objects.filter(recipient=self.user1)
@@ -157,15 +157,15 @@ class GroupMemberJoinedNotificationTests(TestCase):
             name="Test Group",
             created_by=self.user1,
             updated_by=self.user1,
-            trust_level=TrustLevel.LOW,
+            trust_level=TrustLevel.STANDARD,
         )
 
-        group.add_user(self.user2, trust_level=TrustLevel.MEDIUM)
+        group.add_user(self.user2, trust_level=TrustLevel.STANDARD)
 
         # Clear notifications about user2 joining
         Notification.objects.all().delete()
 
-        group.add_user(self.user3, trust_level=TrustLevel.MEDIUM)
+        group.add_user(self.user3, trust_level=TrustLevel.STANDARD)
 
         # Both user1 and user2 should receive notifications
         user1_notifications = Notification.objects.filter(recipient=self.user1)

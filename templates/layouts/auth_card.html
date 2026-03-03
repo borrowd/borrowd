@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% load static %}
+{% load i18n %}
+
+{% block head_title %}{% block auth_title %}{% endblock %}{% endblock %}
+
+{% block layout %}
+<main class="flex-grow flex justify-center items-center py-2 px-3">
+  <div class="w-full max-w-[971px]">
+    <div class="{% block auth_container_class %}md:bg-white md:rounded-2xl md:shadow-sm md:border md:border-base-200 overflow-hidden flex flex-col md:flex-row w-full md:min-h-[486px]{% endblock %}">
+      {# ── Left: illustration panel (desktop only) ─────────────────────── #}
+      {% block auth_illustration %}
+        <div class="hidden md:block md:w-1/2 relative">
+          <img
+            src="{% static 'auth/auth-img.png' %}"
+            alt="Borrow'd community illustration"
+            class="absolute inset-0 w-full h-full object-cover"
+          />
+        </div>
+      {% endblock %}
+
+      {# ── Right: form panel ───────────────────────────────────────────── #}
+      <div class="{% block auth_form_class %}w-full md:w-1/2{% endblock %} flex flex-col justify-center gap-5 p-3 md:p-6">
+
+        {# Logo — desktop only #}
+        {% block auth_logo %}
+        <div class="flex justify-center mb-2">
+          <img src="{% static 'borrowd-logo.svg' %}" alt="Borrow'd" class="h-10" />
+        </div>
+        {% endblock %}
+
+        <fieldset class="fieldset {% block auth_fieldset_class %}bg-white border border-base-300 rounded-2xl p-4 md:border-0 md:rounded-none md:p-0{% endblock %}">
+          <legend class="fieldset-legend text-sm font-semibold md:hidden">
+            {% block auth_mobile_title %}{% endblock %}
+          </legend>
+
+          {% block auth_content %}{% endblock %}
+        </fieldset>
+
+        {% block auth_footer %}{% endblock %}
+
+      </div>
+    </div>
+  </div>
+</main>
+{% endblock %}

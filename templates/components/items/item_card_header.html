@@ -1,0 +1,29 @@
+{% comment %}
+Item Card Header Sub-component
+
+Parameters:
+- banner_type: 'requested' | 'available' | 'reserved' | 'borrowed' (required)
+- banner_bg: Background color classes
+- banner_text: Text color classes
+- banner_icon: SVG icon markup
+- person_name: Name of person (for 'requested', 'reserved', 'borrowed' banners)
+- person_url: Profile URL (for 'requested', 'reserved', 'borrowed' banners)
+- time_ago: Time since action, e.g., "2 hours" (for 'requested', 'reserved', 'borrowed' banners)
+{% endcomment %}
+
+{% if banner_type %}
+<div class="flex items-center gap-2 p-3 {{ banner_bg }} rounded-t-lg">
+    <span class="{{ banner_text }} shrink-0">{{ banner_icon }}</span>
+    <span class="text-sm font-medium {{ banner_text }} min-w-0 truncate">
+        {% if banner_type == 'requested' %}
+            Requested {{ time_ago }} ago by {% if person_url %}<a href="{{ person_url }}" class="underline hover:no-underline">{{ person_name }}</a>{% else %}{{ person_name }}{% endif %}
+        {% elif banner_type == 'available' %}
+            Available
+        {% elif banner_type == 'reserved' %}
+            Reserved {{ time_ago }} ago by {% if person_url %}<a href="{{ person_url }}" class="underline hover:no-underline">{{ person_name }}</a>{% else %}{{ person_name }}{% endif %}
+        {% elif banner_type == 'borrowed' %}
+            Borrowed {{ time_ago }} ago by {% if person_url %}<a href="{{ person_url }}" class="underline hover:no-underline">{{ person_name }}</a>{% else %}{{ person_name }}{% endif %}
+        {% endif %}
+    </span>
+</div>
+{% endif %}

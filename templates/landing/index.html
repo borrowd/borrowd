@@ -18,7 +18,7 @@
 
     {% if not user.is_authenticated %}
     <div class="flex sm:flex-row gap-4 justify-center items-center mb-8">
-        {% url 'account_request_login_code' as login_url_ %}
+        {% url 'account_login' as login_url_ %}
         {% if login_url_ %}
             <a href="{{ login_url_ }}" class="btn btn-lg">
                 {% trans "Log In" %}
