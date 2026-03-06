@@ -40,7 +40,7 @@ class ItemAction(TextChoices):
     REJECT_REQUEST = "REJECT_REQUEST", "Reject Request"
     MARK_COLLECTED = "MARK_COLLECTED", "Mark Collected"
     CONFIRM_COLLECTED = "CONFIRM_COLLECTED", "Confirm Collected"
-    REQUEST_NOTIFICATION = "REQUEST_NOTIFICATION", "Request Notification"
+    NOTIFY_WHEN_AVAILABLE = "NOTIFY_WHEN_AVAILABLE", "Notify when available"
     MARK_RETURNED = "MARK_RETURNED", "Mark Returned"
     CONFIRM_RETURNED = "CONFIRM_RETURNED", "Confirm Returned"
     CANCEL_REQUEST = "CANCEL_REQUEST", "Cancel Request"
@@ -118,6 +118,7 @@ class Item(Model):
 
     # Hint for mypy (actual field created from reverse relation)
     transactions: QuerySet["Transaction"]
+    subscriptions: QuerySet["AvailabilitySubscription"]
 
     def __str__(self) -> str:
         return self.name
@@ -177,7 +178,7 @@ class Item(Model):
         elif is_borrower:
             return self._get_borrower_status_text(actions)
         else:
-            return self._get_other_user_status_text(actions)
+            return self._get_other_user_status_text(actions, user)
 
     def _get_owner_status_text(
         self, actions: tuple[ItemAction, ...], requester_name: str, borrower_name: str
@@ -229,18 +230,26 @@ class Item(Model):
         else:
             return "Not available for borrowing"
 
-    def _get_other_user_status_text(self, actions: tuple[ItemAction, ...]) -> str:
+    def _get_other_user_status_text(
+        self, actions: tuple[ItemAction, ...], user: BorrowdUser
+    ) -> str:
         """Generate status text for users who are neither owner nor borrower."""
         if len(actions) == 1 and ItemAction.CANCEL_REQUEST in actions:
             # Intentionally obscuring owner name here for privacy to reject
             return "Requested to borrow, waiting on owner response..."
         elif ItemAction.REQUEST_ITEM in actions:
             return "Available to request!"
+        elif (
+            AvailabilitySubscription.get_active_subscription_for_user_and_item(
+                user=user, item=self
+            )
+            is not None
+        ):
+            # BAD: The subscription returned is not based on the user
+            return "You've requested to be notified when this item is available again."
         elif self.get_requesting_user() is not None:
             # There's a pending request from another user
             return "Item is reserved"
-        elif ItemAction.REQUEST_NOTIFICATION in actions:
-            return "Item is currently borrowed, but you can request to be notified when it's available again."
         else:
             return "Not available for borrowing"
 
@@ -276,6 +285,7 @@ class Item(Model):
             #   AND the item status Available,
             #   AND the user is not the owner,
             #   AND there's no pending request from another user
+            # TODO (is this the right behavior? Or do we want to allow multiple pending requests and let the owner choose?)
             if (
                 self.status == ItemStatus.AVAILABLE
                 and self.owner != user
@@ -285,12 +295,19 @@ class Item(Model):
                 #   the User can Request the Item.
                 return (ItemAction.REQUEST_ITEM,)
             elif (
-                self.status in [ItemStatus.RESERVED, ItemStatus.BORROWED]
-                or self.get_requesting_user() is not None
+                # self.status in [ItemStatus.RESERVED, ItemStatus.BORROWED] and
+                (
+                    self.get_requesting_user() is not None
+                    or self.get_current_borrower() is not None
+                )
+                and AvailabilitySubscription.get_active_subscription_for_user_and_item(
+                    user=user, item=self
+                )
+                is None
             ) and self.owner != user:
                 # If the item is currently BORROWED or RESERVED by another user,
                 # allow requesting notification for when it becomes available again
-                return (ItemAction.REQUEST_NOTIFICATION,)
+                return (ItemAction.NOTIFY_WHEN_AVAILABLE,)
             else:
                 # At this point, either:
                 # - the user is the owner of the item (and thus can't request to borrow their
@@ -472,12 +489,18 @@ class Item(Model):
             )
             return
 
-        # For the REQUEST_NOTIFICATION action, we don't need to create a Transaction,
+        # For the NOTIFY_WHEN_AVAILABLE action, we don't need to create a Transaction,
         # we just need to create an AvailabilitySubscription.
-        if action == ItemAction.REQUEST_NOTIFICATION and self.status in [
-            ItemStatus.BORROWED,
-            ItemStatus.RESERVED,
-        ]:
+        if (
+            action == ItemAction.NOTIFY_WHEN_AVAILABLE
+            # and self.status in [
+            # ItemStatus.BORROWED,
+            # ItemStatus.RESERVED,]
+            and AvailabilitySubscription.get_active_subscription_for_user_and_item(
+                user=user, item=self
+            )
+            is None
+        ):
             AvailabilitySubscription.objects.create(
                 user=user,
                 item=self,
