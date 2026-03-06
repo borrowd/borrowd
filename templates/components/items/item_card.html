@@ -28,7 +28,7 @@ Parameters:
 {% firstof request_modal_id "request-item-modal-"|add:context|add:"-"|add:pk as request_modal_id %}
 {% firstof accept_modal_id "accept-request-modal-"|add:context|add:"-"|add:pk as accept_modal_id %}
 <div id="{{ card_id }}"
-     class="bg-base-100 rounded-2xl shadow-md overflow-hidden w-full flex flex-col">
+     class="bg-white rounded-2xl shadow-md overflow-hidden w-full flex flex-col">
     {% if banner_type %}
         {% include "components/items/item_card_header.html" with banner_type=banner_type banner_bg=banner_bg banner_text=banner_text banner_icon=banner_icon person_name=person_name person_url=person_url time_ago=time_ago %}
     {% endif %}
