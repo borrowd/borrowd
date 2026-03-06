@@ -28,12 +28,12 @@ Parameters:
 {% firstof request_modal_id "request-item-modal-"|add:context|add:"-"|add:pk as request_modal_id %}
 {% firstof accept_modal_id "accept-request-modal-"|add:context|add:"-"|add:pk as accept_modal_id %}
 <div id="{{ card_id }}"
-     class="bg-base-100 rounded-2xl shadow-md overflow-hidden w-full">
+     class="bg-white rounded-2xl shadow-md overflow-hidden w-full flex flex-col">
     {% if banner_type %}
         {% include "components/items/item_card_header.html" with banner_type=banner_type banner_bg=banner_bg banner_text=banner_text banner_icon=banner_icon person_name=person_name person_url=person_url time_ago=time_ago %}
     {% endif %}
 
-    <div class="flex flex-col">
+    <div class="flex flex-col flex-grow">
         <div class="flex flex-row items-start gap-3 p-3">
             <!-- Thumbnail -->
             <div class="w-1/2 shrink-0">
@@ -60,7 +60,9 @@ Parameters:
             </div>
         </div>
         {% if show_actions and action_context.actions %}
+        <div class="mt-auto">
             {% include "components/items/action_buttons_with_status.html" with item=item action_context=action_context variant="card" container_id=actions_container_id modal_suffix=modal_suffix %}
+        </div>
         {% endif %}
     </div>
 
