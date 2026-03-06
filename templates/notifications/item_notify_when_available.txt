@@ -1,0 +1,14 @@
+The item you wanted is available - Borrow'd
+
+Hi {{ subscriber_name }},
+
+Good news — the {{ item_name }} you were interested in is available again.
+
+You can now request to borrow it in Borrow'd.
+Availability is first-come, so if you still need it, now's the time to send a request.
+
+View item: {{ item_url }}
+
+Thanks for borrowing thoughtfully!
+
+The Borrow'd team

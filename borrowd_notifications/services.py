@@ -19,12 +19,10 @@ class NotificationType(Enum):
     ITEM_REQUESTED = "Item requested"
     ITEM_REQUEST_ACCEPTED = "Item request accepted"
     ITEM_REQUEST_DENIED = "Item request denied"
-    ITEM_SUBSCRIBED_TO = (
-        "Item subscribed to"  # For users who subscribe to get notified about an item
+    ITEM_NOTIFY_WHEN_AVAILABLE = (
+        "Item notify when available"  # When the item becomes available
     )
-    ITEM_SUBSCRIBED_TO_AVAILABLE = (
-        "Item subscribed to available"  # When the item becomes available
-    )
+
     ITEM_RETURNED = "Item returned"
     GROUP_MEMBER_JOINED = "Change to group membership"
 
@@ -109,8 +107,10 @@ class NotificationService:
             subscription: AvailabilitySubscription = notification.target
             context.update(
                 {
-                    "subscriber_name": subscription.user.profile.full_name(),  # type: ignore[attr-defined]
+                    "subscriber_name": subscription.user.first_name,  # type: ignore[attr-defined]
                     "item_name": subscription.item.name,  # type: ignore[attr-defined]
+                    "item_url": settings.BASE_URL
+                    + reverse("item-detail", args=[subscription.item.pk]),  # type: ignore[attr-defined]
                 }
             )
         return context
