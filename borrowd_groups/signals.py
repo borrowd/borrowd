@@ -161,6 +161,14 @@ def pre_membership_delete(
     _raise_if_last_moderator(user, borrowd_group, **kwargs)
 
     #
+    # Remove the user from the Django auth Group so they immediately lose
+    # all group-inherited object-level permissions (e.g. VIEW on other
+    # members' items). This is idempotent — safe even if
+    # BorrowdGroup.remove_user() already called it.
+    #
+    user.groups.remove(group)
+
+    #
     # Handle Group removal
     #
     group_perms = [

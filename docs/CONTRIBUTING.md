@@ -8,6 +8,27 @@ This project uses:
 * [`pre-commit`](https://pre-commit.com/)
 * [`vite`](https://vite.dev/)
 
+**Windows users:**
+This project assumes a Unix-like environment. On Windows, use [WSL2 (Ubuntu)](https://learn.microsoft.com/windows/wsl/).
+
+```
+# Install WSL (PowerShell as Administrator)
+wsl --install
+
+# Launch Ubuntu:
+wsl -d Ubuntu # On first launch, create your Unix username and password
+
+cd ~ # Move to your Linux home directory
+pwd # ensure you are working inside `/home/<user>` (not `/mnt/c/...`)
+```
+
+On a clean Ubuntu install, install required system tools:
+
+```
+sudo apt update
+sudo apt install -y curl git build-essential
+```
+
 ### 1. Install `uv`, `npm` and other tools
 
 Recommended: install `npm` via
@@ -16,6 +37,10 @@ Recommended: install `npm` via
 ```
 # Python stuff
 curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Make `uv` available in the current terminal session
+source ~/.bashrc
+
 uv tool install ruff
 uv tool install pre-commit
 
@@ -43,6 +68,11 @@ git clone git@github.com:borrowd/borrowd.git && cd borrowd/
 # This will automatically create a local Python virtual environment
 # at .venv and setup the git pre-commit hook
 uv sync
+
+# If `uv sync` fails with an error like: `You're using CPython 3.14 (cp314),
+# but psycopg-binary only has wheels for cp313`, pin a supported Python version and retry:
+uv python install 3.13
+uv python pin 3.13
 
 # This makes it so that the rules defined in .pre-commit-config.yaml
 # are automatically executed before a commit can be made. NB you can
@@ -90,6 +120,14 @@ _Required: either this OR the subsequent var_
 
 Long, high-entropy, secret string for Django to use for cryptography
 operations.
+
+```
+# Generate a Django secret key
+uv run python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
+
+# Copy the printed value and add it to .env
+DJANGO_SECRET_KEY=<generated-value-goes-here>
+```
 
 * `DJANGO_SECRET_KEY_VAR_NAME`
 

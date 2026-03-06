@@ -15,6 +15,5 @@ class TrustLevel(IntegerChoices):
     users can see which items for borrowing.
     """
 
-    LOW = 1, "Low"
-    MEDIUM = 2, "Medium"
-    HIGH = 3, "High"
+    STANDARD = 1, "Standard"
+    HIGH = 2, "High"

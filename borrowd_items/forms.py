@@ -39,9 +39,6 @@ class ItemForm(forms.ModelForm[Item]):
                     "placeholder": "Enter a detailed description of your item...",
                 }
             ),
-            "categories": forms.SelectMultiple(
-                attrs={"class": "select select-bordered w-full"}
-            ),
             "trust_level_required": forms.Select(
                 attrs={"class": "select select-bordered w-full"}
             ),
