@@ -17,6 +17,7 @@ Including another URLconf
 
 from typing import List
 
+from allauth.account.internal.stagekit import clear_login
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
@@ -37,6 +38,12 @@ def redirect_to_custom_signup(request: HttpRequest) -> HttpResponse:
     return response
 
 
+def cancel_login_code(request: HttpRequest) -> HttpResponse:
+    """Cancel any pending login-by-code flow and return to password login."""
+    clear_login(request)
+    return redirect("account_login")
+
+
 urlpatterns: List[URLPattern | URLResolver] = [
     path("admin/", admin.site.urls),
     # Custom signup view
@@ -50,6 +57,7 @@ urlpatterns: List[URLPattern | URLResolver] = [
         CustomPasswordChangeView.as_view(),
         name="account_change_password",
     ),
+    path("accounts/login/cancel/", cancel_login_code, name="account_login_cancel"),
     path("accounts/", include("allauth.urls")),
     path("beta/", include("borrowd_beta.urls")),
     path("profile/", include("borrowd_users.urls")),
