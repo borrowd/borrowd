@@ -9,6 +9,7 @@ from django.http import (
     HttpRequest,
     HttpResponse,
     HttpResponseBase,
+    HttpResponseForbidden,
     JsonResponse,
 )
 from django.shortcuts import get_object_or_404, redirect, render
@@ -17,13 +18,7 @@ from django.views.decorators.http import require_POST
 from django.views.generic import (
     CreateView,
 )
-from django.shortcuts import get_object_or_404, render
-from django.http import Http404
 
-
-from borrowd_items.models import Item, ItemStatus, Transaction
-from django.http import HttpResponseForbidden
-from borrowd_groups.models import Membership
 from borrowd_groups.models import Membership
 from borrowd_items.card_helpers import (
     build_item_cards_for_items,
@@ -34,32 +29,29 @@ from borrowd_items.models import Item, ItemStatus, Transaction
 from .forms import ChangePasswordForm, CustomSignupForm, ProfileUpdateForm
 from .models import BorrowdUser
 
+
 @login_required
-def public_profile_view(request: HttpRequest, user_id : int) -> HttpResponse:
+def public_profile_view(request: HttpRequest, user_id: int) -> HttpResponse:
     user = get_object_or_404(BorrowdUser, id=user_id)
     profile = user.profile
 
     # Allow users to view their own profile
     if user == request.user:
-        return render(request, "users/public-profile.html", {
-            "profile": profile,
-            "user_obj":user
+        return render(
+            request, "users/public-profile.html", {"profile": profile, "user_obj": user}
+        )
 
-        })
-    
     shared_groups_exist = Membership.objects.filter(
-        group__membership__user=request.user,
-        user=user
+        group__membership__user=request.user, user=user
     ).exists()
 
     if not shared_groups_exist:
         raise Http404
 
-    return render(request, "users/public-profile.html", {
-        "profile": profile,
-        "user_obj": user
-    })
-    
+    return render(
+        request, "users/public-profile.html", {"profile": profile, "user_obj": user}
+    )
+
 
 @login_required
 def public_profile_view(request: HttpRequest, user_id: int) -> HttpResponse:
@@ -287,6 +279,8 @@ class CustomPasswordChangeView(PasswordChangeView):  # type: ignore[misc]
     per ux.
     """
 
+    success_url = reverse_lazy("profile")
+
     def form_invalid(self, form: ChangePasswordForm) -> HttpResponse:
         """Add warning message when password validation fails."""
         # Get the first error message to display in the toast
@@ -302,5 +296,3 @@ class CustomPasswordChangeView(PasswordChangeView):  # type: ignore[misc]
             messages.warning(self.request, error_message)
 
         return super().form_invalid(form)  # type: ignore[no-any-return]
-
-
