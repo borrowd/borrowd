@@ -2,7 +2,10 @@
      Parameters:
      - modal_id: Required, unique ID for the modal
      - modal_title: Optional, title text
-     - modal_content: Required, HTML content for modal body
+     - modal_content: Optional, inline HTML string for modal body
+     - modal_content_template: Optional, template path to include as modal body.
+       Use instead of modal_content when the content contains quotes that would
+       break Django's template tag parser (e.g. "word" inside a with-string).
      - modal_size: Optional, 'half' or 'full' (default: 'half')
      - button_layout: Optional, 'end' (default), 'between', or 'equal' for button arrangement
      - cancel_button_text: Optional, text for secondary button (left side)
@@ -42,12 +45,13 @@
 
         <!-- Modal Title -->
         {% if modal_title %}
-        <h3 class="text-2xl leading-[1.8rem] flex-shrink-0 pr-12">{{ modal_title }}</h3>
+        <h3 class="text-lg leading-7 font-bold flex-shrink-0 pr-12 ">{{ modal_title }}</h3>
         {% endif %}
+
 
         <!-- Modal Content (scrollable) -->
         <div class="{% if modal_title %}pt-4{% endif %} leading-[1.4rem] text-base overflow-y-auto flex-grow">
-            {{ modal_content|safe }}
+            {% if modal_content_template %}{% include modal_content_template %}{% else %}{{ modal_content|safe }}{% endif %}
         </div>
 
         <!-- Modal actions -->
