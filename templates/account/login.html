@@ -62,7 +62,7 @@
 
          <c-button-nav
             class="btn btn-soft text-primary w-full font-semibold"
-            url="{{ req_code_url }}"
+          url="{{ req_code_url }}{% if redirect_field_value %}?{{ redirect_field_name }}={{ redirect_field_value|urlencode }}{% endif %}"
             >
             {% trans "Request login code" %}
             </c-button-nav>
@@ -76,7 +76,10 @@
   {# Sign-up link #}
   <p class="text-center text-xs  text-base-content/80 font-semibold">
     {% trans "Don't have an account?" %}
-     <c-button-nav class="text-info underline " url="{% url 'account_signup'%}">
+     <c-button-nav
+      class="text-info underline "
+      url="{% url 'account_signup'%}{% if redirect_field_value %}?{{ redirect_field_name }}={{ redirect_field_value|urlencode }}{% endif %}"
+      >
       {% trans "Sign up" %}
     </c-button-nav>
   </p>
