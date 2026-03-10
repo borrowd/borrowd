@@ -213,6 +213,11 @@ def build_item_card_context(
     # https://docs.djangoproject.com/en/6.0/ref/utils/#django.utils.html.format_html
     banner_icon = format_html(BANNER_ICONS.get(banner_type, ""))
 
+    try:
+        image = first_photo.thumbnail.url if first_photo else ""
+    except FileNotFoundError:
+        image = ""
+
     ctx: dict[str, Any] = {
         "item": item,
         "action_context": action_context,
@@ -220,7 +225,7 @@ def build_item_card_context(
         "context": context,
         "name": item.name,
         "description": item.description,
-        "image": first_photo.thumbnail.url if first_photo else "",
+        "image": image,
         "is_yours": item.owner == user,
         "banner_type": banner_type,
         "banner_bg": banner_style.get("bg", ""),
@@ -275,7 +280,7 @@ def build_item_cards_for_transactions(
     """
     return [
         # ForeignKey type not fully resolved without django-stubs mypy plugin
-        # Ref: https://forum.djangoproject.com/t/mypy-and-type-checking/15787, 
+        # Ref: https://forum.djangoproject.com/t/mypy-and-type-checking/15787,
         # Ref: https://github.com/typeddjango/django-stubs
         build_item_card_context(transaction.item, user, context)  # type: ignore[arg-type]
         for transaction in transactions

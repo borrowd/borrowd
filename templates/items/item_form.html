@@ -8,9 +8,11 @@
 {% block head_title %}{% if not view.object.pk %}Create{% else %}Edit{% endif %} Item{% endblock %}
 
 {% block items_content %}
-<div class="w-full">
+<div class="flex flex-col w-full max-w-2xl mx-auto">
     {% include "components/page_header.html" with title=page_title %}
-    <form method="post" enctype="multipart/form-data" class="flex flex-col gap-4" onsubmit="this.querySelector('button[type=submit]').disabled = true;">
+    <form method="post" enctype="multipart/form-data"
+   class="card bg-primary-content rounded-md border border-gray-200 shadow-[0_1px_3px_rgba(0,0,0,0.1),0_1px_2px_rgba(0,0,0,0.06)] p-4 flex flex-col gap-4"
+     onsubmit="this.querySelector('button[type=submit]').disabled = true;">
         {% csrf_token %}
         {% for field in form %}
         <div class="fieldset w-full">
@@ -79,7 +81,7 @@
                     <!-- Trigger button: opens the category selection modal -->
                     <button type="button"
                         @click="showModal('item-category-modal')"
-                        class="select select-bordered w-full text-left flex items-center"
+                        class="select select-bordered w-full text-left flex items-center bg-primary-content"
                         x-text="buttonText">
                     </button>
 
@@ -92,7 +94,7 @@
                         <input type="hidden" name="{{ field.html_name }}" :value="id">
                     </template>
 
-                    {% include "components/items/category_filter_modal.html" with modal_id="item-category-modal" confirm_button_text="Filter categories" %}
+                    {% include "components/items/category_filter_modal.html" with modal_id="item-category-modal" confirm_button_text="Select categories" %}
                 </div>
             {% else %}
                 {{ field }}
@@ -119,9 +121,9 @@
                         <c-photo src="{{ photo.image.url }}"
                             alt="{{ view.object.name }} Photo {{ forloop.counter }}" />
                         <div class="p-1">
-                            <c-button-nav url="{% url 'itemphoto-delete' view.object.pk photo.pk %}" class="btn btn-link">
+                            <button type="button" class="btn btn-link" onclick="showModal('item-photo-delete-modal-{{ photo.pk }}')">
                                 Delete
-                            </c-button-nav>
+                            </button>
                         </div>
                     </div>
                 {% endfor %}
@@ -137,19 +139,37 @@
 
         {% endif %}
 
-        <div class="mt-4">
-            <c-button type="submit" class="btn btn-primary mr-2">Save item</c-button>
+        <div class="mt-4 flex justify-end">
+            <c-button type="submit" class="btn btn-primary mr-2">Add item</c-button>
             {% if form.instance.pk %}
                 <c-button-nav url="{% url 'item-detail' form.instance.pk %}" class="btn">
                     Cancel
                 </c-button-nav>
-                <c-button-nav url="{% url 'item-delete' form.instance.pk %}" class="btn btn-link">
+                <button type="button" class="btn btn-link" onclick="showModal('item-delete-modal')">
                     Delete
-                </c-button-nav>
+                </button>
             {% endif %}
         </div>
     </form>
+
+    {% if view.object.pk %}
+        <form id="item-delete-form" method="post" action="{% url 'item-delete' form.instance.pk %}" class="hidden">
+            {% csrf_token %}
+        </form>
+
+        {% for photo in view.object.photos.all %}
+            <form id="item-photo-delete-form-{{ photo.pk }}" method="post" action="{% url 'itemphoto-delete' view.object.pk photo.pk %}" class="hidden">
+                {% csrf_token %}
+            </form>
+        {% endfor %}
+
+        {% include "components/modal.html" with modal_id="item-delete-modal" modal_title="Confirm Deletion" modal_content_template="items/_item_delete_content.html" cancel_button_text="Cancel" confirm_button_text="Yes, delete item" confirm_submit_form_id="item-delete-form" confirm_button_class="btn btn-md btn-error btn-soft rounded-sm" %}
+
+        {% for photo in view.object.photos.all %}
+            {% include "items/itemphoto_confirm_delete.html" %}
+        {% endfor %}
+    {% endif %}
 </div>
 
-{% include "components/modal.html" with modal_id="trust-level-info-modal" modal_title="Group trust levels" modal_size="full" cancel_button="Got it" modal_content="<div class='text-left'><p class='mb-4'>At the heart of Borrow'd is trust. Each group you join gets a trust level (High or Standard), which determines what kinds of items they can request from you. For example:</p><div class='mb-4'><p class='font-bold mb-2'><span class='text-borrowd-plum-600'>High trust:</span> Super Best Friends</p><p>If you mark an item as High trust, it can only be seen and borrowed by people in groups you’ve marked as High trust. Use this for items that are valuable, fragile, or personal — like electronics, specialized tools, or anything you’d only lend to people you know well. Your trust settings are private — no one else can see which groups you’ve marked as High trust.</p></div><div class='mb-4'><p class='font-bold mb-2'><span class='text-indigo-600'>Standard trust:</span> Neighborhood Community</p><p>Items marked as “Standard” trust are visible to people in the groups you’ve joined. Use this for everyday items you’re comfortable sharing more widely.</p></div></div>" %}
+{% include "components/modal.html" with modal_id="trust-level-info-modal" modal_title="Group trust levels" modal_size="full" modal_content_template="items/_trust_level_info_content.html" cancel_button_text="Got it" %}
 {% endblock %}
