@@ -236,9 +236,7 @@ class GroupJoinView(LoginRequiredMixin, View):  # type: ignore[misc]
         ).first()
         if existing_membership:
             if existing_membership.status == MembershipStatus.PENDING:
-                messages.info(
-                    request, "Your request to join this group is pending approval."
-                )
+                messages.warning(request, "Your request is still pending.")
                 return redirect("borrowd_groups:group-list")
             if existing_membership.status == MembershipStatus.ACTIVE:
                 messages.info(request, "You are already a member of this group.")
