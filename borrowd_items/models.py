@@ -83,8 +83,9 @@ class ItemStatus(IntegerChoices):
     # Paranoia forcing to me to use value increments of at least 10,
     # for when we later realize we need to add more in between...
     AVAILABLE = 10, "Available"
-    RESERVED = 20, "Reserved"
-    BORROWED = 30, "Borrowed"
+    REQUESTED = 20, "Requested"
+    RESERVED = 30, "Reserved"
+    BORROWED = 40, "Borrowed"
 
 
 class Item(Model):

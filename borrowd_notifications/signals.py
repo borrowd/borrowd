@@ -16,6 +16,7 @@ django-notifications repo: https://github.com/django-notifications/django-notifi
 
 from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
+from django.utils import timezone
 from notifications.models import Notification
 from notifications.signals import notify
 
@@ -147,4 +148,8 @@ def send_item_available_notification(
             AvailabilitySubscription.objects.filter(
                 pk=subscription.pk,
                 status=AvailabilitySubscriptionStatus.ACTIVE,
-            ).update(status=AvailabilitySubscriptionStatus.NOTIFIED)
+                notified_at__isnull=True,
+            ).update(
+                notified_at=timezone.now(),
+                status=AvailabilitySubscriptionStatus.NOTIFIED,
+            )
