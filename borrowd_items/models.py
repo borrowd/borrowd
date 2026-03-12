@@ -15,6 +15,7 @@ from django.db.models import (
     Q,
     QuerySet,
     TextChoices,
+    UniqueConstraint,
 )
 from django.urls import reverse
 from imagekit.models import ImageSpecField, ProcessedImageField
@@ -39,6 +40,7 @@ class ItemAction(TextChoices):
     REJECT_REQUEST = "REJECT_REQUEST", "Reject Request"
     MARK_COLLECTED = "MARK_COLLECTED", "Mark Collected"
     CONFIRM_COLLECTED = "CONFIRM_COLLECTED", "Confirm Collected"
+    NOTIFY_WHEN_AVAILABLE = "NOTIFY_WHEN_AVAILABLE", "Notify when available"
     MARK_RETURNED = "MARK_RETURNED", "Mark Returned"
     CONFIRM_RETURNED = "CONFIRM_RETURNED", "Confirm Returned"
     CANCEL_REQUEST = "CANCEL_REQUEST", "Cancel Request"
@@ -116,6 +118,7 @@ class Item(Model):
 
     # Hints for mypy (actual fields created from reverse relations)
     transactions: QuerySet["Transaction"]
+    subscriptions: QuerySet["AvailabilitySubscription"]
     photos: QuerySet["ItemPhoto"]
 
     def __str__(self) -> str:
@@ -176,7 +179,7 @@ class Item(Model):
         elif is_borrower:
             return self._get_borrower_status_text(actions)
         else:
-            return self._get_other_user_status_text(actions)
+            return self._get_other_user_status_text(actions, user)
 
     def _get_owner_status_text(
         self, actions: tuple[ItemAction, ...], requester_name: str, borrower_name: str
@@ -228,13 +231,23 @@ class Item(Model):
         else:
             return "Not available for borrowing"
 
-    def _get_other_user_status_text(self, actions: tuple[ItemAction, ...]) -> str:
+    def _get_other_user_status_text(
+        self, actions: tuple[ItemAction, ...], user: BorrowdUser
+    ) -> str:
         """Generate status text for users who are neither owner nor borrower."""
         if len(actions) == 1 and ItemAction.CANCEL_REQUEST in actions:
             # Intentionally obscuring owner name here for privacy to reject
             return "Requested to borrow, waiting on owner response..."
         elif ItemAction.REQUEST_ITEM in actions:
             return "Available to request!"
+        elif (
+            AvailabilitySubscription.get_active_subscription_for_user_and_item(
+                user=user, item=self
+            )
+            is not None
+        ):
+            # BAD: The subscription returned is not based on the user
+            return "You've requested to be notified when this item is available again."
         elif self.get_requesting_user() is not None:
             # There's a pending request from another user
             return "Item is reserved"
@@ -273,6 +286,7 @@ class Item(Model):
             #   AND the item status Available,
             #   AND the user is not the owner,
             #   AND there's no pending request from another user
+            # TODO (is this the right behavior? Or do we want to allow multiple pending requests and let the owner choose?)
             if (
                 self.status == ItemStatus.AVAILABLE
                 and self.owner != user
@@ -281,12 +295,24 @@ class Item(Model):
                 # THEN
                 #   the User can Request the Item.
                 return (ItemAction.REQUEST_ITEM,)
+            elif (
+                # self.status in [ItemStatus.RESERVED, ItemStatus.BORROWED] and
+                (
+                    self.get_requesting_user() is not None
+                    or self.get_current_borrower() is not None
+                )
+                and AvailabilitySubscription.get_active_subscription_for_user_and_item(
+                    user=user, item=self
+                )
+                is None
+            ) and self.owner != user:
+                # If the item is currently BORROWED or RESERVED by another user,
+                # allow requesting notification for when it becomes available again
+                return (ItemAction.NOTIFY_WHEN_AVAILABLE,)
             else:
                 # At this point, either:
-                #   the item is not Available
-                #   OR the user is the owner
-                #   OR there's already a pending request from another user;
-                # either way, no Request can be initiated.
+                # - the user is the owner of the item (and thus can't request to borrow their
+                # no Request can be initiated.
 
                 # NOTE Later we may want to allow new Requests on Items
                 # even when they're currently Borrowed; that will
@@ -461,6 +487,25 @@ class Item(Model):
                 updated_by=user,
                 # This is default; just being explicit
                 status=TransactionStatus.REQUESTED,
+            )
+            return
+
+        # For the NOTIFY_WHEN_AVAILABLE action, we don't need to create a Transaction,
+        # we just need to create an AvailabilitySubscription.
+        if (
+            action == ItemAction.NOTIFY_WHEN_AVAILABLE
+            # and self.status in [
+            # ItemStatus.BORROWED,
+            # ItemStatus.RESERVED,]
+            and AvailabilitySubscription.get_active_subscription_for_user_and_item(
+                user=user, item=self
+            )
+            is None
+        ):
+            AvailabilitySubscription.objects.create(
+                user=user,
+                item=self,
+                status=AvailabilitySubscriptionStatus.ACTIVE,
             )
             return
 
@@ -719,3 +764,122 @@ class Transaction(Model):
                 ]
             )
         )
+
+
+class AvailabilitySubscriptionStatus(IntegerChoices):
+    """
+    Represents the status of an Availability Subscription.
+    This is used to track the current state of an Availability Subscription,
+    and to determine which actions are available to the user.
+    """
+
+    ACTIVE = 10, "Active"
+    NOTIFIED = 20, "Notified"
+    CANCELLED = 30, "Cancelled"
+    EXPIRED = 40, "Expired"
+
+
+class AvailabilitySubscription(Model):
+    item: ForeignKey["Item"] = ForeignKey(
+        to="Item",
+        on_delete=PROTECT,
+        related_name="subscriptions",
+        help_text="The Item which is the subject of the Subscription.",
+    )
+    user: ForeignKey[BorrowdUser] = ForeignKey(
+        to=BorrowdUser,
+        on_delete=PROTECT,
+        related_name="+",  # No reverse relation needed
+        help_text="The User who is subscribed to the Item.",
+    )
+    status: IntegerField[AvailabilitySubscriptionStatus, int] = IntegerField(
+        choices=AvailabilitySubscriptionStatus.choices,
+        default=AvailabilitySubscriptionStatus.ACTIVE,
+        help_text="The current status of the Subscription.",
+    )
+    created_at: DateTimeField[Never, Never] = DateTimeField(
+        auto_now_add=True,
+        help_text="When this Subscription was created.",
+    )
+    notified_at: DateTimeField[Optional[str], Optional[str]] = DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When the user was notified that the item became available.",
+    )
+    language: CharField[str, str] = CharField(
+        max_length=10,
+        null=False,
+        blank=False,
+        default="en",
+        help_text="The user's preferred language for notifications (e.g. 'en', 'fr', etc.)",
+    )
+
+    @staticmethod
+    def get_active_subscriptions_for_user(
+        user: BorrowdUser,
+    ) -> QuerySet["AvailabilitySubscription"]:
+        """
+        Returns all active Availability Subscriptions for the given User.
+        """
+        return AvailabilitySubscription.objects.filter(
+            user=user,
+            status=AvailabilitySubscriptionStatus.ACTIVE,
+        )
+
+    @staticmethod
+    def get_active_subscriptions_for_item(
+        item: Item,
+    ) -> QuerySet["AvailabilitySubscription"]:
+        """
+        Returns all active Availability Subscriptions for the given Item.
+        """
+        return AvailabilitySubscription.objects.filter(
+            item=item,
+            status=AvailabilitySubscriptionStatus.ACTIVE,
+        )
+
+    @staticmethod
+    def get_active_subscription_for_user_and_item(
+        user: BorrowdUser, item: Item
+    ) -> Optional["AvailabilitySubscription"]:
+        """
+        Returns the active Availability Subscription for the given User and Item, if any.
+        """
+        try:
+            return AvailabilitySubscription.objects.get(
+                item=item,
+                user=user,
+                status=AvailabilitySubscriptionStatus.ACTIVE,
+            )
+        except AvailabilitySubscription.DoesNotExist:
+            return None
+        except AvailabilitySubscription.MultipleObjectsReturned:
+            # This shouldn't happen with proper business logic, but just in case
+            return AvailabilitySubscription.objects.filter(
+                item=item,
+                user=user,
+                status=AvailabilitySubscriptionStatus.ACTIVE,
+            ).first()
+
+    def cancel_subscription(self) -> None:
+        """
+        Cancel the given subscription, e.g. if the user manually cancels it or if they request to be notified again.
+        """
+        self.status = AvailabilitySubscriptionStatus.CANCELLED
+        self.save()
+
+    def expire_subscription(self) -> None:
+        """
+        Expire the given subscription, e.g. if a certain amount of time has passed since the user was notified without them taking action.
+        """
+        self.status = AvailabilitySubscriptionStatus.EXPIRED
+        self.save()
+
+    class Meta:
+        constraints = [
+            UniqueConstraint(
+                fields=["item", "user"],
+                condition=Q(status=AvailabilitySubscriptionStatus.ACTIVE),
+                name="unique_active_subscription_per_user_and_item",
+            )
+        ]
