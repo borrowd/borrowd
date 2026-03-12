@@ -33,12 +33,12 @@
         </div>
         <div>
             <c-button-nav url="{% url 'borrowd_groups:group-invite' object.pk %}" class="btn btn-secondary">
-                Get Invite Link
+                Get invite link
             </c-button-nav>
             <!-- only moderators can edit Group -->
             {% if is_moderator %}
             <c-button-nav url="{% url 'borrowd_groups:group-edit' object.pk %}" class="btn btn-warning">
-                Edit Group
+                Edit group
             </c-button-nav>
             {% endif %}
         </div>

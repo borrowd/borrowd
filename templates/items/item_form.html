@@ -132,7 +132,7 @@
                 <div class="mb-2">No photos</div>
             {% endif %}
             {% if view.object.photos.count < 5 %}
-                <c-button-nav url="{% url 'itemphoto-create' item_pk=object.pk %}?next={% url 'item-edit' object.pk %}">Add Photo</c-button-nav>
+                <c-button-nav url="{% url 'itemphoto-create' item_pk=object.pk %}?next={% url 'item-edit' object.pk %}">Add photo</c-button-nav>
             {% else %}
                 <div class="text-gray-500 italic">Photo limit (5) reached. Delete a photo if you want to add another.</div>
             {% endif %}
@@ -140,7 +140,7 @@
         {% endif %}
 
         <div class="mt-4 flex justify-end">
-            <c-button type="submit" class="btn btn-primary mr-2">Add item</c-button>
+            <c-button type="submit" class="btn btn-primary mr-2">{% if form.instance.pk %}Save item{% else %}Add item{% endif %}</c-button>
             {% if form.instance.pk %}
                 <c-button-nav url="{% url 'item-detail' form.instance.pk %}" class="btn">
                     Cancel
@@ -171,5 +171,5 @@
     {% endif %}
 </div>
 
-{% include "components/modal.html" with modal_id="trust-level-info-modal" modal_title="Group trust levels" modal_size="full" modal_content_template="items/_trust_level_info_content.html" cancel_button_text="Got it" %}
+{% include "components/modal.html" with modal_id="trust-level-info-modal" modal_title="Trust levels" modal_size="full" modal_content_template="items/_trust_level_info_content.html" cancel_button_text="Got it" %}
 {% endblock %}
