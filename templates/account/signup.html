@@ -15,6 +15,9 @@
 
      <form class="mt-8 space-y-6 [&_input]:bg-primary-content [&_textarea]:bg-primary-content [&_input]:border-base-content/20 [&_textarea]:border-base-content/20" method="post" onsubmit="this.querySelector('button[type=submit]').disabled = true;">
          {% csrf_token %}
+         {% if request.GET.next %}
+          <input type="hidden" name="next" value="{{ request.GET.next }}">
+         {% endif %}
 
          {% if form.non_field_errors %}
           <div class="rounded-md bg-red-50 p-4">
