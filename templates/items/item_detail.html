@@ -73,18 +73,12 @@
         {% include "icons/arrow-up.svg" %}
         {{object.get_trust_level_required_display}} Trust
       </div>
-      {% elif "Low" in object.get_trust_level_required_display %}
-      <div
-        class="badge badge-error badge-soft font-medium text-[14px] border-xl p-3"
-      >
-        {% include "icons/arrow-down.svg" %}
+      {% elif "Standard" in object.get_trust_level_required_display %}
+      <div class="badge badge-soft font-medium text-[14px] border-xl p-3">
+        {% include "icons/medium-icon.svg" %}
         {{object.get_trust_level_required_display}} Trust
       </div>
       {% endif %}
-        <c-items.action-buttons-with-status
-            :item="object"
-            :action-context="action_context"
-        ></c-items.action-buttons-with-status>
     </div>
     {% if user.is_authenticated and object.owner == user %}
 
