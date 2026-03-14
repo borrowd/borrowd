@@ -9,7 +9,6 @@ from django.http import (
     HttpRequest,
     HttpResponse,
     HttpResponseBase,
-    HttpResponseForbidden,
     JsonResponse,
 )
 from django.shortcuts import get_object_or_404, redirect, render
@@ -30,49 +29,64 @@ from .forms import ChangePasswordForm, CustomSignupForm, ProfileUpdateForm
 from .models import BorrowdUser
 
 
+def build_profile_context(
+    subject_user: BorrowdUser,
+    viewing_user: BorrowdUser,
+) -> dict[str, str]:
+    """
+    Profile context to determine which fields to display based on user roles
+    and whether user is viewing their own profile or not.
+    """
+    profile = subject_user.profile
+
+    # Base profile context (all profile views get this).
+    profile_context: dict[str, str] = {
+        "full_name": profile.full_name(),
+        "bio": profile.bio,
+        "profile_image_url": profile.image.url if profile.image else "",
+    }
+
+    """
+    Add whatever conditionals here.
+    E.G. if user is viewing their own profile, it's ok to include email
+    Maybe in the future you have an admin role. This would be where you
+    add in what the admin could see in other people's profiles.
+    Something like `if viewing_user.is_admin: see all the stuff`
+    """
+    if viewing_user == subject_user:
+        profile_context["email"] = subject_user.email
+
+    return profile_context
+
+
 @login_required
-def public_profile_view(request: HttpRequest, user_id: int) -> HttpResponse:
-    user = get_object_or_404(BorrowdUser, id=user_id)
-    profile = user.profile
+def public_profile_view(
+    request: HttpRequest, user_id: int
+) -> HttpResponse | HttpResponseBase:
+    subject_user = get_object_or_404(BorrowdUser, id=user_id)
 
-    # Allow users to view their own profile
-    if user == request.user:
-        return render(
-            request, "users/public-profile.html", {"profile": profile, "user_obj": user}
-        )
+    # Redirect users to their own editable profile page via `profile_view`
+    if subject_user == request.user:
+        return redirect("profile")
 
-    shared_groups_exist = Membership.objects.filter(
-        group__membership__user=request.user, user=user
+    viewer: BorrowdUser = request.user  # type: ignore[assignment]
+
+    # Check if the viewer shares a group with the subject user
+    viewer_shares_group_with_subject = Membership.objects.filter(
+        group__membership__user=viewer, user=subject_user
     ).exists()
 
-    if not shared_groups_exist:
+    # If not, then they shouldn't be sharing items or able to view each other's profiles
+    # It shouldn't come to this, but just in case
+    if not viewer_shares_group_with_subject:
         raise Http404
 
-    return render(
-        request, "users/public-profile.html", {"profile": profile, "user_obj": user}
+    profile_context = build_profile_context(
+        subject_user=subject_user, viewing_user=viewer
     )
 
-
-@login_required
-def public_profile_view(request: HttpRequest, user_id: int) -> HttpResponse:
-    user = get_object_or_404(BorrowdUser, id=user_id)
-    profile = user.profile
-
-    # Allow users to view their own profile
-    if user == request.user:
-        return render(
-            request, "users/public-profile.html", {"profile": profile, "user_obj": user}
-        )
-
-    shared_groups_exist = Membership.objects.filter(
-        group__membership__user=request.user, user=user
-    ).exists()
-
-    if not shared_groups_exist:
-        raise Http404
-
     return render(
-        request, "users/public-profile.html", {"profile": profile, "user_obj": user}
+        request, "users/public-profile.html", {"profile_context": profile_context}
     )
 
 
