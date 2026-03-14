@@ -6,9 +6,15 @@ Parameters:
 - banner_bg: Background color classes
 - banner_text: Text color classes
 - banner_icon: SVG icon markup
-- person_name: Name of person (for 'requested', 'reserved', 'borrowed' banners)
-- person_url: Profile URL (for 'requested', 'reserved', 'borrowed' banners)
-- time_ago: Time since action, e.g., "2 hours" (for 'requested', 'reserved', 'borrowed' banners)
+- person_name: Name of person
+    only present for owners and the borrower themselves
+    for 'requested', 'reserved', 'borrowed' banners
+- person_url: Profile URL
+    only present for owners to see (links to borrower's profile)
+    for 'requested', 'reserved', 'borrowed' banners
+- time_ago: Time since action, e.g., "2 hours"
+    only present for owners and the borrower
+    for 'requested', 'reserved', 'borrowed' banners
 {% endcomment %}
 
 {% if banner_type %}
@@ -22,7 +28,7 @@ Parameters:
         {% elif banner_type == 'reserved' %}
             Reserved {{ time_ago }} ago by {% if person_url %}<a href="{{ person_url }}" class="underline hover:no-underline">{{ person_name }}</a>{% else %}{{ person_name }}{% endif %}
         {% elif banner_type == 'borrowed' %}
-            Borrowed {{ time_ago }} ago by {% if person_url %}<a href="{{ person_url }}" class="underline hover:no-underline">{{ person_name }}</a>{% else %}{{ person_name }}{% endif %}
+            {% if person_name %}Borrowed {{ time_ago }} ago by {% if person_url %}<a href="{{ person_url }}" class="underline hover:no-underline">{{ person_name }}</a>{% else %}{{ person_name }}{% endif %}{% else %}Borrowed{% endif %}
         {% elif banner_type == 'pending' %}
             Pending
         {% endif %}

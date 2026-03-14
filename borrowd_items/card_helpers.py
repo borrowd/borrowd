@@ -76,28 +76,42 @@ def build_card_ids(context: str, pk: int) -> dict[str, str]:
 
 def get_banner_info_for_item(
     item: "Item", viewing_user: "BorrowdUser"
-) -> dict[str, Any]:
+) -> dict[str, str]:
     """
     Get banner type and request info, checking for pending requests.
 
     Determines the appropriate banner to display for an item card based on:
     1. Whether there's a pending request transaction
     2. The item's current status (available, reserved, borrowed)
+    3. The viewer's relationship to the item (owner, borrower, or neither)
+
+    Privacy rules:
+    - Owner sees full detail: banner type, borrower name (linked), time
+    - Borrower/requester sees their own involvement: "me", time
+    - Everyone else sees a generic label only ("Pending" or "Borrowed")
 
     Args:
         item: The Item to get banner info for
-        viewing_user: The user viewing the card (for "me" substitution)
+        viewing_user: The user viewing the card
+            for "me" substitution
+            determines what info is shown
 
     Returns:
-        Dict with banner_type (str), and optionally requester_name and time_ago
-        if there's a pending request.
+        Dict with banner_type (str),
+        and optionally person_name, person_url, and time_ago
+        depending on the viewer's relationship to the item.
 
     Examples:
-        - Item with pending request from viewing_user:
-          {'banner_type': 'request', 'requester_name': 'me', 'time_ago': '2 hours'}
-        - Item with pending request from another user:
-          {'banner_type': 'request', 'requester_name': 'John Doe', 'time_ago': '1 day'}
-        - Available item:
+        - Owner viewing item with pending request:
+          {'banner_type': 'requested', 'person_name': 'John',
+           'person_url': '/profile/5/', 'time_ago': '2 hours'}
+        - Borrower viewing their own request:
+          {'banner_type': 'requested', 'person_name': 'me', 'time_ago': '2 hours'}
+        - Non-owner viewing item with pending request:
+          {'banner_type': 'pending'}
+        - Non-owner viewing borrowed item:
+          {'banner_type': 'borrowed'}
+        - Available item (any viewer):
           {'banner_type': 'available'}
     """
     from django.utils.timesince import timesince
@@ -109,11 +123,9 @@ def get_banner_info_for_item(
     requesting_user = item.get_requesting_user()
 
     # Get current transaction for this item
-    current_tx = None
+    current_transaction = None
     if current_borrower or requesting_user:
-        from .models import TransactionStatus
-
-        current_tx = item.transactions.filter(
+        current_transaction = item.transactions.filter(
             status__in=[
                 TransactionStatus.REQUESTED,
                 TransactionStatus.ACCEPTED,
@@ -123,45 +135,70 @@ def get_banner_info_for_item(
             ]
         ).first()
 
-    if current_tx:
-        # Determine banner based on transaction status
-        if current_tx.status == TransactionStatus.REQUESTED:
-            banner_type = "requested"
-            person = current_tx.party2
-        elif current_tx.status in [
-            TransactionStatus.ACCEPTED,
-            TransactionStatus.COLLECTION_ASSERTED,
-        ]:
-            banner_type = "reserved"
-            person = current_tx.party2
-        elif current_tx.status in [
-            TransactionStatus.COLLECTED,
-            TransactionStatus.RETURN_ASSERTED,
-        ]:
-            banner_type = "borrowed"
-            person = current_tx.party2
-        else:
-            # Fallback to available
-            return {"banner_type": "available"}
+    if not current_transaction:
+        # No active transaction, item is available by default
+        return {"banner_type": "available"}
 
-        # Build person display info
-        if person == viewing_user:
-            person_name = "me"
-        else:
-            person_name = person.first_name.capitalize()  # type: ignore[attr-defined]
+    # Determine banner based on transaction status
+    if current_transaction.status == TransactionStatus.REQUESTED:
+        banner_type = "requested"
+    elif current_transaction.status in [
+        TransactionStatus.ACCEPTED,
+        TransactionStatus.COLLECTION_ASSERTED,
+    ]:
+        banner_type = "reserved"
+    elif current_transaction.status in [
+        TransactionStatus.COLLECTED,
+        TransactionStatus.RETURN_ASSERTED,
+    ]:
+        banner_type = "borrowed"
+    else:
+        # Fallback to available
+        return {"banner_type": "available"}
 
-        person_url = f"/profile/{person.pk}/"  # type: ignore[attr-defined]
-        time_ago = timesince(current_tx.updated_at).split(",")[0]
+    # Build person display info.
 
+    #  requesting_user for a REQUESTED transaction
+    #  current_borrower for an ACCEPTED/COLLECTED or RETURN_ASSERTED transaction
+    user_whose_name_should_be_shown_in_banner = requesting_user or current_borrower
+    if user_whose_name_should_be_shown_in_banner is None:
+        """ This should never happen, as we already have a fallback above to
+        handle a no transaction case, and all transactions should have users,
+        but it's here for type safety since I'm getting errors when
+        defining `person_name` and `person_url` below"""
+        return {"banner_type": "available"}
+
+    viewing_user_is_item_owner = item.owner == viewing_user
+    viewing_user_is_borrower = user_whose_name_should_be_shown_in_banner == viewing_user
+
+    # Everyone except the owner and the person in the transaction gets a
+    # generic label with no name, link, or timestamp detail.
+    if not viewing_user_is_item_owner and not viewing_user_is_borrower:
+        if banner_type in ("requested", "reserved"):
+            return {"banner_type": "pending"}
+        return {"banner_type": "borrowed"}
+
+    time_ago = timesince(current_transaction.updated_at).split(",")[0]
+
+    # Borrower sees "me" with no profile link.
+    if viewing_user_is_borrower:
         return {
             "banner_type": banner_type,
-            "person_name": person_name,
-            "person_url": person_url,
+            "person_name": "me",
             "time_ago": time_ago,
         }
 
-    # No active transaction - item is available
-    return {"banner_type": "available"}
+    # At this point, the viewer is the owner, so they get the other person's
+    # name and a link to that person's profile.
+    person_name = user_whose_name_should_be_shown_in_banner.first_name.capitalize()
+    person_url = f"/profile/{user_whose_name_should_be_shown_in_banner.pk}/"
+
+    return {
+        "banner_type": banner_type,
+        "person_name": person_name,
+        "person_url": person_url,
+        "time_ago": time_ago,
+    }
 
 
 def build_item_card_context(
