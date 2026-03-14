@@ -35,8 +35,8 @@ BANNER_STYLES = {
     "requested": {"bg": "bg-warning/15", "text": "text-[#8E6900]"},
     "reserved": {"bg": "bg-secondary/15", "text": "text-secondary"},
     "borrowed": {"bg": "bg-primary/15", "text": "text-primary"},
-    # "pending" is what non-owners see instead of "requested" or "reserved". It's a gray bg.
-    "pending": {"bg": "bg-base-200", "text": "text-base-content/60"},
+    # "pending" is what non-owners see instead of "requested" or "reserved".
+    "pending": {"bg": "bg-secondary/15", "text": "text-secondary"},
 }
 
 
