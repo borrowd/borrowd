@@ -2,7 +2,7 @@
 Item Card Header Sub-component
 
 Parameters:
-- banner_type: 'requested' | 'available' | 'reserved' | 'borrowed' (required)
+- banner_type: 'requested' | 'available' | 'reserved' | 'borrowed' | 'pending' (required)
 - banner_bg: Background color classes
 - banner_text: Text color classes
 - banner_icon: SVG icon markup
@@ -23,6 +23,8 @@ Parameters:
             Reserved {{ time_ago }} ago by {% if person_url %}<a href="{{ person_url }}" class="underline hover:no-underline">{{ person_name }}</a>{% else %}{{ person_name }}{% endif %}
         {% elif banner_type == 'borrowed' %}
             Borrowed {{ time_ago }} ago by {% if person_url %}<a href="{{ person_url }}" class="underline hover:no-underline">{{ person_name }}</a>{% else %}{{ person_name }}{% endif %}
+        {% elif banner_type == 'pending' %}
+            Pending
         {% endif %}
     </span>
 </div>
