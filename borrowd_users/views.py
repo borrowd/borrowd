@@ -35,7 +35,6 @@ def build_profile_context(
 ) -> dict[str, str]:
     """
     Profile context to determine which fields to display based on user roles
-    and whether user is viewing their own profile or not.
     """
     profile = subject_user.profile
 
