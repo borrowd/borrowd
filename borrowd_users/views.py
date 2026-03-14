@@ -48,9 +48,12 @@ def build_profile_context(
     """
     Add whatever conditionals here.
     E.G. if user is viewing their own profile, it's ok to include email
-    Maybe in the future you have an admin role. This would be where you
+    Let's say in the future we have a group admin role. This would be where we
     add in what the admin could see in other people's profiles.
-    Something like `if viewing_user.is_admin: see all the stuff`
+    Something like `if viewing_user.is_admin: profile_context[everything] = everything`
+    Currently, this does nothing, as we are redirecting users to their
+    private profile page if they try to view their own profile via profile/pk.
+    However, I've included the conditional below as an example
     """
     if viewing_user == subject_user:
         profile_context["email"] = subject_user.email
