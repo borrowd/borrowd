@@ -107,7 +107,7 @@ class NotificationService:
             subscription: AvailabilitySubscription = notification.target
             context.update(
                 {
-                    "subscriber_name": subscription.profile.full_name(),  # type: ignore[attr-defined]
+                    "subscriber_name": subscription.user.profile.full_name(),  # type: ignore[attr-defined]
                     "item_name": subscription.item.name,  # type: ignore[attr-defined]
                     "item_url": settings.BASE_URL
                     + reverse("item-detail", args=[subscription.item.pk]),  # type: ignore[attr-defined]

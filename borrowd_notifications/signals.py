@@ -140,7 +140,7 @@ def send_item_available_notification(
                 item.owner,
                 recipient=[subscription.user],
                 verb=NotificationType.ITEM_NOTIFY_WHEN_AVAILABLE.value,
-                action_object=instance,
+                action_object=item,
                 target=subscription,
                 description=f"{item.name} is now available",
             )
