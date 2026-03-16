@@ -117,10 +117,10 @@
             {% if view.object.photos.all %}
                 <c-gallery>
                 {% for photo in view.object.photos.all %}
-                    <div>
+                    <div class="rounded-md border border-gray-200 shadow-sm overflow-hidden bg-base-100">
                         <c-photo src="{{ photo.image.url }}"
                             alt="{{ view.object.name }} Photo {{ forloop.counter }}" />
-                        <div class="p-1">
+                        <div class="px-2 py-2 border-t border-gray-100 bg-base-200/50">
                             <button type="button" class="btn btn-sm btn-error btn-outline rounded-sm" onclick="showModal('item-photo-delete-modal-{{ photo.pk }}')">
                                 Delete photo
                             </button>
