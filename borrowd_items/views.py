@@ -229,7 +229,7 @@ class ItemUpdateView(
 
     def get_context_data(self, **kwargs: str) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
-        context["page_title"] = "Edit Item"
+        context["page_title"] = "Edit item"
         return context
 
     def get_success_url(self) -> str:
