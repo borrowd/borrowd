@@ -14,6 +14,8 @@ To add a new Notification:
 django-notifications repo: https://github.com/django-notifications/django-notifications
 """
 
+from typing import cast
+
 from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
 from django.utils import timezone
@@ -25,7 +27,6 @@ from borrowd_items.models import (
     AvailabilitySubscription,
     AvailabilitySubscriptionStatus,
     Item,
-    ItemStatus,
     Transaction,
     TransactionStatus,
 )
@@ -120,29 +121,28 @@ def send_group_member_joined_notifications(
         )
 
 
-@receiver(post_save, sender=Item)
+@receiver(post_save, sender=Transaction)
 def send_item_available_notification(
-    sender: Item,
-    instance: Item,
+    sender: type[Transaction],
+    instance: Transaction,
     created: bool,
     **kwargs: str,
 ) -> None:
     """
     Send notifications when an item subscribed to becomes available.
     """
+    item = cast(Item | None, instance.item)
 
-    if not created and instance.status == ItemStatus.AVAILABLE:
-        subscriptions = AvailabilitySubscription.get_active_subscriptions_for_item(
-            instance
-        )
+    if item is not None and item.is_borrowable():
+        subscriptions = AvailabilitySubscription.get_active_subscriptions_for_item(item)
         for subscription in subscriptions:
             notify.send(
-                instance.owner,
+                item.owner,
                 recipient=[subscription.user],
                 verb=NotificationType.ITEM_NOTIFY_WHEN_AVAILABLE.value,
                 action_object=instance,
                 target=subscription,
-                description=f"{instance.name} is now available",
+                description=f"{item.name} is now available",
             )
 
             AvailabilitySubscription.objects.filter(
