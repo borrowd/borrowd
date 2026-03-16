@@ -246,7 +246,6 @@ class Item(Model):
             )
             is not None
         ):
-            # BAD: The subscription returned is not based on the user
             return "You've requested to be notified when this item is available again."
         elif self.get_requesting_user() is not None:
             # There's a pending request from another user
@@ -286,7 +285,6 @@ class Item(Model):
             #   AND the item status Available,
             #   AND the user is not the owner,
             #   AND there's no pending request from another user
-            # TODO (is this the right behavior? Or do we want to allow multiple pending requests and let the owner choose?)
             if (
                 self.status == ItemStatus.AVAILABLE
                 and self.owner != user
@@ -296,11 +294,7 @@ class Item(Model):
                 #   the User can Request the Item.
                 return (ItemAction.REQUEST_ITEM,)
             elif (
-                # self.status in [ItemStatus.RESERVED, ItemStatus.BORROWED] and
-                (
-                    self.get_requesting_user() is not None
-                    or self.get_current_borrower() is not None
-                )
+                not self.is_borrowable(user=user)
                 and AvailabilitySubscription.get_active_subscription_for_user_and_item(
                     user=user, item=self
                 )
@@ -459,6 +453,21 @@ class Item(Model):
         except Transaction.DoesNotExist:
             return None
 
+    def is_borrowable(self, user: Optional[BorrowdUser] = None) -> bool:
+        if self.status != ItemStatus.AVAILABLE:  # ItemStatus.AVAILABLE
+            return False
+
+        active_borrow = self.get_current_borrower()
+        if active_borrow:
+            return False
+
+        active_request = self.get_requesting_user()
+
+        if active_request and active_request != user:
+            return False
+
+        return True
+
     def process_action(self, user: BorrowdUser, action: ItemAction) -> None:
         """
         Process the given action for this Item and User.
@@ -490,13 +499,9 @@ class Item(Model):
             )
             return
 
-        # For the NOTIFY_WHEN_AVAILABLE action, we don't need to create a Transaction,
-        # we just need to create an AvailabilitySubscription.
         if (
             action == ItemAction.NOTIFY_WHEN_AVAILABLE
-            # and self.status in [
-            # ItemStatus.BORROWED,
-            # ItemStatus.RESERVED,]
+            and not self.is_borrowable(user=user)
             and AvailabilitySubscription.get_active_subscription_for_user_and_item(
                 user=user, item=self
             )
