@@ -140,15 +140,17 @@
         {% endif %}
 
         <div class="mt-4 flex justify-end">
-            <c-button type="submit" class="btn btn-primary mr-2">{% if form.instance.pk %}Save item{% else %}Add item{% endif %}</c-button>
-            {% if form.instance.pk %}
+           {% if form.instance.pk %}
                 <c-button-nav url="{% url 'item-detail' form.instance.pk %}" class="btn">
                     Cancel
                 </c-button-nav>
-                <button type="button" class="btn btn-link" onclick="showModal('item-delete-modal')">
-                    Delete
+                <button type="button" class="btn  btn-error btn-soft rounded-sm ml-2 mr-2"
+                    onclick="showModal('item-delete-modal')">
+                    Delete item
                 </button>
             {% endif %}
+            <c-button type="submit" class="btn btn-primary mr-2">{% if form.instance.pk %}Save item{% else %}Add item{% endif %}</c-button>
+
         </div>
     </form>
 
