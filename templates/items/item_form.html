@@ -121,8 +121,8 @@
                         <c-photo src="{{ photo.image.url }}"
                             alt="{{ view.object.name }} Photo {{ forloop.counter }}" />
                         <div class="p-1">
-                            <button type="button" class="btn btn-link" onclick="showModal('item-photo-delete-modal-{{ photo.pk }}')">
-                                Delete
+                            <button type="button" class="btn btn-sm btn-error btn-outline rounded-sm" onclick="showModal('item-photo-delete-modal-{{ photo.pk }}')">
+                                Delete photo
                             </button>
                         </div>
                     </div>
@@ -139,18 +139,21 @@
 
         {% endif %}
 
-        <div class="mt-4 flex justify-end">
-           {% if form.instance.pk %}
-                <c-button-nav url="{% url 'item-detail' form.instance.pk %}" class="btn">
-                    Cancel
-                </c-button-nav>
-                <button type="button" class="btn  btn-error btn-soft rounded-sm ml-2 mr-2"
+        <div class="mt-6 flex items-center {% if form.instance.pk %}justify-between{% else %}justify-end{% endif %}">
+            {% if form.instance.pk %}
+                <button type="button" class="btn btn-error btn-soft rounded-sm"
                     onclick="showModal('item-delete-modal')">
                     Delete item
                 </button>
+                <div class="flex items-center gap-2">
+                    <c-button-nav url="{% url 'item-detail' form.instance.pk %}" class="btn">
+                        Cancel
+                    </c-button-nav>
+                    <c-button type="submit" class="btn btn-primary">Save item</c-button>
+                </div>
+            {% else %}
+                <c-button type="submit" class="btn btn-primary">Add item</c-button>
             {% endif %}
-            <c-button type="submit" class="btn btn-primary mr-2">{% if form.instance.pk %}Save item{% else %}Add item{% endif %}</c-button>
-
         </div>
     </form>
 
