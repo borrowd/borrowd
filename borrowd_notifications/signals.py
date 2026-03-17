@@ -16,6 +16,7 @@ django-notifications repo: https://github.com/django-notifications/django-notifi
 
 from typing import cast
 
+from django.db import transaction
 from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
 from django.utils import timezone
@@ -32,6 +33,34 @@ from borrowd_items.models import (
 )
 
 from .services import NotificationService, NotificationType
+
+
+def _notify_subscribers_if_available(item: Item) -> None:
+    """
+    Check if the item is borrowable and notify subscribers.
+    """
+    item.refresh_from_db()  # Ensure we have the latest data
+
+    if item.is_borrowable():
+        subscriptions = AvailabilitySubscription.get_active_subscriptions_for_item(item)
+        for subscription in subscriptions:
+            notify.send(
+                item.owner,
+                recipient=[subscription.user],
+                verb=NotificationType.ITEM_NOTIFY_WHEN_AVAILABLE.value,
+                action_object=item,
+                target=subscription,
+                description=f"{item.name} is now available",
+            )
+
+            AvailabilitySubscription.objects.filter(
+                pk=subscription.pk,
+                status=AvailabilitySubscriptionStatus.ACTIVE,
+                notified_at__isnull=True,
+            ).update(
+                notified_at=timezone.now(),
+                status=AvailabilitySubscriptionStatus.NOTIFIED,
+            )
 
 
 @receiver(pre_save, sender=Notification)
@@ -131,25 +160,15 @@ def send_item_available_notification(
     """
     Send notifications when an item subscribed to becomes available.
     """
+
     item = cast(Item | None, instance.item)
-
-    if item is not None and item.is_borrowable():
-        subscriptions = AvailabilitySubscription.get_active_subscriptions_for_item(item)
-        for subscription in subscriptions:
-            notify.send(
-                item.owner,
-                recipient=[subscription.user],
-                verb=NotificationType.ITEM_NOTIFY_WHEN_AVAILABLE.value,
-                action_object=item,
-                target=subscription,
-                description=f"{item.name} is now available",
-            )
-
-            AvailabilitySubscription.objects.filter(
-                pk=subscription.pk,
-                status=AvailabilitySubscriptionStatus.ACTIVE,
-                notified_at__isnull=True,
-            ).update(
-                notified_at=timezone.now(),
-                status=AvailabilitySubscriptionStatus.NOTIFIED,
-            )
+    if (
+        instance.status
+        in [
+            TransactionStatus.REJECTED,
+            TransactionStatus.RETURNED,
+            TransactionStatus.CANCELLED,
+        ]
+        and item is not None
+    ):
+        transaction.on_commit(lambda: _notify_subscribers_if_available(item))
