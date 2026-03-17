@@ -293,16 +293,16 @@ class Item(Model):
                 # THEN
                 #   the User can Request the Item.
                 return (ItemAction.REQUEST_ITEM,)
-            elif (
-                not self.is_borrowable(user=user)
-                and AvailabilitySubscription.get_active_subscription_for_user_and_item(
-                    user=user, item=self
-                )
-                is None
-            ) and self.owner != user:
-                # If the item is currently BORROWED or RESERVED by another user,
-                # allow requesting notification for when it becomes available again
-                return (ItemAction.NOTIFY_WHEN_AVAILABLE,)
+            # elif (
+            #     not self.is_borrowable(user=user)
+            #     and AvailabilitySubscription.get_active_subscription_for_user_and_item(
+            #         user=user, item=self
+            #     )
+            #     is None
+            # ) and self.owner != user:
+            #     # If the item is currently BORROWED or RESERVED by another user,
+            #     # allow requesting notification for when it becomes available again
+            #     return (ItemAction.NOTIFY_WHEN_AVAILABLE,)
             else:
                 # At this point, either:
                 # - the user is the owner of the item (and thus can't request to borrow their
