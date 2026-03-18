@@ -105,7 +105,7 @@ def refresh_permissions_on_membership_update(
     #
     user = instance.user
     borrowd_group = instance.group
-    group = borrowd_group.perms_group or Group.objects.get(name=borrowd_group.name)
+    group = borrowd_group.perms_group
     new_trust_level = instance.trust_level
     membership = instance
 

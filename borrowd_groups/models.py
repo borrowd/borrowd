@@ -152,9 +152,7 @@ class BorrowdGroup(Model):
                 (f"User '{user}' is already a member of group '{self}'")
             )
 
-        if is_moderator:
-            default_status = MembershipStatus.ACTIVE
-        elif self.membership_requires_approval:
+        if self.membership_requires_approval and not is_moderator:
             default_status = MembershipStatus.PENDING
         else:
             default_status = MembershipStatus.ACTIVE

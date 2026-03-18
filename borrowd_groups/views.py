@@ -344,13 +344,13 @@ class UpdateTrustLevelView(LoginRequiredMixin, View):  # type: ignore[misc]
             group = BorrowdGroup.objects.get(pk=pk)
         except BorrowdGroup.DoesNotExist:
             messages.error(request, "Group not found.")
-            return redirect("borrowd_groups:group-list")  # type: ignore[return-value]
+            return redirect("borrowd_groups:group-list") 
 
         try:
             membership = Membership.objects.get(user=request.user, group=group)
         except Membership.DoesNotExist:
             messages.error(request, "You are not a member of this group.")
-            return redirect("borrowd_groups:group-detail", pk=pk)  # type: ignore[return-value]
+            return redirect("borrowd_groups:group-detail", pk=pk) 
 
         form = UpdateTrustLevelForm(request.POST)
         if form.is_valid():
@@ -365,7 +365,7 @@ class UpdateTrustLevelView(LoginRequiredMixin, View):  # type: ignore[misc]
         else:
             messages.error(request, "Invalid trust level selected.")
 
-        return redirect("borrowd_groups:group-detail", pk=pk)  # type: ignore[return-value]
+        return redirect("borrowd_groups:group-detail", pk=pk) 
 
 
 class RemoveMemberView(LoginRequiredMixin, View):  # type: ignore[misc]
