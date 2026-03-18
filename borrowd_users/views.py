@@ -17,13 +17,7 @@ from django.views.decorators.http import require_POST
 from django.views.generic import (
     CreateView,
 )
-from django.shortcuts import get_object_or_404, render
-from django.http import Http404
 
-
-from borrowd_items.models import Item, ItemStatus, Transaction
-from django.http import HttpResponseForbidden
-from borrowd_groups.models import Membership
 from borrowd_groups.models import Membership
 from borrowd_items.card_helpers import (
     build_item_cards_for_items,
@@ -34,53 +28,67 @@ from borrowd_items.models import Item, ItemStatus, Transaction
 from .forms import ChangePasswordForm, CustomSignupForm, ProfileUpdateForm
 from .models import BorrowdUser
 
+
+def build_profile_context(
+    subject_user: BorrowdUser,
+    viewing_user: BorrowdUser,
+) -> dict[str, str]:
+    """
+    Profile context to determine which fields to display based on user roles
+    """
+    profile = subject_user.profile
+
+    # Base profile context (all profile views get this).
+    profile_context: dict[str, str] = {
+        "full_name": profile.full_name(),
+        "bio": profile.bio,
+        "profile_image_url": profile.image.url if profile.image else "",
+    }
+
+    """
+    Add whatever conditionals here.
+    E.G. if user is viewing their own profile, it's ok to include email
+    Let's say in the future we have a group admin role. This would be where we
+    add in what the admin could see in other people's profiles.
+    Something like `if viewing_user.is_admin: profile_context[everything] = everything`
+    Currently, this does nothing, as we are redirecting users to their
+    private profile page if they try to view their own profile via profile/pk.
+    However, I've included the conditional below as an example
+    """
+    if viewing_user == subject_user:
+        profile_context["email"] = subject_user.email
+
+    return profile_context
+
+
 @login_required
-def public_profile_view(request: HttpRequest, user_id : int) -> HttpResponse:
-    user = get_object_or_404(BorrowdUser, id=user_id)
-    profile = user.profile
+def public_profile_view(
+    request: HttpRequest, user_id: int
+) -> HttpResponse | HttpResponseBase:
+    subject_user = get_object_or_404(BorrowdUser, id=user_id)
 
-    # Allow users to view their own profile
-    if user == request.user:
-        return render(request, "users/public-profile.html", {
-            "profile": profile,
-            "user_obj":user
+    # Redirect users to their own editable profile page via `profile_view`
+    if subject_user == request.user:
+        return redirect("profile")
 
-        })
-    
-    shared_groups_exist = Membership.objects.filter(
-        group__membership__user=request.user,
-        user=user
+    viewer: BorrowdUser = request.user  # type: ignore[assignment]
+
+    # Check if the viewer shares a group with the subject user
+    viewer_shares_group_with_subject = Membership.objects.filter(
+        group__membership__user=viewer, user=subject_user
     ).exists()
 
-    if not shared_groups_exist:
+    # If not, then they shouldn't be sharing items or able to view each other's profiles
+    # It shouldn't come to this, but just in case
+    if not viewer_shares_group_with_subject:
         raise Http404
 
-    return render(request, "users/public-profile.html", {
-        "profile": profile,
-        "user_obj": user
-    })
-    
-
-@login_required
-def public_profile_view(request: HttpRequest, user_id: int) -> HttpResponse:
-    user = get_object_or_404(BorrowdUser, id=user_id)
-    profile = user.profile
-
-    # Allow users to view their own profile
-    if user == request.user:
-        return render(
-            request, "users/public-profile.html", {"profile": profile, "user_obj": user}
-        )
-
-    shared_groups_exist = Membership.objects.filter(
-        group__membership__user=request.user, user=user
-    ).exists()
-
-    if not shared_groups_exist:
-        raise Http404
+    profile_context = build_profile_context(
+        subject_user=subject_user, viewing_user=viewer
+    )
 
     return render(
-        request, "users/public-profile.html", {"profile": profile, "user_obj": user}
+        request, "users/public-profile.html", {"profile_context": profile_context}
     )
 
 
@@ -264,7 +272,7 @@ class CustomSignupView(CreateView[BorrowdUser, CustomSignupForm]):
             self.request, "Welcome! Your account has been created successfully."
         )
 
-        next_url = self.request.GET.get("next")
+        next_url = self.request.POST.get("next") or self.request.GET.get("next")
         if next_url:
             self.request.session["post_onboarding_redirect"] = next_url
 
@@ -287,6 +295,8 @@ class CustomPasswordChangeView(PasswordChangeView):  # type: ignore[misc]
     per ux.
     """
 
+    success_url = reverse_lazy("profile")
+
     def form_invalid(self, form: ChangePasswordForm) -> HttpResponse:
         """Add warning message when password validation fails."""
         # Get the first error message to display in the toast
@@ -302,5 +312,3 @@ class CustomPasswordChangeView(PasswordChangeView):  # type: ignore[misc]
             messages.warning(self.request, error_message)
 
         return super().form_invalid(form)  # type: ignore[no-any-return]
-
-

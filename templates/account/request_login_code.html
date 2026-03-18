@@ -37,7 +37,7 @@
     </c-button>
     <c-button-nav
       class="btn btn-ghost w-full"
-      url="{% url 'account_login' %}"
+      url="{% url 'account_login_cancel' %}{% if redirect_field_value %}?{{ redirect_field_name }}={{ redirect_field_value|urlencode }}{% endif %}"
       >
       {% trans "Cancel" %}
     </c-button-nav>

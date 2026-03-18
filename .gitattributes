@@ -1,0 +1,26 @@
+# Normalize text files to LF to keep diffs stable across platforms.
+* text=auto eol=lf
+
+# Keep common binary assets out of line-ending normalization.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.ttf binary
+*.woff binary
+*.woff2 binary
+*.webp binary
+*.pdf binary
+*.zip binary
+*.gz binary
+*.tar binary
+*.7z binary
+*.psd binary
+
+# Windows command scripts should keep CRLF when they are added.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Make GitHub syntax-highlight .html files as Django templates
+*.html linguist-language=django

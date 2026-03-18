@@ -150,7 +150,7 @@ class ItemCreateView(
 
     def get_context_data(self, **kwargs: str) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
-        context["page_title"] = "Create Item"
+        context["page_title"] = "Add item"
         return context
 
     def form_valid(self, form: ItemCreateWithPhotoForm) -> HttpResponse:
@@ -175,6 +175,7 @@ class ItemDeleteView(
     model = Item
     permission_required = ItemOLP.DELETE
     success_url = reverse_lazy("item-list")
+    http_method_names = ["post"]
 
 
 class ItemDetailView(
@@ -229,7 +230,7 @@ class ItemUpdateView(
 
     def get_context_data(self, **kwargs: str) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
-        context["page_title"] = "Edit Item"
+        context["page_title"] = "Edit item"
         return context
 
     def get_success_url(self) -> str:
@@ -283,6 +284,7 @@ class ItemPhotoDeleteView(
 ):
     model = ItemPhoto
     permission_required = ItemOLP.EDIT
+    http_method_names = ["post"]
 
     def get_permission_object(self):  # type: ignore[no-untyped-def]
         return self.get_object().item
@@ -290,5 +292,5 @@ class ItemPhotoDeleteView(
     def get_success_url(self) -> str:
         instance: ItemPhoto = self.object
         if instance is None:
-            return
+            return reverse("item-list")
         return reverse("item-edit", args=[instance.item_id])

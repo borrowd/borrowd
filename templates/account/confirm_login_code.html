@@ -17,6 +17,7 @@
 
   <form method="post" class="flex flex-col gap-4">
     {% csrf_token %}
+    {{ redirect_field }}
     {% for field in form.hidden_fields %}{{ field }}{% endfor %}
 
     {# Code field #}
@@ -32,12 +33,12 @@
     />
 
     <c-button type="submit" class="btn btn-primary w-full">
-      {% trans "Sign In" %}
+      {% trans "Sign in" %}
     </c-button>
 
     <c-button-nav
       class="btn btn-ghost w-full "
-      url="{% url 'account_login' %}"
+      url="{% url 'account_login_cancel' %}{% if redirect_field_value %}?{{ redirect_field_name }}={{ redirect_field_value|urlencode }}{% endif %}"
       >
       {% trans "Cancel" %}
     </c-button-nav>
