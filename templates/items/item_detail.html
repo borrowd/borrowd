@@ -16,7 +16,10 @@
   </div>
 
   <div class="flex flex-col shadow-sm rounded-xl overflow-hidden w-full">
-    {% if request_txn and request_txn.status != 70 %}
+    {% if request_txn and request_txn.status == 10 or request_txn and
+    request_txn.status == 30 or request_txn and request_txn.status == 40 or
+    request_txn and request_txn.status == 50 or request_txn and
+    request_txn.status == 60 %}
     <div
       class="badge badge-soft font-medium w-full flex items-center justify-start px-3 text-sm py-7 p-5 rounded-b-none {% if request_txn.status == 10 %} bg-warning/15 text-[#8E6900] {% elif request_txn.status == 30 or request_txn.status == 40 %} bg-secondary/15 text-secondary {% elif request_txn.status == 50 or request_txn.status == 60 %} bg-primary/10 text-primary {% endif %}"
     >
