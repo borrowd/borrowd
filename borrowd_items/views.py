@@ -1,5 +1,5 @@
 from typing import Any
-
+from .models import Transaction, TransactionStatus
 from django.contrib import messages
 from django.contrib.messages.api import MessageFailure
 from django.forms import ModelForm
@@ -188,8 +188,16 @@ class ItemDetailView(
     def get_context_data(self, **kwargs: str) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
         user: BorrowdUser = self.request.user  # type: ignore[assignment]
+
         action_context = self.object.get_action_context_for(user=user)
         context["action_context"] = action_context
+
+        request_txn = (
+            Transaction.objects.filter(item=self.object)
+            .order_by("-created_at")
+            .first()
+        )
+        context["request_txn"] = request_txn
         return context
 
 
