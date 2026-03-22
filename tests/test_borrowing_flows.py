@@ -3,7 +3,7 @@ from django.urls import reverse
 
 from borrowd.models import TrustLevel
 from borrowd_groups.models import BorrowdGroup
-from borrowd_items.models import Item, ItemAction, TransactionStatus
+from borrowd_items.models import Item, ItemAction, ItemStatus, TransactionStatus
 from borrowd_items.views import ItemDetailView, borrow_item
 from borrowd_users.models import BorrowdUser
 
@@ -114,6 +114,8 @@ class RejectedFlowTest(SimpleTestCase):
             item_actions,
             (ItemAction.REQUEST_ITEM,),
         )
+        ## Item should still be available
+        self.assertEqual(self.item.status, ItemStatus.AVAILABLE)
 
     def test_020_lender_item_actions_initial_state(self) -> None:
         """
@@ -180,6 +182,9 @@ class RejectedFlowTest(SimpleTestCase):
         if tx is None:
             self.fail("Should have a Transaction")
         self.assertEqual(tx.status, TransactionStatus.REQUESTED)
+        ## Item status should now be REQUESTED
+        self.item.refresh_from_db()
+        self.assertEqual(self.item.status, ItemStatus.REQUESTED)
         ## Redirects to item detail page after processing action
         self.assertEqual(
             response.url,  # type: ignore[attr-defined]
@@ -259,3 +264,282 @@ class RejectedFlowTest(SimpleTestCase):
         if tx is None:
             self.fail("Should have a Transaction")
         self.assertEqual(tx.status, TransactionStatus.REJECTED)
+        ## Item status should be back to AVAILABLE after rejection
+        self.item.refresh_from_db()
+        self.assertEqual(self.item.status, ItemStatus.AVAILABLE)
+
+
+# Use SimpleTestCase to prevent database cleanup between tests.
+class AcceptedFlowTest(SimpleTestCase):
+    """
+    Tests the full happy-path borrow flow:
+    AVAILABLE -> REQUESTED -> ACCEPTED ->
+    MARK_COLLECTED -> CONFIRM_COLLECTED ->
+    MARK_RETURNED -> CONFIRM_RETURNED -> AVAILABLE
+
+    Asserts both TransactionStatus and ItemStatus at each step.
+    """
+
+    lender: BorrowdUser
+    borrower: BorrowdUser
+    group: BorrowdGroup
+    item: Item
+    factory: RequestFactory
+    # SimpleTestCase expects no database access;
+    # setting this class attribute makes it allowed again.
+    databases = "__all__"
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
+        cls.lender = BorrowdUser.objects.create(
+            username="accept_lender", email="accept_lender@example.com"
+        )
+        cls.borrower = BorrowdUser.objects.create(
+            username="accept_borrower", email="accept_borrower@example.com"
+        )
+        cls.group = BorrowdGroup.objects.create(
+            name="Accept Test Group",
+            created_by=cls.lender,
+            updated_by=cls.lender,
+            trust_level=TrustLevel.HIGH,
+            membership_requires_approval=False,
+        )
+        cls.group.add_user(cls.borrower, trust_level=TrustLevel.HIGH)
+        cls.item = Item.objects.create(
+            name="Accept Test Item",
+            description="Test Description",
+            owner=cls.lender,
+            trust_level_required=TrustLevel.STANDARD,
+        )
+        cls.factory = RequestFactory()
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        for tx in cls.item.transactions.all():
+            tx.delete()
+        cls.item.delete()
+        cls.group.delete()
+        cls.lender.delete()
+        cls.borrower.delete()
+        super().tearDownClass()
+
+    def _post_action(self, user: BorrowdUser, action: ItemAction) -> None:
+        """Submit a borrow action via POST and assert it redirects (302)."""
+        request = self.factory.post(
+            reverse("item-borrow", args=[self.item.pk]),
+            {"action": action},
+        )
+        request.user = user
+        response = borrow_item(request, pk=self.item.pk)
+        self.assertEqual(response.status_code, 302)
+
+    def _assert_state(
+        self, tx_status: TransactionStatus, item_status: ItemStatus
+    ) -> None:
+        """Refresh item from DB and assert both transaction and item status."""
+        self.item.refresh_from_db()
+        tx = self.item.transactions.exclude(
+            status__in=[TransactionStatus.RETURNED, TransactionStatus.CANCELLED]
+        ).first()
+        if tx is None:
+            self.fail("Should have an active Transaction")
+        self.assertEqual(tx.status, tx_status)
+        self.assertEqual(self.item.status, item_status)
+
+    def test_010_request(self) -> None:
+        """Borrower requests the item."""
+        self._post_action(self.borrower, ItemAction.REQUEST_ITEM)
+        self._assert_state(TransactionStatus.REQUESTED, ItemStatus.REQUESTED)
+
+    def test_020_accept(self) -> None:
+        """Lender accepts the borrow request."""
+        self._post_action(self.lender, ItemAction.ACCEPT_REQUEST)
+        self._assert_state(TransactionStatus.ACCEPTED, ItemStatus.RESERVED)
+
+    def test_030_mark_collected(self) -> None:
+        """Borrower marks the item as picked up."""
+        self._post_action(self.borrower, ItemAction.MARK_COLLECTED)
+        self._assert_state(TransactionStatus.COLLECTION_ASSERTED, ItemStatus.RESERVED)
+
+    def test_040_confirm_collected(self) -> None:
+        """Lender confirms the item was picked up."""
+        self._post_action(self.lender, ItemAction.CONFIRM_COLLECTED)
+        self._assert_state(TransactionStatus.COLLECTED, ItemStatus.BORROWED)
+
+    def test_050_mark_returned(self) -> None:
+        """Borrower marks the item as returned."""
+        self._post_action(self.borrower, ItemAction.MARK_RETURNED)
+        self._assert_state(TransactionStatus.RETURN_ASSERTED, ItemStatus.BORROWED)
+
+    def test_060_confirm_returned(self) -> None:
+        """Lender confirms the item was returned, item becomes available again."""
+        self._post_action(self.lender, ItemAction.CONFIRM_RETURNED)
+        self.item.refresh_from_db()
+        self.assertEqual(self.item.status, ItemStatus.AVAILABLE)
+
+
+class CancelFromRequestedFlowTest(SimpleTestCase):
+    """
+    See `RejectedFlowTest` docstring for info about why this is structured like it is.
+
+    Tests cancelling a borrow request from the REQUESTED state.
+    """
+
+    lender: BorrowdUser
+    borrower: BorrowdUser
+    group: BorrowdGroup
+    item: Item
+    factory: RequestFactory
+    # SimpleTestCase expects no database access;
+    # setting this class attribute makes it allowed again.
+    databases = "__all__"
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
+        cls.lender = BorrowdUser.objects.create(
+            username="cancel_req_lender", email="cancel_req_lender@example.com"
+        )
+        cls.borrower = BorrowdUser.objects.create(
+            username="cancel_req_borrower", email="cancel_req_borrower@example.com"
+        )
+        cls.group = BorrowdGroup.objects.create(
+            name="Cancel Req Test Group",
+            created_by=cls.lender,
+            updated_by=cls.lender,
+            trust_level=TrustLevel.HIGH,
+            membership_requires_approval=False,
+        )
+        cls.group.add_user(cls.borrower, trust_level=TrustLevel.HIGH)
+        cls.item = Item.objects.create(
+            name="Cancel Req Test Item",
+            description="Test Description",
+            owner=cls.lender,
+            trust_level_required=TrustLevel.STANDARD,
+        )
+        cls.factory = RequestFactory()
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        for tx in cls.item.transactions.all():
+            tx.delete()
+        cls.item.delete()
+        cls.group.delete()
+        cls.lender.delete()
+        cls.borrower.delete()
+        super().tearDownClass()
+
+    def _post_action(self, user: BorrowdUser, action: ItemAction) -> None:
+        """Submit a borrow action via POST and assert it redirects (302)."""
+        request = self.factory.post(
+            reverse("item-borrow", args=[self.item.pk]),
+            {"action": action},
+        )
+        request.user = user
+        response = borrow_item(request, pk=self.item.pk)
+        self.assertEqual(response.status_code, 302)
+
+    def test_010_request(self) -> None:
+        """Borrower requests the item."""
+        self._post_action(self.borrower, ItemAction.REQUEST_ITEM)
+        self.item.refresh_from_db()
+        tx = self.item.transactions.first()
+        if tx is None:
+            self.fail("Should have a Transaction")
+        self.assertEqual(tx.status, TransactionStatus.REQUESTED)
+        self.assertEqual(self.item.status, ItemStatus.REQUESTED)
+
+    def test_020_cancel(self) -> None:
+        """Borrower cancels before lender responds, item becomes available again."""
+        self._post_action(self.borrower, ItemAction.CANCEL_REQUEST)
+        self.item.refresh_from_db()
+        tx = self.item.transactions.first()
+        if tx is None:
+            self.fail("Should have a Transaction")
+        self.assertEqual(tx.status, TransactionStatus.CANCELLED)
+        self.assertEqual(self.item.status, ItemStatus.AVAILABLE)
+
+
+class CancelFromAcceptedFlowTest(SimpleTestCase):
+    """
+    See `RejectedFlowTest` docstring for info about why this is structured like it is.
+
+    Tests cancelling a borrow request from the ACCEPTED state.
+    """
+
+    lender: BorrowdUser
+    borrower: BorrowdUser
+    group: BorrowdGroup
+    item: Item
+    factory: RequestFactory
+    # SimpleTestCase expects no database access;
+    # setting this class attribute makes it allowed again.
+    databases = "__all__"
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
+        cls.lender = BorrowdUser.objects.create(
+            username="cancel_acc_lender", email="cancel_acc_lender@example.com"
+        )
+        cls.borrower = BorrowdUser.objects.create(
+            username="cancel_acc_borrower", email="cancel_acc_borrower@example.com"
+        )
+        cls.group = BorrowdGroup.objects.create(
+            name="Cancel Acc Test Group",
+            created_by=cls.lender,
+            updated_by=cls.lender,
+            trust_level=TrustLevel.HIGH,
+            membership_requires_approval=False,
+        )
+        cls.group.add_user(cls.borrower, trust_level=TrustLevel.HIGH)
+        cls.item = Item.objects.create(
+            name="Cancel Acc Test Item",
+            description="Test Description",
+            owner=cls.lender,
+            trust_level_required=TrustLevel.STANDARD,
+        )
+        cls.factory = RequestFactory()
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        for tx in cls.item.transactions.all():
+            tx.delete()
+        cls.item.delete()
+        cls.group.delete()
+        cls.lender.delete()
+        cls.borrower.delete()
+        super().tearDownClass()
+
+    def _post_action(self, user: BorrowdUser, action: ItemAction) -> None:
+        """Submit a borrow action via POST and assert it redirects (302)."""
+        request = self.factory.post(
+            reverse("item-borrow", args=[self.item.pk]),
+            {"action": action},
+        )
+        request.user = user
+        response = borrow_item(request, pk=self.item.pk)
+        self.assertEqual(response.status_code, 302)
+
+    def test_010_request(self) -> None:
+        """Borrower requests the item."""
+        self._post_action(self.borrower, ItemAction.REQUEST_ITEM)
+        self.item.refresh_from_db()
+        self.assertEqual(self.item.status, ItemStatus.REQUESTED)
+
+    def test_020_accept(self) -> None:
+        """Lender accepts the borrow request."""
+        self._post_action(self.lender, ItemAction.ACCEPT_REQUEST)
+        self.item.refresh_from_db()
+        self.assertEqual(self.item.status, ItemStatus.RESERVED)
+
+    def test_030_cancel(self) -> None:
+        """Borrower cancels after lender accepted, item becomes available again."""
+        self._post_action(self.borrower, ItemAction.CANCEL_REQUEST)
+        self.item.refresh_from_db()
+        tx = self.item.transactions.first()
+        if tx is None:
+            self.fail("Should have a Transaction")
+        self.assertEqual(tx.status, TransactionStatus.CANCELLED)
+        self.assertEqual(self.item.status, ItemStatus.AVAILABLE)
