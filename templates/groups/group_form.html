@@ -87,16 +87,20 @@ block groups_content %} {% load static %}
                   Delete group
             </button>
             <div class="flex items-center gap-4">
-                  <c-button-nav
-                    url="{%if form.instance.pk %}url 'borrowd_groups:group-detail' form.instance.pk{% else %}url 'borrowd_groups:group-list' {% endif %}"
-                    class="btn btn-ghost"
-                  >
+
+                  <c-button-nav url="{% url 'borrowd_groups:group-detail' form.instance.pk %}" class="btn btn-ghost">
                     Cancel
                   </c-button-nav>
+
                   <c-button class="btn btn-primary" type="submit">Save group</c-button>
             </div>
         {% else %}
-            <c-button type="submit" class="btn btn-primary">Add item</c-button>
+             <div class="flex items-center gap-4">
+                <c-button-nav url="{% url 'borrowd_groups:group-list' %}" class="btn btn-ghost">
+                  Cancel
+                </c-button-nav>
+                <c-button type="submit" class="btn btn-primary">Add item</c-button>
+             </div>
         {% endif %}
     </div>
   </form>
