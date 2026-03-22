@@ -269,18 +269,6 @@ class Item(Model):
         - The status of the Item itself
         - The status of the current open Transaction involving this
           Item and the given User, if any.
-
-        Splitting the status / context between the Item itself and
-        Transactions related to the Item enables e.g. simultaneous
-        Requests from multiple Users, from which the lender can
-        choose; as opposed to immediately blocking the Item's status
-        based on the first Request that happens to come in.
-
-        This smooths the borrowing process, giving inventory more
-        apparent liquidity (there will be less time when Users will
-        see Items as unavailable) and will also help provide lenders
-        with some "plausible deniability" if they do not wish to
-        accept a Request from a specific User.
         """
         # This may raise Transaction.MultipleObjectsReturned.
         # Let it propagate.
