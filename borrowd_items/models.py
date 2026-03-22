@@ -88,6 +88,7 @@ class ItemStatus(IntegerChoices):
     # Paranoia forcing to me to use value increments of at least 10,
     # for when we later realize we need to add more in between...
     AVAILABLE = 10, "Available"
+    REQUESTED = 15, "Requested"
     RESERVED = 20, "Reserved"
     BORROWED = 30, "Borrowed"
 
@@ -516,6 +517,8 @@ class Item(Model):
                 # This is default; just being explicit
                 status=TransactionStatus.REQUESTED,
             )
+            self.status = ItemStatus.REQUESTED
+            self.save()
             return
 
         if (
@@ -564,6 +567,8 @@ class Item(Model):
                     current_tx.status = TransactionStatus.REJECTED
                     current_tx.updated_by = user
                     current_tx.save()
+                    self.status = ItemStatus.AVAILABLE
+                    self.save()
                 case ItemAction.ACCEPT_REQUEST:
                     # The owner/lender/giver accepts the Request.
                     current_tx.status = TransactionStatus.ACCEPTED
