@@ -520,7 +520,6 @@ class Item(Model):
             # partly to keep mypy happy.
             raise ValueError("No existing Transaction")
 
-        # TODO: Wrap in transaction
         match action:
             case ItemAction.REJECT_REQUEST:
                 # The owner/lender/giver rejects the Request.
