@@ -725,16 +725,11 @@ class Transaction(Model):
         """
         Returns Transactions requiring attention from the given User.
 
-        Includes REQUESTED and ACCEPTED statuses, plus COLLECTION_ASSERTED
-        and RETURN_ASSERTED when the User hasn't been the one to assert
+        Includes REQUESTED status, plus COLLECTION_ASSERTED and
+        RETURN_ASSERTED when the User hasn't been the one to assert.
         """
         return Transaction.objects.filter(
-            Q(
-                status__in=[
-                    TransactionStatus.REQUESTED,
-                    TransactionStatus.ACCEPTED,
-                ]
-            )
+            Q(status=TransactionStatus.REQUESTED)
             # Considering transactions to confirm collection/return as pending requests also
             | ~Q(updated_by=user)
             & Q(
