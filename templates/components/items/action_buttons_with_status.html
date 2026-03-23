@@ -79,7 +79,7 @@ For variant='card', also accepts:
         <form method="POST" action="{% url 'item-borrow' item.pk %}" class="flex-1">
             {% csrf_token %}
             <input type="hidden" name="action" value="NOTIFY_WHEN_AVAILABLE">
-            <button type="submit" class="btn btn-soft btn-primary btn-sm md:btn-md w-full">Notify When Available</button>
+            <button type="submit" class="btn btn-soft btn-primary btn-sm md:btn-md w-full">Notify when available</button>
         </form>
         {% else %}
         <form method="POST" action="{% url 'item-borrow' item.pk %}" class="flex-1">
