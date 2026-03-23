@@ -46,6 +46,7 @@ def _build_item_action_success_message(item_name: str, action: ItemAction) -> st
         ItemAction.CONFIRM_RETURNED: "return confirmed",
         ItemAction.CANCEL_REQUEST: "request canceled",
         ItemAction.NOTIFY_WHEN_AVAILABLE: "notification requested",
+        ItemAction.CANCEL_NOTIFICATION_REQUEST: "notification request canceled",
     }
     return f"{item_name} {action_to_result[action]}."
 

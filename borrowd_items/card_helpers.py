@@ -9,7 +9,11 @@ from typing import TYPE_CHECKING, Any
 
 from django.utils.html import format_html
 
-from .models import ItemAction, ItemActionContext
+from .models import (
+    AvailabilitySubscriptionStatus,
+    ItemAction,
+    ItemActionContext,
+)
 
 if TYPE_CHECKING:
     from borrowd_users.models import BorrowdUser
@@ -24,6 +28,7 @@ BANNER_ICONS = {
     "reserved": '<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path fill-rule="evenodd" d="M6.32 2.577a49.255 49.255 0 0111.36 0c1.497.174 2.57 1.46 2.57 2.93V21a.75.75 0 01-1.085.67L12 18.089l-7.165 3.583A.75.75 0 013.75 21V5.507c0-1.47 1.073-2.756 2.57-2.93z" clip-rule="evenodd"/></svg>',
     "borrowed": '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M1 8C1 4.13401 4.13401 1 8 1C11.866 1 15 4.13401 15 8C15 11.866 11.866 15 8 15C4.13401 15 1 11.866 1 8ZM8.75 3.75C8.75 3.33579 8.41421 3 8 3C7.58579 3 7.25 3.33579 7.25 3.75V8C7.25 8.41421 7.58579 8.75 8 8.75H11.25C11.6642 8.75 12 8.41421 12 8C12 7.58579 11.6642 7.25 11.25 7.25H8.75V3.75Z" fill="#2C51A1"/></svg>',
     "pending": '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M1 8C1 4.13401 4.13401 1 8 1C11.866 1 15 4.13401 15 8C15 11.866 11.866 15 8 15C4.13401 15 1 11.866 1 8ZM8.75 3.75C8.75 3.33579 8.41421 3 8 3C7.58579 3 7.25 3.33579 7.25 3.75V8C7.25 8.41421 7.58579 8.75 8 8.75H11.25C11.6642 8.75 12 8.41421 12 8C12 7.58579 11.6642 7.25 11.25 7.25H8.75V3.75Z" fill="#6B7280"/></svg>',
+    "waitlisted": '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M8 1.75C6.20507 1.75 4.75 3.20507 4.75 5V5.76393C4.75 6.40114 4.54563 7.02157 4.16672 7.53394L3.23959 8.7877C2.6945 9.52485 3.22081 10.5625 4.13655 10.5625H11.8634C12.7792 10.5625 13.3055 9.52485 12.7604 8.7877L11.8333 7.53394C11.4544 7.02157 11.25 6.40114 11.25 5.76393V5C11.25 3.20507 9.79493 1.75 8 1.75ZM6.5 11.75C6.5 12.5784 7.17157 13.25 8 13.25C8.82843 13.25 9.5 12.5784 9.5 11.75H6.5Z" fill="#6B7280"/><path d="M12.25 4.5C13.2165 4.5 14 3.7165 14 2.75C14 1.7835 13.2165 1 12.25 1C11.2835 1 10.5 1.7835 10.5 2.75C10.5 3.7165 11.2835 4.5 12.25 4.5Z" fill="#6B7280"/></svg>',
 }
 
 BANNER_STYLES = {
@@ -37,6 +42,7 @@ BANNER_STYLES = {
     "borrowed": {"bg": "bg-primary/15", "text": "text-primary"},
     # "pending" is what non-owners see instead of "requested" or "reserved".
     "pending": {"bg": "bg-secondary/15", "text": "text-secondary"},
+    "waitlisted": {"bg": "bg-gray-400/15", "text": "text-secondary"},
 }
 
 
@@ -136,8 +142,18 @@ def get_banner_info_for_item(
         ).first()
 
     if not current_transaction:
-        # No active transaction, item is available by default
+        # No active transaction or subscription, item is available by default
         return {"banner_type": "available"}
+
+    if (
+        requesting_user != viewing_user
+        and current_borrower != viewing_user
+        and item.subscriptions.filter(
+            status=AvailabilitySubscriptionStatus.ACTIVE,
+            user=viewing_user,
+        ).exists()
+    ):
+        return {"banner_type": "waitlisted"}
 
     # Determine banner based on transaction status
     if current_transaction.status == TransactionStatus.REQUESTED:

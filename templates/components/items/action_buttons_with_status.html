@@ -85,7 +85,7 @@ For variant='card', also accepts:
         <form method="POST" action="{% url 'item-borrow' item.pk %}" class="flex-1">
             {% csrf_token %}
             <input type="hidden" name="action" value="{{ action.name }}">
-            <button type="submit" class="btn btn-ghost btn-sm md:btn-md w-full">{{ action.label }}</button>
+            <button type="submit" class="btn btn-ghost shadow-xs shadow-gray-300 btn-sm md:btn-md w-full">{{ action.label }}</button>
         </form>
         {% endif %}
     {% endfor %}

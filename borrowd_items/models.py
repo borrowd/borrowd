@@ -42,6 +42,10 @@ class ItemAction(TextChoices):
     MARK_COLLECTED = "MARK_COLLECTED", "Mark Collected"
     CONFIRM_COLLECTED = "CONFIRM_COLLECTED", "Confirm Collected"
     NOTIFY_WHEN_AVAILABLE = "NOTIFY_WHEN_AVAILABLE", "Notify when available"
+    CANCEL_NOTIFICATION_REQUEST = (
+        "CANCEL_NOTIFICATION_REQUEST",
+        "Cancel notification request",
+    )
     MARK_RETURNED = "MARK_RETURNED", "Mark Returned"
     CONFIRM_RETURNED = "CONFIRM_RETURNED", "Confirm Returned"
     CANCEL_REQUEST = "CANCEL_REQUEST", "Cancel Request"
@@ -304,6 +308,16 @@ class Item(Model):
                 # If the item is currently BORROWED or RESERVED by another user,
                 # allow requesting notification for when it becomes available again
                 return (ItemAction.NOTIFY_WHEN_AVAILABLE,)
+            elif (
+                not self.is_borrowable(user=user)
+                and AvailabilitySubscription.get_active_subscription_for_user_and_item(
+                    user=user, item=self
+                )
+                is not None
+            ) and self.owner != user:
+                # If the item is currently BORROWED or RESERVED by another user,
+                # but the current user has an active subscription, allow cancelling the subscription
+                return (ItemAction.CANCEL_NOTIFICATION_REQUEST,)
             else:
                 # At this point, either:
                 # - the user is the owner of the item (and thus can't request to borrow their
@@ -513,6 +527,23 @@ class Item(Model):
                 item=self,
                 status=AvailabilitySubscriptionStatus.ACTIVE,
             )
+            return
+
+        if (
+            action == ItemAction.CANCEL_NOTIFICATION_REQUEST
+            and not self.is_borrowable(user=user)
+            and AvailabilitySubscription.get_active_subscription_for_user_and_item(
+                user=user, item=self
+            )
+            is not None
+        ):
+            subscription = (
+                AvailabilitySubscription.get_active_subscription_for_user_and_item(
+                    user=user, item=self
+                )
+            )
+            if subscription:
+                subscription.cancel_subscription()
             return
 
         current_tx = self.get_current_transaction_for_user(user=user)
