@@ -174,10 +174,10 @@ def inventory_view(request: HttpRequest) -> HttpResponse:
         user
     ).prefetch_related("item__photos")
 
-    # party1 is the item owner/lender — these are requests FROM others TO this user
+    # these are requests FROM others TO this user - party1 is the item owner/lender
     incoming_borrow_requests = requested_transactions.filter(party1=user)
 
-    # party2 is the borrower/requester — these are requests FROM this user TO others
+    # these are requests TO others FROM this user - party2 is the borrower/requester
     outgoing_borrow_requests = requested_transactions.filter(party2=user)
 
     # User's items currently lent out (approved/accepted through return asserted)
