@@ -172,3 +172,31 @@ def send_item_available_notification(
         and item is not None
     ):
         transaction.on_commit(lambda: _notify_subscribers_if_available(item))
+
+
+@receiver(post_save, sender=AvailabilitySubscription)
+def send_item_available_notification_on_subscription(
+    sender: type[AvailabilitySubscription],
+    instance: AvailabilitySubscription,
+    created: bool,
+    **kwargs: str,
+) -> None:
+    """
+    Send notifications when an availability subscription is created for an item that is already available.
+    """
+
+    item = cast(Item | None, instance.item)
+    if (
+        created
+        and instance.status == AvailabilitySubscriptionStatus.ACTIVE
+        and item is not None
+        and not item.is_borrowable()
+    ):
+        notify.send(
+            instance.user,
+            recipient=[instance.user],
+            verb=NotificationType.ITEM_SUBSCRIPTION.value,
+            action_object=item,
+            target=instance,
+            description=f"You have subscribed to be notified when {item.name} becomes available. We will let you know when it does!",
+        )
