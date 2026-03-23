@@ -31,6 +31,10 @@ Parameters:
             {% if person_name %}Borrowed {{ time_ago }} ago by {% if person_url %}<a href="{{ person_url }}" class="underline hover:no-underline">{{ person_name }}</a>{% else %}{{ person_name }}{% endif %}{% else %}Borrowed{% endif %}
         {% elif banner_type == 'pending' %}
             Pending
+        {% elif banner_type == 'waitlisted' %}
+            Waitlisted
+        {% else %}
+            {{ banner_type|title }}
         {% endif %}
     </span>
 </div>
