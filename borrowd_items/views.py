@@ -199,6 +199,14 @@ class ItemDetailView(
 
         action_context = self.object.get_action_context_for(user=user)
         context["action_context"] = action_context
+        banner_info = get_banner_info_for_item(self.object, user)
+        banner_type = banner_info.get("banner_type", "")
+        banner_style = BANNER_STYLES.get(banner_type, {})
+        banner_icon = format_html(BANNER_ICONS.get(banner_type, ""))
+
+        context["banner_type"] = banner_type
+        context["banner_style"] = banner_style
+        context["banner_icon"] = banner_icon
 
         request_txn = (
             Transaction.objects.filter(item=self.object).order_by("-created_at").first()
