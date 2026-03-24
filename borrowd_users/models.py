@@ -1,3 +1,5 @@
+from typing import Never
+
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.templatetags.static import static
@@ -6,6 +8,8 @@ from imagekit.models import ProcessedImageField
 from imagekit.processors import ResizeToFit
 
 from borrowd_groups.mixins import BorrowdGroupPermissionMixin
+
+from django.utils import timezone
 
 
 # No typing for django-guardian, so mypy doesn't like us subclassing.
@@ -59,3 +63,89 @@ class Profile(models.Model):
         except Exception:
             pic = static("icons/account-circle.svg")
         return pic
+
+
+class SearchTarget(models.TextChoices):
+    ITEMS = "items", "Items"
+    GROUPS = "groups", "Groups"
+
+
+class SearchTerm(models.Model):
+    """
+    Store search terms entered by users so we can power UX features like
+    "recent searches" and analyze search effectiveness.
+
+    Dedupe behavior:
+    - A user + target (items/groups) + normalized term creates at most one
+      row, but we update `last_searched_at` on repeat searches.
+    """
+
+    user: models.ForeignKey[BorrowdUser] = models.ForeignKey(
+        "borrowd_users.BorrowdUser",
+        on_delete=models.CASCADE,
+        related_name="search_terms",
+    )
+    target: models.CharField[SearchTarget, str] = models.CharField(
+        max_length=10,
+        choices=SearchTarget.choices,
+    )
+    # Stored for UX (case/spacing as normalized by `record_search`).
+    term_raw: models.CharField[str, str] = models.CharField(max_length=200)
+    # Used for dedupe; lowercased + whitespace collapsed.
+    term_normalized: models.CharField[str, str] = models.CharField(max_length=200)
+
+    created_at: models.DateTimeField[Never, Never] = models.DateTimeField(
+        auto_now_add=True,
+    )
+    last_searched_at: models.DateTimeField[Never, Never] = models.DateTimeField(
+        default=timezone.now,
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "target", "term_normalized"],
+                name="unique_search_term_per_user_target",
+            )
+        ]
+        indexes = [
+            # Fast "latest searches per user per target" queries.
+            models.Index(fields=["user", "target", "-last_searched_at"]),
+            # Fast "latest searches by target" analytics queries.
+            models.Index(fields=["target", "-last_searched_at"]),
+        ]
+        ordering = ["-last_searched_at"]
+
+    @staticmethod
+    def _normalize(term: str) -> tuple[str, str]:
+        # Collapse whitespace so "usb  charger" and "usb charger" dedupe.
+        cleaned = " ".join(term.strip().split())
+        normalized = cleaned.lower()
+        return cleaned, normalized
+
+    @classmethod
+    def record_search(cls, user: BorrowdUser, target: SearchTarget, term: str) -> None:
+        if not user.is_authenticated:
+            return
+
+        cleaned, normalized = cls._normalize(term)
+        if not cleaned or not normalized:
+            return
+
+        # Enforce max length for DB fields while keeping dedupe consistent.
+        cleaned = cleaned[:200]
+        normalized = normalized[:200]
+
+        obj, created = cls.objects.get_or_create(
+            user=user,
+            target=target,
+            term_normalized=normalized,
+            defaults={"term_raw": cleaned},
+        )
+
+        if not created:
+            # Keep stored term consistent with our normalization strategy.
+            obj.term_raw = cleaned
+
+        obj.last_searched_at = timezone.now()
+        obj.save(update_fields=["term_raw", "last_searched_at"])
