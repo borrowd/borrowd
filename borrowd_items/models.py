@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import Never, Optional
 
 from django.core.exceptions import ValidationError
+from django.db import transaction
 from django.db.models import (
     CASCADE,
     PROTECT,
@@ -41,6 +42,10 @@ class ItemAction(TextChoices):
     MARK_COLLECTED = "MARK_COLLECTED", "Mark Collected"
     CONFIRM_COLLECTED = "CONFIRM_COLLECTED", "Confirm Collected"
     NOTIFY_WHEN_AVAILABLE = "NOTIFY_WHEN_AVAILABLE", "Notify when available"
+    CANCEL_NOTIFICATION_REQUEST = (
+        "CANCEL_NOTIFICATION_REQUEST",
+        "Cancel notification request",
+    )
     MARK_RETURNED = "MARK_RETURNED", "Mark Returned"
     CONFIRM_RETURNED = "CONFIRM_RETURNED", "Confirm Returned"
     CANCEL_REQUEST = "CANCEL_REQUEST", "Cancel Request"
@@ -303,6 +308,16 @@ class Item(Model):
                 # If the item is currently BORROWED or RESERVED by another user,
                 # allow requesting notification for when it becomes available again
                 return (ItemAction.NOTIFY_WHEN_AVAILABLE,)
+            elif (
+                not self.is_borrowable(user=user)
+                and AvailabilitySubscription.get_active_subscription_for_user_and_item(
+                    user=user, item=self
+                )
+                is not None
+            ) and self.owner != user:
+                # If the item is currently BORROWED or RESERVED by another user,
+                # but the current user has an active subscription, allow cancelling the subscription
+                return (ItemAction.CANCEL_NOTIFICATION_REQUEST,)
             else:
                 # At this point, either:
                 # - the user is the owner of the item (and thus can't request to borrow their
@@ -348,8 +363,12 @@ class Item(Model):
                 # Otherwise, nothing to do but wait...
                 return tuple()
         elif current_tx.status == TransactionStatus.COLLECTED:
-            # Either borrower or lender can assert return.
-            return (ItemAction.MARK_RETURNED,)
+            # Immediately allow the other party to confirm return.
+            if current_tx.updated_by != user:
+                return (ItemAction.MARK_RETURNED,)
+            else:
+                return tuple()
+
         elif current_tx.status == TransactionStatus.RETURN_ASSERTED:
             # Make sure the same person doesn't confirm the assertion
             if current_tx.updated_by != user:
@@ -454,7 +473,7 @@ class Item(Model):
             return None
 
     def is_borrowable(self, user: Optional[BorrowdUser] = None) -> bool:
-        if self.status != ItemStatus.AVAILABLE:  # ItemStatus.AVAILABLE
+        if self.status != ItemStatus.AVAILABLE:
             return False
 
         active_borrow = self.get_current_borrower()
@@ -514,61 +533,79 @@ class Item(Model):
             )
             return
 
+        if (
+            action == ItemAction.CANCEL_NOTIFICATION_REQUEST
+            and not self.is_borrowable(user=user)
+            and AvailabilitySubscription.get_active_subscription_for_user_and_item(
+                user=user, item=self
+            )
+            is not None
+        ):
+            subscription = (
+                AvailabilitySubscription.get_active_subscription_for_user_and_item(
+                    user=user, item=self
+                )
+            )
+            if subscription:
+                subscription.cancel_subscription()
+            return
+
         current_tx = self.get_current_transaction_for_user(user=user)
         if current_tx is None:
             # This should have been caught earlier, but check again
             # partly to keep mypy happy.
             raise ValueError("No existing Transaction")
 
-        match action:
-            case ItemAction.REJECT_REQUEST:
-                # The owner/lender/giver rejects the Request.
-                current_tx.status = TransactionStatus.REJECTED
-                current_tx.updated_by = user
-                current_tx.save()
-            case ItemAction.ACCEPT_REQUEST:
-                # The owner/lender/giver accepts the Request.
-                current_tx.status = TransactionStatus.ACCEPTED
-                current_tx.updated_by = user
-                current_tx.save()
-                self.status = ItemStatus.RESERVED
-                self.save()
-            case ItemAction.MARK_COLLECTED:
-                # Either party can assert collection.
-                current_tx.status = TransactionStatus.COLLECTION_ASSERTED
-                current_tx.updated_by = user
-                current_tx.save()
-            case ItemAction.CONFIRM_COLLECTED:
-                # The other party confirms collection.
-                current_tx.status = TransactionStatus.COLLECTED
-                current_tx.updated_by = user
-                current_tx.save()
-                self.status = ItemStatus.BORROWED
-                self.save()
-            case ItemAction.MARK_RETURNED:
-                # Either party can assert return.
-                current_tx.status = TransactionStatus.RETURN_ASSERTED
-                current_tx.updated_by = user
-                current_tx.save()
-            case ItemAction.CONFIRM_RETURNED:
-                # The other party confirms return.
-                current_tx.status = TransactionStatus.RETURNED
-                current_tx.updated_by = user
-                current_tx.save()
-                self.status = ItemStatus.AVAILABLE
-                self.save()
-            case ItemAction.CANCEL_REQUEST:
-                # The requestor cancels the Request.
-                current_tx.status = TransactionStatus.CANCELLED
-                current_tx.updated_by = user
-                current_tx.save()
-                self.status = ItemStatus.AVAILABLE
-                self.save()
-            case _:
-                # We shouldn't get here...
-                raise ValueError(
-                    f"Unexpected action '{action}' for Item '{self}' and User '{user}'"
-                )
+        with transaction.atomic():
+            match action:
+                case ItemAction.REJECT_REQUEST:
+                    # The owner/lender/giver rejects the Request.
+                    current_tx.status = TransactionStatus.REJECTED
+                    current_tx.updated_by = user
+                    current_tx.save()
+                case ItemAction.ACCEPT_REQUEST:
+                    # The owner/lender/giver accepts the Request.
+                    current_tx.status = TransactionStatus.ACCEPTED
+                    current_tx.updated_by = user
+                    current_tx.save()
+                    self.status = ItemStatus.RESERVED
+                    self.save()
+                case ItemAction.MARK_COLLECTED:
+                    # Either party can assert collection.
+                    current_tx.status = TransactionStatus.COLLECTION_ASSERTED
+                    current_tx.updated_by = user
+                    current_tx.save()
+                case ItemAction.CONFIRM_COLLECTED:
+                    # The other party confirms collection.
+                    current_tx.status = TransactionStatus.COLLECTED
+                    current_tx.updated_by = user
+                    current_tx.save()
+                    self.status = ItemStatus.BORROWED
+                    self.save()
+                case ItemAction.MARK_RETURNED:
+                    # Either party can assert return.
+                    current_tx.status = TransactionStatus.RETURN_ASSERTED
+                    current_tx.updated_by = user
+                    current_tx.save()
+                case ItemAction.CONFIRM_RETURNED:
+                    # The other party confirms return.
+                    self.status = ItemStatus.AVAILABLE
+                    self.save()
+                    current_tx.status = TransactionStatus.RETURNED
+                    current_tx.updated_by = user
+                    current_tx.save()
+                case ItemAction.CANCEL_REQUEST:
+                    # The requestor cancels the Request.
+                    self.status = ItemStatus.AVAILABLE
+                    self.save()
+                    current_tx.status = TransactionStatus.CANCELLED
+                    current_tx.updated_by = user
+                    current_tx.save()
+                case _:
+                    # We shouldn't get here...
+                    raise ValueError(
+                        f"Unexpected action '{action}' for Item '{self}' and User '{user}'"
+                    )
 
     class Meta:
         # Permissions using the naming conventon `*_this_*` are used

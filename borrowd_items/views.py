@@ -6,6 +6,7 @@ from django.forms import ModelForm
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect
 from django.urls import reverse, reverse_lazy
+from django.utils.html import format_html
 from django.views.decorators.http import require_POST
 from django.views.generic import CreateView, DeleteView, DetailView, UpdateView
 from django_filters.views import FilterView
@@ -19,11 +20,16 @@ from borrowd_permissions.mixins import (
 from borrowd_permissions.models import ItemOLP
 from borrowd_users.models import BorrowdUser
 
-from .card_helpers import build_item_cards_for_items
+from .card_helpers import (
+    BANNER_ICONS,
+    BANNER_STYLES,
+    build_item_cards_for_items,
+    get_banner_info_for_item,
+)
 from .exceptions import InvalidItemAction, ItemAlreadyRequested
 from .filters import ItemFilter
 from .forms import ItemCreateWithPhotoForm, ItemForm, ItemPhotoForm
-from .models import Item, ItemAction, ItemPhoto
+from .models import Item, ItemAction, ItemPhoto, Transaction
 
 
 def _build_item_action_success_message(item_name: str, action: ItemAction) -> str:
@@ -40,6 +46,7 @@ def _build_item_action_success_message(item_name: str, action: ItemAction) -> st
         ItemAction.CONFIRM_RETURNED: "return confirmed",
         ItemAction.CANCEL_REQUEST: "request canceled",
         ItemAction.NOTIFY_WHEN_AVAILABLE: "notification requested",
+        ItemAction.CANCEL_NOTIFICATION_REQUEST: "notification request canceled",
     }
     return f"{item_name} {action_to_result[action]}."
 
@@ -189,8 +196,23 @@ class ItemDetailView(
     def get_context_data(self, **kwargs: str) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
         user: BorrowdUser = self.request.user  # type: ignore[assignment]
+
         action_context = self.object.get_action_context_for(user=user)
         context["action_context"] = action_context
+
+        request_txn = (
+            Transaction.objects.filter(item=self.object).order_by("-created_at").first()
+        )
+        banner_info = get_banner_info_for_item(self.object, user)
+        banner_type = banner_info.get("banner_type", "")
+        banner_style = BANNER_STYLES.get(banner_type, {})
+        banner_icon = format_html(BANNER_ICONS.get(banner_type, ""))
+
+        context["request_txn"] = request_txn
+        context["banner_type"] = banner_type
+        context["banner_style"] = banner_style
+        context["banner_icon"] = banner_icon
+
         return context
 
 
