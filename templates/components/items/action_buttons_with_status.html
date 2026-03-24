@@ -73,13 +73,19 @@ For variant='card', also accepts:
         <form method="POST" action="{% url 'item-borrow' item.pk %}" class="flex-1">
             {% csrf_token %}
             <input type="hidden" name="action" value="CANCEL_REQUEST">
-            <button type="submit" class="btn btn-soft btn-primary btn-sm md:btn-md w-full">Cancel Request</button>
+            <button type="submit" class="btn btn-soft btn-primary btn-sm md:btn-md w-full">Cancel request</button>
+        </form>
+        {% elif action.name == 'NOTIFY_WHEN_AVAILABLE' %}
+        <form method="POST" action="{% url 'item-borrow' item.pk %}" class="flex-1">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="NOTIFY_WHEN_AVAILABLE">
+            <button type="submit" class="btn btn-soft btn-primary btn-sm md:btn-md w-full">Notify when available</button>
         </form>
         {% else %}
         <form method="POST" action="{% url 'item-borrow' item.pk %}" class="flex-1">
             {% csrf_token %}
             <input type="hidden" name="action" value="{{ action.name }}">
-            <button type="submit" class="btn btn-ghost btn-sm md:btn-md w-full">{{ action.label }}</button>
+            <button type="submit" class="btn btn-ghost shadow-xs shadow-gray-300 btn-sm md:btn-md w-full">{{ action.label }}</button>
         </form>
         {% endif %}
     {% endfor %}
@@ -159,7 +165,7 @@ For variant='card', also accepts:
                 <form method="POST" action="{% url 'item-borrow' item.pk %}" class="flex-1">
                     {% csrf_token %}
                     <input type="hidden" name="action" value="CANCEL_REQUEST">
-                    <button type="submit" class="btn btn-soft btn-primary w-full">Cancel Request</button>
+                    <button type="submit" class="btn btn-soft btn-primary w-full">Cancel request</button>
                 </form>
                 {% else %}
                 <form method="POST" action="{% url 'item-borrow' item.pk %}" class="flex-1">

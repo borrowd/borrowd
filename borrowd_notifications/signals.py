@@ -14,15 +14,53 @@ To add a new Notification:
 django-notifications repo: https://github.com/django-notifications/django-notifications
 """
 
+from typing import cast
+
+from django.db import transaction
 from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
+from django.utils import timezone
 from notifications.models import Notification
 from notifications.signals import notify
 
 from borrowd_groups.models import Membership, MembershipStatus
-from borrowd_items.models import Transaction, TransactionStatus
+from borrowd_items.models import (
+    AvailabilitySubscription,
+    AvailabilitySubscriptionStatus,
+    Item,
+    Transaction,
+    TransactionStatus,
+)
 
 from .services import NotificationService, NotificationType
+
+
+def _notify_subscribers_if_available(item: Item) -> None:
+    """
+    Check if the item is borrowable and notify subscribers.
+    """
+    item.refresh_from_db()  # Ensure we have the latest data
+
+    if item.is_borrowable():
+        subscriptions = AvailabilitySubscription.get_active_subscriptions_for_item(item)
+        for subscription in subscriptions:
+            notify.send(
+                item.owner,
+                recipient=[subscription.user],
+                verb=NotificationType.ITEM_NOTIFY_WHEN_AVAILABLE.value,
+                action_object=item,
+                target=subscription,
+                description=f"{item.name} is now available",
+            )
+
+            AvailabilitySubscription.objects.filter(
+                pk=subscription.pk,
+                status=AvailabilitySubscriptionStatus.ACTIVE,
+                notified_at__isnull=True,
+            ).update(
+                notified_at=timezone.now(),
+                status=AvailabilitySubscriptionStatus.NOTIFIED,
+            )
 
 
 @receiver(pre_save, sender=Notification)
@@ -109,4 +147,56 @@ def send_group_member_joined_notifications(
             action_object=instance,
             target=instance.group,
             description=f"A new member just joined your {instance.group.name} group",  # type: ignore[attr-defined]
+        )
+
+
+@receiver(post_save, sender=Transaction)
+def send_item_available_notification(
+    sender: type[Transaction],
+    instance: Transaction,
+    created: bool,
+    **kwargs: str,
+) -> None:
+    """
+    Send notifications when an item subscribed to becomes available.
+    """
+
+    item = cast(Item | None, instance.item)
+    if (
+        instance.status
+        in [
+            TransactionStatus.REJECTED,
+            TransactionStatus.RETURNED,
+            TransactionStatus.CANCELLED,
+        ]
+        and item is not None
+    ):
+        transaction.on_commit(lambda: _notify_subscribers_if_available(item))
+
+
+@receiver(post_save, sender=AvailabilitySubscription)
+def send_item_available_notification_on_subscription(
+    sender: type[AvailabilitySubscription],
+    instance: AvailabilitySubscription,
+    created: bool,
+    **kwargs: str,
+) -> None:
+    """
+    Send notifications when an availability subscription is created for an item that is already available.
+    """
+
+    item = cast(Item | None, instance.item)
+    if (
+        created
+        and instance.status == AvailabilitySubscriptionStatus.ACTIVE
+        and item is not None
+        and not item.is_borrowable()
+    ):
+        notify.send(
+            instance.user,
+            recipient=[instance.user],
+            verb=NotificationType.ITEM_SUBSCRIPTION.value,
+            action_object=item,
+            target=instance,
+            description=f"You have subscribed to be notified when {item.name} becomes available. We will let you know when it does!",
         )

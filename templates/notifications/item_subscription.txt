@@ -1,0 +1,14 @@
+You requested to be notified - Borrow'd
+
+Hi {{ subscriber_name }},
+
+Your request to be notified about {{ item_name }} has been processed.
+
+You will be notified as soon as it becomes available.
+You can monitor the item status at any time using the link below.
+
+View item {{ item_url }}
+
+Thanks for borrowing thoughtfully!
+
+The Borrow'd team

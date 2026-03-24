@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import Never, Optional
 
 from django.core.exceptions import ValidationError
+from django.db import transaction
 from django.db.models import (
     CASCADE,
     PROTECT,
@@ -15,6 +16,7 @@ from django.db.models import (
     Q,
     QuerySet,
     TextChoices,
+    UniqueConstraint,
 )
 from django.urls import reverse
 from imagekit.models import ImageSpecField, ProcessedImageField
@@ -39,6 +41,11 @@ class ItemAction(TextChoices):
     REJECT_REQUEST = "REJECT_REQUEST", "Reject Request"
     MARK_COLLECTED = "MARK_COLLECTED", "Mark Collected"
     CONFIRM_COLLECTED = "CONFIRM_COLLECTED", "Confirm Collected"
+    NOTIFY_WHEN_AVAILABLE = "NOTIFY_WHEN_AVAILABLE", "Notify when available"
+    CANCEL_NOTIFICATION_REQUEST = (
+        "CANCEL_NOTIFICATION_REQUEST",
+        "Cancel notification request",
+    )
     MARK_RETURNED = "MARK_RETURNED", "Mark Returned"
     CONFIRM_RETURNED = "CONFIRM_RETURNED", "Confirm Returned"
     CANCEL_REQUEST = "CANCEL_REQUEST", "Cancel Request"
@@ -116,6 +123,7 @@ class Item(Model):
 
     # Hints for mypy (actual fields created from reverse relations)
     transactions: QuerySet["Transaction"]
+    subscriptions: QuerySet["AvailabilitySubscription"]
     photos: QuerySet["ItemPhoto"]
 
     def __str__(self) -> str:
@@ -176,7 +184,7 @@ class Item(Model):
         elif is_borrower:
             return self._get_borrower_status_text(actions)
         else:
-            return self._get_other_user_status_text(actions)
+            return self._get_other_user_status_text(actions, user)
 
     def _get_owner_status_text(
         self, actions: tuple[ItemAction, ...], requester_name: str, borrower_name: str
@@ -228,13 +236,22 @@ class Item(Model):
         else:
             return "Not available for borrowing"
 
-    def _get_other_user_status_text(self, actions: tuple[ItemAction, ...]) -> str:
+    def _get_other_user_status_text(
+        self, actions: tuple[ItemAction, ...], user: BorrowdUser
+    ) -> str:
         """Generate status text for users who are neither owner nor borrower."""
         if len(actions) == 1 and ItemAction.CANCEL_REQUEST in actions:
             # Intentionally obscuring owner name here for privacy to reject
             return "Requested to borrow, waiting on owner response..."
         elif ItemAction.REQUEST_ITEM in actions:
             return "Available to request!"
+        elif (
+            AvailabilitySubscription.get_active_subscription_for_user_and_item(
+                user=user, item=self
+            )
+            is not None
+        ):
+            return "You've requested to be notified when this item is available again."
         elif self.get_requesting_user() is not None:
             # There's a pending request from another user
             return "Item is reserved"
@@ -281,12 +298,30 @@ class Item(Model):
                 # THEN
                 #   the User can Request the Item.
                 return (ItemAction.REQUEST_ITEM,)
+            elif (
+                not self.is_borrowable(user=user)
+                and AvailabilitySubscription.get_active_subscription_for_user_and_item(
+                    user=user, item=self
+                )
+                is None
+            ) and self.owner != user:
+                # If the item is currently BORROWED or RESERVED by another user,
+                # allow requesting notification for when it becomes available again
+                return (ItemAction.NOTIFY_WHEN_AVAILABLE,)
+            elif (
+                not self.is_borrowable(user=user)
+                and AvailabilitySubscription.get_active_subscription_for_user_and_item(
+                    user=user, item=self
+                )
+                is not None
+            ) and self.owner != user:
+                # If the item is currently BORROWED or RESERVED by another user,
+                # but the current user has an active subscription, allow cancelling the subscription
+                return (ItemAction.CANCEL_NOTIFICATION_REQUEST,)
             else:
                 # At this point, either:
-                #   the item is not Available
-                #   OR the user is the owner
-                #   OR there's already a pending request from another user;
-                # either way, no Request can be initiated.
+                # - the user is the owner of the item (and thus can't request to borrow their
+                # no Request can be initiated.
 
                 # NOTE Later we may want to allow new Requests on Items
                 # even when they're currently Borrowed; that will
@@ -333,7 +368,7 @@ class Item(Model):
                 return (ItemAction.MARK_RETURNED,)
             else:
                 return tuple()
-           
+
         elif current_tx.status == TransactionStatus.RETURN_ASSERTED:
             # Make sure the same person doesn't confirm the assertion
             if current_tx.updated_by != user:
@@ -437,6 +472,21 @@ class Item(Model):
         except Transaction.DoesNotExist:
             return None
 
+    def is_borrowable(self, user: Optional[BorrowdUser] = None) -> bool:
+        if self.status != ItemStatus.AVAILABLE:
+            return False
+
+        active_borrow = self.get_current_borrower()
+        if active_borrow:
+            return False
+
+        active_request = self.get_requesting_user()
+
+        if active_request and active_request != user:
+            return False
+
+        return True
+
     def process_action(self, user: BorrowdUser, action: ItemAction) -> None:
         """
         Process the given action for this Item and User.
@@ -468,6 +518,38 @@ class Item(Model):
             )
             return
 
+        if (
+            action == ItemAction.NOTIFY_WHEN_AVAILABLE
+            and not self.is_borrowable(user=user)
+            and AvailabilitySubscription.get_active_subscription_for_user_and_item(
+                user=user, item=self
+            )
+            is None
+        ):
+            AvailabilitySubscription.objects.create(
+                user=user,
+                item=self,
+                status=AvailabilitySubscriptionStatus.ACTIVE,
+            )
+            return
+
+        if (
+            action == ItemAction.CANCEL_NOTIFICATION_REQUEST
+            and not self.is_borrowable(user=user)
+            and AvailabilitySubscription.get_active_subscription_for_user_and_item(
+                user=user, item=self
+            )
+            is not None
+        ):
+            subscription = (
+                AvailabilitySubscription.get_active_subscription_for_user_and_item(
+                    user=user, item=self
+                )
+            )
+            if subscription:
+                subscription.cancel_subscription()
+            return
+
         current_tx = self.get_current_transaction_for_user(user=user)
         if current_tx is None:
             # This should have been caught earlier, but check again
@@ -475,55 +557,56 @@ class Item(Model):
             raise ValueError("No existing Transaction")
 
         # TODO: Wrap in transaction
-        match action:
-            case ItemAction.REJECT_REQUEST:
-                # The owner/lender/giver rejects the Request.
-                current_tx.status = TransactionStatus.REJECTED
-                current_tx.updated_by = user
-                current_tx.save()
-            case ItemAction.ACCEPT_REQUEST:
-                # The owner/lender/giver accepts the Request.
-                current_tx.status = TransactionStatus.ACCEPTED
-                current_tx.updated_by = user
-                current_tx.save()
-                self.status = ItemStatus.RESERVED
-                self.save()
-            case ItemAction.MARK_COLLECTED:
-                # Either party can assert collection.
-                current_tx.status = TransactionStatus.COLLECTION_ASSERTED
-                current_tx.updated_by = user
-                current_tx.save()
-            case ItemAction.CONFIRM_COLLECTED:
-                # The other party confirms collection.
-                current_tx.status = TransactionStatus.COLLECTED
-                current_tx.updated_by = user
-                current_tx.save()
-                self.status = ItemStatus.BORROWED
-                self.save()
-            case ItemAction.MARK_RETURNED:
-                # Either party can assert return.
-                current_tx.status = TransactionStatus.RETURN_ASSERTED
-                current_tx.updated_by = user
-                current_tx.save()
-            case ItemAction.CONFIRM_RETURNED:
-                # The other party confirms return.
-                current_tx.status = TransactionStatus.RETURNED
-                current_tx.updated_by = user
-                current_tx.save()
-                self.status = ItemStatus.AVAILABLE
-                self.save()
-            case ItemAction.CANCEL_REQUEST:
-                # The requestor cancels the Request.
-                current_tx.status = TransactionStatus.CANCELLED
-                current_tx.updated_by = user
-                current_tx.save()
-                self.status = ItemStatus.AVAILABLE
-                self.save()
-            case _:
-                # We shouldn't get here...
-                raise ValueError(
-                    f"Unexpected action '{action}' for Item '{self}' and User '{user}'"
-                )
+        with transaction.atomic():
+            match action:
+                case ItemAction.REJECT_REQUEST:
+                    # The owner/lender/giver rejects the Request.
+                    current_tx.status = TransactionStatus.REJECTED
+                    current_tx.updated_by = user
+                    current_tx.save()
+                case ItemAction.ACCEPT_REQUEST:
+                    # The owner/lender/giver accepts the Request.
+                    current_tx.status = TransactionStatus.ACCEPTED
+                    current_tx.updated_by = user
+                    current_tx.save()
+                    self.status = ItemStatus.RESERVED
+                    self.save()
+                case ItemAction.MARK_COLLECTED:
+                    # Either party can assert collection.
+                    current_tx.status = TransactionStatus.COLLECTION_ASSERTED
+                    current_tx.updated_by = user
+                    current_tx.save()
+                case ItemAction.CONFIRM_COLLECTED:
+                    # The other party confirms collection.
+                    current_tx.status = TransactionStatus.COLLECTED
+                    current_tx.updated_by = user
+                    current_tx.save()
+                    self.status = ItemStatus.BORROWED
+                    self.save()
+                case ItemAction.MARK_RETURNED:
+                    # Either party can assert return.
+                    current_tx.status = TransactionStatus.RETURN_ASSERTED
+                    current_tx.updated_by = user
+                    current_tx.save()
+                case ItemAction.CONFIRM_RETURNED:
+                    # The other party confirms return.
+                    self.status = ItemStatus.AVAILABLE
+                    self.save()
+                    current_tx.status = TransactionStatus.RETURNED
+                    current_tx.updated_by = user
+                    current_tx.save()
+                case ItemAction.CANCEL_REQUEST:
+                    # The requestor cancels the Request.
+                    self.status = ItemStatus.AVAILABLE
+                    self.save()
+                    current_tx.status = TransactionStatus.CANCELLED
+                    current_tx.updated_by = user
+                    current_tx.save()
+                case _:
+                    # We shouldn't get here...
+                    raise ValueError(
+                        f"Unexpected action '{action}' for Item '{self}' and User '{user}'"
+                    )
 
     class Meta:
         # Permissions using the naming conventon `*_this_*` are used
@@ -723,3 +806,122 @@ class Transaction(Model):
                 ]
             )
         )
+
+
+class AvailabilitySubscriptionStatus(IntegerChoices):
+    """
+    Represents the status of an Availability Subscription.
+    This is used to track the current state of an Availability Subscription,
+    and to determine which actions are available to the user.
+    """
+
+    ACTIVE = 10, "Active"
+    NOTIFIED = 20, "Notified"
+    CANCELLED = 30, "Cancelled"
+    EXPIRED = 40, "Expired"
+
+
+class AvailabilitySubscription(Model):
+    item: ForeignKey["Item"] = ForeignKey(
+        to="Item",
+        on_delete=PROTECT,
+        related_name="subscriptions",
+        help_text="The Item which is the subject of the Subscription.",
+    )
+    user: ForeignKey[BorrowdUser] = ForeignKey(
+        to=BorrowdUser,
+        on_delete=PROTECT,
+        related_name="+",  # No reverse relation needed
+        help_text="The User who is subscribed to the Item.",
+    )
+    status: IntegerField[AvailabilitySubscriptionStatus, int] = IntegerField(
+        choices=AvailabilitySubscriptionStatus.choices,
+        default=AvailabilitySubscriptionStatus.ACTIVE,
+        help_text="The current status of the Subscription.",
+    )
+    created_at: DateTimeField[Never, Never] = DateTimeField(
+        auto_now_add=True,
+        help_text="When this Subscription was created.",
+    )
+    notified_at: DateTimeField[Optional[str], Optional[str]] = DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When the user was notified that the item became available.",
+    )
+    language: CharField[str, str] = CharField(
+        max_length=10,
+        null=False,
+        blank=False,
+        default="en",
+        help_text="The user's preferred language for notifications (e.g. 'en', 'fr', etc.)",
+    )
+
+    @staticmethod
+    def get_active_subscriptions_for_user(
+        user: BorrowdUser,
+    ) -> QuerySet["AvailabilitySubscription"]:
+        """
+        Returns all active Availability Subscriptions for the given User.
+        """
+        return AvailabilitySubscription.objects.filter(
+            user=user,
+            status=AvailabilitySubscriptionStatus.ACTIVE,
+        )
+
+    @staticmethod
+    def get_active_subscriptions_for_item(
+        item: Item,
+    ) -> QuerySet["AvailabilitySubscription"]:
+        """
+        Returns all active Availability Subscriptions for the given Item.
+        """
+        return AvailabilitySubscription.objects.filter(
+            item=item,
+            status=AvailabilitySubscriptionStatus.ACTIVE,
+        )
+
+    @staticmethod
+    def get_active_subscription_for_user_and_item(
+        user: BorrowdUser, item: Item
+    ) -> Optional["AvailabilitySubscription"]:
+        """
+        Returns the active Availability Subscription for the given User and Item, if any.
+        """
+        try:
+            return AvailabilitySubscription.objects.get(
+                item=item,
+                user=user,
+                status=AvailabilitySubscriptionStatus.ACTIVE,
+            )
+        except AvailabilitySubscription.DoesNotExist:
+            return None
+        except AvailabilitySubscription.MultipleObjectsReturned:
+            # This shouldn't happen with proper business logic, but just in case
+            return AvailabilitySubscription.objects.filter(
+                item=item,
+                user=user,
+                status=AvailabilitySubscriptionStatus.ACTIVE,
+            ).first()
+
+    def cancel_subscription(self) -> None:
+        """
+        Cancel the given subscription, e.g. if the user manually cancels it or if they request to be notified again.
+        """
+        self.status = AvailabilitySubscriptionStatus.CANCELLED
+        self.save()
+
+    def expire_subscription(self) -> None:
+        """
+        Expire the given subscription, e.g. if a certain amount of time has passed since the user was notified without them taking action.
+        """
+        self.status = AvailabilitySubscriptionStatus.EXPIRED
+        self.save()
+
+    class Meta:
+        constraints = [
+            UniqueConstraint(
+                fields=["item", "user"],
+                condition=Q(status=AvailabilitySubscriptionStatus.ACTIVE),
+                name="unique_active_subscription_per_user_and_item",
+            )
+        ]

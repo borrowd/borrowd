@@ -24,16 +24,16 @@
   <div
     class="lg:py-[30px] w-full flex flex-col justify-center items-center self-stretch gap-5 px-[16px] py-[14px] rounded-[4px] shadow-2xl mt-5 bg-white"
   >
-    {% if profile.image %}
+    {% if profile_context.profile_image_url %}
     <img
-      src="{{ profile.image.url }}"
+      src="{{ profile_context.profile_image_url }}"
       alt="Profile Picture"
       id="avatar-preview"
     />
     {% else %}
     <img
       class="rounded-full w-20 h-20"
-      src="https://ui-avatars.com/api/?name={{ profile.full_name|urlencode }}&background=random"
+      src="https://ui-avatars.com/api/?name={{ profile_context.full_name|urlencode }}&background=random"
       alt="Profile Picture"
       id="avatar-preview"
     />
@@ -41,16 +41,18 @@
     <div
       class="text-black text-center font-inter text-base font-medium leading-normal tracking-[-0.5px]"
     >
-      {{profile.full_name}}
+      {{ profile_context.full_name }}
     </div>
     <div
       class="text-center font-inter text-sm font-normal leading-normal tracking-[-0.5px]"
     >
-      {{profile.bio|default:"This user hasn't added a bio yet."}}
+      {{ profile_context.bio|default:"This user hasn't added a bio yet." }}
     </div>
+    {% if profile_context.email %}
     <div class="text-[#757575]">
-      <span class="font-semibold">Email:</span> {{user.email}}
+      <span class="font-semibold">Email:</span> {{ profile_context.email }}
     </div>
+    {% endif %}
   </div>
 </div>
 
