@@ -363,8 +363,12 @@ class Item(Model):
                 # Otherwise, nothing to do but wait...
                 return tuple()
         elif current_tx.status == TransactionStatus.COLLECTED:
-            # Either borrower or lender can assert return.
-            return (ItemAction.MARK_RETURNED,)
+            # Immediately allow the other party to confirm return.
+            if current_tx.updated_by != user:
+                return (ItemAction.MARK_RETURNED,)
+            else:
+                return tuple()
+
         elif current_tx.status == TransactionStatus.RETURN_ASSERTED:
             # Make sure the same person doesn't confirm the assertion
             if current_tx.updated_by != user:

@@ -29,7 +29,7 @@ from .card_helpers import (
 from .exceptions import InvalidItemAction, ItemAlreadyRequested
 from .filters import ItemFilter
 from .forms import ItemCreateWithPhotoForm, ItemForm, ItemPhotoForm
-from .models import Item, ItemAction, ItemPhoto
+from .models import Item, ItemAction, ItemPhoto, Transaction
 
 
 def _build_item_action_success_message(item_name: str, action: ItemAction) -> str:
@@ -196,13 +196,19 @@ class ItemDetailView(
     def get_context_data(self, **kwargs: str) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
         user: BorrowdUser = self.request.user  # type: ignore[assignment]
+
         action_context = self.object.get_action_context_for(user=user)
         context["action_context"] = action_context
+
+        request_txn = (
+            Transaction.objects.filter(item=self.object).order_by("-created_at").first()
+        )
         banner_info = get_banner_info_for_item(self.object, user)
         banner_type = banner_info.get("banner_type", "")
         banner_style = BANNER_STYLES.get(banner_type, {})
         banner_icon = format_html(BANNER_ICONS.get(banner_type, ""))
 
+        context["request_txn"] = request_txn
         context["banner_type"] = banner_type
         context["banner_style"] = banner_style
         context["banner_icon"] = banner_icon
