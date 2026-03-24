@@ -42,7 +42,7 @@ BANNER_STYLES = {
     "borrowed": {"bg": "bg-primary/15", "text": "text-primary"},
     # "pending" is what non-owners see instead of "requested" or "reserved".
     "pending": {"bg": "bg-secondary/15", "text": "text-secondary"},
-    "waitlisted": {"bg": "bg-gray-400/15", "text": "text-secondary"},
+    "waitlisted": {"bg": "bg-gray-400/15", "text": "text-[#6B7280]"},
 }
 
 
