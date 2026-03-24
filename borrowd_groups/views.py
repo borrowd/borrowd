@@ -1,5 +1,6 @@
 from collections import namedtuple
 from typing import Any
+from urllib.parse import urlencode
 
 from django.contrib import messages
 from django.core.signing import SignatureExpired, TimestampSigner
@@ -175,6 +176,19 @@ class GroupJoinView(LoginRequiredMixin, View):  # type: ignore[misc]
     Then on POST, actions the joining of the user into the Group and
     displays a confirmation.
     """
+
+    def dispatch(
+        self, request: HttpRequest, encoded: str, *args: Any, **kwargs: str
+    ) -> HttpResponse:
+        if not request.user.is_authenticated:
+            join_path = request.get_full_path()
+            request.session["post_onboarding_redirect"] = join_path
+
+            login_url = reverse("account_login")
+            query = urlencode({"next": join_path})
+            return redirect(f"{login_url}?{query}")
+
+        return super().dispatch(request, encoded=encoded, *args, **kwargs)
 
     def _validate_invite(
         self, request: HttpRequest, encoded: str

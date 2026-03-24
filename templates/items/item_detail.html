@@ -46,10 +46,10 @@
     </div>
     {% else %}
     <div
-      class="badge badge-soft badge-success w-full flex items-center justify-start px-3 p-5 rounded-b-none"
+      class="{% for key, value in banner_style.items %} {{ value }}{% endfor %} w-full flex items-center gap-2 justify-start px-3 p-2 rounded-b-none"
     >
-      <span>{% include "icons/sparkles.svg" %}</span>
-      <span class="font-medium">{{ object.get_status_display }}</span>
+      <span>{{ banner_icon }}</span>
+      <span class="font-medium">{{ banner_type|title }}</span>
     </div>
     {% endif %}
 

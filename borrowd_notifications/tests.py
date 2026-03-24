@@ -1,8 +1,16 @@
-from django.test import TestCase
+from django.test import TestCase, TransactionTestCase
 from notifications.models import Notification
 
 from borrowd.models import TrustLevel
 from borrowd_groups.models import BorrowdGroup, Membership
+from borrowd_items.models import (
+    AvailabilitySubscription,
+    AvailabilitySubscriptionStatus,
+    Item,
+    ItemStatus,
+    Transaction,
+    TransactionStatus,
+)
 from borrowd_users.models import BorrowdUser
 
 from .services import NotificationType
@@ -180,4 +188,301 @@ class GroupMemberJoinedNotificationTests(TestCase):
             user2_notifications.count(),
             1,
             "User2 should receive notification when user3 joins",
+        )
+
+
+class ItemAvailableNotificationTests(TransactionTestCase):
+    """Tests for item available notifications."""
+
+    def setUp(self) -> None:
+        """Set up test users and item."""
+        self.owner = BorrowdUser.objects.create_user(
+            username="owner", email="owner@example.com", password="password"
+        )
+        self.subscriber = BorrowdUser.objects.create_user(
+            username="subscriber", email="subscriber@example.com", password="password"
+        )
+        self.item = Item.objects.create(
+            name="Test Item",
+            description="A test item",
+            owner=self.owner,
+        )
+        self.subscription = AvailabilitySubscription.objects.create(
+            user=self.subscriber,
+            item=self.item,
+            status=AvailabilitySubscriptionStatus.ACTIVE,
+        )
+
+    def test_notification_sent_when_transaction_returned(self) -> None:
+        """Test that subscriber receives notification when item is returned."""
+        # Create a transaction and set to RETURNED
+        Transaction.objects.create(
+            item=self.item,
+            party1=self.owner,
+            party2=self.subscriber,
+            status=TransactionStatus.RETURNED,
+            updated_by=self.owner,
+        )
+
+        # Check notification is sent
+        notifications = Notification.objects.filter(
+            recipient=self.subscriber,
+            verb=NotificationType.ITEM_NOTIFY_WHEN_AVAILABLE.value,
+        )
+        self.assertEqual(notifications.count(), 1)
+        notification = notifications.first()
+        self.assertEqual(notification.target, self.subscription)
+        self.assertIn("now available", notification.description)
+
+        # Check subscription is updated
+        self.subscription.refresh_from_db()
+        self.assertEqual(
+            self.subscription.status, AvailabilitySubscriptionStatus.NOTIFIED
+        )
+        self.assertIsNotNone(self.subscription.notified_at)
+
+    def test_notification_sent_when_transaction_cancelled(self) -> None:
+        """Test that subscriber receives notification when request is cancelled."""
+        # Create a transaction and set to CANCELLED
+        Transaction.objects.create(
+            item=self.item,
+            party1=self.owner,
+            party2=self.subscriber,
+            status=TransactionStatus.CANCELLED,
+            updated_by=self.owner,
+        )
+
+        # Check notification is sent
+        notifications = Notification.objects.filter(
+            recipient=self.subscriber,
+            verb=NotificationType.ITEM_NOTIFY_WHEN_AVAILABLE.value,
+        )
+        self.assertEqual(
+            notifications.count(),
+            1,
+            "Subscriber should receive notification when transaction is cancelled",
+        )
+
+        # Check subscription is updated
+        self.subscription.refresh_from_db()
+        self.assertEqual(
+            self.subscription.status, AvailabilitySubscriptionStatus.NOTIFIED
+        )
+
+    def test_notification_sent_when_transaction_rejected(self) -> None:
+        """Test that subscriber receives notification when request is rejected."""
+        # Create a transaction and set to REJECTED
+        Transaction.objects.create(
+            item=self.item,
+            party1=self.owner,
+            party2=self.subscriber,
+            status=TransactionStatus.REJECTED,
+            updated_by=self.owner,
+        )
+
+        # Check notification is sent
+        notifications = Notification.objects.filter(
+            recipient=self.subscriber,
+            verb=NotificationType.ITEM_NOTIFY_WHEN_AVAILABLE.value,
+        )
+        self.assertEqual(
+            notifications.count(),
+            1,
+            "Subscriber should receive notification when transaction is rejected",
+        )
+
+        # Check subscription is updated
+        self.subscription.refresh_from_db()
+        self.assertEqual(
+            self.subscription.status, AvailabilitySubscriptionStatus.NOTIFIED
+        )
+
+    def test_no_notification_if_item_not_borrowable(self) -> None:
+        """Test that no notification is sent if item is not borrowable."""
+        # Make item not available (e.g., set status to BORROWED)
+        self.item.status = ItemStatus.BORROWED
+        self.item.save()
+
+        # Create a transaction and set to RETURNED
+        Transaction.objects.create(
+            item=self.item,
+            party1=self.owner,
+            party2=self.subscriber,
+            status=TransactionStatus.RETURNED,
+            updated_by=self.owner,
+        )
+
+        # Check no notification is sent
+        notifications = Notification.objects.filter(
+            recipient=self.subscriber,
+            verb=NotificationType.ITEM_NOTIFY_WHEN_AVAILABLE.value,
+        )
+        self.assertEqual(notifications.count(), 0)
+
+        # Subscription should remain ACTIVE
+        self.subscription.refresh_from_db()
+        self.assertEqual(
+            self.subscription.status, AvailabilitySubscriptionStatus.ACTIVE
+        )
+
+    def test_multiple_subscribers_receive_notifications(self) -> None:
+        """Test that multiple subscribers receive notifications."""
+        subscriber2 = BorrowdUser.objects.create_user(
+            username="subscriber2", email="subscriber2@example.com", password="password"
+        )
+        subscription2 = AvailabilitySubscription.objects.create(
+            user=subscriber2,
+            item=self.item,
+            status=AvailabilitySubscriptionStatus.ACTIVE,
+        )
+
+        # Create a transaction and set to RETURNED
+        Transaction.objects.create(
+            item=self.item,
+            party1=self.owner,
+            party2=self.subscriber,
+            status=TransactionStatus.RETURNED,
+            updated_by=self.owner,
+        )
+
+        # Check both subscribers receive notifications
+        notifications = Notification.objects.filter(
+            verb=NotificationType.ITEM_NOTIFY_WHEN_AVAILABLE.value,
+        )
+        self.assertEqual(
+            notifications.count(),
+            2,
+            "Both subscribers should receive notifications when item becomes available",
+        )
+
+        recipients = [n.recipient for n in notifications]
+        self.assertIn(self.subscriber, recipients)
+        self.assertIn(subscriber2, recipients)
+
+        # Both subscriptions updated
+        self.subscription.refresh_from_db()
+        subscription2.refresh_from_db()
+        self.assertEqual(
+            self.subscription.status, AvailabilitySubscriptionStatus.NOTIFIED
+        )
+        self.assertEqual(subscription2.status, AvailabilitySubscriptionStatus.NOTIFIED)
+
+    def test_no_notification_on_requested_status(self) -> None:
+        """Test that no notification is sent when transaction is REQUESTED."""
+        Transaction.objects.create(
+            item=self.item,
+            party1=self.owner,
+            party2=self.subscriber,
+            status=TransactionStatus.REQUESTED,
+            updated_by=self.subscriber,
+        )
+
+        notifications = Notification.objects.filter(
+            verb=NotificationType.ITEM_NOTIFY_WHEN_AVAILABLE.value,
+        )
+        self.assertEqual(
+            notifications.count(),
+            0,
+            "No notification should be sent when transaction status is REQUESTED",
+        )
+
+        self.subscription.refresh_from_db()
+        self.assertEqual(
+            self.subscription.status, AvailabilitySubscriptionStatus.ACTIVE
+        )
+
+    def test_no_notification_on_accepted_status(self) -> None:
+        """Test that no notification is sent when transaction is ACCEPTED."""
+        Transaction.objects.create(
+            item=self.item,
+            party1=self.owner,
+            party2=self.subscriber,
+            status=TransactionStatus.ACCEPTED,
+            updated_by=self.owner,
+        )
+
+        notifications = Notification.objects.filter(
+            verb=NotificationType.ITEM_NOTIFY_WHEN_AVAILABLE.value,
+        )
+        self.assertEqual(
+            notifications.count(),
+            0,
+            "No notification should be sent when transaction status is ACCEPTED",
+        )
+
+        self.subscription.refresh_from_db()
+        self.assertEqual(
+            self.subscription.status, AvailabilitySubscriptionStatus.ACTIVE
+        )
+
+    def test_no_notification_on_collection_asserted_status(self) -> None:
+        """Test that no notification is sent when transaction is COLLECTION_ASSERTED."""
+        Transaction.objects.create(
+            item=self.item,
+            party1=self.owner,
+            party2=self.subscriber,
+            status=TransactionStatus.COLLECTION_ASSERTED,
+            updated_by=self.owner,
+        )
+
+        notifications = Notification.objects.filter(
+            verb=NotificationType.ITEM_NOTIFY_WHEN_AVAILABLE.value,
+        )
+        self.assertEqual(
+            notifications.count(),
+            0,
+            "No notification should be sent when transaction status is COLLECTION_ASSERTED",
+        )
+
+        self.subscription.refresh_from_db()
+        self.assertEqual(
+            self.subscription.status, AvailabilitySubscriptionStatus.ACTIVE
+        )
+
+    def test_no_notification_on_collected_status(self) -> None:
+        """Test that no notification is sent when transaction is COLLECTED."""
+        Transaction.objects.create(
+            item=self.item,
+            party1=self.owner,
+            party2=self.subscriber,
+            status=TransactionStatus.COLLECTED,
+            updated_by=self.owner,
+        )
+
+        notifications = Notification.objects.filter(
+            verb=NotificationType.ITEM_NOTIFY_WHEN_AVAILABLE.value,
+        )
+        self.assertEqual(
+            notifications.count(),
+            0,
+            "No notification should be sent when transaction status is COLLECTED",
+        )
+
+        self.subscription.refresh_from_db()
+        self.assertEqual(
+            self.subscription.status, AvailabilitySubscriptionStatus.ACTIVE
+        )
+
+    def test_no_notification_on_return_asserted_status(self) -> None:
+        """Test that no notification is sent when transaction is RETURN_ASSERTED."""
+        Transaction.objects.create(
+            item=self.item,
+            party1=self.owner,
+            party2=self.subscriber,
+            status=TransactionStatus.RETURN_ASSERTED,
+            updated_by=self.owner,
+        )
+
+        notifications = Notification.objects.filter(
+            verb=NotificationType.ITEM_NOTIFY_WHEN_AVAILABLE.value,
+        )
+        self.assertEqual(
+            notifications.count(),
+            0,
+            "No notification should be sent when transaction status is RETURN_ASSERTED",
+        )
+
+        self.subscription.refresh_from_db()
+        self.assertEqual(
+            self.subscription.status, AvailabilitySubscriptionStatus.ACTIVE
         )
