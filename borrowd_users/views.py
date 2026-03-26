@@ -169,23 +169,24 @@ def inventory_view(request: HttpRequest) -> HttpResponse:
     """
     user: BorrowdUser = request.user  # type: ignore[assignment]
 
-    # Borrow requests the user (item owner) needs to accept or decline
-    incoming_borrow_requests = Transaction.get_borrow_requests_to_user(
+    # All transactions associated with the user with status == REQUESTED (awaiting approval from someone)
+    requested_transactions = Transaction.get_requested_status_transactions_for_user(
         user
     ).prefetch_related("item__photos")
 
-    # Requests the user made that are awaiting the owner's response
-    outgoing_borrow_requests = Transaction.get_borrow_requests_from_user(
-        user
-    ).prefetch_related("item__photos")
+    # these are requests FROM others TO this user - party1 is the item owner/lender
+    incoming_borrow_requests = requested_transactions.filter(party1=user)
 
-    # User's items currently lent out (approved through returned)
-    owned_items_lent = Transaction.get_items_lent_by_user(user).prefetch_related(
+    # these are requests TO others FROM this user - party2 is the borrower/requester
+    outgoing_borrow_requests = requested_transactions.filter(party2=user)
+
+    # User's items currently lent out (approved/accepted through return asserted)
+    owned_items_lent = Transaction.get_active_lends_for_user(user).prefetch_related(
         "item__photos"
     )
 
-    # Items the user is actively borrowing from others
-    borrowed_items_from_others = Transaction.get_current_borrows_for_user(
+    # Items the user is actively borrowing from others (accepted/approved through return asserted)
+    borrowed_items_from_others = Transaction.get_active_borrows_for_user(
         user
     ).prefetch_related("item__photos")
 

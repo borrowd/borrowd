@@ -88,6 +88,7 @@ class ItemStatus(IntegerChoices):
     # Paranoia forcing to me to use value increments of at least 10,
     # for when we later realize we need to add more in between...
     AVAILABLE = 10, "Available"
+    REQUESTED = 15, "Requested"
     RESERVED = 20, "Reserved"
     BORROWED = 30, "Borrowed"
 
@@ -268,18 +269,6 @@ class Item(Model):
         - The status of the Item itself
         - The status of the current open Transaction involving this
           Item and the given User, if any.
-
-        Splitting the status / context between the Item itself and
-        Transactions related to the Item enables e.g. simultaneous
-        Requests from multiple Users, from which the lender can
-        choose; as opposed to immediately blocking the Item's status
-        based on the first Request that happens to come in.
-
-        This smooths the borrowing process, giving inventory more
-        apparent liquidity (there will be less time when Users will
-        see Items as unavailable) and will also help provide lenders
-        with some "plausible deniability" if they do not wish to
-        accept a Request from a specific User.
         """
         # This may raise Transaction.MultipleObjectsReturned.
         # Let it propagate.
@@ -516,6 +505,8 @@ class Item(Model):
                 # This is default; just being explicit
                 status=TransactionStatus.REQUESTED,
             )
+            self.status = ItemStatus.REQUESTED
+            self.save()
             return
 
         if (
@@ -564,6 +555,8 @@ class Item(Model):
                     current_tx.status = TransactionStatus.REJECTED
                     current_tx.updated_by = user
                     current_tx.save()
+                    self.status = ItemStatus.AVAILABLE
+                    self.save()
                 case ItemAction.ACCEPT_REQUEST:
                     # The owner/lender/giver accepts the Request.
                     current_tx.status = TransactionStatus.ACCEPTED
@@ -716,70 +709,37 @@ class Transaction(Model):
     )
 
     @staticmethod
-    def get_pending_transactions_for_user(user: BorrowdUser) -> QuerySet["Transaction"]:
+    def get_requested_status_transactions_for_user(
+        user: BorrowdUser,
+    ) -> QuerySet["Transaction"]:
         """
-        Returns Transactions requiring attention from the given User.
+        Returns Transactions which have a status of REQUESTED involving the given User.
+        I.E., the borrower has asked, but the lender hasn't accepted or rejected yet.
 
-        Includes REQUESTED and ACCEPTED statuses, plus COLLECTION_ASSERTED
-        and RETURN_ASSERTED when the User hasn't been the one to assert
+        See get_active_borrows_for_user and get_active_lends_for_user for
+        other transaction states that require user confirmation (pick ups/returns).
         """
         return Transaction.objects.filter(
-            Q(
-                status__in=[
-                    TransactionStatus.REQUESTED,
-                    TransactionStatus.ACCEPTED,
-                ]
-            )
-            # Considering transactions to confirm collection/return as pending requests also
-            | ~Q(updated_by=user)
-            & Q(
-                status__in=[
-                    TransactionStatus.COLLECTION_ASSERTED,
-                    TransactionStatus.RETURN_ASSERTED,
-                ]
-            )
+            Q(status=TransactionStatus.REQUESTED) & (Q(party1=user) | Q(party2=user))
         )
 
     @staticmethod
-    def get_borrow_requests_to_user(user: BorrowdUser) -> QuerySet["Transaction"]:
+    def get_active_borrows_for_user(user: BorrowdUser) -> QuerySet["Transaction"]:
         """
-        Returns pending Transactions where the given User is the item owner (party1).
-        aka: borrow requests from others that the User can accept or decline.
-        """
-        return Transaction.get_pending_transactions_for_user(user).filter(
-            Q(party1=user)
-        )
+        Returns Transactions where the given User is the active borrower (party 2)
 
-    @staticmethod
-    def get_borrow_requests_from_user(user: BorrowdUser) -> QuerySet["Transaction"]:
-        """
-        Returns pending Transactions where the given User is the borrower (party2).
-        aka: borrow requests the User has made that the item owner hasn't yet resolved.
-        """
-        return Transaction.get_pending_transactions_for_user(user).filter(
-            Q(party2=user)
-        )
-
-    @staticmethod
-    def get_current_borrows_for_user(user: BorrowdUser) -> QuerySet["Transaction"]:
-        """
-        Returns Transactions where the given User (party2) is actively borrowing an item.
-
-        Excludes ACCEPTED items to only show items past the handoff stage
-        an accepted-but-not-collected item appears in pending requests instead
-        (`get_pending_transactions_for_user`),
-        since collection still needs to be confirmed by both parties.
+        Includes all states from ACCEPTED through RETURN_ASSERTED.
         """
         return Transaction.objects.filter(
             Q(party2=user)
-            # We could query on item__status=BORROWED, however in that case items marked 'Collection Asserted'
-            # would not appear as Borrowed until they were confirmed/marked as collected by both parties
+            # We filter by transaction status rather than item status so that
+            # intermediate states like COLLECTION_ASSERTED appear as active
+            # borrows before both parties have confirmed collection.
             & ~Q(
+                # exclude these states
                 status__in=[
                     TransactionStatus.RETURNED,
                     TransactionStatus.REQUESTED,
-                    # only considering it "Borrowed" once it has been collected, not just accepted
-                    TransactionStatus.ACCEPTED,
                     TransactionStatus.REJECTED,
                     TransactionStatus.CANCELLED,
                 ]
@@ -787,13 +747,12 @@ class Transaction(Model):
         )
 
     @staticmethod
-    def get_items_lent_by_user(user: BorrowdUser) -> QuerySet["Transaction"]:
+    def get_active_lends_for_user(user: BorrowdUser) -> QuerySet["Transaction"]:
         """
-        Returns Transactions for Items the given User has lent out to others.
+        Returns Transactions where the given User is the active lender (party 1)
 
-        Mirrors `get_current_borrows_for_user` but from the lender's (party1) perspective.
-        Includes all active lending states after
-        the owner approves: ACCEPTED through RETURN_ASSERTED.
+        Includes all states from ACCEPTED through RETURN_ASSERTED,
+
         """
         return Transaction.objects.filter(
             Q(party1=user)
