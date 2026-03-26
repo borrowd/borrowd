@@ -2,7 +2,7 @@ from typing import Any
 
 from django.contrib.auth.models import Group
 from django.db.models.query import QuerySet
-from django.db.models.signals import post_save, pre_delete, pre_save
+from django.db.models.signals import post_delete, post_save, pre_delete, pre_save
 from django.dispatch import receiver
 from guardian.shortcuts import assign_perm, remove_perm
 
@@ -32,6 +32,29 @@ def maintain_perms_group_on_borrowd_group_change(
         if perms_group.name != instance.name:
             perms_group.name = instance.name
             perms_group.save()
+
+
+@receiver(pre_delete, sender=BorrowdGroup)
+def stash_perms_group_for_cleanup(
+    sender: type[BorrowdGroup], instance: BorrowdGroup, **kwargs: Any
+) -> None:
+    """
+    Keep track of the linked auth Group so it can be deleted once the
+    BorrowdGroup cascade has completed.
+    """
+    setattr(instance, "_perms_group_id_for_cleanup", instance.perms_group.pk)
+
+
+@receiver(post_delete, sender=BorrowdGroup)
+def delete_perms_group_on_borrowd_group_delete(
+    sender: type[BorrowdGroup], instance: BorrowdGroup, **kwargs: Any
+) -> None:
+    """
+    Delete the linked auth Group after related Membership cleanup has run.
+    """
+    perms_group_id = getattr(instance, "_perms_group_id_for_cleanup", None)
+    if perms_group_id is not None:
+        Group.objects.filter(pk=perms_group_id).delete()
 
 
 @receiver(post_save, sender=BorrowdGroup)
@@ -153,7 +176,7 @@ def pre_membership_delete(
     user: BorrowdUser = membership.user  # type: ignore[assignment]
     borrowd_group: BorrowdGroup = membership.group  # type: ignore[assignment]
     # error: "_ST" has no attribute "name"  [attr-defined]
-    group = Group.objects.get(name=borrowd_group.name)
+    group = borrowd_group.perms_group
 
     #
     # Check the group will not be left without a Moderator

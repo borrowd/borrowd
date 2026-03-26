@@ -547,7 +547,6 @@ class Item(Model):
             # partly to keep mypy happy.
             raise ValueError("No existing Transaction")
 
-        # TODO: Wrap in transaction
         with transaction.atomic():
             match action:
                 case ItemAction.REJECT_REQUEST:

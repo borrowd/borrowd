@@ -80,25 +80,36 @@ block groups_content %} {% load static %}
       {% endif %} {% endif %}
     </div>
     {% endfor %}
-    <div class="flex gap-4 w-full justify-end">
-      {% if form.instance.pk %}
-      <c-button-nav
-        url="{% url 'borrowd_groups:group-detail' form.instance.pk %}"
-        class="btn btn-ghost"
-      >
-        Cancel
-      </c-button-nav>
+    <div class="mt-6 w-full flex items-center {% if form.instance.pk %}justify-between{% else %}justify-end{% endif %}">
+        {% if form.instance.pk %}
+            <button type="button" class="btn btn-error btn-soft rounded-sm"
+                  onclick="showModal('group-delete-modal')">
+                  Delete group
+            </button>
+            <div class="flex items-center gap-4">
 
-      {% else %}
-      <c-button-nav
-        url="{% url 'borrowd_groups:group-list' %}"
-        class="btn btn-ghost"
-      >
-        Cancel
-      </c-button-nav>
-      {% endif %}
-      <c-button class="btn btn-primary" type="submit">Save group</c-button>
+                  <c-button-nav url="{% url 'borrowd_groups:group-detail' form.instance.pk %}" class="btn btn-ghost">
+                    Cancel
+                  </c-button-nav>
+
+                  <c-button class="btn btn-primary" type="submit">Save group</c-button>
+            </div>
+        {% else %}
+             <div class="flex items-center gap-4">
+                <c-button-nav url="{% url 'borrowd_groups:group-list' %}" class="btn btn-ghost">
+                  Cancel
+                </c-button-nav>
+                <c-button type="submit" class="btn btn-primary">Add item</c-button>
+             </div>
+        {% endif %}
     </div>
   </form>
+
+  {% if view.object.pk %}
+    <form id="group-delete-form" method="post" action="{% url 'borrowd_groups:group-delete' form.instance.pk %}" class="hidden">
+        {% csrf_token %}
+    </form>
+        {% include "components/modal.html" with modal_id="group-delete-modal" modal_title="Confirm Deletion" modal_content_template="groups/__group_delete_content.html" cancel_button_text="Cancel" confirm_button_text="Yes, delete group" confirm_submit_form_id="group-delete-form" confirm_button_class="btn btn-md btn-error btn-soft rounded-sm" %}
+  {% endif %}
 </c-box>
 {% endblock %}
