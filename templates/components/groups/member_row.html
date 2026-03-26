@@ -8,7 +8,7 @@
     />
     {% else %}
     <!-- Default to just a blank gray avatar circle for now -->
-    <div class="h-10 w-10 rounded-full bg-gray-200"></div>
+    <div class="rounded-md w-14 h-14 md:w-17 md:h-17 bg-gray-200"></div>
     {% endif %}
   </div>
   <div class="flex-grow">
@@ -26,35 +26,35 @@
   {% if is_moderator and member.user_id != user.id %}
   <div
     class="relative"
-    x-data="{ open: false, placement:'top', getBoundaryEl() {return this.$refs.btn?.closest('[members-list-boundary]') || document.body;},
+    x-data="{ open: false, placement:'top', getBoundaryEl() {return this.$refs.btn?.closest('[members-list-boundary]') || null;},
                                     toggle() {
                                       if (this.open) { this.open = false; return;}
 
                                       this.open = true;
 
-                                      //  Compute the best placement for the menu (top or bottom)
-                                      // based on available space within the parent boundary panel/card.
-                                      // works with scrolling containers and for a dynamic menu size.
-
                                       this.$nextTick(() => {
-                                        const btn = this.$refs.btn;
-                                        const menu = this.$refs.menu;
-                                        const boundary = this.getBoundaryEl();
+                                        requestAnimationFrame(() => {
+                                          const btn = this.$refs.btn;
+                                          const menu = this.$refs.menu;
+                                          const boundary = this.getBoundaryEl();
 
-                                        if (!btn || !menu || !boundary) return;
+                                          if (!btn || !menu) return;
 
-                                        const btnRect = btn.getBoundingClientRect();
-                                        const menuRect = menu.getBoundingClientRect();
-                                        const boundaryRect = boundary.getBoundingClientRect();
+                                          const btnRect = btn.getBoundingClientRect();
+                                          const menuRect = menu.getBoundingClientRect();
 
-                                        // Space within the boundary
-                                        const spaceBelow = boundaryRect.bottom - btnRect.bottom;
-                                        const spaceAbove = btnRect.top - boundaryRect.top;
+                                          const boundaryRect = boundary
+                                            ? boundary.getBoundingClientRect()
+                                            : { top: 0, bottom: window.innerHeight };
 
-                                        this.placement =
-                                          (spaceBelow < menuRect.height && spaceAbove > spaceBelow)
-                                            ? 'top'
-                                            : 'bottom';
+                                          const spaceBelow = boundaryRect.bottom - btnRect.bottom;
+                                          const spaceAbove = btnRect.top - boundaryRect.top;
+
+                                          this.placement =
+                                            (spaceBelow < menuRect.height && spaceAbove > spaceBelow)
+                                              ? 'top'
+                                              : 'bottom';
+                                        });
                                       });
                                     }
                                   }"

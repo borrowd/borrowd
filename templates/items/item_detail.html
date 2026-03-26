@@ -1,101 +1,390 @@
 {% extends "items/layout.html" %} {% block head_title %}View Item{% endblock %}
-{% block items_content %} {% load static %}
-<c-box class="relative flex flex-col gap-3 items-center py-8">
+{% block items_content %} {% load static time_filters %}
+
+<c-box
+  class="border-0! shadow-none relative flex flex-col gap-3 items-center py-8"
+>
   <div class="w-full flex relative items-center">
     <c-button-nav
       url="{% url 'item-list' %}"
       class="absolute top-0 left-0 translate-y-1.5"
-      >{% include "icons/arrow-left.svg" %}
+    >
+      {% include "icons/arrow-left.svg" %}
     </c-button-nav>
 
-    <c-h1 class="font-normal text-[24px] w-full text-center"
-      >{{ object.name }}</c-h1
-    >
+    <c-h1 class="font-normal text-[24px] w-full text-center">Item Details</c-h1>
   </div>
-  <div class="flex flex-col shadow-xl rounded-xl overflow-hidden">
-    <div
-      class="badge badge-soft badge-success w-full flex items-center justify-start px-3 p-5 rounded-b-none"
-    >
-      <span>{% include "icons/sparkles.svg" %}</span>
-      <span class="font-medium">{{ object.get_status_display }}</span>
-    </div>
 
-    <div class="py-1 px-3">
-      {% if view.object.photos.all %}
-      <c-gallery>
-        {% for photo in view.object.photos.all %}
-        <c-photo
-          src="{{ photo.image.url }}"
-          alt="{{ view.object.name }} Photo {{ forloop.counter }}"
-        />
-        {% endfor %}
-      </c-gallery>
-      {% else %}
-      <div class="relative py-1">
-        <img class="w-full h-full" src="{% static '/border-dashed.png' %}" />
-        {% if user.is_authenticated and object.owner == user %}
-        <a
-          href="{% url 'itemphoto-create' item_pk=object.pk %}?next={% url 'item-detail' object.pk %}"
-          class="absolute btn border-none btn-soft top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
-        >
-          Add a photo
-        </a>
+  <div class="flex flex-col shadow-sm rounded-xl overflow-hidden w-full">
+    {% if request_txn and request_txn.status == 10 or request_txn and
+    request_txn.status == 30 or request_txn and request_txn.status == 40 or
+    request_txn and request_txn.status == 50 or request_txn and
+    request_txn.status == 60 %}
+    <div
+      class="badge badge-soft font-medium w-full flex items-center justify-start px-3 text-sm py-7 p-5 rounded-b-none {% if request_txn.status == 10 %} bg-warning/15 text-[#8E6900] {% elif request_txn.status == 30 or request_txn.status == 40 %} bg-secondary/15 text-secondary {% elif request_txn.status == 50 or request_txn.status == 60 %} bg-primary/10 text-primary {% endif %}"
+    >
+      <span
+        class="{% if request_txn.status == 10 %} text-[#8E6900] {% elif request_txn.status == 30 or request_txn.status == 40 %} text-secondary {% elif request_txn.status == 50 or request_txn.status == 60 %} text-primary {% endif %}"
+      >
+        {% include "icons/clock.svg" %}
+      </span>
+
+      <div>
+        {% if request_txn.status == 10 %} Requested {{
+        request_txn.created_at|timesince|first_unit }} ago by {% elif
+        request_txn.status == 30 or request_txn.status == 40 %} Reserved {{
+        request_txn.updated_at|timesince|first_unit }} ago by {% elif
+        request_txn.status == 50 or request_txn.status == 60 %} Borrowed {{
+        request_txn.updated_at|timesince|first_unit }} ago by {% endif %}
+
+        <span class="underline inline">
+          {% if request_txn.party2 == user %} you {% else %} {{
+          request_txn.party2.get_full_name|default:request_txn.party2.username
+          }} {% endif %}
+        </span>
+      </div>
+    </div>
+    {% else %}
+    <div
+      class="{% for key, value in banner_style.items %} {{ value }}{% endfor %} w-full flex items-center gap-2 justify-start px-3 p-2 rounded-b-none"
+    >
+      <span>{{ banner_icon }}</span>
+      <span class="font-medium">{{ banner_type|title }}</span>
+    </div>
+    {% endif %}
+
+    <div class="flex flex-col lg:flex-row lg:items-stretch lg:gap-6 lg:p-5">
+      <div class="py-1 px-3 lg:w-[46%] lg:px-0 lg:py-0 self-stretch">
+        {% if view.object.photos.all %}
+        <div class="relative" id="item-slider">
+          <div class="overflow-hidden rounded-xl">
+            <div
+              id="item-slider-track"
+              class="flex transition-transform duration-300 ease-in-out"
+            >
+              {% for photo in view.object.photos.all %}
+              <div class="shrink-0 w-full">
+                <img
+                  src="{{ photo.image.url }}"
+                  alt="{{ view.object.name }} Photo {{ forloop.counter }}"
+                  class="w-full h-[320px] md:h-[400px] object-contain rounded-xl bg-base-200"
+                />
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+
+          {% if view.object.photos.count > 1 %}
+          <button
+            type="button"
+            id="item-slider-prev"
+            class="absolute flex items-center justify-center text-[30px] shadow-2xl -left-1 top-1/2 w-10 h-10 rounded-full pb-1.5 -translate-y-1/2 btn btn-circle btn-sm border-none"
+          >
+            &#8249;
+          </button>
+
+          <button
+            type="button"
+            id="item-slider-next"
+            class="absolute -right-1 flex items-center justify-center text-[30px] shadow-2xl w-10 h-10 rounded-full pb-1.5 top-1/2 -translate-y-1/2 btn btn-circle btn-sm border-none"
+          >
+            &#8250;
+          </button>
+
+          <div class="flex justify-center gap-2 mt-3">
+            {% for photo in view.object.photos.all %}
+            <button
+              type="button"
+              class="item-slider-dot w-2.5 h-2.5 rounded-full bg-gray-300"
+              data-index="{{ forloop.counter0 }}"
+              aria-label="Go to slide {{ forloop.counter }}"
+            ></button>
+            {% endfor %}
+          </div>
+          {% endif %}
+        </div>
         {% else %}
-        <div
-          class="absolute border-none btn-soft top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
-        >
-          No photo
+        <div class="relative py-1 lg:py-0 h-full">
+          <img
+            class="w-full h-full object-cover rounded-xl"
+            src="{% static '/border-dashed.png' %}"
+          />
+
+          {% if user.is_authenticated and object.owner == user %}
+          <a
+            href="{% url 'itemphoto-create' item_pk=object.pk %}?next={% url 'item-detail' object.pk %}"
+            class="absolute btn border-none btn-soft top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
+          >
+            Add a photo
+          </a>
+          {% else %}
+          <div
+            class="absolute border-none btn-soft top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
+          >
+            No photo
+          </div>
+          {% endif %}
         </div>
         {% endif %}
       </div>
-      {% endif %}
-    </div>
 
-    <div class="px-3 flex items-center gap-3">
-      <div class="text-[#181818] font-semibold">{{ object.name }}</div>
-      {% if user.is_authenticated and object.owner == user %}
-      <div class="badge badge-ghost text-xs p-3 font-medium">Yours</div>
-      {% endif %}
-    </div>
+      <div class="flex flex-col self-stretch lg:w-[54%]">
+        <div class="flex-1 flex flex-col">
+          <div class="px-3 gap-3 lg:px-0">
+            <div class="flex justify-between items-start gap-3">
+              <h2
+                class="m-0 text-2xl leading-tight line-clamp-2 font-semibold lg:text-[30px] lg:leading-[1.15]"
+              >
+                {{ object.name }}
+              </h2>
 
-    <div class="px-3 text-[15px]">{{ object.description }}</div>
+              {% if object.owner == user %}
+              <c-button-nav
+                url="{% url 'item-edit' object.pk %}"
+                class="shrink-0 flex items-center gap-2 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-medium rounded-lg border border-gray-200 transition"
+              >
+                {% include "icons/pencil.svg" %} Edit
+              </c-button-nav>
+              {% endif %}
+            </div>
 
-    <div class="px-3 mt-8 flex items-center gap-3 mb-4">
-      <div
-        class="text-sm font-normal underline underline-offset-2 decoration-dotted bg-base-content/60 bg-clip-text text-transparent"
-      >
-        Trust level:
+            <div class="flex flex-wrap gap-2 my-5">
+              {% if user.is_authenticated and object.owner == user %}
+              <div class="badge text-[10px] md:text-[12x] p-3 font-medium">
+                Yours
+              </div>
+              {% endif %} {% for category in object.categories.all %}
+              <div class="badge text-[10px] md:text-[12px] p-3 font-medium">
+                {{ category }}
+              </div>
+              {% empty %}
+              <span class="text-gray-400 text-sm">No categories</span>
+              {% endfor %}
+            </div>
+          </div>
+
+          <div class="px-3 flex items-center gap-3 mb-4 lg:px-0 lg:mt-2">
+            <div
+              class="text-sm font-normal underline underline-offset-2 decoration-dotted bg-base-content/60 bg-clip-text text-transparent"
+            >
+              Trust level:
+            </div>
+
+            {% if "High" in object.get_trust_level_required_display %}
+            <div
+              class="badge badge-success badge-soft font-medium text-xs border-xl p-3"
+            >
+              {% include "icons/arrow-up.svg" %} {{
+              object.get_trust_level_required_display }} Trust
+            </div>
+            {% elif "Standard" in object.get_trust_level_required_display %}
+            <div class="badge badge-soft text-xs border-xl p-3">
+              {% include "icons/medium-icon.svg" %} {{
+              object.get_trust_level_required_display }} Trust
+            </div>
+            {% endif %}
+
+            <span class="inline-flex [&>svg]:w-6 [&>svg]:h-6">
+              {% include "icons/information-circle.svg" %}
+            </span>
+          </div>
+
+          <div
+            class="px-3 text-[12px] mt-4 lg:px-0 lg:text-[15px] lg:leading-7"
+          >
+            {{ object.description }}
+          </div>
+        </div>
+
+        {% if user.is_authenticated and action_context %}
+        <div
+          class="flex items-center justify-center gap-2 mb-4 px-3 mt-6 lg:px-0 lg:mt-8"
+        >
+          {% for action in action_context.actions %} {% if action ==
+          "REQUEST_ITEM" %}
+          <form
+            method="post"
+            action="{% url 'item-borrow' object.pk %}"
+            class="flex-1"
+          >
+            {% csrf_token %}
+            <input type="hidden" name="action" value="REQUEST_ITEM" />
+            <button type="submit" class="btn btn-primary w-full">
+              Request item
+            </button>
+          </form>
+
+          {% elif action == "ACCEPT_REQUEST" and object.owner == user %}
+          <form
+            method="post"
+            action="{% url 'item-borrow' object.pk %}"
+            class="flex-1"
+          >
+            {% csrf_token %}
+            <input type="hidden" name="action" value="ACCEPT_REQUEST" />
+            <button type="submit" class="btn btn-success btn-soft w-full">
+              Accept
+            </button>
+          </form>
+
+          {% elif action == "REJECT_REQUEST" and object.owner == user %}
+          <form
+            method="post"
+            action="{% url 'item-borrow' object.pk %}"
+            class="flex-1"
+          >
+            {% csrf_token %}
+            <input type="hidden" name="action" value="REJECT_REQUEST" />
+            <button type="submit" class="btn btn-error btn-soft w-full">
+              Decline
+            </button>
+          </form>
+
+          {% elif action == "MARK_COLLECTED" %}
+          <form
+            method="post"
+            action="{% url 'item-borrow' object.pk %}"
+            class="flex-1"
+          >
+            {% csrf_token %}
+            <input type="hidden" name="action" value="MARK_COLLECTED" />
+            <button type="submit" class="btn btn-primary w-full">
+              Mark Picked Up
+            </button>
+          </form>
+
+          {% elif action == "CONFIRM_COLLECTED" %}
+          <form
+            method="post"
+            action="{% url 'item-borrow' object.pk %}"
+            class="flex-1"
+          >
+            {% csrf_token %}
+            <input type="hidden" name="action" value="CONFIRM_COLLECTED" />
+            <button type="submit" class="btn btn-primary w-full">
+              Confirm picked up
+            </button>
+          </form>
+
+          {% elif action == "MARK_RETURNED" %}
+          <form
+            method="post"
+            action="{% url 'item-borrow' object.pk %}"
+            class="flex-1"
+          >
+            {% csrf_token %}
+            <input type="hidden" name="action" value="MARK_RETURNED" />
+            <button type="submit" class="btn btn-primary w-full">
+              Confirm returned
+            </button>
+          </form>
+
+          {% elif action == "CONFIRM_RETURNED" %}
+          <form
+            method="post"
+            action="{% url 'item-borrow' object.pk %}"
+            class="flex-1"
+          >
+            {% csrf_token %}
+            <input type="hidden" name="action" value="CONFIRM_RETURNED" />
+            <button type="submit" class="btn btn-primary w-full">
+              Confirm returned
+            </button>
+          </form>
+
+          {% elif action == "CANCEL_REQUEST" %}
+          <form
+            method="post"
+            action="{% url 'item-borrow' object.pk %}"
+            class="flex-1"
+          >
+            {% csrf_token %}
+            <input type="hidden" name="action" value="CANCEL_REQUEST" />
+            <button type="submit" class="btn btn-primary btn-soft w-full">
+              Cancel request
+            </button>
+          </form>
+          {% endif %} {% endfor %}
+        </div>
+        {% endif %}
       </div>
-      {% if "High" in object.get_trust_level_required_display %}
-      <div
-        class="badge badge-success badge-soft font-medium text-[14px] border-xl p-3"
-      >
-        {% include "icons/arrow-up.svg" %}
-        {{object.get_trust_level_required_display}} Trust
-      </div>
-      {% elif "Low" in object.get_trust_level_required_display %}
-      <div
-        class="badge badge-error badge-soft font-medium text-[14px] border-xl p-3"
-      >
-        {% include "icons/arrow-down.svg" %}
-        {{object.get_trust_level_required_display}} Trust
-      </div>
-      {% endif %}
-        <c-items.action-buttons-with-status
-            :item="object"
-            :action-context="action_context"
-        ></c-items.action-buttons-with-status>
     </div>
-    {% if user.is_authenticated and object.owner == user %}
-
-    <div class="p-3 w-full">
-      <c-button-nav
-        url="{% url 'item-edit' object.pk %}"
-        class="btn btn-primary w-full"
-        >Edit item</c-button-nav
-      >
-    </div>
-    {% endif %}
   </div>
 </c-box>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const slider = document.getElementById("item-slider");
+    const track = document.getElementById("item-slider-track");
+    const prevBtn = document.getElementById("item-slider-prev");
+    const nextBtn = document.getElementById("item-slider-next");
+    const dots = document.querySelectorAll(".item-slider-dot");
+
+    if (!slider || !track) return;
+
+    const slides = track.children;
+    const totalSlides = slides.length;
+    let currentIndex = 0;
+
+    function updateSlider() {
+      track.style.transform = `translateX(-${currentIndex * 100}%)`;
+
+      dots.forEach((dot, index) => {
+        if (index === currentIndex) {
+          dot.classList.remove("bg-gray-300");
+          dot.classList.add("bg-gray-700");
+        } else {
+          dot.classList.remove("bg-gray-700");
+          dot.classList.add("bg-gray-300");
+        }
+      });
+    }
+
+    if (prevBtn) {
+      prevBtn.addEventListener("click", function () {
+        currentIndex = currentIndex === 0 ? totalSlides - 1 : currentIndex - 1;
+        updateSlider();
+      });
+    }
+
+    if (nextBtn) {
+      nextBtn.addEventListener("click", function () {
+        currentIndex = currentIndex === totalSlides - 1 ? 0 : currentIndex + 1;
+        updateSlider();
+      });
+    }
+
+    dots.forEach((dot) => {
+      dot.addEventListener("click", function () {
+        currentIndex = Number(this.dataset.index);
+        updateSlider();
+      });
+    });
+
+    let startX = 0;
+    let endX = 0;
+
+    slider.addEventListener("touchstart", function (e) {
+      startX = e.touches[0].clientX;
+    });
+
+    slider.addEventListener("touchend", function (e) {
+      endX = e.changedTouches[0].clientX;
+      const diff = startX - endX;
+
+      if (Math.abs(diff) > 50) {
+        if (diff > 0) {
+          currentIndex =
+            currentIndex === totalSlides - 1 ? 0 : currentIndex + 1;
+        } else {
+          currentIndex =
+            currentIndex === 0 ? totalSlides - 1 : currentIndex - 1;
+        }
+        updateSlider();
+      }
+    });
+
+    updateSlider();
+  });
+</script>
 {% endblock %}

@@ -17,7 +17,11 @@
         {% endif %}
     </div>
     <div class="navbar-center">
+        {% if user.is_authenticated %}
+        <a href="{% url 'item-list' %}" class="btn btn-ghost">
+        {% else %}
         <a href="{% url 'index' %}" class="btn btn-ghost">
+        {% endif %}
             <img class="w-30"
                  src="{% static 'borrowd-logo.svg' %}"
                  alt="Borrow'd's logo, complete with friendly bumble bee" />

@@ -117,12 +117,12 @@
             {% if view.object.photos.all %}
                 <c-gallery>
                 {% for photo in view.object.photos.all %}
-                    <div>
+                    <div class="rounded-md border border-gray-200 shadow-sm overflow-hidden bg-base-100">
                         <c-photo src="{{ photo.image.url }}"
                             alt="{{ view.object.name }} Photo {{ forloop.counter }}" />
-                        <div class="p-1">
-                            <button type="button" class="btn btn-link" onclick="showModal('item-photo-delete-modal-{{ photo.pk }}')">
-                                Delete
+                        <div class="px-2 py-2 border-t border-gray-100 bg-base-200/50">
+                            <button type="button" class="btn btn-sm btn-error btn-outline rounded-sm" onclick="showModal('item-photo-delete-modal-{{ photo.pk }}')">
+                                Delete photo
                             </button>
                         </div>
                     </div>
@@ -132,22 +132,27 @@
                 <div class="mb-2">No photos</div>
             {% endif %}
             {% if view.object.photos.count < 5 %}
-                <c-button-nav url="{% url 'itemphoto-create' item_pk=object.pk %}?next={% url 'item-edit' object.pk %}">Add Photo</c-button-nav>
+                <c-button-nav url="{% url 'itemphoto-create' item_pk=object.pk %}?next={% url 'item-edit' object.pk %}">Add photo</c-button-nav>
             {% else %}
                 <div class="text-gray-500 italic">Photo limit (5) reached. Delete a photo if you want to add another.</div>
             {% endif %}
 
         {% endif %}
 
-        <div class="mt-4 flex justify-end">
-            <c-button type="submit" class="btn btn-primary mr-2">Add item</c-button>
+        <div class="mt-6 flex items-center {% if form.instance.pk %}justify-between{% else %}justify-end{% endif %}">
             {% if form.instance.pk %}
-                <c-button-nav url="{% url 'item-detail' form.instance.pk %}" class="btn">
-                    Cancel
-                </c-button-nav>
-                <button type="button" class="btn btn-link" onclick="showModal('item-delete-modal')">
-                    Delete
+                <button type="button" class="btn btn-error btn-soft rounded-sm"
+                    onclick="showModal('item-delete-modal')">
+                    Delete item
                 </button>
+                <div class="flex items-center gap-2">
+                    <c-button-nav url="{% url 'item-detail' form.instance.pk %}" class="btn">
+                        Cancel
+                    </c-button-nav>
+                    <c-button type="submit" class="btn btn-primary">Save item</c-button>
+                </div>
+            {% else %}
+                <c-button type="submit" class="btn btn-primary">Add item</c-button>
             {% endif %}
         </div>
     </form>
@@ -171,5 +176,5 @@
     {% endif %}
 </div>
 
-{% include "components/modal.html" with modal_id="trust-level-info-modal" modal_title="Group trust levels" modal_size="full" modal_content_template="items/_trust_level_info_content.html" cancel_button_text="Got it" %}
+{% include "components/modal.html" with modal_id="trust-level-info-modal" modal_title="Trust levels" modal_size="full" modal_content_template="items/_trust_level_info_content.html" cancel_button_text="Got it" %}
 {% endblock %}
