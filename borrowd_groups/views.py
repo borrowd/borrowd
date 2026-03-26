@@ -296,6 +296,13 @@ class GroupListView(LoginRequiredMixin, FilterView):  # type: ignore[misc]
             return ["groups/group_list_card.html"]
         return [self.template_name]
 
+    def get_context_data(self, **kwargs: str) -> dict[str, Any]:
+        context: dict[str, Any] = super().get_context_data(**kwargs)
+        context["has_groups"] = Membership.objects.filter(
+            user=self.request.user
+        ).exists()
+        return context
+
 
 class GroupUpdateView(
     LoginOr404PermissionMixin,
