@@ -71,7 +71,7 @@
           {% endif %}
         </div>
         {% else %}
-        <div class="relative py-1 lg:py-0 h-[300px] md:h-[150px] lg:h-[400px]">
+        <div class="relative py-1 lg:py-0 h-[300px] md:h-[350px] lg:h-[400px]">
           <img
             title="image_container"
           class="w-full h-full  rounded-xl"
@@ -115,12 +115,6 @@
             {% endif %}
           </div>
 
-          <div
-            class="text-[12px] lg:px-0 lg:text-[15px] lg:leading-7"
-          >
-            {{ item.description }}
-          </div>
-
           <div class="flex flex-wrap gap-2 my-5">
             {% if user.is_authenticated and item.owner == user %}
             <div class="badge text-[10px] md:text-[12x] p-3 font-medium">
@@ -161,6 +155,13 @@
             {% include "icons/information-circle.svg" %}
           </span>
         </div>
+
+        <div
+          class="text-[12px] lg:px-0 lg:text-[15px] lg:leading-7"
+        >
+          {{ item.description }}
+        </div>
+
 
         {% if show_actions and action_context.actions %}
         <div class="mt-auto">
