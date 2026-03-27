@@ -4,18 +4,18 @@
 {% block groups_content %}
 
 <div class="flex flex-col space-y-4 ">
-    {% if has_groups %}
     <c-h1 class="text-center text-3xl font-normal mb-4">
         Groups
     </c-h1>
     <!-- Toggle and Create Group Button -->
     <div class="flex items-center justify-between w-full">
-        <label class="flex items-center gap-2 cursor-pointer">
+        <label class="flex items-center gap-2 {% if has_groups %}cursor-pointer{% else %}cursor-not-allowed opacity-50{% endif %}">
             <input type="checkbox"
                    id="moderator-toggle"
                    name="moderator_only"
                    value="true"
                    class="toggle toggle-sm"
+                   {% if not has_groups %}disabled{% endif %}
                    {% if request.GET.moderator_only == "true" %}checked{% endif %}
                    hx-get="{% url 'borrowd_groups:group-list' %}"
                    hx-include="[name='moderator_only']:checked"
@@ -31,10 +31,10 @@
             url="{% url 'borrowd_groups:group-create' %}"
             >
             Create group
-            </c-button-nav>
-                </div>
-                <!-- Groups Card Container -->
-                <div id="groups-card-container">
+        </c-button-nav>
+    </div>
+    <!-- Groups Card Container -->
+    <div id="groups-card-container">
         {% include "groups/group_list_card.html" %}
 
                 <!-- <form method="get">
@@ -51,17 +51,6 @@
                     <c-button-nav url="{% url 'borrowd_groups:group-list' %}" class="btn btn-ghost">Clear</c-button-nav>
                     {% endif %}
                 </form> -->
-            </div>
-    {% else %}
-    <!-- Empty state: user has no groups -->
-    <div class="flex flex-col gap-5 items-center px-4 py-16">
-        {% load static %}
-        <img src="{% static 'groups/Groups_2.PNG' %}" alt="Create a group" class="w-72 h-auto">
-        <p class="text-base text-base-content text-center leading-normal">Add a group to start sharing and borrowing items</p>
-        <c-button-nav url="{% url 'borrowd_groups:group-create' %}" class="btn btn-primary btn-lg">
-            Create a group
-        </c-button-nav>
     </div>
-    {% endif %}
 </div>
 {% endblock %}
