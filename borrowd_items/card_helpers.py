@@ -250,6 +250,7 @@ def build_item_card_context(
     if (
         ItemAction.CANCEL_REQUEST in action_context.actions
         and ItemAction.MARK_COLLECTED in action_context.actions
+        and context != "item-details"
     ):
         action_context = ItemActionContext(
             actions=tuple(

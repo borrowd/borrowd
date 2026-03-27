@@ -12,31 +12,28 @@
       {% include "icons/arrow-left.svg" %}
     </c-button-nav>
 
-    <c-h1 class="font-normal text-[24px] w-full text-center">{{ object.name }}</c-h1>
+    <c-h1 class="font-normal text-[24px] w-full text-center">Item details</c-h1>
   </div>
 
   <div class="flex flex-col shadow-sm rounded-xl overflow-hidden w-full">
-    <div
-      class="{% for key, value in banner_style.items %} {{ value }}{% endfor %} w-full flex items-center gap-2 justify-start px-3 p-2 rounded-b-none"
-    >
-      <span>{{ banner_icon }}</span>
-      <span class="font-medium">{{ banner_type|title }}</span>
-    </div>
+    {% if banner_type %}
+        {% include "components/items/item_card_header.html" with banner_type=banner_type banner_bg=banner_bg banner_text=banner_text banner_icon=banner_icon person_name=person_name person_url=person_url time_ago=time_ago %}
+    {% endif %}
 
-    <div class="flex flex-col lg:flex-row lg:items-stretch lg:gap-6 lg:p-5">
-      <div class="py-1 px-3 lg:w-[46%] lg:h-[200px] lg:px-0 lg:py-0 self-stretch">
-        {% if view.object.photos.all %}
+    <div class="flex flex-col md:flex-row md:items-stretch md:gap-6 md:p-5">
+      <div class="py-1 px-3 md:w-[55%] md:px-0 md:py-0 self-stretch">
+        {% if item.photos.all %}
         <div class="relative" id="item-slider">
           <div class="overflow-hidden rounded-xl">
             <div
               id="item-slider-track"
               class="flex transition-transform duration-300 ease-in-out"
             >
-              {% for photo in view.object.photos.all %}
+              {% for photo in item.photos.all %}
               <div class="shrink-0 w-full">
                 <img
                   src="{{ photo.image.url }}"
-                  alt="{{ view.object.name }} Photo {{ forloop.counter }}"
+                  alt="{{ item.name }} Photo {{ forloop.counter }}"
                   class="w-full h-[320px] md:h-[400px] object-contain rounded-xl bg-base-200"
                 />
               </div>
@@ -44,7 +41,7 @@
             </div>
           </div>
 
-          {% if view.object.photos.count > 1 %}
+          {% if item.photos.count > 1 %}
           <button
             type="button"
             id="item-slider-prev"
@@ -62,7 +59,7 @@
           </button>
 
           <div class="flex justify-center gap-2 mt-3">
-            {% for photo in view.object.photos.all %}
+            {% for photo in item.photos.all %}
             <button
               type="button"
               class="item-slider-dot w-2.5 h-2.5 rounded-full bg-gray-300"
@@ -76,13 +73,14 @@
         {% else %}
         <div class="relative py-1 lg:py-0 h-[100px] md:h-[80px] lg:h-[100px]">
           <img
+            title="image_container"
             class="w-full h-full object-cover rounded-xl"
             src="{% static '/border-dashed.png' %}"
           />
 
-          {% if user.is_authenticated and object.owner == user %}
+          {% if user.is_authenticated and item.owner == user %}
           <a
-            href="{% url 'itemphoto-create' item_pk=object.pk %}?next={% url 'item-detail' object.pk %}"
+            href="{% url 'itemphoto-create' item_pk=pk %}?next={% url 'item-detail' pk %}"
             class="absolute btn border-none btn-soft top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
           >
             Add a photo
@@ -98,64 +96,64 @@
         {% endif %}
       </div>
 
-      <div class="flex flex-col self-stretch lg:w-[54%] px-3 gap-2 lg:px-0">
-        <div>
+      <div class="flex flex-col self-stretch md:w-[45%]">
+        <div class="px-3 gap-3 lg:px-0">
           <div class="flex justify-between items-start gap-3">
             <h2
               class="m-0 text-2xl leading-tight line-clamp-2 font-semibold lg:text-[30px] lg:leading-[1.15]"
             >
-              {{ object.name }}
+              {{ item.name }}
             </h2>
 
-            {% if object.owner == user %}
+            {% if item.owner == user %}
             <c-button-nav
-              url="{% url 'item-edit' object.pk %}"
+              url="{% url 'item-edit' item.pk %}"
               class="shrink-0 flex items-center gap-2 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-medium rounded-lg border border-gray-200 transition"
             >
               {% include "icons/pencil.svg" %} Edit
             </c-button-nav>
             {% endif %}
           </div>
+
           <div
-            class="items-start text-[12px] lg:px-0 lg:text-[15px]"
+            class="text-[12px] lg:px-0 lg:text-[15px] lg:leading-7"
           >
-            {{ object.description }}
+            {{ item.description }}
+          </div>
+
+          <div class="flex flex-wrap gap-2 my-5">
+            {% if user.is_authenticated and item.owner == user %}
+            <div class="badge text-[10px] md:text-[12x] p-3 font-medium">
+              Yours
+            </div>
+            {% endif %} {% for category in item.categories.all %}
+            <div class="badge text-[10px] md:text-[12px] p-3 font-medium">
+              {{ category }}
+            </div>
+            {% empty %}
+            <span class="text-gray-400 text-sm">No categories</span>
+            {% endfor %}
           </div>
         </div>
 
-        <div class="flex flex-wrap gap-2 my-5">
-          {% if user.is_authenticated and object.owner == user %}
-          <div class="badge text-[10px] md:text-[12x] p-3 font-medium">
-            Yours
-          </div>
-          {% endif %}
-          {% for category in object.categories.all %}
-          <div class="badge text-[10px] md:text-[12px] p-3 font-medium">
-            {{ category }}
-          </div>
-          {% empty %}
-          <span class="text-gray-400 text-sm">No categories</span>
-          {% endfor %}
-        </div>
-
-        <div class="w-full px-3 flex items-center gap-3 mb-4 lg:px-0 lg:mt-2">
+        <div class="px-3 flex items-center gap-3 mb-4 lg:px-0 lg:mt-2">
           <div
             class="text-sm font-normal underline underline-offset-2 decoration-dotted bg-base-content/60 bg-clip-text text-transparent"
           >
             Trust level:
           </div>
 
-          {% if "High" in object.get_trust_level_required_display %}
+          {% if "High" in item.get_trust_level_required_display %}
           <div
             class="badge badge-success badge-soft font-medium text-xs border-xl p-3"
           >
             {% include "icons/arrow-up.svg" %} {{
-            object.get_trust_level_required_display }} Trust
+            item.get_trust_level_required_display }} Trust
           </div>
-          {% elif "Standard" in object.get_trust_level_required_display %}
+          {% elif "Standard" in item.get_trust_level_required_display %}
           <div class="badge badge-soft text-xs border-xl p-3">
             {% include "icons/medium-icon.svg" %} {{
-            object.get_trust_level_required_display }} Trust
+            item.get_trust_level_required_display }} Trust
           </div>
           {% endif %}
 
@@ -164,13 +162,23 @@
           </span>
         </div>
 
-        <c-items.action-buttons-with-status
-          :item_id="{{ object }}"
-          :action-context="action_context"
-        />
+        {% if show_actions and action_context.actions %}
+        <div class="mt-auto">
+            {% include "components/items/action_buttons_with_status.html" with item=item action_context=action_context variant="card" container_id=actions_container_id modal_suffix=modal_suffix %}
+        </div>
+        {% endif %}
       </div>
     </div>
   </div>
+
+  {% if show_actions %}
+      {% include "components/items/accept_request_modal.html" with item=item modal_id=accept_modal_id %}
+      {% include "components/items/request_item_modal.html" with item=item modal_id=request_modal_id %}
+      {% include "components/items/mark_collected_modal.html" with item=item modal_id="mark-collected-modal"|add:modal_suffix %}
+      {% include "components/items/mark_collected_modal.html" with item=item modal_id="confirm-collected-modal"|add:modal_suffix collected_action="CONFIRM_COLLECTED" %}
+      {% include "components/items/mark_returned_modal.html" with item=item modal_id="mark-returned-modal"|add:modal_suffix %}
+      {% include "components/items/mark_returned_modal.html" with item=item modal_id="confirm-returned-modal"|add:modal_suffix returned_action="CONFIRM_RETURNED" %}
+  {% endif %}
 </c-box>
 
 <script>
