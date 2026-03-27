@@ -9,8 +9,6 @@ from imagekit.processors import ResizeToFit
 
 from borrowd_groups.mixins import BorrowdGroupPermissionMixin
 
-from django.utils import timezone
-
 
 # No typing for django-guardian, so mypy doesn't like us subclassing.
 class BorrowdUser(AbstractUser, BorrowdGroupPermissionMixin, GuardianUserMixin):  # type: ignore[misc]
@@ -75,9 +73,8 @@ class SearchTerm(models.Model):
     Store search terms entered by users so we can power UX features like
     "recent searches" and analyze search effectiveness.
 
-    Dedupe behavior:
-    - A user + target (items/groups) + normalized term creates at most one
-      row, but we update `last_searched_at` on repeat searches.
+    Append-only behavior:
+    - Each search creates a row so we preserve full search history.
     """
 
     user: models.ForeignKey[BorrowdUser] = models.ForeignKey(
@@ -91,34 +88,25 @@ class SearchTerm(models.Model):
     )
     # Stored for UX (case/spacing as normalized by `record_search`).
     term_raw: models.CharField[str, str] = models.CharField(max_length=200)
-    # Used for dedupe; lowercased + whitespace collapsed.
+    # Lowercased + whitespace collapsed for analytics queries.
     term_normalized: models.CharField[str, str] = models.CharField(max_length=200)
 
     created_at: models.DateTimeField[Never, Never] = models.DateTimeField(
         auto_now_add=True,
     )
-    last_searched_at: models.DateTimeField[Never, Never] = models.DateTimeField(
-        default=timezone.now,
-    )
 
     class Meta:
-        constraints = [
-            models.UniqueConstraint(
-                fields=["user", "target", "term_normalized"],
-                name="unique_search_term_per_user_target",
-            )
-        ]
         indexes = [
             # Fast "latest searches per user per target" queries.
-            models.Index(fields=["user", "target", "-last_searched_at"]),
+            models.Index(fields=["user", "target", "-created_at"]),
             # Fast "latest searches by target" analytics queries.
-            models.Index(fields=["target", "-last_searched_at"]),
+            models.Index(fields=["target", "-created_at"]),
         ]
-        ordering = ["-last_searched_at"]
+        ordering = ["-created_at"]
 
     @staticmethod
     def _normalize(term: str) -> tuple[str, str]:
-        # Collapse whitespace so "usb  charger" and "usb charger" dedupe.
+        # Collapse whitespace so term analytics stay consistent.
         cleaned = " ".join(term.strip().split())
         normalized = cleaned.lower()
         return cleaned, normalized
@@ -132,20 +120,13 @@ class SearchTerm(models.Model):
         if not cleaned or not normalized:
             return
 
-        # Enforce max length for DB fields while keeping dedupe consistent.
+        # Enforce max length for DB fields.
         cleaned = cleaned[:200]
         normalized = normalized[:200]
 
-        obj, created = cls.objects.get_or_create(
+        cls.objects.create(
             user=user,
             target=target,
+            term_raw=cleaned,
             term_normalized=normalized,
-            defaults={"term_raw": cleaned},
         )
-
-        if not created:
-            # Keep stored term consistent with our normalization strategy.
-            obj.term_raw = cleaned
-
-        obj.last_searched_at = timezone.now()
-        obj.save(update_fields=["term_raw", "last_searched_at"])

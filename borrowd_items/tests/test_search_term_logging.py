@@ -13,7 +13,7 @@ class SearchTermLoggingTests(TestCase):
         )
         self.factory = RequestFactory()
 
-    def test_item_search_is_logged_and_deduped(self) -> None:
+    def test_item_search_is_logged_without_deduping(self) -> None:
         request = self.factory.get("/items/", {"search": "  Drill  "})
         request.user = self.user
 
@@ -26,19 +26,20 @@ class SearchTermLoggingTests(TestCase):
         self.assertEqual(term.term_normalized, "drill")
         self.assertEqual(term.term_raw, "Drill")
 
-        # Same term, different casing/whitespace: should not create a new row.
+        # Same term, different casing/whitespace: should create a new row.
         request2 = self.factory.get("/items/", {"search": "drill"})
         request2.user = self.user
 
         ItemListView.as_view()(request2)
 
-        self.assertEqual(SearchTerm.objects.count(), 1)
-        term.refresh_from_db()
-        self.assertEqual(term.term_normalized, "drill")
-        # Our implementation updates term_raw to the latest normalized display.
-        self.assertEqual(term.term_raw, "drill")
+        self.assertEqual(SearchTerm.objects.count(), 2)
+        terms = SearchTerm.objects.order_by("created_at")
+        self.assertEqual(terms[0].term_raw, "Drill")
+        self.assertEqual(terms[1].term_raw, "drill")
+        self.assertEqual(terms[0].term_normalized, "drill")
+        self.assertEqual(terms[1].term_normalized, "drill")
 
-    def test_group_search_is_logged_and_deduped(self) -> None:
+    def test_group_search_is_logged_without_deduping(self) -> None:
         request = self.factory.get("/groups/", {"search": "  Camping  "})
         request.user = self.user
 
@@ -55,4 +56,4 @@ class SearchTermLoggingTests(TestCase):
         request2.user = self.user
         GroupListView.as_view()(request2)
 
-        self.assertEqual(SearchTerm.objects.count(), 1)
+        self.assertEqual(SearchTerm.objects.count(), 2)

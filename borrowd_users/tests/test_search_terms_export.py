@@ -35,6 +35,8 @@ class SearchTermsExportViewTests(TestCase):
         self.assertEqual(payload["count"], 2)
         self.assertIn("results", payload)
         self.assertTrue(all("user_id" in row for row in payload["results"]))
+        self.assertTrue(all("created_at" in row for row in payload["results"]))
+        self.assertTrue(all("last_searched_at" not in row for row in payload["results"]))
 
     def test_filters_by_target_and_user_id(self) -> None:
         self.client.force_login(self.admin)

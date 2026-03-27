@@ -329,7 +329,7 @@ def search_terms_export_view(request: HttpRequest) -> JsonResponse | HttpRespons
     if not user.is_staff:
         return HttpResponseForbidden("Admin access required.")
 
-    qs = SearchTerm.objects.select_related("user").order_by("-last_searched_at")
+    qs = SearchTerm.objects.select_related("user").order_by("-created_at")
 
     raw_user_id = request.GET.get("user_id")
     if raw_user_id:
@@ -364,7 +364,6 @@ def search_terms_export_view(request: HttpRequest) -> JsonResponse | HttpRespons
             "term_raw",
             "term_normalized",
             "created_at",
-            "last_searched_at",
         )[:limit]
     )
     return JsonResponse({"count": len(rows), "results": rows})

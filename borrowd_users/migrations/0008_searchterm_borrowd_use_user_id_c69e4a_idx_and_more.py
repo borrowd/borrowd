@@ -12,10 +12,10 @@ class Migration(migrations.Migration):
     operations = [
         migrations.AddIndex(
             model_name='searchterm',
-            index=models.Index(fields=['user', 'target', '-last_searched_at'], name='borrowd_use_user_id_c69e4a_idx'),
+            index=models.Index(fields=['user', 'target', '-created_at'], name='borrowd_use_user_id_c69e4a_idx'),
         ),
         migrations.AddIndex(
             model_name='searchterm',
-            index=models.Index(fields=['target', '-last_searched_at'], name='borrowd_use_target_7d8e20_idx'),
+            index=models.Index(fields=['target', '-created_at'], name='borrowd_use_target_7d8e20_idx'),
         ),
     ]
