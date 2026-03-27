@@ -151,13 +151,15 @@
           </div>
           {% endif %}
 
-          <span class="inline-flex [&>svg]:w-6 [&>svg]:h-6">
-            {% include "icons/information-circle.svg" %}
-          </span>
+          <button type="button" onclick="showModal('trust-level-info-modal')" class="inline-flex align-middle ml-1 cursor-pointer hover:drop-shadow-md transition">
+            <span class="inline-flex [&>svg]:w-6 [&>svg]:h-6">
+              {% include "icons/information-circle.svg" %}
+            </span>
+          </button>
         </div>
 
         <div
-          class="text-[12px] lg:px-0 lg:text-[15px] lg:leading-7"
+          class="text-[12px] p-3 lg:px-0 lg:text-[15px] lg:leading-7"
         >
           {{ item.description }}
         </div>
@@ -257,4 +259,7 @@
     updateSlider();
   });
 </script>
+
+{% include "components/modal.html" with modal_id="trust-level-info-modal" modal_title="Trust levels" modal_size="full" modal_content_template="items/_trust_level_info_content.html" cancel_button_text="Got it" %}
+
 {% endblock %}
