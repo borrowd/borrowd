@@ -1,5 +1,7 @@
 {% extends "groups/layout.html" %} {% block head_title %}Group Details{%
 endblock %} {% block groups_content %}
+
+<c-h1 class="text-2xl mb-4 font-medium text-center">{{ object.name }}</c-h1>
 <c-box class="mb-4 p-[10px] bg-primary-content!">
   {% if object.banner %}
   <div class="mb-4">
