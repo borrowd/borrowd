@@ -9,12 +9,13 @@
     </c-h1>
     <!-- Toggle and Create Group Button -->
     <div class="flex items-center justify-between w-full">
-        <label class="flex items-center gap-2 cursor-pointer">
+        <label class="flex items-center gap-2 {% if has_groups %}cursor-pointer{% else %}cursor-not-allowed opacity-50{% endif %}">
             <input type="checkbox"
                    id="moderator-toggle"
                    name="moderator_only"
                    value="true"
                    class="toggle toggle-sm"
+                   {% if not has_groups %}disabled{% endif %}
                    {% if request.GET.moderator_only == "true" %}checked{% endif %}
                    hx-get="{% url 'borrowd_groups:group-list' %}"
                    hx-include="[name='moderator_only']:checked"
@@ -30,10 +31,10 @@
             url="{% url 'borrowd_groups:group-create' %}"
             >
             Create group
-            </c-button-nav>
-                </div>
-                <!-- Groups Card Container -->
-                <div id="groups-card-container">
+        </c-button-nav>
+    </div>
+    <!-- Groups Card Container -->
+    <div id="groups-card-container">
         {% include "groups/group_list_card.html" %}
 
                 <!-- <form method="get">
@@ -50,6 +51,6 @@
                     <c-button-nav url="{% url 'borrowd_groups:group-list' %}" class="btn btn-ghost">Clear</c-button-nav>
                     {% endif %}
                 </form> -->
-            </div>
+    </div>
 </div>
 {% endblock %}
