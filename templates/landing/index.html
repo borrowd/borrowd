@@ -1,37 +1,43 @@
 {% extends "base.html" %}
+
 {% load static %}
 {% load i18n %}
+
 {% block layout %}
-<main class="flex-grow flex justify-center items-center py-8 bg-white">
-<div class="flex flex-col items-center gap-4 font-roboto-slab max-w-4xl mx-auto px-6">
-    <img class="w-full max-w-md object-contain drop-shadow-xl" src="{% static 'landing/index/landing-page-img.png' %}" alt="Borrow'd illustration" />
+    <main class="flex-grow flex justify-center items-center py-8 bg-white">
+        <div class="flex flex-col items-center gap-4 font-roboto-slab max-w-4xl mx-auto px-6">
+            <img class="w-full max-w-md object-contain drop-shadow-xl"
+                 src="{% static 'landing/index/landing-page-img.png' %}"
+                 alt="Borrow'd illustration" />
 
-    <h1 class="text-4xl text-center text-gray-700">Welcome!</h1>
+            <h1 class="text-4xl text-center text-gray-700">
+                Welcome!
+            </h1>
 
-    <div class="p-4 text-center">
-        Borrow'd is a community-powered platform that helps you share with the people you trust in real life.
-        <br/>
-        <br/>
+            <div class="p-4 text-center">
+                Borrow'd is a community-powered platform that helps you share with the people you trust in real life.
+                <br />
+                <br />
 
-        By sharing what we already have, we lighten our environmental footprint and strengthen our communities.
+                By sharing what we already have, we lighten our environmental footprint and strengthen our communities.
+            </div>
+
+            {% if not user.is_authenticated %}
+                <div class="flex sm:flex-row gap-4 justify-center items-center mb-8">
+                    {% url 'account_login' as login_url_ %}
+                    {% if login_url_ %}
+                        <a href="{{ login_url_ }}" class="btn btn-lg">
+                            {% trans "Log in" %}
+                        </a>
+                    {% endif %}
+                    {% url 'account_signup' as signup_url_ %}
+                    {% if signup_url_ %}
+                        <a href="{% url 'account_signup' %}" class="btn btn-primary btn-lg">
+                            Sign up
+                        </a>
+                    {% endif %}
+                </div>
+            {% endif %}
+        </main>
     </div>
-
-    {% if not user.is_authenticated %}
-    <div class="flex sm:flex-row gap-4 justify-center items-center mb-8">
-        {% url 'account_login' as login_url_ %}
-        {% if login_url_ %}
-            <a href="{{ login_url_ }}" class="btn btn-lg">
-                {% trans "Log in" %}
-            </a>
-        {% endif %}
-        {% url 'account_signup' as signup_url_ %}
-        {% if signup_url_ %}
-            <a href="{% url 'account_signup' %}" class="btn btn-primary btn-lg">
-                Sign up
-            </a>
-        {% endif %}
-    </div>
-    {% endif %}
-</main>
-</div>
 {% endblock %}

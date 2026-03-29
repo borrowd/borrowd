@@ -1,6 +1,7 @@
 {% load i18n %}
 {% load static %}
 {% load django_vite %}
+
 <!DOCTYPE html>
 <html>
     <head>
@@ -28,13 +29,15 @@
     </head>
     <body>
         {% block body %}
-        {% include "includes/messages.html" %}
-        {% include "includes/header.html" %}
+            {% include "includes/messages.html" %}
+            {% include "includes/header.html" %}
+
             {% block content_base %}
             {% endblock content_base %}
         {% endblock body %}
         {% block extra_body %}
         {% endblock extra_body %}
         {% include "includes/footer.html" %}
+
     </body>
 </html>

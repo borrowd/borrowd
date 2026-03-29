@@ -5,25 +5,36 @@
     Checking `view.object.pk` is strangely the best way to check
     if we are creating or editing.
 {% endcomment %}
-{% block head_title %}{% if not view.object.pk %}Create{% else %}Edit{% endif %} Item{% endblock %}
+{% block head_title %}
+    {% if not view.object.pk %}
+        Create
+    {% else %}
+        Edit
+    {% endif %}
+    Item
+{% endblock %}
 
 {% block items_content %}
-<div class="flex flex-col w-full max-w-2xl mx-auto">
-    {% include "components/page_header.html" with title=page_title %}
-    <form method="post" enctype="multipart/form-data"
-   class="card bg-primary-content rounded-md border border-gray-200 shadow-[0_1px_3px_rgba(0,0,0,0.1),0_1px_2px_rgba(0,0,0,0.06)] p-4 flex flex-col gap-4"
-     onsubmit="this.querySelector('button[type=submit]').disabled = true;">
-        {% csrf_token %}
-        {% for field in form %}
-        <div class="fieldset w-full">
-            <label class="label">
-                <span class="label-text ">{{ field.label }}</span>
-                {% if field.name == "trust_level_required" %}
-                    <a href="javascript:void(0)" onclick="showModal('trust-level-info-modal')" class="label-text-alt text-blue-600 hover:text-blue-800 underline ml-2">What is this?</a>
-                {% endif %}
-            </label>
-            {% if field.name == "categories" %}
-                <!--
+    <div class="flex flex-col w-full max-w-2xl mx-auto">
+        {% include "components/page_header.html" with title=page_title %}
+
+        <form method="post"
+              enctype="multipart/form-data"
+              class="card bg-primary-content rounded-md border border-gray-200 shadow-[0_1px_3px_rgba(0,0,0,0.1),0_1px_2px_rgba(0,0,0,0.06)] p-4 flex flex-col gap-4"
+              onsubmit="this.querySelector('button[type=submit]').disabled = true;">
+            {% csrf_token %}
+            {% for field in form %}
+                <div class="fieldset w-full">
+                    <label class="label">
+                        <span class="label-text ">{{ field.label }}</span>
+                        {% if field.name == "trust_level_required" %}
+                            <a href="javascript:void(0)"
+                               onclick="showModal('trust-level-info-modal')"
+                               class="label-text-alt text-blue-600 hover:text-blue-800 underline ml-2">What is this?</a>
+                        {% endif %}
+                    </label>
+                    {% if field.name == "categories" %}
+                        <!--
                     Category field
 
                     1. Alpine.js manages selected categories via the selectedIds array
@@ -34,147 +45,146 @@
                     4. Django's ItemForm processes this (borrowd_items/forms.py)
 
                 -->
-                <div x-data="{
-                    /*
-                     * Alpine UI state: which category IDs are currently selected.
-                     * Pre-populated from Django form's current value on page load.
-                     * (Empty on create, has values on edit.)
-                     */
-                    selectedIds: [{% for val in field.value %}{% if val %}'{{ val }}'{% if not forloop.last %},{% endif %}{% endif %}{% endfor %}],
-                    categories: [{% for choice in field.field.choices %}{ id: '{{ choice.0 }}', name: '{{ choice.1 }}' }{% if not forloop.last %},{% endif %}{% endfor %}],
+                        <div x-data="{ /* * Alpine UI state: which category IDs are currently selected. * Pre-populated from Django form's current value on page load. * (Empty on create, has values on edit.) */ selectedIds: [
+                            {% for val in field.value %}
 
-                    /* Toggle a category by id: add if not selected, remove if already selected. */
-                    toggle(id) {
-                        const idx = this.selectedIds.indexOf(id);
-                        if (idx === -1) { this.selectedIds.push(id); }
-                        else { this.selectedIds.splice(idx, 1); }
-                    },
+                                {% if val %}
+                                    '{{ val }}'
+                                    {% if not forloop.last %}
+                                        ,
+                                    {% endif %}
 
-                    isSelected(id) {
-                        return this.selectedIds.includes(id);
-                    },
+                                {% endif %}
 
-                    /*
-                     * Display text for the trigger button.
-                     * No selection: 'Select an item category'
-                     * One selected: full category name
-                     * Multiple: first name truncated (12 chars) + '... + N more'
-                     *   e.g.: 'Home & Kitch... + 3 more'
-                     */
-                    get buttonText() {
-                        if (this.selectedIds.length === 0) return 'Select an item category';
-                        const firstName = this.categories.find(c => c.id === this.selectedIds[0])?.name || '';
-                        if (this.selectedIds.length === 1) return firstName;
-                        const truncated = firstName.length > 12 ? firstName.slice(0, 12) + '...' : firstName;
-                        return truncated + ' + ' + (this.selectedIds.length - 1) + ' more';
-                    },
+                            {% endfor %}
+                            ], categories: [
+                            {% for choice in field.field.choices %}
+                                { id: '{{ choice.0 }}', name: '{{ choice.1 }}' }
+                                {% if not forloop.last %}
+                                    ,
+                                {% endif %}
 
-                    clearFilters() {
-                        this.selectedIds = [];
-                        closeModal('item-category-modal');
-                    },
+                            {% endfor %}
+                            ],  /* Toggle a category by id: add if not selected, remove if already selected. */ toggle(id) { const idx = this.selectedIds.indexOf(id); if (idx === -1) { this.selectedIds.push(id); } else { this.selectedIds.splice(idx, 1); } },  isSelected(id) { return this.selectedIds.includes(id); },  /* * Display text for the trigger button. * No selection: 'Select an item category' * One selected: full category name * Multiple: first name truncated (12 chars) + '... + N more' *   e.g.: 'Home & Kitch... + 3 more' */ get buttonText() { if (this.selectedIds.length === 0) return 'Select an item category'; const firstName = this.categories.find(c => c.id === this.selectedIds[0])?.name || ''; if (this.selectedIds.length === 1) return firstName; const truncated = firstName.length > 12 ? firstName.slice(0, 12) + '...' : firstName; return truncated + ' + ' + (this.selectedIds.length - 1) + ' more'; },  clearFilters() { this.selectedIds = []; closeModal('item-category-modal'); },  applyFilters() { closeModal('item-category-modal'); } }">
+                            <!-- Trigger button: opens the category selection modal -->
+                            <button type="button"
+                                    @click="showModal('item-category-modal')"
+                                    class="select select-bordered w-full text-left flex items-center bg-primary-content"
+                                    x-text="buttonText">
+                            </button>
 
-                    applyFilters() {
-                        closeModal('item-category-modal');
-                    }
-                }">
-                    <!-- Trigger button: opens the category selection modal -->
-                    <button type="button"
-                        @click="showModal('item-category-modal')"
-                        class="select select-bordered w-full text-left flex items-center bg-primary-content"
-                        x-text="buttonText">
-                    </button>
-
-                    <!--
+                            <!--
                         Hidden inputs for selected categories.
                         Alpine reactively generates one <input> per selected ID,
                         so the form always submits the current selectedIds state.
                     -->
-                    <template x-for="id in selectedIds" :key="id">
-                        <input type="hidden" name="{{ field.html_name }}" :value="id">
-                    </template>
+                            <template x-for="id in selectedIds" :key="id">
+                                <input type="hidden" name="{{ field.html_name }}" :value="id">
+                            </template>
 
-                    {% include "components/items/category_filter_modal.html" with modal_id="item-category-modal" confirm_button_text="Select categories" %}
-                </div>
-            {% else %}
-                {{ field }}
-            {% endif %}
-            {% if field.errors %}
-                <label class="label">
-                    <span class="label-text-alt text-error">{{ field.errors }}</span>
-                </label>
-            {% endif %}
-            {% if field.name == "image" %}
-                <label class="label">
-                    <span class="label-text-alt text-base-content/60">Max size 5MB</span>
-                </label>
-            {% endif %}
-        </div>
-        {% endfor %}
+                            {% include "components/items/category_filter_modal.html" with modal_id="item-category-modal" confirm_button_text="Select categories" %}
 
-        {% if view.object.pk %}
-            <b>Photos:</b>
-            {% if view.object.photos.all %}
-                <c-gallery>
-                {% for photo in view.object.photos.all %}
-                    <div class="rounded-md border border-gray-200 shadow-sm overflow-hidden bg-base-100">
-                        <c-photo src="{{ photo.image.url }}"
-                            alt="{{ view.object.name }} Photo {{ forloop.counter }}" />
-                        <div class="px-2 py-2 border-t border-gray-100 bg-base-200/50">
-                            <button type="button" class="btn btn-sm btn-error btn-outline rounded-sm" onclick="showModal('item-photo-delete-modal-{{ photo.pk }}')">
-                                Delete photo
-                            </button>
                         </div>
-                    </div>
-                {% endfor %}
-                </c-gallery>
-            {% else %}
-                <div class="mb-2">No photos</div>
-            {% endif %}
-            {% if view.object.photos.count < 5 %}
-                <c-button-nav url="{% url 'itemphoto-create' item_pk=object.pk %}?next={% url 'item-edit' object.pk %}">Add photo</c-button-nav>
-            {% else %}
-                <div class="text-gray-500 italic">Photo limit (5) reached. Delete a photo if you want to add another.</div>
-            {% endif %}
-
-        {% endif %}
-
-        <div class="mt-6 flex items-center {% if form.instance.pk %}justify-between{% else %}justify-end{% endif %}">
-            {% if form.instance.pk %}
-                <button type="button" class="btn btn-error btn-soft rounded-sm"
-                    onclick="showModal('item-delete-modal')">
-                    Delete item
-                </button>
-                <div class="flex items-center gap-2">
-                    <c-button-nav url="{% url 'item-detail' form.instance.pk %}" class="btn">
-                        Cancel
-                    </c-button-nav>
-                    <c-button type="submit" class="btn btn-primary">Save item</c-button>
+                    {% else %}
+                        {{ field }}
+                    {% endif %}
+                    {% if field.errors %}
+                        <label class="label">
+                            <span class="label-text-alt text-error">{{ field.errors }}</span>
+                        </label>
+                    {% endif %}
+                    {% if field.name == "image" %}
+                        <label class="label">
+                            <span class="label-text-alt text-base-content/60">Max size 5MB</span>
+                        </label>
+                    {% endif %}
                 </div>
-            {% else %}
-                <c-button type="submit" class="btn btn-primary">Add item</c-button>
-            {% endif %}
-        </div>
-    </form>
+            {% endfor %}
 
-    {% if view.object.pk %}
-        <form id="item-delete-form" method="post" action="{% url 'item-delete' form.instance.pk %}" class="hidden">
-            {% csrf_token %}
+            {% if view.object.pk %}
+                <b>Photos:</b>
+                {% if view.object.photos.all %}
+                    <c-gallery>
+                        {% for photo in view.object.photos.all %}
+                            <div class="rounded-md border border-gray-200 shadow-sm overflow-hidden bg-base-100">
+                                <c-photo src="{{ photo.image.url }}"
+                                         alt="{{ view.object.name }} Photo {{ forloop.counter }}" />
+                                <div class="px-2 py-2 border-t border-gray-100 bg-base-200/50">
+                                    <button type="button"
+                                            class="btn btn-sm btn-error btn-outline rounded-sm"
+                                            onclick="showModal('item-photo-delete-modal-{{ photo.pk }}')">
+                                        Delete photo
+                                    </button>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </c-gallery>
+                {% else %}
+                    <div class="mb-2">
+                        No photos
+                    </div>
+                {% endif %}
+                {% if view.object.photos.count < 5 %}
+                    <c-button-nav url="{% url 'itemphoto-create' item_pk=object.pk %}?next={% url 'item-edit' object.pk %}">
+                        Add photo
+                    </c-button-nav>
+                {% else %}
+                    <div class="text-gray-500 italic">
+                        Photo limit (5) reached. Delete a photo if you want to add another.
+                    </div>
+                {% endif %}
+
+            {% endif %}
+
+            <div class="mt-6 flex items-center {% if form.instance.pk %}justify-between{% else %}justify-end{% endif %}">
+                {% if form.instance.pk %}
+                    <button type="button"
+                            class="btn btn-error btn-soft rounded-sm"
+                            onclick="showModal('item-delete-modal')">
+                        Delete item
+                    </button>
+                    <div class="flex items-center gap-2">
+                        <c-button-nav url="{% url 'item-detail' form.instance.pk %}" class="btn">
+                            Cancel
+                        </c-button-nav>
+                        <c-button type="submit" class="btn btn-primary">
+                            Save item
+                        </c-button>
+                    </div>
+                {% else %}
+                    <c-button type="submit" class="btn btn-primary">
+                        Add item
+                    </c-button>
+                {% endif %}
+            </div>
         </form>
 
-        {% for photo in view.object.photos.all %}
-            <form id="item-photo-delete-form-{{ photo.pk }}" method="post" action="{% url 'itemphoto-delete' view.object.pk photo.pk %}" class="hidden">
+        {% if view.object.pk %}
+            <form id="item-delete-form"
+                  method="post"
+                  action="{% url 'item-delete' form.instance.pk %}"
+                  class="hidden">
                 {% csrf_token %}
             </form>
-        {% endfor %}
 
-        {% include "components/modal.html" with modal_id="item-delete-modal" modal_title="Confirm Deletion" modal_content_template="items/_item_delete_content.html" cancel_button_text="Cancel" confirm_button_text="Yes, delete item" confirm_submit_form_id="item-delete-form" confirm_button_class="btn btn-md btn-error btn-soft rounded-sm" %}
+            {% for photo in view.object.photos.all %}
+                <form id="item-photo-delete-form-{{ photo.pk }}"
+                      method="post"
+                      action="{% url 'itemphoto-delete' view.object.pk photo.pk %}"
+                      class="hidden">
+                    {% csrf_token %}
+                </form>
+            {% endfor %}
 
-        {% for photo in view.object.photos.all %}
-            {% include "items/itemphoto_confirm_delete.html" %}
-        {% endfor %}
-    {% endif %}
-</div>
+            {% include "components/modal.html" with modal_id="item-delete-modal" modal_title="Confirm Deletion" modal_content_template="items/_item_delete_content.html" cancel_button_text="Cancel" confirm_button_text="Yes, delete item" confirm_submit_form_id="item-delete-form" confirm_button_class="btn btn-md btn-error btn-soft rounded-sm" %}
 
-{% include "components/modal.html" with modal_id="trust-level-info-modal" modal_title="Trust levels" modal_size="full" modal_content_template="items/_trust_level_info_content.html" cancel_button_text="Got it" %}
+            {% for photo in view.object.photos.all %}
+                {% include "items/itemphoto_confirm_delete.html" %}
+
+            {% endfor %}
+        {% endif %}
+    </div>
+
+    {% include "components/modal.html" with modal_id="trust-level-info-modal" modal_title="Trust levels" modal_size="full" modal_content_template="items/_trust_level_info_content.html" cancel_button_text="Got it" %}
+
 {% endblock %}

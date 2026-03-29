@@ -1,20 +1,34 @@
 {% extends "notifications/layout.html" %}
 
-{% block title %}The item you wanted is available - Borrow'd{% endblock %}
+{% block title %}
+    The item you wanted is available - Borrow'd
+{% endblock %}
 
 {% block content %}
-<h2>Hi {{ subscriber_name }},</h2>
+    <h2>
+        Hi {{ subscriber_name }},
+    </h2>
 
-<p>Good news — the <strong>{{ item_name }}</strong> you were interested in is available again.</p>
+    <p>
+        Good news — the <strong>{{ item_name }}</strong> you were interested in is available again.
+    </p>
 
-<p> You can now request to borrow it in Borrow'd.</p>
-<p>Availability is first-come, so if you still need it, now's the time to send a request. </p>
+    <p>
+        You can now request to borrow it in Borrow'd.
+    </p>
+    <p>
+        Availability is first-come, so if you still need it, now's the time to send a request.
+    </p>
 
-<div class="text-center">
-    <a href="{{ item_url }}" class="button">View item</a>
-</div>
+    <div class="text-center">
+        <a href="{{ item_url }}" class="button">View item</a>
+    </div>
 
-<p>Thanks for borrowing thoughtfully!</p>
+    <p>
+        Thanks for borrowing thoughtfully!
+    </p>
 
-<p>The Borrow'd team</p>
+    <p>
+        The Borrow'd team
+    </p>
 {% endblock %}

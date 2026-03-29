@@ -18,24 +18,43 @@ Parameters:
 {% endcomment %}
 
 {% if banner_type %}
-<div class="flex items-center gap-2 p-3 {{ banner_bg }} rounded-t-lg">
-    <span class="{{ banner_text }} shrink-0">{{ banner_icon }}</span>
-    <span class="text-sm font-medium {{ banner_text }} min-w-0 truncate">
-        {% if banner_type == 'requested' %}
-            Requested {{ time_ago }} ago by {% if person_url %}<a href="{{ person_url }}" class="underline hover:no-underline">{{ person_name }}</a>{% else %}{{ person_name }}{% endif %}
-        {% elif banner_type == 'available' %}
-            Available
-        {% elif banner_type == 'reserved' %}
-            Reserved {{ time_ago }} ago by {% if person_url %}<a href="{{ person_url }}" class="underline hover:no-underline">{{ person_name }}</a>{% else %}{{ person_name }}{% endif %}
-        {% elif banner_type == 'borrowed' %}
-            {% if person_name %}Borrowed {{ time_ago }} ago by {% if person_url %}<a href="{{ person_url }}" class="underline hover:no-underline">{{ person_name }}</a>{% else %}{{ person_name }}{% endif %}{% else %}Borrowed{% endif %}
-        {% elif banner_type == 'pending' %}
-            Pending
-        {% elif banner_type == 'waitlisted' %}
-            Waitlisted
-        {% else %}
-            {{ banner_type|title }}
-        {% endif %}
-    </span>
-</div>
+    <div class="flex items-center gap-2 p-3 {{ banner_bg }} rounded-t-lg">
+        <span class="{{ banner_text }} shrink-0">{{ banner_icon }}</span>
+        <span class="text-sm font-medium {{ banner_text }} min-w-0 truncate">
+            {% if banner_type == 'requested' %}
+                Requested {{ time_ago }} ago by
+                {% if person_url %}
+                    <a href="{{ person_url }}" class="underline hover:no-underline">{{ person_name }}</a>
+                {% else %}
+                    {{ person_name }}
+                {% endif %}
+            {% elif banner_type == 'available' %}
+                Available
+            {% elif banner_type == 'reserved' %}
+                Reserved {{ time_ago }} ago by
+                {% if person_url %}
+                    <a href="{{ person_url }}" class="underline hover:no-underline">{{ person_name }}</a>
+                {% else %}
+                    {{ person_name }}
+                {% endif %}
+            {% elif banner_type == 'borrowed' %}
+                {% if person_name %}
+                    Borrowed {{ time_ago }} ago by
+                    {% if person_url %}
+                        <a href="{{ person_url }}" class="underline hover:no-underline">{{ person_name }}</a>
+                    {% else %}
+                        {{ person_name }}
+                    {% endif %}
+                {% else %}
+                    Borrowed
+                {% endif %}
+            {% elif banner_type == 'pending' %}
+                Pending
+            {% elif banner_type == 'waitlisted' %}
+                Waitlisted
+            {% else %}
+                {{ banner_type|title }}
+            {% endif %}
+        </span>
+    </div>
 {% endif %}

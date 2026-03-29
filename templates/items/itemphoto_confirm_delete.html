@@ -1,3 +1,4 @@
 {% with pk=photo.pk|stringformat:"s" %}
     {% include "components/modal.html" with modal_id="item-photo-delete-modal-"|add:pk modal_title="Confirm Deletion" modal_content_template="items/_photo_delete_content.html" cancel_button_text="Cancel" confirm_button_text="Yes, delete photo" confirm_submit_form_id="item-photo-delete-form-"|add:pk confirm_button_class="btn btn-md btn-error btn-soft rounded-sm" %}
+
 {% endwith %}

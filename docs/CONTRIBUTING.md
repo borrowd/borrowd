@@ -77,6 +77,8 @@ uv python pin 3.13
 # This makes it so that the rules defined in .pre-commit-config.yaml
 # are automatically executed before a commit can be made. NB you can
 # also run them as a standalone command with `uvx pre-commit`.
+# Django template formatting is enforced here too; `pre-commit` will
+# run `djlint` automatically for `templates/**/*.html`.
 pre-commit install
 
 # This installs our frontend ecosystem dependencies: vite, its
@@ -225,6 +227,9 @@ Use the `uvx` command to invoke tools installed via `uv`:
 ```
 uvx ruff format
 uvx pre-commit
+uvx djlint templates --check
+uvx djlint templates --reformat
+uvx pre-commit run djlint-reformat-django --all-files
 ```
 
 ## Repo layout

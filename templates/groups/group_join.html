@@ -1,100 +1,144 @@
 {% extends "groups/layout.html" %}
-{% block head_title %}Join '{{ object.name }}'!{% endblock %}
+
+{% block head_title %}
+    Join '{{ object.name }}'!
+{% endblock %}
 
 {% block groups_content %}
-<div class="flex flex-col gap-5 items-center py-6 px-4">
-    <div class="text-center">
-        <h1 class="text-2xl font-['Roboto_Slab'] leading-[1.4rem]">Do you want to join this group?</h1>
-    </div>
-    <p class="text-base leading-[1.4rem]">
-        Before you join, choose a trust level for this group. This helps decide which of your items group members can see and request. (You can change this later.)
-    </p>
+    <div class="flex flex-col gap-5 items-center py-6 px-4">
+        <div class="text-center">
+            <h1 class="text-2xl font-['Roboto_Slab'] leading-[1.4rem]">
+                Do you want to join this group?
+            </h1>
+        </div>
+        <p class="text-base leading-[1.4rem]">
+            Before you join, choose a trust level for this group. This helps decide which of your items group members can see and request. (You can change this later.)
+        </p>
 
-    {# Group info card with trust level select and accept/decline #}
-    <div class="card bg-white shadow-sm w-full overflow-hidden">
-        <div class="flex gap-3 p-2.5 items-center">
-            <div class="flex-1 min-w-0 overflow-hidden rounded-md">
-                {% if object.logo %}
-                    <img src="{{ object.logo.url }}" alt="{{ object.name }}" class="w-full h-full object-cover rounded-md" />
-                {% else %}
-                    <div class="w-full h-full bg-base-200 rounded-md"></div>
-                {% endif %}
-            </div>
-            <div class="flex flex-1 items-start self-stretch min-w-0">
-                <div class="flex flex-col gap-2 items-start w-full">
-                    <div class="font-semibold text-base leading-normal truncate w-full">{{ object.name }}</div>
-                    <div class="text-xs leading-normal w-full">{{ object.description }}</div>
+        {# Group info card with trust level select and accept/decline #}
+        <div class="card bg-white shadow-sm w-full overflow-hidden">
+            <div class="flex gap-3 p-2.5 items-center">
+                <div class="flex-1 min-w-0 overflow-hidden rounded-md">
+                    {% if object.logo %}
+                        <img src="{{ object.logo.url }}"
+                             alt="{{ object.name }}"
+                             class="w-full h-full object-cover rounded-md" />
+                    {% else %}
+                        <div class="w-full h-full bg-base-200 rounded-md">
+                        </div>
+                    {% endif %}
+                </div>
+                <div class="flex flex-1 items-start self-stretch min-w-0">
+                    <div class="flex flex-col gap-2 items-start w-full">
+                        <div class="font-semibold text-base leading-normal truncate w-full">
+                            {{ object.name }}
+                        </div>
+                        <div class="text-xs leading-normal w-full">
+                            {{ object.description }}
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <form id="join-form" method="post" action="{{ request.get_full_path }}" onsubmit="this.querySelector('button[type=submit]').disabled = true;">
-            {% csrf_token %}
-            <div class="flex flex-col items-start w-full">
-                <div class="flex items-center py-1.5 px-10">
-                    <span class="text-xs text-base-content/60 leading-[1.35 rem]">
-                        How much do you trust this group?
-                    </span>
-                    <button type="button" onclick="showModal('trust-level-info-modal')" class="inline-flex align-middle ml-1">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5 text-base-content/40">
-                            <path fill-rule="evenodd" d="M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0Zm-7-4a1 1 0 1 1-2 0 1 1 0 0 1 2 0ZM9 9a.75.75 0 0 0 0 1.5h.253a.25.25 0 0 1 .244.304l-.459 2.066A1.75 1.75 0 0 0 10.747 15H11a.75.75 0 0 0 0-1.5h-.253a.25.25 0 0 1-.244-.304l.459-2.066A1.75 1.75 0 0 0 9.253 9H9Z" clip-rule="evenodd" />
-                        </svg>
+            <form id="join-form"
+                  method="post"
+                  action="{{ request.get_full_path }}"
+                  onsubmit="this.querySelector('button[type=submit]').disabled = true;">
+                {% csrf_token %}
+                <div class="flex flex-col items-start w-full">
+                    <div class="flex items-center py-1.5 px-10">
+                        <span class="text-xs text-base-content/60 leading-[1.35 rem]">
+                            How much do you trust this group?
+                        </span>
+                        <button type="button"
+                                onclick="showModal('trust-level-info-modal')"
+                                class="inline-flex align-middle ml-1">
+                            <svg xmlns="http://www.w3.org/2000/svg"
+                                 viewBox="0 0 20 20"
+                                 fill="currentColor"
+                                 class="w-5 h-5 text-base-content/40">
+                                <path fill-rule="evenodd" d="M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0Zm-7-4a1 1 0 1 1-2 0 1 1 0 0 1 2 0ZM9 9a.75.75 0 0 0 0 1.5h.253a.25.25 0 0 1 .244.304l-.459 2.066A1.75 1.75 0 0 0 10.747 15H11a.75.75 0 0 0 0-1.5h-.253a.25.25 0 0 1-.244-.304l.459-2.066A1.75 1.75 0 0 0 9.253 9H9Z" clip-rule="evenodd" />
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="px-2.5 w-full">
+                        <select name="trust_level"
+                                id="id_trust_level"
+                                class="select select-bordered w-full h-10 text-sm rounded"
+                                onchange="updateJoinButtons()">
+                            <option value="" selected disabled>
+                                Select a trust level
+                            </option>
+                            {% for value, label in form.fields.trust_level.choices %}
+                                <option value="{{ value }}">
+                                    {{ label }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                        {% if form.trust_level.errors %}
+                            <p class="text-error text-xs mt-1">
+                                {{ form.trust_level.errors }}
+                            </p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="flex gap-2 items-center p-3">
+                    <a href="{% url 'index' %}"
+                       class="btn btn-sm btn-soft btn-error flex-1 font-semibold"
+                       id="decline-btn">Decline</a>
+                    <button type="submit"
+                            class="btn btn-sm btn-soft btn-success flex-1 font-semibold disabled:opacity-40"
+                            id="accept-btn"
+                            disabled>
+                        Accept
                     </button>
                 </div>
-                <div class="px-2.5 w-full">
-                    <select name="trust_level" id="id_trust_level" class="select select-bordered w-full h-10 text-sm rounded" onchange="updateJoinButtons()">
-                        <option value="" selected disabled>Select a trust level</option>
-                        {% for value, label in form.fields.trust_level.choices %}
-                            <option value="{{ value }}">{{ label }}</option>
-                        {% endfor %}
-                    </select>
-                    {% if form.trust_level.errors %}
-                        <p class="text-error text-xs mt-1">{{ form.trust_level.errors }}</p>
-                    {% endif %}
+            </form>
+        </div>
+
+        {# Members card #}
+        {% if members_data %}
+            <div class="card bg-white shadow-sm w-full overflow-hidden pt-2.5">
+                <div class="px-2.5 pt-1">
+                    <h2 class="font-semibold text-base">
+                        Members
+                    </h2>
+                </div>
+                <div class="divide-y divide-base-200">
+                    {% for member in members_data %}
+                        <div class="flex gap-3 items-center p-2.5">
+                            <div class="w-12 h-12 shrink-0 overflow-hidden rounded-md">
+                                {% if member.profile_image %}
+                                    <c-avatar src="{{ member.profile_image.url }}" alt="{{ member.full_name }}" />
+                                {% else %}
+                                    <div class="w-full h-full rounded-md bg-base-200">
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <div class="font-semibold text-base">
+                                    {{ member.full_name }}
+                                </div>
+                                <div class="text-xs text-base-content">
+                                    {{ member.role }}
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
                 </div>
             </div>
-
-            <div class="flex gap-2 items-center p-3">
-                <a href="{% url 'index' %}" class="btn btn-sm btn-soft btn-error flex-1 font-semibold" id="decline-btn">Decline</a>
-                <button type="submit" class="btn btn-sm btn-soft btn-success flex-1 font-semibold disabled:opacity-40" id="accept-btn" disabled>Accept</button>
-            </div>
-        </form>
+        {% endif %}
     </div>
 
-    {# Members card #}
-    {% if members_data %}
-    <div class="card bg-white shadow-sm w-full overflow-hidden pt-2.5">
-        <div class="px-2.5 pt-1">
-            <h2 class="font-semibold text-base">Members</h2>
-        </div>
-        <div class="divide-y divide-base-200">
-            {% for member in members_data %}
-            <div class="flex gap-3 items-center p-2.5">
-                <div class="w-12 h-12 shrink-0 overflow-hidden rounded-md">
-                    {% if member.profile_image %}
-                        <c-avatar src="{{ member.profile_image.url }}" alt="{{ member.full_name }}" />
-                    {% else %}
-                        <div class="w-full h-full rounded-md bg-base-200"></div>
-                    {% endif %}
-                </div>
-                <div class="flex-1 min-w-0">
-                    <div class="font-semibold text-base">{{ member.full_name }}</div>
-                    <div class="text-xs text-base-content">{{ member.role }}</div>
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-    </div>
-    {% endif %}
-</div>
-
-<script>
+    <script>
 function updateJoinButtons() {
     const select = document.getElementById('id_trust_level');
     const acceptBtn = document.getElementById('accept-btn');
     acceptBtn.disabled = !select.value;
 }
-</script>
+    </script>
 
-{% include "components/modal.html" with modal_id="trust-level-info-modal" modal_title="Group trust levels" modal_size="full" cancel_button="Got it" modal_content="<div class='text-left'><p class='mb-4'>At the heart of Borrow'd is trust. Each group you join gets a trust level (High or Standard), which determines what kinds of items they can request from you. For example:</p><div class='mb-4'><p class='font-bold mb-2'><span class='text-borrowd-plum-600'>High trust:</span> Super Best Friends</p><p>If you mark an item as High trust, it can only be seen and borrowed by people in groups you’ve marked as High trust. Use this for items that are valuable, fragile, or personal — like electronics, specialized tools, or anything you’d only lend to people you know well. Your trust settings are private — no one else can see which groups you’ve marked as High trust.</p></div><div class='mb-4'><p class='font-bold mb-2'><span class='text-indigo-600'>Standard trust:</span> Neighborhood Community</p><p>Items marked as “Standard” trust are visible to people in the groups you’ve joined. Use this for everyday items you’re comfortable sharing more widely.</p></div></div>" %}
+    {% include "components/modal.html" with modal_id="trust-level-info-modal" modal_title="Group trust levels" modal_size="full" cancel_button_text="Got it" modal_content_template="groups/_trust_level_info_modal_content.html" %}
+
 {% endblock %}

@@ -1,17 +1,21 @@
 <div>
-  <c-h2 class="border-b pb-4">Members ({{ members|length }})</c-h2>
-  <div class="max-h-96 overflow-y-auto" members-list-boundary>
-    <div class="divide-y divide-gray-200">
-      {% for member in members %}
-        <c-groups.member-row :member="member" :is_moderator="is_moderator" />
-      {% endfor %}
+    <c-h2 class="border-b pb-4">
+        Members ({{ members|length }})
+    </c-h2>
+    <div class="max-h-96 overflow-y-auto" members-list-boundary>
+        <div class="divide-y divide-gray-200">
+            {% for member in members %}
+                <c-groups.member-row :member="member" :is_moderator="is_moderator" />
+            {% endfor %}
+        </div>
     </div>
-  </div>
 
-  <!-- This shouldn't be possible right?  -->
-  {% if not members %}
-    <div class="empty-state py-6 text-center text-gray-500">
-      <p>No members in this group yet.</p>
-    </div>
-  {% endif %}
+    <!-- This shouldn't be possible right?  -->
+    {% if not members %}
+        <div class="empty-state py-6 text-center text-gray-500">
+            <p>
+                No members in this group yet.
+            </p>
+        </div>
+    {% endif %}
 </div>
