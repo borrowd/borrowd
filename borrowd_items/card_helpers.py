@@ -42,7 +42,7 @@ BANNER_STYLES = {
     "borrowed": {"bg": "bg-primary/15", "text": "text-primary"},
     # "pending" is what non-owners see instead of "requested" or "reserved".
     "pending": {"bg": "bg-secondary/15", "text": "text-secondary"},
-    "waitlisted": {"bg": "bg-gray-400/15", "text": "text-secondary"},
+    "waitlisted": {"bg": "bg-gray-400/15", "text": "text-[#6B7280]"},
 }
 
 
@@ -250,6 +250,7 @@ def build_item_card_context(
     if (
         ItemAction.CANCEL_REQUEST in action_context.actions
         and ItemAction.MARK_COLLECTED in action_context.actions
+        and context != "item-details"
     ):
         action_context = ItemActionContext(
             actions=tuple(

@@ -1,5 +1,5 @@
 {% extends "items/layout.html" %} {% block head_title %}View Item{% endblock %}
-{% block items_content %} {% load static time_filters %}
+{% block items_content %} {% load static %}
 
 <c-box
   class="border-0! shadow-none relative flex flex-col gap-3 items-center py-8"
@@ -12,61 +12,28 @@
       {% include "icons/arrow-left.svg" %}
     </c-button-nav>
 
-    <c-h1 class="font-normal text-[24px] w-full text-center">Item Details</c-h1>
+    <c-h1 class="font-normal text-[24px] w-full text-center">Item details</c-h1>
   </div>
 
   <div class="flex flex-col shadow-sm rounded-xl overflow-hidden w-full">
-    {% if request_txn and request_txn.status == 10 or request_txn and
-    request_txn.status == 30 or request_txn and request_txn.status == 40 or
-    request_txn and request_txn.status == 50 or request_txn and
-    request_txn.status == 60 %}
-    <div
-      class="badge badge-soft font-medium w-full flex items-center justify-start px-3 text-sm py-7 p-5 rounded-b-none {% if request_txn.status == 10 %} bg-warning/15 text-[#8E6900] {% elif request_txn.status == 30 or request_txn.status == 40 %} bg-secondary/15 text-secondary {% elif request_txn.status == 50 or request_txn.status == 60 %} bg-primary/10 text-primary {% endif %}"
-    >
-      <span
-        class="{% if request_txn.status == 10 %} text-[#8E6900] {% elif request_txn.status == 30 or request_txn.status == 40 %} text-secondary {% elif request_txn.status == 50 or request_txn.status == 60 %} text-primary {% endif %}"
-      >
-        {% include "icons/clock.svg" %}
-      </span>
-
-      <div>
-        {% if request_txn.status == 10 %} Requested {{
-        request_txn.created_at|timesince|first_unit }} ago by {% elif
-        request_txn.status == 30 or request_txn.status == 40 %} Reserved {{
-        request_txn.updated_at|timesince|first_unit }} ago by {% elif
-        request_txn.status == 50 or request_txn.status == 60 %} Borrowed {{
-        request_txn.updated_at|timesince|first_unit }} ago by {% endif %}
-
-        <span class="underline inline">
-          {% if request_txn.party2 == user %} you {% else %} {{
-          request_txn.party2.get_full_name|default:request_txn.party2.username
-          }} {% endif %}
-        </span>
-      </div>
-    </div>
-    {% else %}
-    <div
-      class="{% for key, value in banner_style.items %} {{ value }}{% endfor %} w-full flex items-center gap-2 justify-start px-3 p-2 rounded-b-none"
-    >
-      <span>{{ banner_icon }}</span>
-      <span class="font-medium">{{ banner_type|title }}</span>
-    </div>
+    {% if banner_type %}
+        {% include "components/items/item_card_header.html" with banner_type=banner_type banner_bg=banner_bg banner_text=banner_text banner_icon=banner_icon person_name=person_name person_url=person_url time_ago=time_ago %}
     {% endif %}
 
-    <div class="flex flex-col lg:flex-row lg:items-stretch lg:gap-6 lg:p-5">
-      <div class="py-1 px-3 lg:w-[46%] lg:px-0 lg:py-0 self-stretch">
-        {% if view.object.photos.all %}
+    <div class="flex flex-col md:flex-row md:items-stretch md:gap-6 md:p-5">
+      <div class="py-1 px-3 md:w-[55%] md:px-0 md:py-0 self-stretch">
+        {% if item.photos.all %}
         <div class="relative" id="item-slider">
           <div class="overflow-hidden rounded-xl">
             <div
               id="item-slider-track"
               class="flex transition-transform duration-300 ease-in-out"
             >
-              {% for photo in view.object.photos.all %}
+              {% for photo in item.photos.all %}
               <div class="shrink-0 w-full">
                 <img
                   src="{{ photo.image.url }}"
-                  alt="{{ view.object.name }} Photo {{ forloop.counter }}"
+                  alt="{{ item.name }} Photo {{ forloop.counter }}"
                   class="w-full h-[320px] md:h-[400px] object-contain rounded-xl bg-base-200"
                 />
               </div>
@@ -74,7 +41,7 @@
             </div>
           </div>
 
-          {% if view.object.photos.count > 1 %}
+          {% if item.photos.count > 1 %}
           <button
             type="button"
             id="item-slider-prev"
@@ -92,7 +59,7 @@
           </button>
 
           <div class="flex justify-center gap-2 mt-3">
-            {% for photo in view.object.photos.all %}
+            {% for photo in item.photos.all %}
             <button
               type="button"
               class="item-slider-dot w-2.5 h-2.5 rounded-full bg-gray-300"
@@ -104,15 +71,16 @@
           {% endif %}
         </div>
         {% else %}
-        <div class="relative py-1 lg:py-0 h-full">
+        <div class="relative py-1 lg:py-0 h-[300px] md:h-[350px] lg:h-[400px]">
           <img
-            class="w-full h-full object-cover rounded-xl"
+            title="image_container"
+          class="w-full h-full  rounded-xl"
             src="{% static '/border-dashed.png' %}"
           />
 
-          {% if user.is_authenticated and object.owner == user %}
+          {% if user.is_authenticated and item.owner == user %}
           <a
-            href="{% url 'itemphoto-create' item_pk=object.pk %}?next={% url 'item-detail' object.pk %}"
+            href="{% url 'itemphoto-create' item_pk=pk %}?next={% url 'item-detail' pk %}"
             class="absolute btn border-none btn-soft top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
           >
             Add a photo
@@ -128,188 +96,92 @@
         {% endif %}
       </div>
 
-      <div class="flex flex-col self-stretch lg:w-[54%]">
-        <div class="flex-1 flex flex-col">
-          <div class="px-3 gap-3 lg:px-0">
-            <div class="flex justify-between items-start gap-3">
-              <h2
-                class="m-0 text-2xl leading-tight line-clamp-2 font-semibold lg:text-[30px] lg:leading-[1.15]"
-              >
-                {{ object.name }}
-              </h2>
-
-              {% if object.owner == user %}
-              <c-button-nav
-                url="{% url 'item-edit' object.pk %}"
-                class="shrink-0 flex items-center gap-2 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-medium rounded-lg border border-gray-200 transition"
-              >
-                {% include "icons/pencil.svg" %} Edit
-              </c-button-nav>
-              {% endif %}
-            </div>
-
-            <div class="flex flex-wrap gap-2 my-5">
-              {% if user.is_authenticated and object.owner == user %}
-              <div class="badge text-[10px] md:text-[12x] p-3 font-medium">
-                Yours
-              </div>
-              {% endif %} {% for category in object.categories.all %}
-              <div class="badge text-[10px] md:text-[12px] p-3 font-medium">
-                {{ category }}
-              </div>
-              {% empty %}
-              <span class="text-gray-400 text-sm">No categories</span>
-              {% endfor %}
-            </div>
-          </div>
-
-          <div class="px-3 flex items-center gap-3 mb-4 lg:px-0 lg:mt-2">
-            <div
-              class="text-sm font-normal underline underline-offset-2 decoration-dotted bg-base-content/60 bg-clip-text text-transparent"
+      <div class="flex flex-col self-stretch md:w-[45%]">
+        <div class="px-3 gap-3 lg:px-0">
+          <div class="flex justify-between items-start gap-3">
+            <h2
+              class="m-0 text-2xl leading-tight line-clamp-2 font-semibold lg:text-[30px] lg:leading-[1.15]"
             >
-              Trust level:
-            </div>
+              {{ item.name }}
+            </h2>
 
-            {% if "High" in object.get_trust_level_required_display %}
-            <div
-              class="badge badge-success badge-soft font-medium text-xs border-xl p-3"
+            {% if item.owner == user %}
+            <c-button-nav
+              url="{% url 'item-edit' item.pk %}"
+              class="shrink-0 flex items-center gap-2 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-medium rounded-lg border border-gray-200 transition"
             >
-              {% include "icons/arrow-up.svg" %} {{
-              object.get_trust_level_required_display }} Trust
-            </div>
-            {% elif "Standard" in object.get_trust_level_required_display %}
-            <div class="badge badge-soft text-xs border-xl p-3">
-              {% include "icons/medium-icon.svg" %} {{
-              object.get_trust_level_required_display }} Trust
-            </div>
+              {% include "icons/pencil.svg" %} Edit
+            </c-button-nav>
             {% endif %}
-
-            <span class="inline-flex [&>svg]:w-6 [&>svg]:h-6">
-              {% include "icons/information-circle.svg" %}
-            </span>
           </div>
 
-          <div
-            class="px-3 text-[12px] mt-4 lg:px-0 lg:text-[15px] lg:leading-7"
-          >
-            {{ object.description }}
+          <div class="flex flex-wrap gap-2 my-5">
+            {% if user.is_authenticated and item.owner == user %}
+            <div class="badge text-[10px] md:text-[12x] p-3 font-medium">
+              Yours
+            </div>
+            {% endif %} {% for category in item.categories.all %}
+            <div class="badge text-[10px] md:text-[12px] p-3 font-medium">
+              {{ category }}
+            </div>
+            {% empty %}
+            <span class="text-gray-400 text-sm">No categories</span>
+            {% endfor %}
           </div>
         </div>
 
-        {% if user.is_authenticated and action_context %}
+        <div class="px-3 flex items-center gap-3 mb-4 lg:px-0 lg:mt-2">
+          <div
+            class="text-sm font-normal underline underline-offset-2 decoration-dotted bg-base-content/60 bg-clip-text text-transparent"
+          >
+            Trust level:
+          </div>
+
+          {% if "High" in item.get_trust_level_required_display %}
+          <div
+            class="badge badge-success badge-soft font-medium text-xs border-xl p-3"
+          >
+            {% include "icons/arrow-up.svg" %} {{
+            item.get_trust_level_required_display }} Trust
+          </div>
+          {% elif "Standard" in item.get_trust_level_required_display %}
+          <div class="badge badge-soft text-xs border-xl p-3">
+            {% include "icons/medium-icon.svg" %} {{
+            item.get_trust_level_required_display }} Trust
+          </div>
+          {% endif %}
+
+          <button type="button" onclick="showModal('trust-level-info-modal')" class="inline-flex align-middle ml-1 cursor-pointer hover:drop-shadow-md transition">
+            <span class="inline-flex [&>svg]:w-6 [&>svg]:h-6">
+              {% include "icons/information-circle.svg" %}
+            </span>
+          </button>
+        </div>
+
         <div
-          class="flex items-center justify-center gap-2 mb-4 px-3 mt-6 lg:px-0 lg:mt-8"
+          class="text-[12px] p-3 lg:px-0 lg:text-[15px] lg:leading-7"
         >
-          {% for action in action_context.actions %} {% if action ==
-          "REQUEST_ITEM" %}
-          <form
-            method="post"
-            action="{% url 'item-borrow' object.pk %}"
-            class="flex-1"
-          >
-            {% csrf_token %}
-            <input type="hidden" name="action" value="REQUEST_ITEM" />
-            <button type="submit" class="btn btn-primary w-full">
-              Request item
-            </button>
-          </form>
+          {{ item.description }}
+        </div>
 
-          {% elif action == "ACCEPT_REQUEST" and object.owner == user %}
-          <form
-            method="post"
-            action="{% url 'item-borrow' object.pk %}"
-            class="flex-1"
-          >
-            {% csrf_token %}
-            <input type="hidden" name="action" value="ACCEPT_REQUEST" />
-            <button type="submit" class="btn btn-success btn-soft w-full">
-              Accept
-            </button>
-          </form>
 
-          {% elif action == "REJECT_REQUEST" and object.owner == user %}
-          <form
-            method="post"
-            action="{% url 'item-borrow' object.pk %}"
-            class="flex-1"
-          >
-            {% csrf_token %}
-            <input type="hidden" name="action" value="REJECT_REQUEST" />
-            <button type="submit" class="btn btn-error btn-soft w-full">
-              Decline
-            </button>
-          </form>
-
-          {% elif action == "MARK_COLLECTED" %}
-          <form
-            method="post"
-            action="{% url 'item-borrow' object.pk %}"
-            class="flex-1"
-          >
-            {% csrf_token %}
-            <input type="hidden" name="action" value="MARK_COLLECTED" />
-            <button type="submit" class="btn btn-primary w-full">
-              Mark Picked Up
-            </button>
-          </form>
-
-          {% elif action == "CONFIRM_COLLECTED" %}
-          <form
-            method="post"
-            action="{% url 'item-borrow' object.pk %}"
-            class="flex-1"
-          >
-            {% csrf_token %}
-            <input type="hidden" name="action" value="CONFIRM_COLLECTED" />
-            <button type="submit" class="btn btn-primary w-full">
-              Confirm picked up
-            </button>
-          </form>
-
-          {% elif action == "MARK_RETURNED" %}
-          <form
-            method="post"
-            action="{% url 'item-borrow' object.pk %}"
-            class="flex-1"
-          >
-            {% csrf_token %}
-            <input type="hidden" name="action" value="MARK_RETURNED" />
-            <button type="submit" class="btn btn-primary w-full">
-              Confirm returned
-            </button>
-          </form>
-
-          {% elif action == "CONFIRM_RETURNED" %}
-          <form
-            method="post"
-            action="{% url 'item-borrow' object.pk %}"
-            class="flex-1"
-          >
-            {% csrf_token %}
-            <input type="hidden" name="action" value="CONFIRM_RETURNED" />
-            <button type="submit" class="btn btn-primary w-full">
-              Confirm returned
-            </button>
-          </form>
-
-          {% elif action == "CANCEL_REQUEST" %}
-          <form
-            method="post"
-            action="{% url 'item-borrow' object.pk %}"
-            class="flex-1"
-          >
-            {% csrf_token %}
-            <input type="hidden" name="action" value="CANCEL_REQUEST" />
-            <button type="submit" class="btn btn-primary btn-soft w-full">
-              Cancel request
-            </button>
-          </form>
-          {% endif %} {% endfor %}
+        {% if show_actions and action_context.actions %}
+        <div class="mt-auto">
+            {% include "components/items/action_buttons_with_status.html" with item=item action_context=action_context variant="card" container_id=actions_container_id modal_suffix=modal_suffix %}
         </div>
         {% endif %}
       </div>
     </div>
   </div>
+
+  {% if show_actions %}
+      {% include "components/items/accept_request_modal.html" with item=item modal_id=accept_modal_id %}
+      {% include "components/items/request_item_modal.html" with item=item modal_id=request_modal_id %}
+      {% include "components/items/mark_collected_modal.html" with item=item modal_id="mark-collected-modal"|add:modal_suffix %}
+      {% include "components/items/mark_collected_modal.html" with item=item modal_id="confirm-collected-modal"|add:modal_suffix collected_action="CONFIRM_COLLECTED" %}
+      {% include "components/items/mark_returned_modal.html" with item=item modal_id="mark-returned-modal"|add:modal_suffix %}
+      {% include "components/items/mark_returned_modal.html" with item=item modal_id="confirm-returned-modal"|add:modal_suffix returned_action="CONFIRM_RETURNED" %}
+  {% endif %}
 </c-box>
 
 <script>
@@ -387,4 +259,7 @@
     updateSlider();
   });
 </script>
+
+{% include "components/modal.html" with modal_id="trust-level-info-modal" modal_title="Trust levels" modal_size="full" modal_content_template="items/_trust_level_info_content.html" cancel_button_text="Got it" %}
+
 {% endblock %}
