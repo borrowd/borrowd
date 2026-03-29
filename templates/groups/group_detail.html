@@ -1,50 +1,148 @@
-{% extends "groups/layout.html" %}
-{% block head_title %}Group Details{% endblock %}
+{% extends "groups/layout.html" %} {% block head_title %}Group Details{%
+endblock %} {% block groups_content %}
 
-{% block groups_content %}
-<c-box class="mb-4">
-    {% if object.banner %}
-    <div class="-mx-4 md:-mx-8 -mt-4 md:-mt-8 mb-4"> <!-- this to counteract automatic c-box padding -->
-        <img src="{{ object.banner.url }}" alt="Group Banner Image" class="w-full max-h-[200px] object-cover rounded-t-lg">
+<c-h1 class="text-2xl mb-4 font-medium text-center">{{ object.name }}</c-h1>
+<c-box class="mb-4 p-[10px] bg-primary-content!">
+  {% if object.banner %}
+  <div class="mb-4">
+    <!-- this to counteract automatic c-box padding -->
+    <img
+      src="{{ object.banner.url }}"
+      alt="Group Banner Image"
+      class="w-full h-[120px] object-cover rounded-md md:h-[200px]"
+    />
+  </div>
+  {% endif %}
+  <div class="flex flex-col h-full">
+    <div class="flex">
+      {% if object.logo %}
+      <c-thumbnail src="{{ object.logo.url }}" alt="{{ object.name }} Logo" />
+      <span class="pl-2 flex items-center">
+        <c-h1 class="text-base md:text-lg font-semibold line-clamp-2"
+          >{{ object.name }}</c-h1
+        >
+      </span>
+      {% else %}
+      <c-h1 class="text-base md:text-lg font-semibold line-clamp-2"
+        >{{ object.name }}</c-h1
+      >
+      {% endif %}
+    </div>
+    <p class="justify-center text-sm font-normal leading-tight mt-1">
+      {{ object.description }}
+    </p>
+
+    {% if user_trust_level %}
+    <div class="mt-4 flex items-center gap-2">
+      <div
+        class="text-sm font-normal underline underline-offset-2 decoration-dotted bg-base-content/60 bg-clip-text text-transparent"
+      >
+        Trust level:
+      </div>
+
+      {% if user_trust_level == 2 %}
+      <div
+        class="badge badge-success badge-soft font-medium text-xs border-xl p-3"
+      >
+        High Trust
+      </div>
+      {% elif user_trust_level == 1 %}
+      <div class="badge badge-soft font-medium text-xs border-xl p-3">
+        Standard Trust
+      </div>
+      {% endif %}
+
+      <span class="inline-flex [&>svg]:w-5 [&>svg]:h-5">
+        {% include "icons/information-circle.svg" %}
+      </span>
     </div>
     {% endif %}
-     <div class="flex flex-col h-full">
-        <div class="flex">
-            {% if object.logo %}
-                <c-thumbnail src="{{ object.logo.url }}" alt="{{ object.name }} Logo" />
-                <span class="pl-2 flex items-center">
-                    <c-h1>{{ object.name }}</c-h1>
-                </span>
-            {% else %}
-                <c-h1>{{ object.name }}</c-h1>
-            {% endif %}
-        </div>
-        <p class="text-gray-700 mb-4">{{ object.description }}</p>
-        <p class="text-gray-500">{{ object.users.count }} members</p>
 
-        {% if user_trust_level %}
-        <div class="mt-4 p-3 bg-gray-50 rounded-lg">
-            <c-groups.trust-level-editor :trust_level="user_trust_level" :group_id="object.pk" />
-        </div>
-        {% endif %}
-
-        <div class="relative my-4 -mx-4 md:-mx-8">
-            <hr class="border-t border-gray-200 w-full">
-        </div>
-        <div>
-            <c-button-nav url="{% url 'borrowd_groups:group-invite' object.pk %}" class="btn btn-secondary">
-                Get invite link
-            </c-button-nav>
-            <!-- only moderators can edit Group -->
-            {% if is_moderator %}
-            <c-button-nav url="{% url 'borrowd_groups:group-edit' object.pk %}" class="btn btn-warning">
-                Edit group
-            </c-button-nav>
-            {% endif %}
-        </div>
+    <div>
+      <c-button-nav
+        url="{% url 'borrowd_groups:group-invite' object.pk %}"
+        class="btn btn-primary w-full mt-4"
+        type="button"
+      >
+        Copy invite link
+      </c-button-nav>
     </div>
+  </div>
 </c-box>
-<c-box>
-    <c-groups.members-list :members="members_data" :is_moderator="is_moderator" />
+
+{% if is_moderator and pending_members %}
+<c-box class="mt-4 bg-primary-content!">
+  <c-h2 class="border-b pb-4">
+    Pending Approval ({{ pending_members|length }})
+  </c-h2>
+  <div class="divide-y divide-gray-200">
+    {% for membership in pending_members %}
+    <div class="flex items-center py-3 gap-4">
+      {% if membership.user.profile.image %}
+      <c-avatar
+        class="rounded-md w-14 h-14 md:w-17 md:h-17 object-cover"
+        src="{{ membership.user.profile.image.url }}"
+        alt="{{ membership.user.get_full_name }}"
+      />
+      {% else %}
+      <c-avatar
+        class="rounded-md w-14 h-14 md:w-17 md:h-17 object-cover"
+        src="{{ membership.user.profile.profile_pic }}"
+        alt="{{ membership.user.get_full_name }}"
+      />
+      {% endif %}
+      <div class="flex flex-col items-start justify-center gap-2">
+        <a
+          href="{% url 'public-profile' membership.user.id %}"
+          class="text-blue-600 hover:underline font-medium"
+        >
+          {{ membership.user.profile.full_name }}
+        </a>
+        <div class="flex gap-2">
+          <form
+            method="post"
+            action="{% url 'borrowd_groups:deny-member' membership.id %}"
+          >
+            {% csrf_token %}
+            <button
+              type="submit"
+              class="btn btn-error btn-soft font-medium btn-sm"
+            >
+              Deny
+            </button>
+          </form>
+          <form
+            method="post"
+            action="{% url 'borrowd_groups:approve-member' membership.id %}"
+          >
+            {% csrf_token %}
+            <button
+              type="submit"
+              class="btn btn-success btn-soft font-medium btn-sm"
+            >
+              Approve
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
 </c-box>
+{% endif %}
+
+<c-box class="mt-4">
+  <c-groups.members-list :members="members_data" :is_moderator="is_moderator" />
+</c-box>
+
+<div class="mt-2 pt-4 flex flex-col gap-2">
+  {% if is_moderator %}
+  <a
+    href="{% url 'borrowd_groups:group-edit' object.pk %}"
+    class="btn btn-warning w-full btn-soft"
+  >
+    Edit group
+  </a>
+  {% endif %}
+</div>
 {% endblock %}
