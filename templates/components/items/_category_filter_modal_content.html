@@ -1,0 +1,9 @@
+<div class="flex flex-col gap-2">
+    <template x-for="cat in categories" :key="cat.id">
+        <button type="button"
+                @click="toggle(cat.id)"
+                :class="isSelected(cat.id) ? 'badge badge-neutral font-medium text-sm leading-6 cursor-pointer p-3' : 'badge badge-soft font-medium text-sm leading-6 cursor-pointer p-3'"
+                x-text="cat.name">
+        </button>
+    </template>
+</div>

@@ -249,7 +249,7 @@ class ItemListViewVisibilityTests(TestCase):
             name="Owner Item",
             description="Owned by group owner.",
             owner=owner,
-            trust_level_required=TrustLevel.LOW,
+            trust_level_required=TrustLevel.STANDARD,
         )
 
         group = BorrowdGroup.objects.create(
@@ -259,7 +259,7 @@ class ItemListViewVisibilityTests(TestCase):
             trust_level=TrustLevel.HIGH,
             membership_requires_approval=False,
         )
-        group.add_user(member, trust_level=TrustLevel.LOW)
+        group.add_user(member, trust_level=TrustLevel.STANDARD)
 
         # Confirm access before removal
         request = self.factory.get("/items/")
@@ -290,7 +290,7 @@ class ItemListViewVisibilityTests(TestCase):
             name="Owner Item",
             description="Owned by group owner.",
             owner=owner,
-            trust_level_required=TrustLevel.LOW,
+            trust_level_required=TrustLevel.STANDARD,
         )
 
         group = BorrowdGroup.objects.create(
@@ -300,7 +300,7 @@ class ItemListViewVisibilityTests(TestCase):
             trust_level=TrustLevel.HIGH,
             membership_requires_approval=False,
         )
-        group.add_user(member, trust_level=TrustLevel.LOW, is_moderator=True)
+        group.add_user(member, trust_level=TrustLevel.STANDARD, is_moderator=True)
 
         # Confirm access before removal
         request = self.factory.get("/items/")
