@@ -27,3 +27,14 @@ dependencies = [
 dev = [
     "pyyaml>=6.0.2",
 ]
+
+[tool.djlint]
+# https://djlint.com/docs/configuration/
+profile = "django"
+max_blank_lines = 1
+line_break_after_multiline_tag = true
+blank_line_after_tag = "load,extends,include"
+custom_html = 'c-[\w.-]+' # cotton components
+format_css = false
+format_js = false
+use_gitignore = true
