@@ -1,14 +1,27 @@
 {% extends "groups/layout.html" %}
-{% block head_title %}Delete Group{% endblock %}
+
+{% block head_title %}
+    Delete Group
+{% endblock %}
 
 {% block groups_content %}
-<c-box>
-    <c-h1>Confirm Deletion</c-h1>
-    <p>Are you sure you want to delete "{{ object.name }}"?</p>
-    <form method="post" onsubmit="this.querySelector('button[type=submit]').disabled = true;">
-        {% csrf_token %}
-        <c-button danger type="submit">Yes, delete</c-button>
-        <c-button-nav url="{% url 'borrowd_groups:group-detail' object.pk %}" class="btn btn-ghost">Cancel</c-button-nav>
-    </form>
-</c-box>
+    <c-box>
+        <c-h1>
+            Confirm Deletion
+        </c-h1>
+        <p>
+            Are you sure you want to delete "{{ object.name }}"?
+        </p>
+        <form method="post"
+              onsubmit="this.querySelector('button[type=submit]').disabled = true;">
+            {% csrf_token %}
+            <c-button danger type="submit">
+                Yes, delete
+            </c-button>
+            <c-button-nav url="{% url 'borrowd_groups:group-detail' object.pk %}"
+                          class="btn btn-ghost">
+                Cancel
+            </c-button-nav>
+        </form>
+    </c-box>
 {% endblock %}

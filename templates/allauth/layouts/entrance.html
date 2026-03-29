@@ -1,8 +1,10 @@
 {% extends "allauth/layouts/base.html" %}
+
 {% block content_base %}
-<div class="flex justify-center items-center py-8 mx-4">
-    <div class="w-full max-w-2xl">
-    {% block content %}{% endblock %}
+    <div class="flex justify-center items-center py-8 mx-4">
+        <div class="w-full max-w-2xl">
+            {% block content %}
+            {% endblock %}
+        </div>
     </div>
-</div>
 {% endblock %}

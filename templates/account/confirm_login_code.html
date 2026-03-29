@@ -1,46 +1,49 @@
 {% extends "layouts/auth_card.html" %}
+
 {% load i18n %}
 
-{% block auth_title %}{% trans "Enter Login Code" %}{% endblock %}
-{% block auth_mobile_title %}{% trans "Enter sign-in code" %}{% endblock %}
+{% block auth_title %}
+    {% trans "Enter Login Code" %}
+{% endblock %}
+{% block auth_mobile_title %}
+    {% trans "Enter sign-in code" %}
+{% endblock %}
 
 {% block auth_content %}
-  {% if form.non_field_errors %}
-    <div class="alert alert-error text-sm py-2">
-      {{ form.non_field_errors }}
-    </div>
-  {% endif %}
+    {% if form.non_field_errors %}
+        <div class="alert alert-error text-sm py-2">
+            {{ form.non_field_errors }}
+        </div>
+    {% endif %}
 
-  <p class="text-sm text-base-content leading-5">
-    {% trans "We've sent a login code to your email, please enter it below." %}
-  </p>
+    <p class="text-sm text-base-content leading-5">
+        {% trans "We've sent a login code to your email, please enter it below." %}
+    </p>
 
-  <form method="post" class="flex flex-col gap-4">
-    {% csrf_token %}
-    {{ redirect_field }}
-    {% for field in form.hidden_fields %}{{ field }}{% endfor %}
+    <form method="post" class="flex flex-col gap-4">
+        {% csrf_token %}
+        {{ redirect_field }}
+        {% for field in form.hidden_fields %}
+            {{ field }}
+        {% endfor %}
 
-    {# Code field #}
-    <c-form.field
-      label="{% trans 'Code' %}"
-      type="text"
-      name="code"
-      id="id_code"
-      placeholder="{% trans 'Enter your code' %}"
-      autocomplete="one-time-code"
-      inputmode="numeric"
-      errors="{{ form.code.errors|join:', ' }}"
-    />
+        {# Code field #}
+        <c-form.field label="{% trans 'Code' %}"
+                      type="text"
+                      name="code"
+                      id="id_code"
+                      placeholder="{% trans 'Enter your code' %}"
+                      autocomplete="one-time-code"
+                      inputmode="numeric"
+                      errors="{{ form.code.errors|join:', ' }}" />
 
-    <c-button type="submit" class="btn btn-primary w-full">
-      {% trans "Sign in" %}
-    </c-button>
+        <c-button type="submit" class="btn btn-primary w-full">
+            {% trans "Sign in" %}
+        </c-button>
 
-    <c-button-nav
-      class="btn btn-ghost w-full "
-      url="{% url 'account_login_cancel' %}{% if redirect_field_value %}?{{ redirect_field_name }}={{ redirect_field_value|urlencode }}{% endif %}"
-      >
-      {% trans "Cancel" %}
-    </c-button-nav>
-  </form>
+        <c-button-nav class="btn btn-ghost w-full "
+                      url="{% url 'account_login_cancel' %}{% if redirect_field_value %}?{{ redirect_field_name }}={{ redirect_field_value|urlencode }}{% endif %}">
+            {% trans "Cancel" %}
+        </c-button-nav>
+    </form>
 {% endblock %}
