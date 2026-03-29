@@ -9,12 +9,11 @@ from django.forms import ModelForm
 from django.http import (
     HttpRequest,
     HttpResponse,
+    HttpResponseBase,
     HttpResponsePermanentRedirect,
     HttpResponseRedirect,
 )
 from django.shortcuts import get_object_or_404, redirect, render
-from django.http import HttpRequest, HttpResponse, HttpResponseBase
-from django.shortcuts import redirect, render
 from django.urls import reverse, reverse_lazy
 from django.views.generic import CreateView, DeleteView, DetailView, UpdateView, View
 from django_filters.views import FilterView
