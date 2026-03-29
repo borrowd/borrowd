@@ -1,3 +1,5 @@
+from typing import Never
+
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.templatetags.static import static
@@ -59,3 +61,72 @@ class Profile(models.Model):
         except Exception:
             pic = static("icons/account-circle.svg")
         return pic
+
+
+class SearchTarget(models.TextChoices):
+    ITEMS = "items", "Items"
+    GROUPS = "groups", "Groups"
+
+
+class SearchTerm(models.Model):
+    """
+    Store search terms entered by users so we can power UX features like
+    "recent searches" and analyze search effectiveness.
+
+    Append-only behavior:
+    - Each search creates a row so we preserve full search history.
+    """
+
+    user: models.ForeignKey[BorrowdUser] = models.ForeignKey(
+        "borrowd_users.BorrowdUser",
+        on_delete=models.CASCADE,
+        related_name="search_terms",
+    )
+    target: models.CharField[SearchTarget, str] = models.CharField(
+        max_length=10,
+        choices=SearchTarget.choices,
+    )
+    # Stored for UX (case/spacing as normalized by `record_search`).
+    term_raw: models.CharField[str, str] = models.CharField(max_length=200)
+    # Lowercased + whitespace collapsed for analytics queries.
+    term_normalized: models.CharField[str, str] = models.CharField(max_length=200)
+
+    created_at: models.DateTimeField[Never, Never] = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    class Meta:
+        indexes = [
+            # Fast "latest searches per user per target" queries.
+            models.Index(fields=["user", "target", "-created_at"]),
+            # Fast "latest searches by target" analytics queries.
+            models.Index(fields=["target", "-created_at"]),
+        ]
+        ordering = ["-created_at"]
+
+    @staticmethod
+    def _normalize(term: str) -> tuple[str, str]:
+        # Collapse whitespace so term analytics stay consistent.
+        cleaned = " ".join(term.strip().split())
+        normalized = cleaned.lower()
+        return cleaned, normalized
+
+    @classmethod
+    def record_search(cls, user: BorrowdUser, target: SearchTarget, term: str) -> None:
+        if not user.is_authenticated:
+            return
+
+        cleaned, normalized = cls._normalize(term)
+        if not cleaned or not normalized:
+            return
+
+        # Enforce max length for DB fields.
+        cleaned = cleaned[:200]
+        normalized = normalized[:200]
+
+        cls.objects.create(
+            user=user,
+            target=target,
+            term_raw=cleaned,
+            term_normalized=normalized,
+        )

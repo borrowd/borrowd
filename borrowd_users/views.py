@@ -9,6 +9,7 @@ from django.http import (
     HttpRequest,
     HttpResponse,
     HttpResponseBase,
+    HttpResponseForbidden,
     JsonResponse,
 )
 from django.shortcuts import get_object_or_404, redirect, render
@@ -26,7 +27,7 @@ from borrowd_items.card_helpers import (
 from borrowd_items.models import Item, ItemStatus, Transaction
 
 from .forms import ChangePasswordForm, CustomSignupForm, ProfileUpdateForm
-from .models import BorrowdUser
+from .models import BorrowdUser, SearchTarget, SearchTerm
 
 
 def build_profile_context(
@@ -313,3 +314,57 @@ class CustomPasswordChangeView(PasswordChangeView):  # type: ignore[misc]
             messages.warning(self.request, error_message)
 
         return super().form_invalid(form)  # type: ignore[no-any-return]
+
+
+@login_required
+def search_terms_export_view(request: HttpRequest) -> JsonResponse | HttpResponseForbidden:
+    """
+    Admin-only JSON export for search term analytics.
+
+    Query params:
+    - user_id: optional exact match
+    - target: optional, one of {"items", "groups"}
+    - limit: optional, default 200, max 1000
+    """
+    user: BorrowdUser = request.user  # type: ignore[assignment]
+    if not user.is_staff:
+        return HttpResponseForbidden("Admin access required.")
+
+    qs = SearchTerm.objects.select_related("user").order_by("-created_at")
+
+    raw_user_id = request.GET.get("user_id")
+    if raw_user_id:
+        try:
+            qs = qs.filter(user_id=int(raw_user_id))
+        except ValueError:
+            return JsonResponse({"error": "user_id must be an integer."}, status=400)
+
+    raw_target = request.GET.get("target")
+    if raw_target:
+        valid_targets = {SearchTarget.ITEMS, SearchTarget.GROUPS}
+        if raw_target not in valid_targets:
+            return JsonResponse(
+                {"error": "target must be one of: items, groups."},
+                status=400,
+            )
+        qs = qs.filter(target=raw_target)
+
+    limit = 200
+    raw_limit = request.GET.get("limit")
+    if raw_limit:
+        try:
+            limit = max(1, min(1000, int(raw_limit)))
+        except ValueError:
+            return JsonResponse({"error": "limit must be an integer."}, status=400)
+
+    rows = list(
+        qs.values(
+            "id",
+            "user_id",
+            "target",
+            "term_raw",
+            "term_normalized",
+            "created_at",
+        )[:limit]
+    )
+    return JsonResponse({"count": len(rows), "results": rows})

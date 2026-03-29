@@ -19,6 +19,7 @@ from borrowd_permissions.mixins import (
     LoginOr404PermissionMixin,
 )
 from borrowd_permissions.models import BorrowdGroupOLP
+from borrowd_users.models import SearchTerm, SearchTarget
 
 from .exceptions import ModeratorRequiredException
 from .filters import GroupFilter
@@ -290,6 +291,18 @@ class GroupListView(LoginRequiredMixin, FilterView):  # type: ignore[misc]
     template_name = "groups/group_list.html"
     model = Membership
     filterset_class = GroupFilter
+
+    def get(
+        self, request: HttpRequest, *args: Any, **kwargs: Any
+    ) -> HttpResponse:
+        term = request.GET.get("search")
+        if term is not None:
+            SearchTerm.record_search(
+                user=request.user,
+                target=SearchTarget.GROUPS,
+                term=term,
+            )
+        return super().get(request, *args, **kwargs)
 
     def get_template_names(self) -> list[str]:
         if self.request.headers.get("HX-Request"):
