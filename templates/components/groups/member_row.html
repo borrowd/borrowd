@@ -1,20 +1,32 @@
-<div class="flex items-center py-3 px-8">
-    <div class="member-avatar mr-3">
-      {% if member.profile_image %}
-      <c-avatar src="{{ member.profile_image.url }}" alt="{{ member.username }}" />
-      {% else %}
-      <!-- Default to just a blank gray avatar circle for now -->
-      <div class="h-10 w-10 rounded-full bg-gray-200">
-      </div>
-      {% endif %}
+<div class="flex items-center py-3">
+  <div class="member-avatar mr-3">
+    {% if member.profile_image %}
+    <c-avatar
+      class="rounded-md w-14 h-14 md:w-17 md:h-17 object-cover"
+      src="{{ member.profile_image.url }}"
+      alt="{{ member.username }}"
+    />
+    {% else %}
+    <!-- Default to just a blank gray avatar circle for now -->
+    <div class="rounded-md w-14 h-14 md:w-17 md:h-17 bg-gray-200"></div>
+    {% endif %}
+  </div>
+  <div class="flex-grow">
+    <div class="font-medium">
+      <a
+        href="{% url 'public-profile' member.user_id %}"
+        class="text-blue-600 hover:underline"
+      >
+        {{ member.full_name }}
+      </a>
     </div>
-    <div class="flex-grow">
-      <div class="font-medium">{{ member.full_name }}</div>
-      <div class="text-sm text-gray-500">{{ member.role }}</div>
-    </div>
-    <!-- member actions -->
-    {% if is_moderator and member.user_id != user.id %}
-    <div class="relative" x-data="{ open: false, placement:'top', getBoundaryEl() {return this.$refs.btn?.closest('[members-list-boundary]') || null;},
+    <div class="text-sm text-[#181818]">{{ member.role }}</div>
+  </div>
+  <!-- member actions -->
+  {% if is_moderator and member.user_id != user.id %}
+  <div
+    class="relative"
+    x-data="{ open: false, placement:'top', getBoundaryEl() {return this.$refs.btn?.closest('[members-list-boundary]') || null;},
                                     toggle() {
                                       if (this.open) { this.open = false; return;}
 
@@ -46,25 +58,51 @@
                                       });
                                     }
                                   }"
-        @keydown.escape.window="open = false"
-        @resize.window="open && toggle()"
-        @scroll.window="open && toggle()">
-      <button x-ref="btn" @click="toggle()" class="text-gray-400 hover:text-gray-600 focus:outline-none">
-          <!-- super ugly, but draws a nice vertical 3-dot for now, will be replaced with proper icon library -->
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-          <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
-        </svg>
-      </button>
-      <!-- todo: promote member to moderator logic -->
-      <div x-ref="menu" x-show="open" @click.away="open = false"
-        class="absolute right-0 w-48 bg-white rounded-md shadow-lg py-1 z-10" :class="placement === 'top' ? 'bottom-full mb-2' : 'top-full mt-2'">
-        <form method="post" action="{% url 'borrowd_groups:remove-member' object.pk member.user_id %}" onsubmit="return confirm('Are you sure you want to remove this member?');">
-          {% csrf_token %}
-          <button type="submit" class="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100">
-            Remove Member
-          </button>
-        </form>
-      </div>
+    @keydown.escape.window="open = false"
+    @resize.window="open && toggle()"
+    @scroll.window="open && toggle()"
+  >
+    <button
+      x-ref="btn"
+      @click="toggle()"
+      class="text-gray-400 hover:text-gray-600 focus:outline-none"
+    >
+      <!-- super ugly, but draws a nice vertical 3-dot for now, will be replaced with proper icon library -->
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        class="h-5 w-5"
+        viewBox="0 0 20 20"
+        fill="currentColor"
+      >
+        <path
+          d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z"
+        />
+      </svg>
+    </button>
+    <!-- todo: promote member to moderator logic -->
+    <div
+      x-ref="menu"
+      x-show="open"
+      @click.away="open = false"
+      class="absolute right-0 w-48 bg-white rounded-md shadow-lg py-1 z-10"
+      :class="placement === 'top' ? 'bottom-full mb-2' : 'top-full mt-2'"
+    >
+      <form
+        method="post"
+        action="{% url 'borrowd_groups:remove-member' object.pk member.user_id %}"
+        onsubmit="
+          return confirm('Are you sure you want to remove this member?');
+        "
+      >
+        {% csrf_token %}
+        <button
+          type="submit"
+          class="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
+        >
+          Remove Member
+        </button>
+      </form>
     </div>
-    {% endif %}
   </div>
+  {% endif %}
+</div>

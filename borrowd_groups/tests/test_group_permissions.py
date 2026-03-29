@@ -54,6 +54,7 @@ class GroupPermissionTests(TestCase):
             created_by=owner,
             updated_by=owner,
             trust_level=TrustLevel.STANDARD,
+            membership_requires_approval=False,
         )
         group.add_user(member, trust_level=TrustLevel.STANDARD, is_moderator=False)
 

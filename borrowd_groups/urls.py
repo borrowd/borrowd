@@ -1,6 +1,8 @@
 from django.urls import path
 
 from .views import (
+    ApproveMemberView,
+    DenyMemberView,
     GroupCreateView,
     GroupDeleteView,
     GroupDetailView,
@@ -30,6 +32,16 @@ urlpatterns = [
         "<int:pk>/remove-member/<int:user_id>/",
         RemoveMemberView.as_view(),
         name="remove-member",
+    ),
+    path( 
+        "membership/<int:membership_id>/approve/", 
+        ApproveMemberView.as_view(),
+        name="approve-member",
+    ),
+    path(
+        "membership/<int:membership_id>/deny/",
+        DenyMemberView.as_view(),
+        name="deny-member",
     ),
     path("join/<str:encoded>/", GroupJoinView.as_view(), name="group-join"),
 ]
