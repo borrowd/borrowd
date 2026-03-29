@@ -199,6 +199,7 @@ class ItemDetailView(
 
         action_context = self.object.get_action_context_for(user=user)
         context["action_context"] = action_context
+        context["is_owner"] = self.object.owner == user
 
         request_txn = (
             Transaction.objects.filter(item=self.object).order_by("-created_at").first()
