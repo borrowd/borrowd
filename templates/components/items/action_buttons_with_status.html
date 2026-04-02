@@ -19,172 +19,218 @@ For variant='card', also accepts:
 {% endcomment %}
 {% with container_id=container_id|default:"action-status-container" modal_suffix=modal_suffix|default:"" %}
 
-{% if variant == 'card' %}
-<!-- Card variant: just buttons, no status box -->
-<div id="{{ container_id }}" class="flex gap-2 p-3">
-    {% for action in action_context.actions %}
-        <!-- Modal actions -->
-        <!-- Modal's hidden form handles the actual POST -->
-        {% if action.name == 'REQUEST_ITEM' %}
-        <div class="flex-1">
-            <button type="button" onclick="showModal('request-item-modal{{ modal_suffix }}')"
-                class="btn btn-primary btn-sm md:btn-md w-full"
-            >Request item</button>
-        </div>
-        {% elif action.name == 'ACCEPT_REQUEST' %}
-        <div class="flex-1">
-            <button type="button" onclick="showModal('accept-request-modal{{ modal_suffix }}')"
-                class="btn btn-soft btn-success btn-sm md:btn-md w-full"
-            >Accept</button>
-        </div>
-        {% elif action.name == 'MARK_COLLECTED' %}
-        <div class="flex-1">
-            <button type="button" onclick="showModal('mark-collected-modal{{ modal_suffix }}')"
-                class="btn btn-primary btn-sm md:btn-md w-full"
-            >Confirm picked up</button>
-        </div>
-        {% elif action.name == 'CONFIRM_COLLECTED' %}
-        <div class="flex-1">
-            <button type="button" onclick="showModal('confirm-collected-modal{{ modal_suffix }}')"
-                class="btn btn-primary btn-sm md:btn-md w-full"
-            >Confirm picked up</button>
-        </div>
-        {% elif action.name == 'MARK_RETURNED' %}
-        <div class="flex-1">
-            <button type="button" onclick="showModal('mark-returned-modal{{ modal_suffix }}')"
-                class="btn btn-soft btn-primary btn-sm md:btn-md w-full"
-            >Confirm returned</button>
-        </div>
-        {% elif action.name == 'CONFIRM_RETURNED' %}
-        <div class="flex-1">
-            <button type="button" onclick="showModal('confirm-returned-modal{{ modal_suffix }}')"
-                class="btn btn-soft btn-primary btn-sm md:btn-md w-full"
-            >Confirm returned</button>
-        </div>
-        <!-- Direct actions -->
-        <!-- Submit immediately via standard form POST without modal -->
-        {% elif action.name == 'REJECT_REQUEST' %}
-        <form method="POST" action="{% url 'item-borrow' item.pk %}" class="flex-1">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="REJECT_REQUEST">
-            <button type="submit" class="btn btn-soft btn-error btn-sm md:btn-md w-full">Decline</button>
-        </form>
-        {% elif action.name == 'CANCEL_REQUEST' %}
-        <form method="POST" action="{% url 'item-borrow' item.pk %}" class="flex-1">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="CANCEL_REQUEST">
-            <button type="submit" class="btn btn-soft btn-primary btn-sm md:btn-md w-full">Cancel request</button>
-        </form>
-        {% elif action.name == 'NOTIFY_WHEN_AVAILABLE' %}
-        <form method="POST" action="{% url 'item-borrow' item.pk %}" class="flex-1">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="NOTIFY_WHEN_AVAILABLE">
-            <button type="submit" class="btn btn-soft btn-primary btn-sm md:btn-md w-full">Notify when available</button>
-        </form>
-        {% else %}
-        <form method="POST" action="{% url 'item-borrow' item.pk %}" class="flex-1">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="{{ action.name }}">
-            <button type="submit" class="btn btn-ghost shadow-xs shadow-gray-300 btn-sm md:btn-md w-full">{{ action.label }}</button>
-        </form>
-        {% endif %}
-    {% endfor %}
-</div>
-
-{% else %}
-<!-- Detail variant: full layout with status box -->
-<div id="{{ container_id }}" class="flex flex-col items-center my-2 gap-2 w-full">
-    <div class="flex flex-col items-center gap-4 w-full">
-        <!-- Error Message (if any) -->
-        {% if error_message %}
-        <div class="p-3 border rounded-lg {% if error_type == 'already_requested' %}bg-orange-100 text-orange-700 border-orange-300{% else %}bg-red-100 text-red-700 border-red-300{% endif %} w-full">
-            <div class="flex items-center justify-center">
-                <!-- Warning/Error icon -->
-                {% if error_type == 'already_requested' %}
-                <svg class="w-6 h-6 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                    <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
-                </svg>
-                {% else %}
-                <svg class="w-6 h-6 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
-                </svg>
-                {% endif %}
-                <span class="font-medium">{{ error_message }}</span>
-            </div>
-        </div>
-        {% endif %}
-
-        <!-- Status Box -->
-        <div class="p-3 border rounded-lg bg-info/15 text-info w-full">
-            <div class="flex items-center justify-center">
-                <!-- TODO: design team info icon -->
-                <svg class="w-10 h-10 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
-                </svg>
-                <span>{{ action_context.status_text }}</span>
-            </div>
-        </div>
-
-        <!-- Action Buttons -->
-        <div class="flex gap-2 w-full">
+    {% if variant == 'card' %}
+        <!-- Card variant: just buttons, no status box -->
+        <div id="{{ container_id }}" class="flex gap-2 p-3">
             {% for action in action_context.actions %}
                 <!-- Modal actions -->
-                <!-- modal's hidden form handles the POST -->
+                <!-- Modal's hidden form handles the actual POST -->
                 {% if action.name == 'REQUEST_ITEM' %}
-                <button type="button" onclick="showModal('request-item-modal{{ modal_suffix }}')"
-                    class="btn btn-primary flex-1"
-                >Request item</button>
+                    <div class="flex-1">
+                        <button type="button"
+                                onclick="showModal('request-item-modal{{ modal_suffix }}')"
+                                class="btn btn-primary btn-sm md:btn-md w-full">
+                            Request item
+                        </button>
+                    </div>
                 {% elif action.name == 'ACCEPT_REQUEST' %}
-                <button type="button" onclick="showModal('accept-request-modal{{ modal_suffix }}')"
-                    class="btn btn-success flex-1"
-                >Accept</button>
+                    <div class="flex-1">
+                        <button type="button"
+                                onclick="showModal('accept-request-modal{{ modal_suffix }}')"
+                                class="btn btn-soft btn-success btn-sm md:btn-md w-full">
+                            Accept
+                        </button>
+                    </div>
                 {% elif action.name == 'MARK_COLLECTED' %}
-                <button type="button" onclick="showModal('mark-collected-modal{{ modal_suffix }}')"
-                    class="btn btn-primary flex-1"
-                >Confirm picked up</button>
+                    <div class="flex-1">
+                        <button type="button"
+                                onclick="showModal('mark-collected-modal{{ modal_suffix }}')"
+                                class="btn btn-primary btn-sm md:btn-md w-full">
+                            Confirm picked up
+                        </button>
+                    </div>
                 {% elif action.name == 'CONFIRM_COLLECTED' %}
-                <button type="button" onclick="showModal('confirm-collected-modal{{ modal_suffix }}')"
-                    class="btn btn-primary flex-1"
-                >Confirm picked up</button>
+                    <div class="flex-1">
+                        <button type="button"
+                                onclick="showModal('confirm-collected-modal{{ modal_suffix }}')"
+                                class="btn btn-primary btn-sm md:btn-md w-full">
+                            Confirm picked up
+                        </button>
+                    </div>
                 {% elif action.name == 'MARK_RETURNED' %}
-                <button type="button" onclick="showModal('mark-returned-modal{{ modal_suffix }}')"
-                    class="btn btn-soft btn-primary flex-1"
-                >Confirm returned</button>
+                    <div class="flex-1">
+                        <button type="button"
+                                onclick="showModal('mark-returned-modal{{ modal_suffix }}')"
+                                class="btn btn-soft btn-primary btn-sm md:btn-md w-full">
+                            Confirm returned
+                        </button>
+                    </div>
                 {% elif action.name == 'CONFIRM_RETURNED' %}
-                <button type="button" onclick="showModal('confirm-returned-modal{{ modal_suffix }}')"
-                    class="btn btn-soft btn-primary flex-1"
-                >Confirm returned</button>
-                <!-- Direct actions: submit immediately via standard form POST -->
+                    <div class="flex-1">
+                        <button type="button"
+                                onclick="showModal('confirm-returned-modal{{ modal_suffix }}')"
+                                class="btn btn-soft btn-primary btn-sm md:btn-md w-full">
+                            Confirm returned
+                        </button>
+                    </div>
+                    <!-- Direct actions -->
+                    <!-- Submit immediately via standard form POST without modal -->
                 {% elif action.name == 'REJECT_REQUEST' %}
-                <form method="POST" action="{% url 'item-borrow' item.pk %}" class="flex-1">
-                    {% csrf_token %}
-                    <input type="hidden" name="action" value="REJECT_REQUEST">
-                    <button type="submit" class="btn btn-soft btn-error w-full">Decline</button>
-                </form>
+                    <form method="POST" action="{% url 'item-borrow' item.pk %}" class="flex-1">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="REJECT_REQUEST">
+                        <button type="submit" class="btn btn-soft btn-error btn-sm md:btn-md w-full">
+                            Decline
+                        </button>
+                    </form>
                 {% elif action.name == 'CANCEL_REQUEST' %}
-                <form method="POST" action="{% url 'item-borrow' item.pk %}" class="flex-1">
-                    {% csrf_token %}
-                    <input type="hidden" name="action" value="CANCEL_REQUEST">
-                    <button type="submit" class="btn btn-soft btn-primary w-full">Cancel request</button>
-                </form>
+                    <form method="POST" action="{% url 'item-borrow' item.pk %}" class="flex-1">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="CANCEL_REQUEST">
+                        <button type="submit"
+                                class="btn btn-soft btn-primary btn-sm md:btn-md w-full">
+                            Cancel request
+                        </button>
+                    </form>
+                {% elif action.name == 'NOTIFY_WHEN_AVAILABLE' %}
+                    <form method="POST" action="{% url 'item-borrow' item.pk %}" class="flex-1">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="NOTIFY_WHEN_AVAILABLE">
+                        <button type="submit"
+                                class="btn btn-soft btn-primary btn-sm md:btn-md w-full">
+                            Notify when available
+                        </button>
+                    </form>
                 {% else %}
-                <form method="POST" action="{% url 'item-borrow' item.pk %}" class="flex-1">
-                    {% csrf_token %}
-                    <input type="hidden" name="action" value="{{ action.name }}">
-                    <button type="submit" class="btn btn-primary w-full">{{ action.label }}</button>
-                </form>
+                    <form method="POST" action="{% url 'item-borrow' item.pk %}" class="flex-1">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="{{ action.name }}">
+                        <button type="submit"
+                                class="btn btn-ghost shadow-xs shadow-gray-300 btn-sm md:btn-md w-full">
+                            {{ action.label }}
+                        </button>
+                    </form>
                 {% endif %}
             {% endfor %}
         </div>
 
-        {% include "components/items/request_item_modal.html" with item=item modal_id="request-item-modal"|add:modal_suffix %}
-        {% include "components/items/accept_request_modal.html" with item=item modal_id="accept-request-modal"|add:modal_suffix %}
-        {% include "components/items/mark_collected_modal.html" with item=item modal_id="mark-collected-modal"|add:modal_suffix %}
-        {% include "components/items/mark_collected_modal.html" with item=item modal_id="confirm-collected-modal"|add:modal_suffix collected_action="CONFIRM_COLLECTED" %}
-        {% include "components/items/mark_returned_modal.html" with item=item modal_id="mark-returned-modal"|add:modal_suffix %}
-        {% include "components/items/mark_returned_modal.html" with item=item modal_id="confirm-returned-modal"|add:modal_suffix returned_action="CONFIRM_RETURNED" %}
-    </div>
-</div>
-{% endif %}
+    {% else %}
+        <!-- Detail variant: full layout with status box -->
+        <div id="{{ container_id }}"
+             class="flex flex-col items-center my-2 gap-2 w-full">
+            <div class="flex flex-col items-center gap-4 w-full">
+                <!-- Error Message (if any) -->
+                {% if error_message %}
+                    <div class="p-3 border rounded-lg {% if error_type == 'already_requested' %}bg-orange-100 text-orange-700 border-orange-300{% else %}bg-red-100 text-red-700 border-red-300{% endif %} w-full">
+                        <div class="flex items-center justify-center">
+                            <!-- Warning/Error icon -->
+                            {% if error_type == 'already_requested' %}
+                                <svg class="w-6 h-6 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd">
+                                    </path>
+                                </svg>
+                            {% else %}
+                                <svg class="w-6 h-6 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd">
+                                    </path>
+                                </svg>
+                            {% endif %}
+                            <span class="font-medium">{{ error_message }}</span>
+                        </div>
+                    </div>
+                {% endif %}
+
+                <!-- Status Box -->
+                <div class="p-3 border rounded-lg bg-info/15 text-info w-full">
+                    <div class="flex items-center justify-center">
+                        <!-- TODO: design team info icon -->
+                        <svg class="w-10 h-10 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd">
+                            </path>
+                        </svg>
+                        <span>{{ action_context.status_text }}</span>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="flex gap-2 w-full">
+                    {% for action in action_context.actions %}
+                        <!-- Modal actions -->
+                        <!-- modal's hidden form handles the POST -->
+                        {% if action.name == 'REQUEST_ITEM' %}
+                            <button type="button"
+                                    onclick="showModal('request-item-modal{{ modal_suffix }}')"
+                                    class="btn btn-primary flex-1">
+                                Request item
+                            </button>
+                        {% elif action.name == 'ACCEPT_REQUEST' %}
+                            <button type="button"
+                                    onclick="showModal('accept-request-modal{{ modal_suffix }}')"
+                                    class="btn btn-success flex-1">
+                                Accept
+                            </button>
+                        {% elif action.name == 'MARK_COLLECTED' %}
+                            <button type="button"
+                                    onclick="showModal('mark-collected-modal{{ modal_suffix }}')"
+                                    class="btn btn-primary flex-1">
+                                Confirm picked up
+                            </button>
+                        {% elif action.name == 'CONFIRM_COLLECTED' %}
+                            <button type="button"
+                                    onclick="showModal('confirm-collected-modal{{ modal_suffix }}')"
+                                    class="btn btn-primary flex-1">
+                                Confirm picked up
+                            </button>
+                        {% elif action.name == 'MARK_RETURNED' %}
+                            <button type="button"
+                                    onclick="showModal('mark-returned-modal{{ modal_suffix }}')"
+                                    class="btn btn-soft btn-primary flex-1">
+                                Confirm returned
+                            </button>
+                        {% elif action.name == 'CONFIRM_RETURNED' %}
+                            <button type="button"
+                                    onclick="showModal('confirm-returned-modal{{ modal_suffix }}')"
+                                    class="btn btn-soft btn-primary flex-1">
+                                Confirm returned
+                            </button>
+                            <!-- Direct actions: submit immediately via standard form POST -->
+                        {% elif action.name == 'REJECT_REQUEST' %}
+                            <form method="POST" action="{% url 'item-borrow' item.pk %}" class="flex-1">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="REJECT_REQUEST">
+                                <button type="submit" class="btn btn-soft btn-error w-full">
+                                    Decline
+                                </button>
+                            </form>
+                        {% elif action.name == 'CANCEL_REQUEST' %}
+                            <form method="POST" action="{% url 'item-borrow' item.pk %}" class="flex-1">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="CANCEL_REQUEST">
+                                <button type="submit" class="btn btn-soft btn-primary w-full">
+                                    Cancel request
+                                </button>
+                            </form>
+                        {% else %}
+                            <form method="POST" action="{% url 'item-borrow' item.pk %}" class="flex-1">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="{{ action.name }}">
+                                <button type="submit" class="btn btn-primary w-full">
+                                    {{ action.label }}
+                                </button>
+                            </form>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+
+                {% include "components/items/request_item_modal.html" with item=item modal_id="request-item-modal"|add:modal_suffix %}
+                {% include "components/items/accept_request_modal.html" with item=item modal_id="accept-request-modal"|add:modal_suffix %}
+                {% include "components/items/mark_collected_modal.html" with item=item modal_id="mark-collected-modal"|add:modal_suffix %}
+                {% include "components/items/mark_collected_modal.html" with item=item modal_id="confirm-collected-modal"|add:modal_suffix collected_action="CONFIRM_COLLECTED" %}
+                {% include "components/items/mark_returned_modal.html" with item=item modal_id="mark-returned-modal"|add:modal_suffix %}
+                {% include "components/items/mark_returned_modal.html" with item=item modal_id="confirm-returned-modal"|add:modal_suffix returned_action="CONFIRM_RETURNED" %}
+
+            </div>
+        </div>
+    {% endif %}
 
 {% endwith %}

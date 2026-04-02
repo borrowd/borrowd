@@ -1,7 +1,11 @@
-{% with img_class="h-77 w-70 md:w-90 object-cover rounded" %} {% if link %}
-<a href="{{ link }}">
-  <img src="{{ src }}" alt="{{ alt }}" class="{{ img_class }} {{ class }}" />
-</a>
-{% else %}
-<img src="{{ src }}" alt="{{ alt }}" class="{{ img_class }} {{ class }}" />
-{% endif %} {% endwith %}
+{% with img_class="h-77 w-70 md:w-90 object-cover rounded" %}
+
+    {% if link %}
+        <a href="{{ link }}">
+            <img src="{{ src }}" alt="{{ alt }}" class="{{ img_class }} {{ class }}" />
+        </a>
+    {% else %}
+        <img src="{{ src }}" alt="{{ alt }}" class="{{ img_class }} {{ class }}" />
+    {% endif %}
+
+{% endwith %}

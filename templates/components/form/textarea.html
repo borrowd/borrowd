@@ -33,7 +33,9 @@
             {{ help_text }}
         </p>
     {% endif %}
-        {% if errors %}
-            <p class="mt-1 text-error text-xs">{{ errors|striptags }}</p>
-        {% endif %}
+    {% if errors %}
+        <p class="mt-1 text-error text-xs">
+            {{ errors|striptags }}
+        </p>
+    {% endif %}
 </fieldset>

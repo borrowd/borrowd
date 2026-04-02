@@ -1,171 +1,175 @@
 {% extends "layouts/default.html" %}
+
 {% load i18n %}
 
-{% block head_title %}{{ profile.user.username }}'s profile{% endblock %}
+{% block head_title %}
+    {{ profile.user.username }}'s profile
+{% endblock %}
 
 {% block content %}
-<div class="flex flex-col w-full max-w-2xl mx-auto px-4 py-4 gap-6">
+    <div class="flex flex-col w-full max-w-2xl mx-auto px-4 py-4 gap-6">
 
-  {% include "components/page_header.html" with title=_("Profile") %}
+        {% include "components/page_header.html" with title=_("Profile") %}
 
-  {# ── Personal Information ──────────────────────────────────────── #}
-  <section class="flex flex-col gap-2">
-    <p class="text-xs font-semibold text-base-content px-1">{% trans "Personal information" %}</p>
+        {# ── Personal Information ──────────────────────────────────────── #}
+        <section class="flex flex-col gap-2">
+            <p class="text-xs font-semibold text-base-content px-1">
+                {% trans "Personal information" %}
+            </p>
 
-    <form
-      method="post"
-      enctype="multipart/form-data"
-      class="card bg-primary-content rounded-md border border-gray-200 shadow-[0_1px_3px_rgba(0,0,0,0.1),0_1px_2px_rgba(0,0,0,0.06)] p-4 flex flex-col gap-4"
-      onsubmit="this.querySelector('button[type=submit]').disabled = true;"
-    >
-      {% csrf_token %}
+            <form method="post"
+                  enctype="multipart/form-data"
+                  class="card bg-primary-content rounded-md border border-gray-200 shadow-[0_1px_3px_rgba(0,0,0,0.1),0_1px_2px_rgba(0,0,0,0.06)] p-4 flex flex-col gap-4"
+                  onsubmit="this.querySelector('button[type=submit]').disabled = true;">
+                {% csrf_token %}
 
-      {# Avatar row #}
-      <div class="flex items-center justify-between">
-        <div class="avatar">
-          <div class="w-16 rounded-full ring-2 ring-base-100">
-            {% if profile.image %}
-              <img src="{{ profile.image.url }}" alt="{% trans 'Profile photo' %}" id="avatar-preview" />
-            {% else %}
-              <img
-                src="https://ui-avatars.com/api/?name={{ profile.full_name|urlencode }}&background=random"
-                alt="{% trans 'Profile photo' %}"
-                id="avatar-preview"
-              />
+                {# Avatar row #}
+                <div class="flex items-center justify-between">
+                    <div class="avatar">
+                        <div class="w-16 rounded-full ring-2 ring-base-100">
+                            {% if profile.image %}
+                                <img src="{{ profile.image.url }}"
+                                     alt="{% trans 'Profile photo' %}"
+                                     id="avatar-preview" />
+                            {% else %}
+                                <img src="https://ui-avatars.com/api/?name={{ profile.full_name|urlencode }}&background=random"
+                                     alt="{% trans 'Profile photo' %}"
+                                     id="avatar-preview" />
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-3">
+                        <label for="id_image"
+                               class="btn btn-sm bg-base-200 border border-base-300 rounded-sm cursor-pointer">
+                            {% include "icons/pencil.svg" %}
+
+                            {% trans "Edit" %}
+                        </label>
+
+                        <button type="button"
+                                onclick="openDeleteModal()"
+                                id="delete-avatar-btn"
+                                class="btn btn-sm btn-error btn-soft rounded-sm"
+                                {% if not profile.image %}disabled{% endif %}>
+                            {% include "icons/trash.svg" %}
+
+                            {% trans "Delete" %}
+                        </button>
+                    </div>
+
+                    {# Hidden file input rendered by the form widget #}
+                    {{ form.image }}
+                </div>
+
+                <c-divider class="my-0" />
+
+                {# Personal fields #}
+                <c-form.field label="First name"
+                              name="{{ form.first_name.html_name }}"
+                              id="{{ form.first_name.id_for_label }}"
+                              type="text"
+                              value="{{ form.first_name.value }}"
+                              errors="{{ form.first_name.errors.0 }}" />
+
+                <c-form.field label="Last name"
+                              name="{{ form.last_name.html_name }}"
+                              id="{{ form.last_name.id_for_label }}"
+                              type="text"
+                              value="{{ form.last_name.value }}"
+                              errors="{{ form.last_name.errors.0 }}" />
+
+                <c-form.field label="Email"
+                              name="{{ form.email.html_name }}"
+                              id="{{ form.email.id_for_label }}"
+                              type="email"
+                              value="{{ form.email.value }}"
+                              autocomplete="email"
+                              errors="{{ form.email.errors.0 }}" />
+
+                <c-form.textarea label="About yourself"
+                                 name="{{ form.bio.html_name }}"
+                                 id="{{ form.bio.id_for_label }}"
+                                 value="{{ form.bio.value|default:'' }}"
+                                 placeholder="Tell others a bit about yourself"
+                                 max_length="200"
+                                 rows="4"
+                                 errors="{{ form.bio.errors.0 }}" />
+
+                <div class="flex justify-end pt-1">
+                    <button type="submit" class="btn btn-primary rounded-md">
+                        {% trans "Update profile" %}
+                    </button>
+                </div>
+            </form>
+        </section>
+
+        {# ── Security ──────────────────────────────────────────────────── #}
+        <section class="flex flex-col gap-2 ">
+            <p class="text-xs font-semibold text-base-content px-1">
+                {% trans "Security" %}
+            </p>
+
+            {% url 'account_change_password' as change_password_url %}
+            {% if change_password_url %}
+                <c-profile.nav-row href="{{ change_password_url }}" label="Change password" />
             {% endif %}
-          </div>
-        </div>
+        </section>
 
-        <div class="flex items-center gap-3">
-          <label for="id_image" class="btn btn-sm bg-base-200 border border-base-300 rounded-sm cursor-pointer">
-            {% include "icons/pencil.svg" %}
-            {% trans "Edit" %}
-          </label>
-
-          <button
-            type="button"
-            onclick="openDeleteModal()"
-            id="delete-avatar-btn"
-            class="btn btn-sm btn-error btn-soft rounded-sm"
-            {% if not profile.image %}disabled{% endif %}
-          >
-            {% include "icons/trash.svg" %}
-            {% trans "Delete" %}
-          </button>
-        </div>
-
-        {# Hidden file input rendered by the form widget #}
-        {{ form.image }}
-      </div>
-
-      <c-divider class="my-0" />
-
-      {# Personal fields #}
-      <c-form.field
-        label="First name"
-        name="{{ form.first_name.html_name }}"
-        id="{{ form.first_name.id_for_label }}"
-        type="text"
-        value="{{ form.first_name.value }}"
-        errors="{{ form.first_name.errors.0 }}"
-      />
-
-      <c-form.field
-        label="Last name"
-        name="{{ form.last_name.html_name }}"
-        id="{{ form.last_name.id_for_label }}"
-        type="text"
-        value="{{ form.last_name.value }}"
-        errors="{{ form.last_name.errors.0 }}"
-      />
-
-      <c-form.field
-        label="Email"
-        name="{{ form.email.html_name }}"
-        id="{{ form.email.id_for_label }}"
-        type="email"
-        value="{{ form.email.value }}"
-        autocomplete="email"
-        errors="{{ form.email.errors.0 }}"
-      />
-
-      <c-form.textarea
-        label="About yourself"
-        name="{{ form.bio.html_name }}"
-        id="{{ form.bio.id_for_label }}"
-        value="{{ form.bio.value|default:'' }}"
-        placeholder="Tell others a bit about yourself"
-        max_length="200"
-        rows="4"
-        errors="{{ form.bio.errors.0 }}"
-      />
-
-      <div class="flex justify-end pt-1">
-        <button type="submit" class="btn btn-primary rounded-md">
-          {% trans "Update profile" %}
-        </button>
-      </div>
-    </form>
-  </section>
-
-  {# ── Security ──────────────────────────────────────────────────── #}
-  <section class="flex flex-col gap-2 ">
-    <p class="text-xs font-semibold text-base-content px-1">{% trans "Security" %}</p>
-
-    {% url 'account_change_password' as change_password_url %}
-    {% if change_password_url %}
-      <c-profile.nav-row href="{{ change_password_url }}" label="Change password" />
-    {% endif %}
-  </section>
-
-  {# ── Account ───────────────────────────────────────────────────── #}
-  <!-- <section class="flex flex-col gap-2">
+        {# ── Account ───────────────────────────────────────────────────── #}
+        <!-- <section class="flex flex-col gap-2">
     <p class="text-xs font-semibold text-base-content px-1">{% trans "Account" %}</p>
 
     <div class="card bg-primary-content border border-gray-200 shadow-sm rounded-md flex flex-row items-center justify-between px-4 py-3">
       <span class="text-sm font-medium text-base-content">{% trans "Delete account" %}</span>
       {# TODO: wire up delete-account view — see borrowd_users/views.py #}
-      <button
-        type="button"
-        class="btn btn-sm btn-error btn-soft rounded-sm"
-        disabled
-
-      >
+      <button type="button" class="btn btn-sm btn-error btn-soft rounded-sm" disabled>
         {% include "icons/trash.svg" %}
         {% trans "Delete" %}
       </button>
     </div>
-  </section> -->
+</section> -->
 
-</div>
-
-{# ── Delete profile picture confirmation modal ────────────────── #}
-<dialog id="delete-avatar-modal" class="modal modal-bottom sm:modal-middle">
-  <div class="modal-box rounded-t-2xl sm:rounded-2xl p-6 max-w-lg max-h-[70rem]">
-    <form method="dialog">
-      <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">
-        {% include "icons/x-mark.svg" %}
-      </button>
-    </form>
-
-    <h3 class="text-xl font-bold leading-7 p-5">{% trans "Are you sure you want to delete your profile picture?" %}</h3>
-    <p class="px-5 py-2 leading-7 text-xl">{% trans "We advise everyone to have a profile picture so they can identify each other." %}</p>
-
-    <div class="modal-action justify-end pt-6 gap-3">
-      <form method="dialog">
-        <button class="btn btn-ghost font-semibold">{% trans "No, cancel" %}</button>
-      </form>
-      <button type="button" onclick="confirmDeleteAvatar()" class="btn btn-soft btn-error font-semibold">
-        {% trans "Yes, delete" %}
-      </button>
     </div>
-  </div>
-  <form method="dialog" class="modal-backdrop">
-    <button>close</button>
-  </form>
-</dialog>
 
-<script>
+    {# ── Delete profile picture confirmation modal ────────────────── #}
+    <dialog id="delete-avatar-modal" class="modal modal-bottom sm:modal-middle">
+        <div class="modal-box rounded-t-2xl sm:rounded-2xl p-6 max-w-lg max-h-[70rem]">
+            <form method="dialog">
+                <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">
+                    {% include "icons/x-mark.svg" %}
+
+                </button>
+            </form>
+
+            <h3 class="text-xl font-bold leading-7 p-5">
+                {% trans "Are you sure you want to delete your profile picture?" %}
+            </h3>
+            <p class="px-5 py-2 leading-7 text-xl">
+                {% trans "We advise everyone to have a profile picture so they can identify each other." %}
+            </p>
+
+            <div class="modal-action justify-end pt-6 gap-3">
+                <form method="dialog">
+                    <button class="btn btn-ghost font-semibold">
+                        {% trans "No, cancel" %}
+                    </button>
+                </form>
+                <button type="button"
+                        onclick="confirmDeleteAvatar()"
+                        class="btn btn-soft btn-error font-semibold">
+                    {% trans "Yes, delete" %}
+                </button>
+            </div>
+        </div>
+        <form method="dialog" class="modal-backdrop">
+            <button>
+                close
+            </button>
+        </form>
+    </dialog>
+
+    <script>
   const imageInput = document.getElementById('id_image');
   const avatarPreview = document.getElementById('avatar-preview');
   const deleteBtn = document.getElementById('delete-avatar-btn');
@@ -209,5 +213,5 @@
     .catch(function () { showToast('An error occurred while deleting your profile picture.'); })
     .finally(function () { modal.close(); });
   }
-</script>
+    </script>
 {% endblock %}

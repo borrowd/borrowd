@@ -1,51 +1,43 @@
-{% extends "layouts/default.html" %} {% load static %} {% block content %}
-<section
-  class="flex flex-col items-center justify-center min-h-[344px] gap-7 md:gap-8 px-[40px] py-[12px]"
->
-  <!-- Progress bar -->
-  <progress
-    class="progress progress-primary w-[224px] md:w-[340px] h-[10px] md:h-[16px]"
-    value="70"
-    max="100"
-  ></progress>
+{% extends "layouts/default.html" %}
 
-  <a
-    href="/onboarding/2"
-    class="self-start text-sm text-[#2C51A1] font-medium hover:underline flex items-center gap-1"
-  >
-    &larr; Back
-  </a>
+{% load static %}
 
-  <img
-    class="w-[157px] h-[105px] md:w-[220px] md:h-[130px] object-contain"
-    src="{% static 'Onboarding Step 3 - Trust Levels.PNG' %}"
-  />
+{% block content %}
+    <section class="flex flex-col items-center justify-center min-h-[344px] gap-7 md:gap-8 px-[40px] py-[12px]">
+        <!-- Progress bar -->
+        <progress class="progress progress-primary w-[224px] md:w-[340px] h-[10px] md:h-[16px]"
+                  value="70"
+                  max="100"></progress>
 
-  <div class="w-full max-w-[42ch] flex flex-col gap-8">
-    <h2
-      class="text-center text-[24px] font-normal leading-[120%] font-roboto-slab"
-    >
-      Trust Levels
-    </h2>
+        <a href="/onboarding/2"
+           class="self-start text-sm text-[#2C51A1] font-medium hover:underline flex items-center gap-1">
+            &larr; Back
+        </a>
 
-    <p class="text-[16px] leading-[140%]">
-      Some items — like electronics, specialized tools, or anything valuable, fragile, or personal — can be marked as <span class="font-bold">High trust</span>.
-    </p>
+        <img class="w-[157px] h-[105px] md:w-[220px] md:h-[130px] object-contain"
+             src="{% static 'Onboarding Step 3 - Trust Levels.PNG' %}" />
 
-    <p class="text-[16px] leading-[140%]">
-      High-trust items are only visible to, and can only be borrowed by, people in groups you’ve marked as <span class="font-bold">High trust</span>.
-    </p>
+        <div class="w-full max-w-[42ch] flex flex-col gap-8">
+            <h2 class="text-center text-[24px] font-normal leading-[120%] font-roboto-slab">
+                Trust Levels
+            </h2>
 
-    <p class="text-[16px] leading-[140%]">
-      Your trust settings are private and always under your control.
-    </p>
-  </div>
+            <p class="text-[16px] leading-[140%]">
+                Some items — like electronics, specialized tools, or anything valuable, fragile, or personal — can be marked as <span class="font-bold">High trust</span>.
+            </p>
 
-  <a
-    href="{% url 'onboarding_complete' %}"
-    class="bg-[#2C51A1] text-white py-2 px-6 md:px-10 rounded-lg mt-10 font-medium shadow-md hover:shadow-lg hover:bg-[#25448A] active:scale-[0.98] transition"
-  >
-    Get started
-  </a>
-</section>
+            <p class="text-[16px] leading-[140%]">
+                High-trust items are only visible to, and can only be borrowed by, people in groups you’ve marked as <span class="font-bold">High trust</span>.
+            </p>
+
+            <p class="text-[16px] leading-[140%]">
+                Your trust settings are private and always under your control.
+            </p>
+        </div>
+
+        <a href="{% url 'onboarding_complete' %}"
+           class="bg-[#2C51A1] text-white py-2 px-6 md:px-10 rounded-lg mt-10 font-medium shadow-md hover:shadow-lg hover:bg-[#25448A] active:scale-[0.98] transition">
+            Get started
+        </a>
+    </section>
 {% endblock %}

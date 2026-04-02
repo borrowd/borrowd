@@ -1,9 +1,7 @@
 {% load button_styles %}
+
 <button {{ attrs }}
-  class="inline-block w-fit font-medium py-2 px-4 rounded transition-colors duration-200 border-2
-    {% if danger %}{{ 'red'|button_bg_color }} {{ 'red'|button_text_color }} {{ 'red'|button_border_color }}
-    {% else %}{{ 'blue'|button_bg_color }} {{ 'blue'|button_text_color }} {{ 'blue'|button_border_color }}
-    {% endif %}"
-  {% if danger %} onclick="return confirm('Are you sure you want to proceed?');"{% endif %}>
+        class="inline-block w-fit font-medium py-2 px-4 rounded transition-colors duration-200 border-2 {% if danger %}{{ 'red'|button_bg_color }} {{ 'red'|button_text_color }} {{ 'red'|button_border_color }} {% else %}{{ 'blue'|button_bg_color }} {{ 'blue'|button_text_color }} {{ 'blue'|button_border_color }} {% endif %}"
+        {% if danger %} onclick="return confirm('Are you sure you want to proceed?');"{% endif %}>
     {{ slot }}
 </button>

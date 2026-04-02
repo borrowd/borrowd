@@ -1,49 +1,45 @@
 <div class="{{ class|default:'' }}">
-  {% if title %}
-  <c-h2>{{title}}</c-h2>
-  {% endif %}
-  <div
-    class="flex flex-wrap gap-4 justify-start items-stretch content-start md:grid md:grid-cols-2 md:items-stretch"
-  >
-    {% if not item_cards %}
-    <div class="flex flex-col gap-5 items-center py-16 px-4 md:col-span-2">
-      {% load static %}
-      <img
-        src="{% static 'items/no-items-img.png' %}"
-        alt="Add an item"
-        class="max-w-40 h-auto"
-      />
-      <p class="text-base text-base-content text-center leading-normal">
-        Add an item to begin your borrowing journey!
-      </p>
+    {% if title %}
+        <c-h2>
+            {{ title }}
+        </c-h2>
+    {% endif %}
+    <div class="flex flex-wrap gap-4 justify-start items-stretch content-start md:grid md:grid-cols-2 md:items-stretch">
+        {% if not item_cards %}
+            <div class="flex flex-col gap-5 items-center py-16 px-4 md:col-span-2">
+                {% load static %}
 
-      <!-- todo: remove the styling on this because component should handle -->
-      <c-button-nav
-        url="{% url 'item-create' %}"
-        class="btn btn-primary btn-lg"
-      >
-        Add an item
-      </c-button-nav>
+                <img src="{% static 'items/no-items-img.png' %}"
+                     alt="Add an item"
+                     class="max-w-40 h-auto" />
+                <p class="text-base text-base-content text-center leading-normal">
+                    Add an item to begin your borrowing journey!
+                </p>
+
+                <!-- todo: remove the styling on this because component should handle -->
+                <c-button-nav url="{% url 'item-create' %}" class="btn btn-primary btn-lg">
+                    Add an item
+                </c-button-nav>
+            </div>
+        {% endif %}
+
+        {% for item_ctx in item_cards %}
+            <c-items.item-card pk="{{ item_ctx.pk }}"
+                               context="{{ item_ctx.context }}"
+                               name="{{ item_ctx.name }}"
+                               description="{{ item_ctx.description }}"
+                               image="{{ item_ctx.image }}"
+                               banner_type="{{ item_ctx.banner_type }}"
+                               banner_bg="{{ item_ctx.banner_bg }}"
+                               banner_text="{{ item_ctx.banner_text }}"
+                               :banner_icon="item_ctx.banner_icon"
+                               :is_yours="item_ctx.is_yours"
+                               person_name="{{ item_ctx.person_name }}"
+                               person_url="{{ item_ctx.person_url }}"
+                               time_ago="{{ item_ctx.time_ago }}"
+                               :item="item_ctx.item"
+                               :action_context="item_ctx.action_context"
+                               :show_actions="item_ctx.show_actions" />
+        {% endfor %}
     </div>
-    {% endif %} {% for item_ctx in item_cards %}
-    <c-items.item-card
-      pk="{{ item_ctx.pk }}"
-      context="{{ item_ctx.context }}"
-      name="{{ item_ctx.name }}"
-      description="{{ item_ctx.description }}"
-      image="{{ item_ctx.image }}"
-      banner_type="{{ item_ctx.banner_type }}"
-      banner_bg="{{ item_ctx.banner_bg }}"
-      banner_text="{{ item_ctx.banner_text }}"
-      :banner_icon="item_ctx.banner_icon"
-      :is_yours="item_ctx.is_yours"
-      person_name="{{ item_ctx.person_name }}"
-      person_url="{{ item_ctx.person_url }}"
-      time_ago="{{ item_ctx.time_ago }}"
-      :item="item_ctx.item"
-      :action_context="item_ctx.action_context"
-      :show_actions="item_ctx.show_actions"
-    />
-    {% endfor %}
-  </div>
 </div>

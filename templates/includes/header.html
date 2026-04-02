@@ -1,5 +1,6 @@
 {% load static %}
 {% load i18n %}
+
 <!-- Navbar -->
 <div class="navbar bg-white shadow-sm sticky top-0 z-50">
     <div class="navbar-start">
@@ -18,75 +19,82 @@
     </div>
     <div class="navbar-center">
         {% if user.is_authenticated %}
-        <a href="{% url 'item-list' %}" class="btn btn-ghost">
-        {% else %}
-        <a href="{% url 'index' %}" class="btn btn-ghost">
-        {% endif %}
-            <img class="w-30"
-                 src="{% static 'borrowd-logo.svg' %}"
-                 alt="Borrow'd's logo, complete with friendly bumble bee" />
-        </a>
-    </div>
-    <div class="navbar-end">
-        {% if user.is_authenticated %}
-            <!-- currently empty. Avatar picture in future? -->
-            <div class="w-12"></div>
-        {% endif %}
-    </div>
-</div>
-<!-- Drawer/Sidebar -->
-{% if user.is_authenticated %}
-    <div class="drawer">
-        <input id="main-drawer" type="checkbox" class="drawer-toggle" />
-        <div class="drawer-content"></div>
-        <div class="drawer-side z-40">
-            <label for="main-drawer" aria-label="close sidebar" class="drawer-overlay"></label>
-            <ul class="menu bg-white min-h-full w-80 pt-20 px-4 pb-4 shadow-xl">
-                <li>
-                    <a href="{% url 'item-list' %}" class="flex items-center gap-3 py-3">
-                        <i class="fas fa-magnifying-glass text-lg"></i>
-                        <span>Search</span>
-                    </a>
-                </li>
-                <li>
-                    <a href="{% url 'borrowd_groups:group-list' %}"
-                       class="flex items-center gap-3 py-3">
-                        <i class="fas fa-users text-lg"></i>
-                        <span>Groups</span>
-                    </a>
-                </li>
-                <li>
-                    <a href="{% url 'profile-inventory' %}"
-                       class="flex items-center gap-3 py-3">
-                        <i class="fas fa-box text-lg"></i>
-                        <span>Inventory</span>
-                    </a>
-                </li>
-                <li>
-                    <a href="{% url 'profile' %}" class="flex items-center gap-3 py-3">
-                        <i class="fas fa-user text-lg"></i>
-                        <span>My Profile</span>
-                    </a>
-                </li>
-                <li>
-                    <a href="https://borrowd.org/faq/" target="_blank" rel="noopener noreferrer" class="flex items-center gap-3 py-3">
-                        <i class="fas fa-circle-question text-lg"></i>
-                        <span>FAQ</span>
-                    </a>
-                </li>
-                <li>
-                    <form class="w-full flex flex-col flex-1"
-                          method="POST"
-                          action="{% url 'account_logout' %}"
-                          onsubmit="this.querySelector('button[type=submit]').disabled = true">
-                        {% csrf_token %}
-                        <button type="submit" class="flex items-center gap-3 py-3 w-full text-left cursor-pointer">
-                            <i class="fas fa-right-from-bracket text-lg"></i>
-                            <span>Logout</span>
-                        </button>
-                    </form>
-                </li>
-            </ul>
+            <a href="{% url 'item-list' %}" class="btn btn-ghost">
+            {% else %}
+                <a href="{% url 'index' %}" class="btn btn-ghost">
+                {% endif %}
+                <img class="w-30"
+                     src="{% static 'borrowd-logo.svg' %}"
+                     alt="Borrow'd's logo, complete with friendly bumble bee" />
+            </a>
+        </div>
+        <div class="navbar-end">
+            {% if user.is_authenticated %}
+                <!-- currently empty. Avatar picture in future? -->
+                <div class="w-12">
+                </div>
+            {% endif %}
         </div>
     </div>
-{% endif %}
+    <!-- Drawer/Sidebar -->
+    {% if user.is_authenticated %}
+        <div class="drawer">
+            <input id="main-drawer" type="checkbox" class="drawer-toggle" />
+            <div class="drawer-content">
+            </div>
+            <div class="drawer-side z-40">
+                <label for="main-drawer" aria-label="close sidebar" class="drawer-overlay">
+                </label>
+                <ul class="menu bg-white min-h-full w-80 pt-20 px-4 pb-4 shadow-xl">
+                    <li>
+                        <a href="{% url 'item-list' %}" class="flex items-center gap-3 py-3">
+                            <i class="fas fa-magnifying-glass text-lg"></i>
+                            <span>Search</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'borrowd_groups:group-list' %}"
+                           class="flex items-center gap-3 py-3">
+                            <i class="fas fa-users text-lg"></i>
+                            <span>Groups</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'profile-inventory' %}"
+                           class="flex items-center gap-3 py-3">
+                            <i class="fas fa-box text-lg"></i>
+                            <span>Inventory</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'profile' %}" class="flex items-center gap-3 py-3">
+                            <i class="fas fa-user text-lg"></i>
+                            <span>My Profile</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="https://borrowd.org/faq/"
+                           target="_blank"
+                           rel="noopener noreferrer"
+                           class="flex items-center gap-3 py-3">
+                            <i class="fas fa-circle-question text-lg"></i>
+                            <span>FAQ</span>
+                        </a>
+                    </li>
+                    <li>
+                        <form class="w-full flex flex-col flex-1"
+                              method="POST"
+                              action="{% url 'account_logout' %}"
+                              onsubmit="this.querySelector('button[type=submit]').disabled = true">
+                            {% csrf_token %}
+                            <button type="submit"
+                                    class="flex items-center gap-3 py-3 w-full text-left cursor-pointer">
+                                <i class="fas fa-right-from-bracket text-lg"></i>
+                                <span>Logout</span>
+                            </button>
+                        </form>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    {% endif %}

@@ -22,6 +22,7 @@ Parameters:
 
 {% endcomment %}
 {% load static %}
+
 {% firstof card_id "item-card-"|add:context|add:"-"|add:pk as card_id %}
 {% firstof modal_suffix "-"|add:context|add:"-"|add:pk as modal_suffix %}
 {% firstof actions_container_id "item-card-actions-"|add:context|add:"-"|add:pk as actions_container_id %}
@@ -31,6 +32,7 @@ Parameters:
      class="bg-white rounded-2xl shadow-md overflow-hidden w-full flex flex-col">
     {% if banner_type %}
         {% include "components/items/item_card_header.html" with banner_type=banner_type banner_bg=banner_bg banner_text=banner_text banner_icon=banner_icon person_name=person_name person_url=person_url time_ago=time_ago %}
+
     {% endif %}
 
     <div class="flex flex-col flex-grow">
@@ -38,11 +40,9 @@ Parameters:
             <!-- Thumbnail -->
             <div class="w-1/2 shrink-0">
                 <a href="{% url 'item-detail' pk %}">
-                    <img
-                        src="{{ image|default:'/static/items/categories/logo-tools.png' }}"
-                        alt="{{ name|default:'Item image' }}"
-                        class="w-full aspect-square object-cover rounded-md"
-                    />
+                    <img src="{{ image|default:'/static/items/categories/logo-tools.png' }}"
+                         alt="{{ name|default:'Item image' }}"
+                         class="w-full aspect-square object-cover rounded-md" />
                 </a>
             </div>
 
@@ -54,15 +54,20 @@ Parameters:
                             <span class="text-sm text-gray-900 text-center">Yours</span>
                         </div>
                     {% endif %}
-                    <h3 class="text-base sm:text-xl md:text-2xl font-semibold text-gray-900 line-clamp-2 break-words">{{ name }}</h3>
-                    <p class="text-sm sm:text-base text-gray-900 line-clamp-5 md:line-clamp-[11] mt-2 break-words">{{ description }}</p>
+                    <h3 class="text-base sm:text-xl md:text-2xl font-semibold text-gray-900 line-clamp-2 break-words">
+                        {{ name }}
+                    </h3>
+                    <p class="text-sm sm:text-base text-gray-900 line-clamp-5 md:line-clamp-[11] mt-2 break-words">
+                        {{ description }}
+                    </p>
                 </a>
             </div>
         </div>
         {% if show_actions and action_context.actions %}
-        <div class="mt-auto">
-            {% include "components/items/action_buttons_with_status.html" with item=item action_context=action_context variant="card" container_id=actions_container_id modal_suffix=modal_suffix %}
-        </div>
+            <div class="mt-auto">
+                {% include "components/items/action_buttons_with_status.html" with item=item action_context=action_context variant="card" container_id=actions_container_id modal_suffix=modal_suffix %}
+
+            </div>
         {% endif %}
     </div>
 
@@ -73,5 +78,6 @@ Parameters:
         {% include "components/items/mark_collected_modal.html" with item=item modal_id="confirm-collected-modal"|add:modal_suffix collected_action="CONFIRM_COLLECTED" %}
         {% include "components/items/mark_returned_modal.html" with item=item modal_id="mark-returned-modal"|add:modal_suffix %}
         {% include "components/items/mark_returned_modal.html" with item=item modal_id="confirm-returned-modal"|add:modal_suffix returned_action="CONFIRM_RETURNED" %}
+
     {% endif %}
 </div>

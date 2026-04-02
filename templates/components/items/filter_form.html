@@ -1,73 +1,33 @@
 <!-- Item Filter Form Component -->
-<form method="get" class="flex flex-col gap-4"
-    x-data="{
-        /*
-        * Alpine UI state: which category IDs are currently selected.
-        * Pre-populated from Django form's current value on page load.
-        * (Empty on create, has values on edit.)
-        */
-        selectedIds: [{% for val in filter.form.categories.value %}'{{ val }}'{% if not forloop.last %},{% endif %}{% endfor %}],
-        categories: [{% for choice in filter.form.categories.field.choices %}{ id: '{{ choice.0 }}', name: '{{ choice.1 }}' }{% if not forloop.last %},{% endif %}{% endfor %}],
+<form method="get" class="flex flex-col gap-4" x-data="{ /* * Alpine UI state: which category IDs are currently selected. * Pre-populated from Django form's current value on page load. * (Empty on create, has values on edit.) */ selectedIds: [
+    {% for val in filter.form.categories.value %}
+        '{{ val }}'
+        {% if not forloop.last %}
+            ,
+        {% endif %}
 
-        /* Toggle a category by id: add if not selected, remove if already selected. */
-        toggle(id) {
-            const idx = this.selectedIds.indexOf(id);
-            if (idx === -1) { this.selectedIds.push(id); }
-            else { this.selectedIds.splice(idx, 1); }
-        },
+    {% endfor %}
+    ], categories: [
+    {% for choice in filter.form.categories.field.choices %}
+        { id: '{{ choice.0 }}', name: '{{ choice.1 }}' }
+        {% if not forloop.last %}
+            ,
+        {% endif %}
 
-        isSelected(id) {
-            return this.selectedIds.includes(id);
-        },
-
-         /*
-        * Display text for the trigger button.
-        * No selection: 'Select an item category'
-        * One selected: full category name
-        * Multiple: first name truncated (12 chars) + '... + N more'
-        *   e.g.: 'Home & Kitch... + 3 more'
-        */
-        get buttonText() {
-            if (this.selectedIds.length === 0) return 'Filter by category';
-            const firstName = this.categories.find(c => c.id === this.selectedIds[0])?.name || '';
-            if (this.selectedIds.length === 1) return firstName;
-            const truncated = firstName.length > 12 ? firstName.slice(0, 12) + '...' : firstName;
-            return truncated + ' + ' + (this.selectedIds.length - 1) + ' more';
-        },
-
-        /*
-         * Propagate Alpine's selectedIds state to the hidden select element.
-         * This ensures Django's FilterSet receives the correct category values
-         * when the form is submitted via GET.
-         */
-        writeSelectedIdsToHiddenSelect() {
-            const select = this.$refs.hiddenSelect;
-            for (const opt of select.options) {
-                opt.selected = this.selectedIds.includes(opt.value);
-            }
-        },
-
-        clearFilters() {
-            this.selectedIds = [];
-            this.writeSelectedIdsToHiddenSelect();
-            closeModal('category-filter-modal');
-            this.$el.closest('form').submit();
-        },
-
-        applyFilters() {
-            this.writeSelectedIdsToHiddenSelect();
-            closeModal('category-filter-modal');
-            this.$el.closest('form').submit();
-        }
-    }"
->
+    {% endfor %}
+    ],  /* Toggle a category by id: add if not selected, remove if already selected. */ toggle(id) { const idx = this.selectedIds.indexOf(id); if (idx === -1) { this.selectedIds.push(id); } else { this.selectedIds.splice(idx, 1); } },  isSelected(id) { return this.selectedIds.includes(id); },  /* * Display text for the trigger button. * No selection: 'Select an item category' * One selected: full category name * Multiple: first name truncated (12 chars) + '... + N more' *   e.g.: 'Home & Kitch... + 3 more' */ get buttonText() { if (this.selectedIds.length === 0) return 'Filter by category'; const firstName = this.categories.find(c => c.id === this.selectedIds[0])?.name || ''; if (this.selectedIds.length === 1) return firstName; const truncated = firstName.length > 12 ? firstName.slice(0, 12) + '...' : firstName; return truncated + ' + ' + (this.selectedIds.length - 1) + ' more'; },  /* * Propagate Alpine's selectedIds state to the hidden select element. * This ensures Django's FilterSet receives the correct category values * when the form is submitted via GET. */ writeSelectedIdsToHiddenSelect() { const select = this.$refs.hiddenSelect; for (const opt of select.options) { opt.selected = this.selectedIds.includes(opt.value); } },  clearFilters() { this.selectedIds = []; this.writeSelectedIdsToHiddenSelect(); closeModal('category-filter-modal'); this.$el.closest('form').submit(); },  applyFilters() { this.writeSelectedIdsToHiddenSelect(); closeModal('category-filter-modal'); this.$el.closest('form').submit(); } }">
     <!-- Search bar and button -->
     <div class="flex gap-4 items-start">
         <label class="input input-bordered w-full flex items-center gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="size-5 opacity-50">
+            <svg xmlns="http://www.w3.org/2000/svg"
+                 viewBox="0 0 20 20"
+                 fill="currentColor"
+                 class="size-5 opacity-50">
                 <path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11ZM2 9a7 7 0 1 1 12.452 4.391l3.328 3.329a.75.75 0 1 1-1.06 1.06l-3.329-3.328A7 7 0 0 1 2 9Z" clip-rule="evenodd" />
             </svg>
-            <input type="text" name="{{ filter.form.search.html_name }}" id="{{ filter.form.search.id_for_label }}"
+            <input type="text"
+                   name="{{ filter.form.search.html_name }}"
+                   id="{{ filter.form.search.id_for_label }}"
                    class="grow"
                    value="{{ filter.form.search.value|default:'' }}"
                    placeholder="Search for an item">
@@ -77,21 +37,23 @@
 
     <!-- Category filter trigger badge -->
     <div>
-        <button type="button" @click="showModal('category-filter-modal')"
-            :class="selectedIds.length > 0
-                ? 'badge badge-neutral font-medium text-sm leading-6 cursor-pointer p-3'
-                : 'badge badge-soft font-medium text-sm leading-6 cursor-pointer p-3'">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="size-3">
-                <path d="M10 3.75a2 2 0 1 0-4 0 2 2 0 0 0 4 0ZM17.25 4.5a.75.75 0 0 0 0-1.5h-5.5a.75.75 0 0 0 0 1.5h5.5ZM5 3.75a.75.75 0 0 1-.75.75h-1.5a.75.75 0 0 1 0-1.5h1.5a.75.75 0 0 1 .75.75ZM4.25 17a.75.75 0 0 0 0-1.5h-1.5a.75.75 0 0 0 0 1.5h1.5ZM17.25 17a.75.75 0 0 0 0-1.5h-5.5a.75.75 0 0 0 0 1.5h5.5ZM9 10a2 2 0 1 1 4 0 2 2 0 0 1-4 0ZM7.25 10.75a.75.75 0 0 0 0-1.5h-4.5a.75.75 0 0 0 0 1.5h4.5ZM17.25 10.75a.75.75 0 0 0 0-1.5h-1.5a.75.75 0 0 0 0 1.5h1.5ZM14 16.25a2 2 0 1 0-4 0 2 2 0 0 0 4 0Z"/>
+        <button type="button"
+                @click="showModal('category-filter-modal')"
+                :class="selectedIds.length > 0 ? 'badge badge-neutral font-medium text-sm leading-6 cursor-pointer p-3' : 'badge badge-soft font-medium text-sm leading-6 cursor-pointer p-3'">
+            <svg xmlns="http://www.w3.org/2000/svg"
+                 viewBox="0 0 20 20"
+                 fill="currentColor"
+                 class="size-3">
+                <path d="M10 3.75a2 2 0 1 0-4 0 2 2 0 0 0 4 0ZM17.25 4.5a.75.75 0 0 0 0-1.5h-5.5a.75.75 0 0 0 0 1.5h5.5ZM5 3.75a.75.75 0 0 1-.75.75h-1.5a.75.75 0 0 1 0-1.5h1.5a.75.75 0 0 1 .75.75ZM4.25 17a.75.75 0 0 0 0-1.5h-1.5a.75.75 0 0 0 0 1.5h1.5ZM17.25 17a.75.75 0 0 0 0-1.5h-5.5a.75.75 0 0 0 0 1.5h5.5ZM9 10a2 2 0 1 1 4 0 2 2 0 0 1-4 0ZM7.25 10.75a.75.75 0 0 0 0-1.5h-4.5a.75.75 0 0 0 0 1.5h4.5ZM17.25 10.75a.75.75 0 0 0 0-1.5h-1.5a.75.75 0 0 0 0 1.5h1.5ZM14 16.25a2 2 0 1 0-4 0 2 2 0 0 0 4 0Z" />
             </svg>
             <span x-text="buttonText"></span>
         </button>
         <!-- Inline clear button, only visible when categories are selected -->
         <button type="button"
-            x-show="selectedIds.length > 0"
-            x-cloak
-            @click="selectedIds = []; writeSelectedIdsToHiddenSelect(); $el.closest('form').submit();"
-            class="btn btn-soft btn-primary btn-xs font-semibold">
+                x-show="selectedIds.length > 0"
+                x-cloak
+                @click="selectedIds = []; writeSelectedIdsToHiddenSelect(); $el.closest('form').submit();"
+                class="btn btn-soft btn-primary btn-xs font-semibold">
             Clear
         </button>
     </div>
@@ -108,12 +70,14 @@
             class="hidden">
         {% for choice in filter.form.categories.field.choices %}
             {% with choice_value=choice.0|stringformat:"s" %}
-            <option value="{{ choice_value }}" {% if filter.form.categories.value and choice_value in filter.form.categories.value %}selected{% endif %}>
-                {{ choice.1 }}
-            </option>
+                <option value="{{ choice_value }}"
+                        {% if filter.form.categories.value and choice_value in filter.form.categories.value %}selected{% endif %}>
+                    {{ choice.1 }}
+                </option>
             {% endwith %}
         {% endfor %}
     </select>
 
     {% include "components/items/category_filter_modal.html" with modal_id="category-filter-modal" confirm_button_text="Update search" %}
+
 </form>
