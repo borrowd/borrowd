@@ -353,6 +353,29 @@ class GroupListView(LoginRequiredMixin, FilterView):  # type: ignore[misc]
 
     def get_context_data(self, **kwargs: str) -> dict[str, Any]:
         context: dict[str, Any] = super().get_context_data(**kwargs)
+
+        memberships = list(context.get("object_list", []))
+        moderator_group_ids = [
+            membership.group_id for membership in memberships if membership.is_moderator
+        ]
+        pending_action_group_ids: set[int] = set()
+
+        if moderator_group_ids:
+            pending_action_group_ids = set(
+                Membership.objects.filter(
+                    group_id__in=moderator_group_ids,
+                    status=MembershipStatus.PENDING,
+                ).values_list("group_id", flat=True)
+            )
+
+        for membership in memberships:
+            setattr(
+                membership,
+                "has_pending_actions",
+                membership.is_moderator and membership.group_id in pending_action_group_ids,
+            )
+
+        context["object_list"] = memberships
         context["has_groups"] = Membership.objects.filter(
             user=self.request.user
         ).exists()
