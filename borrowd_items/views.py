@@ -18,7 +18,7 @@ from borrowd_permissions.mixins import (
     LoginOr404PermissionMixin,
 )
 from borrowd_permissions.models import ItemOLP
-from borrowd_users.models import BorrowdUser, SearchTarget, SearchTerm
+from borrowd_users.models import BorrowdUser, SearchTarget, SearchTerm, MenuBadgeState
 
 from .card_helpers import (
     build_item_card_context,
@@ -34,7 +34,7 @@ from .forms import (
     ItemPhotoForm,
     validate_image_size,
 )
-from .models import Item, ItemAction, ItemPhoto
+from .models import Item, ItemAction, ItemPhoto, TransactionStatus
 
 
 def _build_item_action_success_message(item_name: str, action: ItemAction) -> str:
@@ -130,6 +130,15 @@ def borrow_item(request: HttpRequest, pk: int) -> HttpResponse:
 
     try:
         item.process_action(user=user, action=action)
+        if action == ItemAction.REQUEST_ITEM:
+            MenuBadgeState.for_user(item.owner).increment_inventory()
+
+        elif action == ItemAction.ACCEPT_REQUEST:
+            latest_request = item.transactions.filter(
+                status=TransactionStatus.ACCEPTED
+            ).order_by("-updated_at").first()
+            if latest_request is not None:
+                MenuBadgeState.for_user(latest_request.party2).increment_inventory()
     except ItemAlreadyRequested:
         _add_message_safe(
             request,

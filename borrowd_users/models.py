@@ -130,3 +130,46 @@ class SearchTerm(models.Model):
             term_raw=cleaned,
             term_normalized=normalized,
         )
+
+class MenuBadgeState(models.Model):
+    user = models.OneToOneField(
+        BorrowdUser,
+        on_delete=models.CASCADE,
+        related_name="menu_badges",
+    )
+    inventory_count = models.PositiveIntegerField(default=0)
+    groups_count = models.PositiveIntegerField(default=0)
+    hamburger_dot_visible = models.BooleanField(default=False)
+
+    def __str__(self) -> str:
+        return f"MenuBadgeState<{self.user_id}>"
+    
+    @classmethod
+    def for_user(cls, user: BorrowdUser) -> "MenuBadgeState":
+        state, _ = cls.objects.get_or_create(user=user)
+        return state
+    
+    def increment_inventory(self, amount: int = 1) -> None:
+        self.inventory_count += amount
+        self.hamburger_dot_visible = True
+        self.save(update_fields=["inventory_count", "hamburger_dot_visible"])
+
+    def increment_groups(self, amount: int = 1) -> None:
+        self.groups_count += amount
+        self.hamburger_dot_visible = True
+        self.save(update_fields=["groups_count", "hamburger_dot_visible"])
+
+    def clear_inventory(self) -> None:
+        if self.inventory_count != 0:
+            self.inventory_count = 0
+            self.save(update_fields=["inventory_count"])
+
+    def clear_groups(self) -> None:
+        if self.groups_count != 0:
+            self.groups_count = 0
+            self.save(update_fields=["groups_count"])
+
+    def clear_hamburger_dot(self) -> None:
+        if self.hamburger_dot_visible:
+            self.hamburger_dot_visible = False
+            self.save(update_fields=["hamburger_dot_visible"])

@@ -98,6 +98,7 @@ TEMPLATES = [
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
                 "borrowd_beta.context_processors.beta_status",
+                "borrowd_users.context_processors.menu_badges",
             ],
         },
     },

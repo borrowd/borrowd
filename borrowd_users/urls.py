@@ -7,6 +7,7 @@ from .views import (
     profile_view,
     public_profile_view,
     search_terms_export_view,
+    menu_badges_drawer_open_view
 )
 
 urlpatterns = [
@@ -16,4 +17,6 @@ urlpatterns = [
     path("signup/", CustomSignupView.as_view(), name="custom_signup"),
     path("inventory/", inventory_view, name="profile-inventory"),
     path("<int:user_id>/", public_profile_view, name="public-profile"),
+    path("menu-badges/drawer-open/",menu_badges_drawer_open_view, name="menu-badges-drawer-open",
+),
 ]

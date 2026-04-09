@@ -1,5 +1,4 @@
 from typing import Any
-
 from allauth.account.views import PasswordChangeView
 from django.contrib import messages
 from django.contrib.auth import login
@@ -27,8 +26,15 @@ from borrowd_items.card_helpers import (
 from borrowd_items.models import Item, ItemStatus, Transaction
 
 from .forms import ChangePasswordForm, CustomSignupForm, ProfileUpdateForm
-from .models import BorrowdUser, SearchTarget, SearchTerm
+from .models import BorrowdUser, MenuBadgeState, SearchTarget, SearchTerm
 
+
+@login_required
+@require_POST
+def menu_badges_drawer_open_view(request: HttpRequest) -> JsonResponse:
+    user: BorrowdUser = request.user
+    MenuBadgeState.for_user(user).clear_hamburger_dot()
+    return JsonResponse({"ok": True})
 
 def build_profile_context(
     subject_user: BorrowdUser,
@@ -169,6 +175,9 @@ def inventory_view(request: HttpRequest) -> HttpResponse:
     5. owned_items_available      — user's items with no active transactions
     """
     user: BorrowdUser = request.user  # type: ignore[assignment]
+
+    badge_state = MenuBadgeState.for_user(user)
+    badge_state.clear_inventory()
 
     # All transactions associated with the user with status == REQUESTED (awaiting approval from someone)
     requested_transactions = Transaction.get_requested_status_transactions_for_user(

@@ -6,7 +6,10 @@
     <div class="navbar-start">
         <!-- If authed, show 🍔  -->
         {% if user.is_authenticated %}
-            <label for="main-drawer" class="btn btn-ghost btn-circle">
+            <label for="main-drawer" class="btn btn-ghost btn-circle relative">
+                {% if menu_badges and menu_badges.hamburger_dot_visible %}
+                    <span data-menu-hamburger-dot class="absolute right-1 top-1 inline-block h-2 w-2 rounded-full bg-primary"></span>
+                {% endif %}                
                 <svg xmlns="http://www.w3.org/2000/svg"
                      class="h-5 w-5"
                      fill="none"
@@ -54,16 +57,32 @@
                     </li>
                     <li>
                         <a href="{% url 'borrowd_groups:group-list' %}"
-                           class="flex items-center gap-3 py-3">
-                            <i class="fas fa-users text-lg"></i>
-                            <span>Groups</span>
+                           class="flex items-center justify-between py-3">
+                           <div class="flex items-center gap-3">
+                                <i class="fas fa-users text-lg"></i>
+                                <span>Groups</span>
+                           </div>
+                            
+                            {% if menu_badges and menu_badges.groups_count > 0 %}
+                                <span class="badge badge-primary px-2 py-1 text-xs">
+                                    {{ menu_badges.groups_count }}
+                                </span>
+                            {% endif %}
                         </a>
                     </li>
                     <li>
                         <a href="{% url 'profile-inventory' %}"
-                           class="flex items-center gap-3 py-3">
-                            <i class="fas fa-box text-lg"></i>
-                            <span>Inventory</span>
+                           class="flex items-center justify-between py-3">
+                            <div class="flex items-center gap-3">
+                                <i class="fas fa-box text-lg"></i>
+                                <span>Inventory</span>
+                            </div>
+                            
+                            {% if menu_badges and menu_badges.inventory_count > 0 %}
+                                <span class="badge badge-primary px-2 py-1 text-xs">
+                                    {{ menu_badges.inventory_count }}
+                                </span>
+                            {% endif %}
                         </a>
                     </li>
                     <li>

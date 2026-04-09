@@ -37,6 +37,7 @@ from .forms import (
     UpdateTrustLevelForm,
 )
 from .models import BorrowdGroup, Membership, MembershipStatus
+from borrowd_users.models import MenuBadgeState
 
 GroupInvite = namedtuple("GroupInvite", ["group_id", "group_name"])
 
@@ -319,6 +320,17 @@ class GroupJoinView(LoginRequiredMixin, View):  # type: ignore[misc]
             request.user,  # type: ignore[arg-type]
             trust_level=form.cleaned_data["trust_level"],
         )
+
+        if membership.status == MembershipStatus.PENDING:
+            moderator_memberships = Membership.objects.filter(
+                group=group,
+                is_moderator=True,
+                status=MembershipStatus.ACTIVE,
+            ).select_related("user")
+
+            for moderator_membership in moderator_memberships:
+                MenuBadgeState.for_user(moderator_membership.user).increment_groups()
+                
         if membership.status == MembershipStatus.PENDING:
             messages.info(request, "Your request is pending approval by a moderator.")
             return redirect("borrowd_groups:group-list")
@@ -336,9 +348,11 @@ class GroupListView(LoginRequiredMixin, FilterView):  # type: ignore[misc]
     filterset_class = GroupFilter
 
     def get(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
+        user: BorrowdUser = request.user  # type: ignore[assignment]
+        MenuBadgeState.for_user(user).clear_groups()
+
         term = request.GET.get("search")
         if term is not None:
-            user: BorrowdUser = request.user  # type: ignore[assignment]
             SearchTerm.record_search(
                 user=user,
                 target=SearchTarget.GROUPS,
