@@ -1,5 +1,5 @@
 from typing import Never
-
+from django.db.models import F
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.templatetags.static import static
@@ -150,24 +150,30 @@ class MenuBadgeState(models.Model):
         return state
     
     def increment_inventory(self, amount: int = 1) -> None:
-        self.inventory_count += amount
-        self.hamburger_dot_visible = True
-        self.save(update_fields=["inventory_count", "hamburger_dot_visible"])
+        # Atomic update to avoid race conditions
+        MenuBadgeState.objects.filter(pk=self.pk).update(
+            inventory_count=F('inventory_count') + amount,
+            hamburger_dot_visible=True
+        )
+        self.refresh_from_db(fields=["inventory_count", "hamburger_dot_visible"])
 
     def increment_groups(self, amount: int = 1) -> None:
-        self.groups_count += amount
-        self.hamburger_dot_visible = True
-        self.save(update_fields=["groups_count", "hamburger_dot_visible"])
+        # Atomic update to avoid race conditions
+        MenuBadgeState.objects.filter(pk=self.pk).update(
+            groups_count=F('groups_count') + amount,
+            hamburger_dot_visible=True
+        )
+        self.refresh_from_db(fields=["groups_count", "hamburger_dot_visible"])
 
     def clear_inventory(self) -> None:
-        if self.inventory_count != 0:
-            self.inventory_count = 0
-            self.save(update_fields=["inventory_count"])
+        # Atomic clear to avoid race conditions
+        MenuBadgeState.objects.filter(pk=self.pk).update(inventory_count=0)
+        self.refresh_from_db(fields=["inventory_count"])
 
     def clear_groups(self) -> None:
-        if self.groups_count != 0:
-            self.groups_count = 0
-            self.save(update_fields=["groups_count"])
+        # Atomic clear to avoid race conditions
+        MenuBadgeState.objects.filter(pk=self.pk).update(groups_count=0)
+        self.refresh_from_db(fields=["groups_count"])
 
     def clear_hamburger_dot(self) -> None:
         if self.hamburger_dot_visible:
