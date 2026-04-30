@@ -1,7 +1,7 @@
 from django.test import RequestFactory, TestCase
 
 from borrowd.models import TrustLevel
-from borrowd_groups.models import BorrowdGroup, Membership
+from borrowd_groups.models import BorrowdGroup, Membership, MembershipStatus
 from borrowd_items.models import Item
 from borrowd_items.views import ItemListView
 from borrowd_users.models import BorrowdUser
@@ -28,20 +28,6 @@ class ItemListViewVisibilityTests(TestCase):
         ## Get Users
         owner = self.owner
 
-        ## Create Item
-        item1 = Item.objects.create(
-            name="Item 1",
-            description="Description 1",
-            owner=owner,
-            trust_level_required=TrustLevel.STANDARD,
-        )
-        item2 = Item.objects.create(
-            name="Item 2",
-            description="Description 2",
-            owner=owner,
-            trust_level_required=TrustLevel.STANDARD,
-        )
-
         ## Create Group and add member (owner is in by default)
         BorrowdGroup.objects.create(
             name="Test Group",
@@ -63,9 +49,7 @@ class ItemListViewVisibilityTests(TestCase):
         #
         #  Assert
         #
-        self.assertEqual(len(items), 2)
-        self.assertIn(item1, items)
-        self.assertIn(item2, items)
+        self.assertEqual(len(items), 0)  # this view does not show the owner's items
 
     def test_list_items_from_group_membership(self) -> None:
         """
@@ -86,6 +70,8 @@ class ItemListViewVisibilityTests(TestCase):
             name="Item 1",
             description="Description 1",
             owner=owner,
+            created_by=owner,
+            updated_by=owner,
             trust_level_required=TrustLevel.STANDARD,
         )
 
@@ -134,12 +120,16 @@ class ItemListViewVisibilityTests(TestCase):
             name="Item 1",
             description="Description 1",
             owner=owner,
+            created_by=owner,
+            updated_by=owner,
             trust_level_required=TrustLevel.STANDARD,
         )
         item2 = Item.objects.create(
             name="Item 1",
             description="Description 1",
             owner=member,
+            created_by=member,
+            updated_by=member,
             trust_level_required=TrustLevel.STANDARD,
         )
 
@@ -172,13 +162,17 @@ class ItemListViewVisibilityTests(TestCase):
         #
         #  Assert
         #
-        self.assertEqual(len(items_owner), 2)
-        self.assertIn(item1, items_owner)
+        self.assertEqual(
+            len(items_owner), 1
+        )  # this should not show the owner's own item
+        self.assertNotIn(item1, items_owner)
         self.assertIn(item2, items_owner)
 
-        self.assertEqual(len(items_member), 2)
+        self.assertEqual(
+            len(items_member), 1
+        )  # this should not show the member's own item
         self.assertIn(item1, items_member)
-        self.assertIn(item2, items_member)
+        self.assertNotIn(item2, items_member)
 
     def test_list_items_from_group_membership_with_different_trust_level(self) -> None:
         """
@@ -199,12 +193,16 @@ class ItemListViewVisibilityTests(TestCase):
             name="Item High",
             description="Description High",
             owner=owner,
+            created_by=owner,
+            updated_by=owner,
             trust_level_required=TrustLevel.HIGH,
         )
         item_low = Item.objects.create(
             name="Item Low",
             description="Description Low",
             owner=owner,
+            created_by=owner,
+            updated_by=owner,
             trust_level_required=TrustLevel.STANDARD,
         )
 
@@ -249,6 +247,8 @@ class ItemListViewVisibilityTests(TestCase):
             name="Owner Item",
             description="Owned by group owner.",
             owner=owner,
+            created_by=owner,
+            updated_by=owner,
             trust_level_required=TrustLevel.STANDARD,
         )
 
@@ -290,6 +290,8 @@ class ItemListViewVisibilityTests(TestCase):
             name="Owner Item",
             description="Owned by group owner.",
             owner=owner,
+            created_by=owner,
+            updated_by=owner,
             trust_level_required=TrustLevel.STANDARD,
         )
 
@@ -317,3 +319,76 @@ class ItemListViewVisibilityTests(TestCase):
         items_after = ItemListView.as_view()(request).context_data["item_list"]
         self.assertNotIn(item, items_after)
         self.assertEqual(len(items_after), 0)
+
+    def test_pending_member_cannot_see_active_members_group_items(self) -> None:
+        """
+        A pending member should not inherit item visibility from a group
+        until their membership is approved.
+        """
+        owner = self.owner
+        pending_member = self.member
+
+        visible_to_active_members = Item.objects.create(
+            name="Active Member Item",
+            description="Should stay hidden from pending members.",
+            owner=owner,
+            created_by=owner,
+            updated_by=owner,
+            trust_level_required=TrustLevel.STANDARD,
+        )
+
+        group = BorrowdGroup.objects.create(
+            name="Approval Required Group",
+            created_by=owner,
+            updated_by=owner,
+            trust_level=TrustLevel.HIGH,
+            membership_requires_approval=True,
+        )
+        membership = group.add_user(
+            pending_member,
+            trust_level=TrustLevel.STANDARD,
+        )
+
+        request = self.factory.get("/items/")
+        request.user = pending_member
+        items = ItemListView.as_view()(request).context_data["item_list"]
+
+        self.assertEqual(membership.status, MembershipStatus.PENDING)
+        self.assertNotIn(visible_to_active_members, items)
+        self.assertEqual(len(items), 0)
+
+    def test_active_member_cannot_see_pending_members_items(self) -> None:
+        """
+        Items posted by a pending member should not become visible to active
+        members of the group.
+        """
+        active_member = self.owner
+        pending_member = self.member
+
+        group = BorrowdGroup.objects.create(
+            name="Pending Owner Group",
+            created_by=active_member,
+            updated_by=active_member,
+            trust_level=TrustLevel.HIGH,
+            membership_requires_approval=True,
+        )
+        membership = group.add_user(
+            pending_member,
+            trust_level=TrustLevel.STANDARD,
+        )
+        pending_members_item = Item.objects.create(
+            name="Pending Member Item",
+            description="Should stay hidden until approval.",
+            owner=pending_member,
+            created_by=pending_member,
+            updated_by=pending_member,
+            trust_level_required=TrustLevel.STANDARD,
+        )
+
+        request = self.factory.get("/items/")
+        request.user = active_member
+        items = ItemListView.as_view()(request).context_data["item_list"]
+
+        self.assertEqual(membership.status, MembershipStatus.PENDING)
+        self.assertNotIn(pending_members_item, items)
+        self.assertEqual(len(items), 0)

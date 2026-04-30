@@ -13,7 +13,9 @@ def forwards_func(apps, schema_editor):  # type: ignore[no-untyped-def]
     BorrowdGroup = apps.get_model("borrowd_groups", "BorrowdGroup")
     for borrowd_group in BorrowdGroup.objects.all():
         try:
-            perms_group = Group.objects.get(name=borrowd_group.name)
+            perms_group = Group.objects.get(
+                name=f"{borrowd_group.name}_user_{borrowd_group.created_by.pk}"
+            )
             # must use ids here because django complains with an internally inconsistent error
             borrowd_group.perms_group_id = perms_group.id  # type: ignore[attr-defined]
             borrowd_group.save()

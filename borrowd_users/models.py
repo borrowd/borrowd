@@ -1,7 +1,8 @@
-from typing import Never
+from typing import Never, Self
 
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+from django.db.models import DO_NOTHING, SET_NULL, DateTimeField, ForeignKey
 from django.templatetags.static import static
 from guardian.mixins import GuardianUserMixin
 from imagekit.models import ProcessedImageField
@@ -26,6 +27,45 @@ class BorrowdUser(AbstractUser, BorrowdGroupPermissionMixin, GuardianUserMixin):
     # Override the inherited fields to make them required
     first_name: models.CharField[str, str] = models.CharField(max_length=150)
     last_name: models.CharField[str, str] = models.CharField(max_length=150)
+    created_by: ForeignKey[Self] = ForeignKey(
+        "self",
+        related_name="+",  # No reverse relation needed
+        null=True,
+        blank=False,
+        help_text="The user who created the user.",
+        on_delete=DO_NOTHING,
+    )
+    created_at: DateTimeField[Never, Never] = DateTimeField(
+        auto_now_add=True,
+        help_text="The date and time at which the user was created.",
+    )
+    updated_by: ForeignKey[Self] = ForeignKey(
+        "self",
+        related_name="+",  # No reverse relation needed
+        null=True,
+        blank=False,
+        help_text="The last user who updated the user.",
+        on_delete=DO_NOTHING,
+    )
+    updated_at: DateTimeField[Never, Never] = DateTimeField(
+        auto_now=True,
+        help_text="The date and time at which the user was last updated.",
+    )
+    deleted_at: DateTimeField[Never, Never] = DateTimeField(
+        null=True,
+        blank=True,
+        default=None,
+        help_text="Set when the record is soft-deleted. NULL means active.",
+    )
+    deleted_by: ForeignKey[Self] = ForeignKey(
+        "self",
+        null=True,
+        blank=True,
+        default=None,
+        on_delete=SET_NULL,
+        related_name="+",
+        help_text="Who performed the soft-delete. NULL means active or unknown.",
+    )
 
     # Hint for mypy (actual field created from reverse relation)
     profile: "Profile"
@@ -45,6 +85,45 @@ class Profile(models.Model):
     )
     bio: models.CharField[str, str] = models.CharField(
         max_length=200, blank=True, default=""
+    )
+    created_by: ForeignKey[BorrowdUser] = ForeignKey(
+        BorrowdUser,
+        related_name="+",  # No reverse relation needed
+        null=False,
+        blank=False,
+        help_text="The user who created the profile.",
+        on_delete=DO_NOTHING,
+    )
+    created_at: DateTimeField[Never, Never] = DateTimeField(
+        auto_now_add=True,
+        help_text="The date and time at which the profile was created.",
+    )
+    updated_by: ForeignKey[BorrowdUser] = ForeignKey(
+        BorrowdUser,
+        related_name="+",  # No reverse relation needed
+        null=False,
+        blank=False,
+        help_text="The last user who updated the profile.",
+        on_delete=DO_NOTHING,
+    )
+    updated_at: DateTimeField[Never, Never] = DateTimeField(
+        auto_now=True,
+        help_text="The date and time at which the profile was last updated.",
+    )
+    deleted_at: DateTimeField[Never, Never] = DateTimeField(
+        null=True,
+        blank=True,
+        default=None,
+        help_text="Set when the record is soft-deleted. NULL means active.",
+    )
+    deleted_by: ForeignKey[BorrowdUser] = ForeignKey(
+        BorrowdUser,
+        null=True,
+        blank=True,
+        default=None,
+        on_delete=SET_NULL,
+        related_name="+",
+        help_text="Who performed the soft-delete. NULL means active or unknown.",
     )
 
     def full_name(self) -> str:

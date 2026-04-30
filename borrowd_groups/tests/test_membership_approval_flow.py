@@ -101,6 +101,8 @@ class MembershipApprovalFlowTests(TestCase):
         item = Item.objects.create(
             name="Shared Item",
             owner=self.moderator,
+            created_by=self.moderator,
+            updated_by=self.moderator,
             trust_level_required=TrustLevel.STANDARD,
         )
         membership = group.add_user(self.requester, trust_level=TrustLevel.STANDARD)

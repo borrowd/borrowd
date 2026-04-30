@@ -1,10 +1,21 @@
+from typing import Any, cast
+
 from django import forms
 
 from borrowd.models import TrustLevel
 from borrowd_groups.models import BorrowdGroup
+from borrowd_users.models import BorrowdUser
+
+DUPLICATE_GROUP_NAME_ERROR = "You already have a group with this name."
 
 
 class BorrowdGroupForm(forms.ModelForm[BorrowdGroup]):
+    user: BorrowdUser | None
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        self.user = cast(BorrowdUser | None, kwargs.pop("user", None))
+        super().__init__(*args, **kwargs)
+
     class Meta:
         model = BorrowdGroup
 
@@ -52,6 +63,26 @@ class BorrowdGroupForm(forms.ModelForm[BorrowdGroup]):
                 }
             ),
         }
+
+    def clean_name(self) -> str:
+        name = self.cleaned_data.get("name")
+
+        if not name:
+            raise forms.ValidationError("Group name is required.")
+
+        # Check for duplicate group names owned by the same user
+        queryset = BorrowdGroup.objects.filter(
+            name=name,
+            created_by=self.user,
+        )
+
+        if self.instance.pk:
+            queryset = queryset.exclude(pk=self.instance.pk)
+
+        if queryset.exists():
+            raise forms.ValidationError(DUPLICATE_GROUP_NAME_ERROR)
+
+        return name  # type: ignore[no-any-return]
 
 
 class GroupCreateForm(BorrowdGroupForm):

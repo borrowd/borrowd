@@ -102,13 +102,99 @@
         </c-box>
 
         <div class="mt-2 pt-4 flex flex-col gap-2">
+            {% if show_leave_group_button %}
+                {% if leave_group_is_moderator %}
+                    <button type="button"
+                            class="btn btn-soft text-primary w-full mt-4"
+                            onclick="showModal('leave-group-moderator-confirm-modal')">
+                        Leave group
+                    </button>
+                {% elif leave_group_has_active_borrows %}
+                    <button type="button"
+                            class="btn btn-soft text-primary w-full mt-4"
+                            onclick="showModal('leave-group-borrower-modal')">
+                        Leave group
+                    </button>
+                {% elif leave_group_has_active_lends %}
+                    <button type="button"
+                            class="btn btn-soft text-primary w-full mt-4"
+                            onclick="showModal('leave-group-lender-modal')">
+                        Leave group
+                    </button>
+                {% else %}
+                    <button type="button"
+                            class="btn btn-soft text-primary w-full mt-4"
+                            onclick="showModal('leave-group-confirm-modal')">
+                        Leave group
+                    </button>
+                {% endif %}
+            {% endif %}
+
             {% if is_moderator %}
                 <a href="{% url 'borrowd_groups:group-edit' object.pk %}"
-                   class="btn btn-warning w-full btn-soft">
+                   class="btn btn-soft text-primary w-full mt-4">
                     Edit group
                 </a>
             {% endif %}
         </div>
+
+        <form id="leave-group-form"
+              method="post"
+              action="{% url 'borrowd_groups:leave-group' object.pk %}"
+              class="hidden">
+            {% csrf_token %}
+        </form>
+
+        <c-modal modal_id="leave-group-confirm-modal"
+                 modal_title="Are you sure you want to leave this group?"
+                 cancel_button_text="Cancel"
+                 confirm_button_text="Leave group"
+                 confirm_submit_form_id="leave-group-form"
+                 button_layout="end"
+                 cancel_button_class="btn btn-ghost font-semibold"
+                 confirm_button_class="btn btn-error btn-soft font-semibold transition-none hover:scale-100">
+            <p class="text-base leading-8">
+                {% if leave_group_requires_approval_to_rejoin %}
+                    You will need moderator approval to re-join this group later.
+                {% else %}
+                    To continue seeing items shared with this group you will need to re-join later.
+                {% endif %}
+            </p>
+        </c-modal>
+
+        <c-modal modal_id="leave-group-borrower-modal"
+                 modal_title="You have an active borrowing activity with a member of this group."
+                 cancel_button_text="Got it"
+                 cancel_button_class="btn btn-ghost font-semibold">
+            <p class="text-base leading-8">
+                Before you can leave, you must first confirm the return of any borrowed items.
+            </p>
+        </c-modal>
+
+        <c-modal modal_id="leave-group-lender-modal"
+                 modal_title="You have an active lending activity with a member of this group."
+                 cancel_button_text="Got it"
+                 cancel_button_class="btn btn-ghost font-semibold">
+            <p class="text-base leading-8">
+                Before you can leave, you must first confirm the return of any borrowed items.
+            </p>
+        </c-modal>
+
+        <c-modal modal_id="leave-group-moderator-confirm-modal"
+                 modal_title="You're the group moderator. Are you sure you want to leave?"
+                 cancel_button_text="Cancel"
+                 confirm_button_text="Leave group"
+                 confirm_submit_form_id="leave-group-form"
+                 button_layout="end"
+                 cancel_button_class="btn btn-ghost font-semibold"
+                 confirm_button_class="btn btn-error btn-soft font-semibold transition-none hover:scale-100">
+            <p class="text-base leading-8">
+                If you leave, we'll ask another member of the group to take over as moderator.
+                {% if leave_group_requires_approval_to_rejoin %}
+                    Until someone accepts, new members won't be able to join the group.
+                {% endif %}
+            </p>
+        </c-modal>
 
         <c-modal modal_id="trust-level-info-modal"
                  modal_title="Group trust levels"

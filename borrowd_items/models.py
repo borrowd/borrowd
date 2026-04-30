@@ -5,7 +5,9 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import (
     CASCADE,
+    DO_NOTHING,
     PROTECT,
+    SET_NULL,
     CharField,
     DateTimeField,
     ForeignKey,
@@ -126,6 +128,45 @@ class Item(Model):
     transactions: QuerySet["Transaction"]
     subscriptions: QuerySet["AvailabilitySubscription"]
     photos: QuerySet["ItemPhoto"]
+    created_by: ForeignKey[BorrowdUser] = ForeignKey(
+        BorrowdUser,
+        related_name="+",  # No reverse relation needed
+        null=False,
+        blank=False,
+        help_text="The user who created the item.",
+        on_delete=DO_NOTHING,
+    )
+    created_at: DateTimeField[Never, Never] = DateTimeField(
+        auto_now_add=True,
+        help_text="The date and time at which the item was created.",
+    )
+    updated_by: ForeignKey[BorrowdUser] = ForeignKey(
+        BorrowdUser,
+        related_name="+",  # No reverse relation needed
+        null=False,
+        blank=False,
+        help_text="The last user who updated the item.",
+        on_delete=DO_NOTHING,
+    )
+    updated_at: DateTimeField[Never, Never] = DateTimeField(
+        auto_now=True,
+        help_text="The date and time at which the item was last updated.",
+    )
+    deleted_at: DateTimeField[Never, Never] = DateTimeField(
+        null=True,
+        blank=True,
+        default=None,
+        help_text="Set when the record is soft-deleted. NULL means active.",
+    )
+    deleted_by: ForeignKey[BorrowdUser] = ForeignKey(
+        BorrowdUser,
+        null=True,
+        blank=True,
+        default=None,
+        on_delete=SET_NULL,
+        related_name="+",
+        help_text="Who performed the soft-delete. NULL means active or unknown.",
+    )
 
     def __str__(self) -> str:
         return self.name
@@ -498,6 +539,7 @@ class Item(Model):
                 # By convention "party1" is the owner/lender/giver.
                 party1=self.owner,
                 party2=user,
+                created_by=user,
                 updated_by=user,
                 # This is default; just being explicit
                 status=TransactionStatus.REQUESTED,
@@ -640,6 +682,45 @@ class ItemPhoto(Model):
         format="JPEG",
         options={"quality": 75},
     )
+    created_by: ForeignKey[BorrowdUser] = ForeignKey(
+        BorrowdUser,
+        related_name="+",  # No reverse relation needed
+        null=False,
+        blank=False,
+        help_text="The user who created the item photo.",
+        on_delete=DO_NOTHING,
+    )
+    created_at: DateTimeField[Never, Never] = DateTimeField(
+        auto_now_add=True,
+        help_text="The date and time at which the item photo was created.",
+    )
+    updated_by: ForeignKey[BorrowdUser] = ForeignKey(
+        BorrowdUser,
+        related_name="+",  # No reverse relation needed
+        null=False,
+        blank=False,
+        help_text="The last user who updated the item photo.",
+        on_delete=DO_NOTHING,
+    )
+    updated_at: DateTimeField[Never, Never] = DateTimeField(
+        auto_now=True,
+        help_text="The date and time at which the item photo was last updated.",
+    )
+    deleted_at: DateTimeField[Never, Never] = DateTimeField(
+        null=True,
+        blank=True,
+        default=None,
+        help_text="Set when the record is soft-deleted. NULL means active.",
+    )
+    deleted_by: ForeignKey[BorrowdUser] = ForeignKey(
+        BorrowdUser,
+        null=True,
+        blank=True,
+        default=None,
+        on_delete=SET_NULL,
+        related_name="+",
+        help_text="Who performed the soft-delete. NULL means active or unknown.",
+    )
 
     def __str__(self) -> str:
         # error: "_ST" has no attribute "name"  [attr-defined]
@@ -689,19 +770,44 @@ class Transaction(Model):
         default=TransactionStatus.REQUESTED,
         help_text="The current status of the Transaction.",
     )
-    updated_by: ForeignKey[BorrowdUser] = ForeignKey(
-        to=BorrowdUser,
-        on_delete=PROTECT,
+    created_by: ForeignKey[BorrowdUser] = ForeignKey(
+        BorrowdUser,
         related_name="+",  # No reverse relation needed
-        help_text="The User who last updated the Transaction.",
+        null=False,
+        blank=False,
+        help_text="The user who created the transaction.",
+        on_delete=DO_NOTHING,
     )
     created_at: DateTimeField[Never, Never] = DateTimeField(
         auto_now_add=True,
-        help_text="When this Transaction was created.",
+        help_text="The date and time at which the transaction was created.",
+    )
+    updated_by: ForeignKey[BorrowdUser] = ForeignKey(
+        BorrowdUser,
+        related_name="+",  # No reverse relation needed
+        null=False,
+        blank=False,
+        help_text="The last user who updated the transaction.",
+        on_delete=PROTECT,
     )
     updated_at: DateTimeField[Never, Never] = DateTimeField(
         auto_now=True,
-        help_text="When this Transaction was last updated.",
+        help_text="The date and time at which the transaction was last updated.",
+    )
+    deleted_at: DateTimeField[Never, Never] = DateTimeField(
+        null=True,
+        blank=True,
+        default=None,
+        help_text="Set when the record is soft-deleted. NULL means active.",
+    )
+    deleted_by: ForeignKey[BorrowdUser] = ForeignKey(
+        BorrowdUser,
+        null=True,
+        blank=True,
+        default=None,
+        on_delete=SET_NULL,
+        related_name="+",
+        help_text="Who performed the soft-delete. NULL means active or unknown.",
     )
 
     @staticmethod

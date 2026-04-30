@@ -17,9 +17,11 @@ def assign_item_permissions(
     to the owner and relevant Groups.
     """
     owner_borrowd_groups = instance.owner.borrowd_groups.all()  # type: ignore[attr-defined]
-    owner_groups = Group.objects.filter(
-        name__in=owner_borrowd_groups.values_list("name", flat=True)
-    )
+    owner_group_names = [
+        f"{group_name}_user_{instance.owner.pk}"  # type: ignore[attr-defined]
+        for group_name in owner_borrowd_groups.values_list("name", flat=True)
+    ]
+    owner_groups = Group.objects.filter(name__in=owner_group_names)
 
     if created:
         # For new items, assign owner permissions
@@ -40,7 +42,9 @@ def assign_item_permissions(
     allowed_borrowd_groups = owner_borrowd_groups.filter(
         membership__trust_level__gte=instance.trust_level_required
     )
-    allowed_groups = owner_groups.filter(
-        name__in=allowed_borrowd_groups.values_list("name", flat=True)
-    )
+    allowed_group_names = [
+        f"{group_name}_user_{instance.owner.pk}"  # type: ignore[attr-defined]
+        for group_name in allowed_borrowd_groups.values_list("name", flat=True)
+    ]
+    allowed_groups = owner_groups.filter(name__in=allowed_group_names)
     assign_perm(ItemOLP.VIEW, allowed_groups, instance)

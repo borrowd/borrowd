@@ -101,6 +101,7 @@ def profile_view(request: HttpRequest) -> HttpResponse:
     if request.method == "POST":
         form = ProfileUpdateForm(request.POST, request.FILES, instance=profile)
         if form.is_valid():
+            form.instance.updated_by = request.user  # type: ignore[assignment]
             form.save()
             messages.success(request, "Profile updated")
             return redirect("profile")
@@ -137,6 +138,7 @@ def delete_profile_photo_view(request: HttpRequest) -> JsonResponse:
     if profile.image:
         profile.image.delete(save=False)
         profile.image = None
+        profile.updated_by = request.user  # type: ignore[assignment]
         profile.save()
         # Returns json rather than http in order to allow other in-progress fields to be left as-is.
         return JsonResponse(

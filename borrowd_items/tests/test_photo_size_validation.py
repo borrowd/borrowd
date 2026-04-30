@@ -250,6 +250,8 @@ class ItemPhotoFormSizeValidationTests(TestCase):
             name="Item for Photo Tests",
             description="An item to add photos to",
             owner=cls.owner,
+            created_by=cls.owner,
+            updated_by=cls.owner,
             trust_level_required=TrustLevel.STANDARD,
         )
         cls.item.categories.add(cls.category)

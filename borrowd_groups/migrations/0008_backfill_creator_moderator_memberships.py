@@ -24,7 +24,10 @@ def backfill_group_creator_moderator_memberships(
     from django.contrib.auth.models import Group
 
     from borrowd.models import TrustLevel
-    from borrowd_groups.models import BorrowdGroup, Membership, MembershipStatus
+    from borrowd_groups.models import MembershipStatus
+
+    BorrowdGroup = apps.get_model("borrowd_groups", "BorrowdGroup")
+    Membership = apps.get_model("borrowd_groups", "Membership")
 
     all_existing_borrowd_groups = BorrowdGroup.objects.select_related(
         "created_by", "perms_group"

@@ -70,7 +70,7 @@ class ItemFilter(FilterSet):  # type: ignore[misc]
                 ItemOLP.VIEW,
                 klass=Item,
                 with_superuser=False,
-            )
+            ).exclude(owner=self.request.user)
             if self.is_bound:
                 # ensure form validation before filtering
                 self.errors

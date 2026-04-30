@@ -67,8 +67,19 @@ TODO: Transfer over all to daisy */
   --color-borrowd-cancel-light: #f6e7e8;
   --color-borrowd-light-gray: #e6e6ed;
 }
-
-
+@layer utilities {
+  .btn-waitlisted {
+    --btn-fg: #6B7280;
+    --btn-bg: rgb(156 163 175 / 0.15);
+    --btn-border: transparent;
+    --btn-shadow: "";
+    --btn-noise: none;
+    font-weight: 500;
+  }
+  .btn-waitlisted:hover {
+    --btn-bg: rgb(156 163 175 / 0.25);
+  }
+}
 /* Toast alert variants */
 @layer utilities {
   .alert-success {

@@ -101,6 +101,14 @@ For variant='card', also accepts:
                             Notify when available
                         </button>
                     </form>
+                {% elif action.name == 'CANCEL_NOTIFICATION_REQUEST' %}
+                    <form method="POST" action="{% url 'item-borrow' item.pk %}" class="flex-1">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="CANCEL_NOTIFICATION_REQUEST">
+                        <button type="submit" class="btn btn-waitlisted btn-sm md:btn-md w-full">
+                            Cancel notification request
+                        </button>
+                    </form>
                 {% else %}
                     <form method="POST" action="{% url 'item-borrow' item.pk %}" class="flex-1">
                         {% csrf_token %}
@@ -208,6 +216,14 @@ For variant='card', also accepts:
                                 <input type="hidden" name="action" value="CANCEL_REQUEST">
                                 <button type="submit" class="btn btn-soft btn-primary w-full">
                                     Cancel request
+                                </button>
+                            </form>
+                        {% elif action.name == 'CANCEL_NOTIFICATION_REQUEST' %}
+                            <form method="POST" action="{% url 'item-borrow' item.pk %}" class="flex-1">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="CANCEL_NOTIFICATION_REQUEST">
+                                <button type="submit" class="btn btn-waitlisted btn-sm md:btn-md w-full">
+                                    Cancel notification request
                                 </button>
                             </form>
                         {% else %}

@@ -65,6 +65,8 @@ class RejectedFlowTest(SimpleTestCase):
             name="Test Item",
             description="Test Description",
             owner=cls.lender,
+            created_by=cls.lender,
+            updated_by=cls.lender,
             trust_level_required=TrustLevel.STANDARD,
         )
         cls.factory = RequestFactory()
@@ -310,6 +312,8 @@ class AcceptedFlowTest(SimpleTestCase):
             name="Accept Test Item",
             description="Test Description",
             owner=cls.lender,
+            created_by=cls.lender,
+            updated_by=cls.lender,
             trust_level_required=TrustLevel.STANDARD,
         )
         cls.factory = RequestFactory()
@@ -417,6 +421,8 @@ class CancelFromRequestedFlowTest(SimpleTestCase):
             description="Test Description",
             owner=cls.lender,
             trust_level_required=TrustLevel.STANDARD,
+            created_by=cls.lender,
+            updated_by=cls.lender,
         )
         cls.factory = RequestFactory()
 
@@ -499,6 +505,8 @@ class CancelFromAcceptedFlowTest(SimpleTestCase):
             description="Test Description",
             owner=cls.lender,
             trust_level_required=TrustLevel.STANDARD,
+            created_by=cls.lender,
+            updated_by=cls.lender,
         )
         cls.factory = RequestFactory()
 

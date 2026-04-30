@@ -1,10 +1,11 @@
 from collections import namedtuple
-from typing import Any
+from typing import Any, cast
 from urllib.parse import urlencode
 
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 from django.core.signing import SignatureExpired, TimestampSigner
+from django.db.models import Q, QuerySet
 from django.forms import ModelForm
 from django.http import (
     HttpRequest,
@@ -21,6 +22,7 @@ from guardian.mixins import LoginRequiredMixin
 
 from borrowd.models import TrustLevel
 from borrowd.util import BorrowdTemplateFinderMixin
+from borrowd_items.models import Transaction, TransactionStatus
 from borrowd_permissions.mixins import (
     LoginOr403PermissionMixin,
     LoginOr404PermissionMixin,
@@ -31,6 +33,7 @@ from borrowd_users.models import BorrowdUser, SearchTarget, SearchTerm
 from .exceptions import ModeratorRequiredException
 from .filters import GroupFilter
 from .forms import (
+    DUPLICATE_GROUP_NAME_ERROR,
     GroupCreateForm,
     GroupJoinForm,
     GroupUpdateForm,
@@ -61,6 +64,115 @@ def get_members_data(group: BorrowdGroup) -> list[dict[str, Any]]:
             }
         )
     return members_data
+
+
+def _active_group_member_ids(group: BorrowdGroup) -> Any:
+    """
+    Return user IDs of ACTIVE members in the group.
+    """
+    return Membership.objects.filter(
+        group=group,
+        status=MembershipStatus.ACTIVE,
+    ).values_list("user_id", flat=True)
+
+
+def _users_share_another_active_group(
+    user1: BorrowdUser,
+    user2: BorrowdUser,
+    excluding_group: BorrowdGroup,
+) -> bool:
+    """
+    Return True if both users are ACTIVE members of another group
+    besides the one currently being left.
+    """
+    user1_group_ids = (
+        Membership.objects.filter(
+            user=user1,
+            status=MembershipStatus.ACTIVE,
+        )
+        .exclude(group=excluding_group)
+        .values_list("group_id", flat=True)
+    )
+
+    return Membership.objects.filter(
+        user=user2,
+        status=MembershipStatus.ACTIVE,
+        group_id__in=user1_group_ids,
+    ).exists()
+
+
+def _blocking_group_transactions_for_user(
+    user: BorrowdUser,
+    group: BorrowdGroup,
+) -> QuerySet[Transaction]:
+    """
+    Return transactions that should block the user from leaving the group.
+
+    A transaction blocks leaving only when:
+    - it is in a borrowed state, and
+    - both parties are active members of this group, and
+    - the two parties do not remain connected through another active group.
+    """
+    active_member_ids = list(_active_group_member_ids(group))
+
+    candidate_transactions = Transaction.objects.filter(
+        Q(party1=user) | Q(party2=user),
+        status__in=[
+            TransactionStatus.COLLECTED,
+            TransactionStatus.RETURN_ASSERTED,
+        ],
+        party1__in=active_member_ids,
+        party2__in=active_member_ids,
+    ).select_related("party1", "party2")
+
+    blocking_transactions: list[Transaction] = []
+
+    for transaction in candidate_transactions:
+        if transaction.party1 == user:
+            other_party = cast(BorrowdUser, transaction.party2)
+        else:
+            other_party = cast(BorrowdUser, transaction.party1)
+
+        if not _users_share_another_active_group(
+            user1=user,
+            user2=other_party,
+            excluding_group=group,
+        ):
+            blocking_transactions.append(transaction)
+
+    blocking_transaction_ids = [transaction.pk for transaction in blocking_transactions]
+
+    return Transaction.objects.filter(pk__in=blocking_transaction_ids)
+
+
+def user_has_active_transactions_in_group(
+    user: BorrowdUser, group: BorrowdGroup
+) -> bool:
+    """
+    Return True if the user is involved in any blocking transaction
+    for the given group.
+    """
+    return _blocking_group_transactions_for_user(user, group).exists()
+
+
+def user_has_active_borrows_in_group(user: BorrowdUser, group: BorrowdGroup) -> bool:
+    """
+    Return True if the user is currently the borrower (party2)
+    in any blocking transaction for the given group.
+    """
+    return (
+        _blocking_group_transactions_for_user(user, group).filter(party2=user).exists()
+    )
+
+
+def user_has_active_lends_in_group(user: BorrowdUser, group: BorrowdGroup) -> bool:
+    """
+    Return True if the user is currently the lender (party1)
+    in any blocking transaction for the given group.
+    """
+    return (
+        _blocking_group_transactions_for_user(user, group).filter(party1=user).exists()
+    )
 
 
 class InviteSigner:
@@ -99,6 +211,11 @@ class GroupCreateView(
     model = BorrowdGroup
     form_class = GroupCreateForm
 
+    def get_form_kwargs(self) -> dict[str, Any]:
+        kwargs = super().get_form_kwargs()
+        kwargs["user"] = self.request.user
+        return kwargs
+
     def form_valid(self, form: GroupCreateForm) -> HttpResponse:
         if self.request.user.is_authenticated:
             form.instance.created_by_id = form.instance.updated_by_id = (  # type: ignore[attr-defined]
@@ -111,6 +228,13 @@ class GroupCreateView(
         setattr(form.instance, "_temp_trust_level", form.cleaned_data["trust_level"])
 
         return super().form_valid(form)
+
+    def form_invalid(self, form: GroupCreateForm) -> HttpResponse:
+        name_errors: list[str] = [str(error) for error in form.errors.get("name", [])]
+        if DUPLICATE_GROUP_NAME_ERROR in name_errors:
+            messages.error(self.request, DUPLICATE_GROUP_NAME_ERROR)
+
+        return super().form_invalid(form)
 
     def get_success_url(self) -> str:
         if self.object is None:
@@ -146,8 +270,10 @@ class GroupDetailView(
         context["members_data"] = get_members_data(group)
 
         if self.request.user.is_authenticated:
+            user: BorrowdUser = self.request.user  # type: ignore[assignment]
+
             context["is_moderator"] = Membership.objects.filter(
-                user=self.request.user,
+                user=user,
                 group=group,
                 is_moderator=True,
                 status=MembershipStatus.ACTIVE,
@@ -155,11 +281,31 @@ class GroupDetailView(
             # Get the current user's membership to expose their trust level
             try:
                 user_membership = Membership.objects.get(
-                    user=self.request.user, group=group, status=MembershipStatus.ACTIVE
+                    user=user, group=group, status=MembershipStatus.ACTIVE
                 )
                 context["user_trust_level"] = user_membership.trust_level
             except Membership.DoesNotExist:
                 context["user_trust_level"] = None
+
+            # Flags used to decide which leave-group modal to open.
+            if context["user_trust_level"] is not None:
+                context["show_leave_group_button"] = True
+                context["leave_group_is_moderator"] = context["is_moderator"]
+                context["leave_group_has_active_borrows"] = (
+                    user_has_active_borrows_in_group(user, group)
+                )
+                context["leave_group_has_active_lends"] = (
+                    user_has_active_lends_in_group(user, group)
+                )
+                context["leave_group_requires_approval_to_rejoin"] = (
+                    group.membership_requires_approval
+                )
+            else:
+                context["show_leave_group_button"] = False
+                context["leave_group_is_moderator"] = False
+                context["leave_group_has_active_borrows"] = False
+                context["leave_group_has_active_lends"] = False
+                context["leave_group_requires_approval_to_rejoin"] = False
 
             # 255: Show pending members to moderators only
             if context["is_moderator"]:
@@ -400,10 +546,22 @@ class GroupUpdateView(
     permission_required = BorrowdGroupOLP.EDIT
     form_class = GroupUpdateForm
 
+    def get_form_kwargs(self) -> dict[str, Any]:
+        kwargs = super().get_form_kwargs()
+        kwargs["user"] = self.request.user
+        return kwargs
+
     def form_valid(self, form: GroupUpdateForm) -> HttpResponse:
         if self.request.user.is_authenticated:
             form.instance.updated_by_id = self.request.user.pk  # type: ignore[attr-defined]
         return super().form_valid(form)
+
+    def form_invalid(self, form: GroupUpdateForm) -> HttpResponse:
+        name_errors: list[str] = [str(error) for error in form.errors.get("name", [])]
+        if DUPLICATE_GROUP_NAME_ERROR in name_errors:
+            messages.error(self.request, DUPLICATE_GROUP_NAME_ERROR)
+
+        return super().form_invalid(form)
 
     def get_success_url(self) -> str:
         if self.object is None:
@@ -553,3 +711,53 @@ class DenyMemberView(LoginRequiredMixin, View):  # type: ignore[misc]
             f"{membership.user.profile.full_name()} has been denied.",  # type: ignore[attr-defined]
         )
         return redirect("borrowd_groups:group-detail", pk=membership.group.pk)  # type: ignore[attr-defined]
+
+
+class LeaveGroupView(LoginRequiredMixin, View):  # type: ignore[misc]
+    """
+    Allow a group member to leave a group.
+    Currently, users with active transactions cannot leave.
+    """
+
+    def post(
+        self, request: HttpRequest, pk: int
+    ) -> HttpResponsePermanentRedirect | HttpResponseRedirect:
+        group = get_object_or_404(BorrowdGroup, pk=pk)
+        user: BorrowdUser = request.user  # type: ignore[assignment]
+
+        membership = Membership.objects.filter(
+            user=user,
+            group=group,
+            status=MembershipStatus.ACTIVE,
+        ).first()
+
+        if membership is None:
+            messages.error(request, "You are not a member of this group.")
+            return redirect("borrowd_groups:group-detail", pk=pk)
+
+        # Members with blocking borrowed-item transactions must stay in
+        # the group until those transactions are resolved.
+        if user_has_active_transactions_in_group(user, group):
+            messages.error(
+                request,
+                "You must first confirm the return of any borrowed items before leaving this group.",
+            )
+            return redirect("borrowd_groups:group-detail", pk=pk)
+
+        # Allow moderators to leave through this flow, even if they are the
+        # last moderator. Groups without moderators are allowed for now; later
+        # iterations will handle moderator handoff and member notifications.
+        group.remove_user(user, bypass_last_moderator_check=True)
+
+        # If the group no longer has any active members, delete it.
+        # This is a temporary fallback until archive / soft-delete exists.
+        remaining_active_members = Membership.objects.filter(
+            group=group,
+            status=MembershipStatus.ACTIVE,
+        ).exists()
+
+        if not remaining_active_members:
+            group.delete()
+
+        messages.success(request, f"You left {group.name}.")
+        return redirect("borrowd_groups:group-list")

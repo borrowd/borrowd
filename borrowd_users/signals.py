@@ -13,4 +13,4 @@ def user_postsave(
 ) -> None:
     """Add Profile whenever User is created."""
     if created:
-        Profile.objects.create(user=instance)
+        Profile.objects.create(user=instance, created_by=instance, updated_by=instance)

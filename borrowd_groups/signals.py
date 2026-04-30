@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, cast
 
 from django.contrib.auth.models import Group
 from django.db.models.query import QuerySet
@@ -14,6 +14,16 @@ from borrowd_permissions.models import BorrowdGroupOLP, ItemOLP
 from borrowd_users.models import BorrowdUser
 
 
+def compute_per_group_unique_name(base_name: str, user_id: int) -> str:
+    """
+    Compute a unique name for the auth Group associated with a BorrowdGroup,
+    based on the BorrowdGroup's name and the ID of the user that created it.
+    This is necessary because Django's auth Groups require globally unique names,
+    but we want to allow different users to create groups with the same name.
+    """
+    return f"{base_name}_user_{user_id}"
+
+
 @receiver(post_save, sender=BorrowdGroup)
 def maintain_perms_group_on_borrowd_group_change(
     sender: BorrowdGroup, instance: BorrowdGroup, created: bool, **kwargs: str
@@ -22,15 +32,23 @@ def maintain_perms_group_on_borrowd_group_change(
     # group onto the borrowd group, because we need to maintain this linkage
     # even if the name changes
     if created:
-        perms_group = Group.objects.create(name=instance.name)
+        creator = instance.created_by
+        perms_group = Group.objects.create(
+            name=compute_per_group_unique_name(instance.name, creator.pk)  # type: ignore[attr-defined]
+        )
         instance.perms_group = perms_group
         instance.save()
 
     # on update, make sure that the names still match
     else:
         perms_group = instance.perms_group
-        if perms_group.name != instance.name:
-            perms_group.name = instance.name
+        creator = instance.created_by
+        perms_group_name = compute_per_group_unique_name(
+            instance.name,
+            creator.pk,  # type: ignore[attr-defined]
+        )
+        if perms_group.name != perms_group_name:
+            perms_group.name = perms_group_name
             perms_group.save()
 
 
@@ -91,6 +109,11 @@ def _raise_if_last_moderator(
     Check if a group has any remaining moderators.
     If not, raise a ModeratorRequiredException.
     """
+    # Allow flows like leave group to bypass this guard.
+    membership = kwargs.get("instance")
+    if membership and getattr(membership, "_bypass_last_moderator_check", False):
+        return
+
     # First, only apply this logic if we're NOT in a cascade delete
     # from the Group itself.
     origin = kwargs.get("origin")
@@ -126,11 +149,17 @@ def refresh_permissions_on_membership_update(
     #
     # Handle Item permissions
     #
-    user = instance.user
-    borrowd_group = instance.group
-    group = borrowd_group.perms_group
-    new_trust_level = instance.trust_level
     membership = instance
+    # error: "_ST" has no attribute "perms_group" / "groups"
+    user = cast(BorrowdUser, instance.user)
+    borrowd_group = cast(BorrowdGroup, instance.group)
+    group = borrowd_group.perms_group
+    if group is None:
+        # This should never happen, but just in case...
+        raise ValueError(
+            "This BorrowdGroup has no perms_group; cannot sync permissions."
+        )
+    new_trust_level = instance.trust_level
 
     # Handle Group permissions
     all_group_perms = [
@@ -187,16 +216,15 @@ def pre_membership_delete(
     when their membership is deleted.
     """
     membership = instance
-    user: BorrowdUser = membership.user  # type: ignore[assignment]
-    borrowd_group: BorrowdGroup = membership.group  # type: ignore[assignment]
-    # error: "_ST" has no attribute "name"  [attr-defined]
+    user = cast(BorrowdUser, membership.user)
+    borrowd_group = cast(BorrowdGroup, membership.group)
     group = borrowd_group.perms_group
-
     #
     # Check the group will not be left without a Moderator
+    # Pass the membership instance through so intentional bypass flags
+    # set by specific flows, such as leave-group, are respected.
     #
-    _raise_if_last_moderator(user, borrowd_group, **kwargs)
-
+    _raise_if_last_moderator(user, borrowd_group, instance=membership, **kwargs)
     #
     # Remove the user from the Django auth Group so they immediately lose
     # all group-inherited object-level permissions (e.g. VIEW on other
@@ -235,8 +263,8 @@ def pre_membership_save(
     If not, raise a ModeratorRequiredException.
     """
     membership = instance
-    user: BorrowdUser = membership.user  # type: ignore[assignment]
-    group: BorrowdGroup = membership.group  # type: ignore[assignment]
+    user = cast(BorrowdUser, membership.user)
+    group = cast(BorrowdGroup, membership.group)
 
     # Check if the user is being added as a moderator
     if not membership.is_moderator:

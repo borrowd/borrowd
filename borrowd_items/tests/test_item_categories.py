@@ -57,6 +57,8 @@ class ItemCategoryTestBase(TestCase):
             name=name,
             description=description,
             owner=self.owner,
+            created_by=self.owner,
+            updated_by=self.owner,
             trust_level_required=TrustLevel.STANDARD,
         )
         if categories:
@@ -244,6 +246,8 @@ class ItemFormCategoryValidationTests(ItemCategoryTestBase):
         # save_m2m() is then required to persist M2M relationships (categories).
         item = form.save(commit=False)
         item.owner = self.owner
+        item.created_by = self.owner
+        item.updated_by = self.owner
         item.save()
         form.save_m2m()
 
@@ -403,6 +407,8 @@ class ItemFilterCategoryTests(ItemCategoryTestBase):
             name="Cordless Drill",
             description="18V cordless drill",
             owner=cls.owner,
+            created_by=cls.owner,
+            updated_by=cls.owner,
             trust_level_required=TrustLevel.STANDARD,
         )
         cls.item_drill.categories.add(cls.category_tools)
@@ -411,6 +417,8 @@ class ItemFilterCategoryTests(ItemCategoryTestBase):
             name="Laptop",
             description="Development laptop",
             owner=cls.owner,
+            created_by=cls.owner,
+            updated_by=cls.owner,
             trust_level_required=TrustLevel.STANDARD,
         )
         cls.item_laptop.categories.add(cls.category_electronics)
@@ -419,6 +427,8 @@ class ItemFilterCategoryTests(ItemCategoryTestBase):
             name="Camping Tent",
             description="4-person tent",
             owner=cls.owner,
+            created_by=cls.owner,
+            updated_by=cls.owner,
             trust_level_required=TrustLevel.STANDARD,
         )
         cls.item_tent.categories.add(cls.category_outdoor)
@@ -428,6 +438,8 @@ class ItemFilterCategoryTests(ItemCategoryTestBase):
             name="Multimeter",
             description="Digital multimeter for electronics work",
             owner=cls.owner,
+            created_by=cls.owner,
+            updated_by=cls.owner,
             trust_level_required=TrustLevel.STANDARD,
         )
         cls.item_multitool.categories.add(cls.category_electronics, cls.category_tools)

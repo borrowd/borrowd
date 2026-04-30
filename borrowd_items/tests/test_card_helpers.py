@@ -89,6 +89,8 @@ class BuildItemCardContextTests(TestCase):
             name="Test Item",
             description="Test description",
             owner=self.owner,
+            created_by=self.owner,
+            updated_by=self.owner,
             trust_level_required=TrustLevel.STANDARD,
         )
         item.categories.add(self.category)

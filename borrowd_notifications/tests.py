@@ -206,6 +206,8 @@ class ItemAvailableNotificationTests(TransactionTestCase):
             name="Test Item",
             description="A test item",
             owner=self.owner,
+            created_by=self.owner,
+            updated_by=self.owner,
         )
         self.subscription = AvailabilitySubscription.objects.create(
             user=self.subscriber,
@@ -221,6 +223,7 @@ class ItemAvailableNotificationTests(TransactionTestCase):
             party1=self.owner,
             party2=self.subscriber,
             status=TransactionStatus.RETURNED,
+            created_by=self.subscriber,
             updated_by=self.owner,
         )
 
@@ -249,6 +252,7 @@ class ItemAvailableNotificationTests(TransactionTestCase):
             party1=self.owner,
             party2=self.subscriber,
             status=TransactionStatus.CANCELLED,
+            created_by=self.subscriber,
             updated_by=self.owner,
         )
 
@@ -277,6 +281,7 @@ class ItemAvailableNotificationTests(TransactionTestCase):
             party1=self.owner,
             party2=self.subscriber,
             status=TransactionStatus.REJECTED,
+            created_by=self.subscriber,
             updated_by=self.owner,
         )
 
@@ -308,6 +313,7 @@ class ItemAvailableNotificationTests(TransactionTestCase):
             item=self.item,
             party1=self.owner,
             party2=self.subscriber,
+            created_by=self.subscriber,
             status=TransactionStatus.RETURNED,
             updated_by=self.owner,
         )
@@ -342,6 +348,7 @@ class ItemAvailableNotificationTests(TransactionTestCase):
             party1=self.owner,
             party2=self.subscriber,
             status=TransactionStatus.RETURNED,
+            created_by=self.subscriber,
             updated_by=self.owner,
         )
 
@@ -374,6 +381,7 @@ class ItemAvailableNotificationTests(TransactionTestCase):
             party1=self.owner,
             party2=self.subscriber,
             status=TransactionStatus.REQUESTED,
+            created_by=self.subscriber,
             updated_by=self.subscriber,
         )
 
@@ -398,6 +406,7 @@ class ItemAvailableNotificationTests(TransactionTestCase):
             party1=self.owner,
             party2=self.subscriber,
             status=TransactionStatus.ACCEPTED,
+            created_by=self.subscriber,
             updated_by=self.owner,
         )
 
@@ -422,6 +431,7 @@ class ItemAvailableNotificationTests(TransactionTestCase):
             party1=self.owner,
             party2=self.subscriber,
             status=TransactionStatus.COLLECTION_ASSERTED,
+            created_by=self.subscriber,
             updated_by=self.owner,
         )
 
@@ -446,6 +456,7 @@ class ItemAvailableNotificationTests(TransactionTestCase):
             party1=self.owner,
             party2=self.subscriber,
             status=TransactionStatus.COLLECTED,
+            created_by=self.subscriber,
             updated_by=self.owner,
         )
 
@@ -470,6 +481,7 @@ class ItemAvailableNotificationTests(TransactionTestCase):
             party1=self.owner,
             party2=self.subscriber,
             status=TransactionStatus.RETURN_ASSERTED,
+            created_by=self.subscriber,
             updated_by=self.owner,
         )
 
