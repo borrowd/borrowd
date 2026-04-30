@@ -330,6 +330,26 @@ class GroupJoinView(LoginRequiredMixin, View):  # type: ignore[misc]
 
 
 # No typing for django_filter, so mypy doesn't like us subclassing.
+def get_memberships_with_pending_actions(memberships: list[Membership]) -> set[int]:
+    """
+    Given a list of Membership objects, returns the set of group IDs for which
+    the membership is held by a moderator and there are pending membership
+    approval requests.
+
+    Only groups where the user is a moderator are considered, and only groups
+    that actually have at least one PENDING membership are returned.
+    """
+    moderator_group_ids = [m.group_id for m in memberships if m.is_moderator]
+    if not moderator_group_ids:
+        return set()
+    return set(
+        Membership.objects.filter(
+            group_id__in=moderator_group_ids,
+            status=MembershipStatus.PENDING,
+        ).values_list("group_id", flat=True)
+    )
+
+
 class GroupListView(LoginRequiredMixin, FilterView):  # type: ignore[misc]
     template_name = "groups/group_list.html"
     model = Membership
@@ -355,18 +375,7 @@ class GroupListView(LoginRequiredMixin, FilterView):  # type: ignore[misc]
         context: dict[str, Any] = super().get_context_data(**kwargs)
 
         memberships = list(context.get("object_list", []))
-        moderator_group_ids = [
-            membership.group_id for membership in memberships if membership.is_moderator
-        ]
-        pending_action_group_ids: set[int] = set()
-
-        if moderator_group_ids:
-            pending_action_group_ids = set(
-                Membership.objects.filter(
-                    group_id__in=moderator_group_ids,
-                    status=MembershipStatus.PENDING,
-                ).values_list("group_id", flat=True)
-            )
+        pending_action_group_ids = get_memberships_with_pending_actions(memberships)
 
         for membership in memberships:
             setattr(
