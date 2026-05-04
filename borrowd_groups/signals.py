@@ -5,11 +5,13 @@ from django.db.models.query import QuerySet
 from django.db.models.signals import post_delete, post_save, pre_delete, pre_save
 from django.dispatch import receiver
 from guardian.shortcuts import assign_perm, remove_perm
+from notifications.signals import notify
 
 from borrowd.models import TrustLevel
 from borrowd_groups.exceptions import ModeratorRequiredException
 from borrowd_groups.models import BorrowdGroup, Membership, MembershipStatus
 from borrowd_items.models import Item
+from borrowd_notifications.services import NotificationType
 from borrowd_permissions.models import BorrowdGroupOLP, ItemOLP
 from borrowd_users.models import BorrowdUser
 
@@ -269,3 +271,51 @@ def pre_membership_save(
     # Check if the user is being added as a moderator
     if not membership.is_moderator:
         _raise_if_last_moderator(user, group, **kwargs)
+
+
+@receiver(post_delete, sender=Membership)
+def flag_group_if_last_moderator_leaves(
+    sender: type[Membership], instance: Membership, **kwargs: Any
+) -> None:
+    """
+    When the leave-group flow removes the last moderator, flag the group
+    and notify remaining active members that someone needs to step in.
+    """
+    if not instance.is_moderator:
+        return
+
+    # Only the user-facing leave flow is allowed to create this handoff state.
+    if not getattr(instance, "_bypass_last_moderator_check", False):
+        return
+
+    group = cast(BorrowdGroup, instance.group)
+
+    has_moderator = Membership.objects.filter(
+        group=group,
+        is_moderator=True,
+        status=MembershipStatus.ACTIVE,
+    ).exists()
+
+    if has_moderator:
+        return
+
+    remaining_members = list(
+        Membership.objects.filter(
+            group=group,
+            status=MembershipStatus.ACTIVE,
+        ).select_related("user")
+    )
+
+    if not remaining_members:
+        return
+
+    BorrowdGroup.objects.filter(pk=group.pk).update(needs_moderator=True)
+
+    notify.send(
+        instance.user,
+        recipient=[membership.user for membership in remaining_members],
+        verb=NotificationType.GROUP_NEEDS_MODERATOR.value,
+        action_object=group,
+        target=group,
+        description=f"{group.name} needs a new moderator",
+    )
