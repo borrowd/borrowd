@@ -1,4 +1,4 @@
-from PIL import Image, ImageOps  # type: ignore[import-not-found]
+from PIL import Image, ImageOps
 
 
 class AutoOrientProcessor:

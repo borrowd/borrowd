@@ -2,7 +2,7 @@ from io import BytesIO
 
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
-from PIL import Image  # type: ignore[import-not-found]
+from PIL import Image
 
 from borrowd.models import TrustLevel
 from borrowd_items.models import Item, ItemPhoto
