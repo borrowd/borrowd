@@ -219,6 +219,11 @@ def pre_membership_delete(
     user = cast(BorrowdUser, membership.user)
     borrowd_group = cast(BorrowdGroup, membership.group)
     group = borrowd_group.perms_group
+    if group is None:
+        # This should never happen, but keep failure mode explicit.
+        raise ValueError(
+            "This BorrowdGroup has no perms_group; cannot sync permissions."
+        )
     #
     # Check the group will not be left without a Moderator
     # Pass the membership instance through so intentional bypass flags
