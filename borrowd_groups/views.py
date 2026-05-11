@@ -474,8 +474,6 @@ class GroupJoinView(LoginRequiredMixin, View):  # type: ignore[misc]
         # Redirect to the group detail page
         return redirect("borrowd_groups:group-detail", pk=group.pk)
 
-
-# No typing for django_filter, so mypy doesn't like us subclassing.
 def get_memberships_with_pending_actions(memberships: list[Membership]) -> set[int]:
     """
     Given a list of Membership objects, returns the set of group IDs for which
@@ -495,7 +493,7 @@ def get_memberships_with_pending_actions(memberships: list[Membership]) -> set[i
         ).values_list("group_id", flat=True)
     )
 
-
+# No typing for django_filter, so mypy doesn't like us subclassing.
 class GroupListView(LoginRequiredMixin, FilterView):  # type: ignore[misc]
     template_name = "groups/group_list.html"
     model = Membership
