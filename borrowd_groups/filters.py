@@ -1,9 +1,9 @@
 from typing import Any
 
-from django.db.models import Q, QuerySet
+from django.db.models import Count, Q, QuerySet
 from django_filters import BooleanFilter, CharFilter, FilterSet
 
-from .models import Membership
+from .models import Membership, MembershipStatus
 
 
 # No typing for django_filter, so mypy doesn't like us subclassing.
@@ -49,6 +49,13 @@ class GroupFilter(FilterSet):  # type: ignore[misc]
                 "group"
             ).filter(
                 user=self.request.user,
+            )
+            qs = qs.annotate(
+                active_member_count=Count(
+                    "group__membership",
+                    filter=Q(group__membership__status=MembershipStatus.ACTIVE),
+                    distinct=True,
+                )
             )
             if self.is_bound:
                 # ensure form validation before filtering
