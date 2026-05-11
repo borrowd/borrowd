@@ -29,6 +29,7 @@ from borrowd_permissions.models import ItemOLP
 from borrowd_users.models import BorrowdUser
 
 from .exceptions import InvalidItemAction, ItemAlreadyRequested
+from .processors import AutoOrientProcessor
 
 
 class ItemAction(TextChoices):
@@ -672,7 +673,7 @@ class ItemPhoto(Model):
     item_id: int  # hint for mypy
     image = ProcessedImageField(
         upload_to="items/",
-        processors=[ResizeToFit(1600, 1600)],
+        processors=[AutoOrientProcessor(), ResizeToFit(1600, 1600)],
         format="JPEG",
         options={"quality": 75},
     )
