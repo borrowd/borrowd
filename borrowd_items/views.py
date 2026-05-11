@@ -1,4 +1,5 @@
 from typing import Any
+from urllib.parse import urlencode, urlparse
 
 from django.contrib import messages
 from django.contrib.messages.api import MessageFailure
@@ -6,7 +7,8 @@ from django.core.validators import FileExtensionValidator
 from django.forms import ModelForm
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect
-from django.urls import reverse, reverse_lazy
+from django.urls import Resolver404, resolve, reverse, reverse_lazy
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 from django.views.generic import CreateView, DeleteView, DetailView, UpdateView
 from django_filters.views import FilterView
@@ -35,6 +37,54 @@ from .forms import (
     validate_image_size,
 )
 from .models import Item, ItemAction, ItemPhoto
+
+# Pages that don't make sense as a "back" target (form-entry points, POST-only endpoints).
+_BACK_URL_EXCLUDED_URL_NAMES = {
+    "item-create",
+    "item-edit",
+    "itemphoto-create",
+    "itemphoto-delete",
+}
+
+
+def _resolve_item_detail_back_url(
+    request: HttpRequest, current_item_pk: int | None
+) -> str:
+    """Pick the back target for item-detail: ?next= → Referer → item-list."""
+    # Explicit override wins; allowed-host check blocks open-redirects.
+    next_url = request.GET.get("next")
+    if next_url and url_has_allowed_host_and_scheme(
+        next_url,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        return next_url
+
+    referer = request.META.get("HTTP_REFERER")
+    if referer:
+        parsed = urlparse(referer)
+        # Same-origin only — don't trust a Referer set by an external site.
+        if parsed.netloc in ("", request.get_host()):
+            try:
+                match = resolve(parsed.path)
+            except Resolver404:
+                pass
+            else:
+                # Skip the current detail page so reloads don't link to themselves.
+                is_same_detail = (
+                    match.url_name == "item-detail"
+                    and current_item_pk is not None
+                    and match.kwargs.get("pk") == current_item_pk
+                )
+                if (
+                    match.url_name not in _BACK_URL_EXCLUDED_URL_NAMES
+                    and not is_same_detail
+                ):
+                    # Preserve query string so filtered item-list keeps its filters.
+                    suffix = f"?{parsed.query}" if parsed.query else ""
+                    return f"{parsed.path}{suffix}"
+
+    return reverse("item-list")
 
 
 def _build_item_action_success_message(item_name: str, action: ItemAction) -> str:
@@ -183,7 +233,7 @@ class ItemCreateView(
     def get_success_url(self) -> str:
         if self.object is None:
             return reverse("item-list")
-        return reverse("item-detail", args=[self.object.pk])
+        return reverse("profile-inventory")
 
 
 class ItemDeleteView(
@@ -193,7 +243,7 @@ class ItemDeleteView(
 ):
     model = Item
     permission_required = ItemOLP.DELETE
-    success_url = reverse_lazy("item-list")
+    success_url = reverse_lazy("profile-inventory")
     http_method_names = ["post"]
 
 
@@ -223,6 +273,11 @@ class ItemDetailView(
         """
         context = build_item_card_context(
             self.object, user, "item-details", action_context
+        )
+
+        # Back arrow target — depends on how the user got here.
+        context["back_url"] = _resolve_item_detail_back_url(
+            self.request, current_item_pk=self.object.pk
         )
 
         return context
@@ -332,7 +387,10 @@ class ItemUpdateView(
     def get_success_url(self) -> str:
         if self.object is None:
             return reverse("item-list")
-        return reverse("item-detail", args=[self.object.pk])
+        # Land on the new item's detail page; `?next=` points its back button at inventory.
+        detail_url = reverse("item-detail", args=[self.object.pk])
+        next_query = urlencode({"next": reverse("profile-inventory")})
+        return f"{detail_url}?{next_query}"
 
 
 class ItemPhotoCreateView(
