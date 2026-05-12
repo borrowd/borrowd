@@ -18,7 +18,7 @@ def assign_item_permissions(
     to the owner and relevant Groups.
     """
     owner_borrowd_groups = instance.owner.borrowd_groups.filter(  # type: ignore[attr-defined]
-        membership__user=instance.owner,
+        membership__user=instance.owner,  # looks redundant, but fails without it
         membership__status=MembershipStatus.ACTIVE,
     )
     owner_group_ids = owner_borrowd_groups.exclude(perms_group=None).values_list(
@@ -43,7 +43,7 @@ def assign_item_permissions(
     # is a member and has an equal or greater Trust Level than
     # the level required by this Item.
     allowed_borrowd_groups = owner_borrowd_groups.filter(
-        membership__user=instance.owner,
+        membership__user=instance.owner,  # looks redundant, but fails without it
         membership__trust_level__gte=instance.trust_level_required,
     ).exclude(perms_group=None)
     allowed_group_ids = allowed_borrowd_groups.values_list("perms_group", flat=True)
