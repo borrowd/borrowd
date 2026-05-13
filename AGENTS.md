@@ -25,11 +25,6 @@ uv run manage.py loaddata items/item_categories   # Load ItemCategory fixture
 uv run manage.py runserver                        # Django dev server at http://127.0.0.1:8000/
 ```
 
-Optional: load demo data with the custom command (signals are disabled during load):
-```bash
-uv run manage.py loadborrowddata fixtures/demo_data.yaml
-```
-
 ### Testing
 ```bash
 uv run manage.py test                              # Run all tests
