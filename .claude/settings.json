@@ -1,0 +1,24 @@
+{
+    "enabledPlugins": {
+        "ast-grep@ast-grep-marketplace": true,
+        "pyright-lsp@claude-plugins-official": true,
+        "security-guidance@claude-plugins-official": true
+    },
+    "hooks": {
+        "PostToolUse": [
+            {
+                "hooks": [
+                    {
+                        "command": "bash .claude/hooks/format-html.sh",
+                        "type": "command"
+                    },
+                    {
+                        "command": "bash .claude/hooks/format-python.sh",
+                        "type": "command"
+                    }
+                ],
+                "matcher": "Edit|Write"
+            }
+        ]
+    }
+}

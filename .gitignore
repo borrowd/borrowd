@@ -86,8 +86,10 @@ coverage.xml
 # vim #
 *.sw[op]
 
-# Cursor #
+# Cursor/Agentic stuff #
 .cursorrules
+skills-lock.json
+*-langserver
 
 # macOS
 .DS_Store
