@@ -1,11 +1,11 @@
-from typing import Any
+from typing import Any, cast
 
 from django.contrib import messages
 from django.contrib.messages.api import MessageFailure
 from django.core.validators import FileExtensionValidator
 from django.forms import ModelForm
 from django.http import HttpRequest, HttpResponse
-from django.shortcuts import redirect
+from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse, reverse_lazy
 from django.views.decorators.http import require_POST
 from django.views.generic import CreateView, DeleteView, DetailView, UpdateView
@@ -34,7 +34,7 @@ from .forms import (
     ItemPhotoForm,
     validate_image_size,
 )
-from .models import Item, ItemAction, ItemPhoto
+from .models import Item, ItemAction, ItemPhoto, ItemStatus
 
 
 def _build_item_action_success_message(item_name: str, action: ItemAction) -> str:
@@ -100,7 +100,7 @@ def borrow_item(request: HttpRequest, pk: int) -> HttpResponse:
     # AbstractUser or AnonymousUser, which we *would* comply with
     # here (BorrowdUser subclasses AbstractUser).
     user: BorrowdUser = request.user  # type: ignore[assignment]
-    item = Item.objects.get(pk=pk)
+    item = get_object_or_404(Item, pk=pk, deleted_at__isnull=True)
 
     # Not currently differentiating between viewing and borrowing
     # permissions; assumed that if a user can "see" an item (and
@@ -186,8 +186,19 @@ class ItemCreateView(
         return reverse("item-detail", args=[self.object.pk])
 
 
+class ActiveItemQuerySetMixin:
+    """
+    Mixin to filter out deleted items from querysets in item views.
+    """
+
+    def get_queryset(self):  # type: ignore[no-untyped-def]
+        queryset = super().get_queryset()  # type: ignore[misc]
+        return queryset.filter(deleted_at__isnull=True)
+
+
 class ItemDeleteView(
     LoginOr404PermissionMixin,
+    ActiveItemQuerySetMixin,
     BorrowdTemplateFinderMixin,
     DeleteView[Item, ModelForm[Item]],
 ):
@@ -196,9 +207,27 @@ class ItemDeleteView(
     success_url = reverse_lazy("item-list")
     http_method_names = ["post"]
 
+    def form_valid(self, form: ModelForm[Item]) -> HttpResponse:
+        item: Item = self.object
+
+        if item.status != ItemStatus.AVAILABLE:
+            _add_message_safe(
+                self.request,
+                messages.ERROR,
+                "Only available items can be deleted.",
+            )
+            return redirect("item-detail", pk=item.pk)
+
+        user = cast(BorrowdUser, self.request.user)
+
+        item.soft_delete(user)
+        _add_message_safe(self.request, messages.SUCCESS, "Item deleted.")
+        return redirect(self.get_success_url())
+
 
 class ItemDetailView(
     LoginOr404PermissionMixin,
+    ActiveItemQuerySetMixin,
     BorrowdTemplateFinderMixin,
     DetailView[Item],
 ):
@@ -260,13 +289,17 @@ class ItemListView(
         # Build card contexts for all items
         items = list(context["object_list"])
         context["item_cards"] = build_item_cards_for_items(items, user, "search")
-        context["user_has_items"] = Item.objects.filter(owner=user).exists
+        context["user_has_items"] = Item.objects.filter(
+            owner=user,
+            deleted_at__isnull=True,
+        ).exists
 
         return context
 
 
 class ItemUpdateView(
     LoginOr404PermissionMixin,
+    ActiveItemQuerySetMixin,
     BorrowdTemplateFinderMixin,
     UpdateView[Item, ItemForm],
 ):
@@ -345,7 +378,11 @@ class ItemPhotoCreateView(
     form_class = ItemPhotoForm
 
     def get_permission_object(self):  # type: ignore[no-untyped-def]
-        return Item.objects.get(pk=self.kwargs["item_pk"])
+        return get_object_or_404(
+            Item,
+            pk=self.kwargs["item_pk"],
+            deleted_at__isnull=True,
+        )
 
     def get_context_data(self, **kwargs: str) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)

@@ -65,12 +65,16 @@ class ItemFilter(FilterSet):  # type: ignore[misc]
         closer to a "public API".
         """
         if not hasattr(self, "_qs"):
-            qs: QuerySet[Item] = get_objects_for_user(
-                self.request.user,
-                ItemOLP.VIEW,
-                klass=Item,
-                with_superuser=False,
-            ).exclude(owner=self.request.user)
+            qs: QuerySet[Item] = (
+                get_objects_for_user(
+                    self.request.user,
+                    ItemOLP.VIEW,
+                    klass=Item,
+                    with_superuser=False,
+                )
+                .filter(deleted_at__isnull=True)
+                .exclude(owner=self.request.user)
+            )
             if self.is_bound:
                 # ensure form validation before filtering
                 self.errors
