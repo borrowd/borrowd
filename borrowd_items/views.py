@@ -191,7 +191,6 @@ class ItemCreateView(
 
 class ItemDeleteView(
     LoginOr404PermissionMixin,
-    # ActiveItemQuerySetMixin,
     BorrowdTemplateFinderMixin,
     DeleteView[Item, ModelForm[Item]],
 ):
@@ -220,7 +219,6 @@ class ItemDeleteView(
 
 class ItemDetailView(
     LoginOr404PermissionMixin,
-    # ActiveItemQuerySetMixin,
     BorrowdTemplateFinderMixin,
     DetailView[Item],
 ):
@@ -291,7 +289,6 @@ class ItemListView(
 
 class ItemUpdateView(
     LoginOr404PermissionMixin,
-    # ActiveItemQuerySetMixin,
     BorrowdTemplateFinderMixin,
     UpdateView[Item, ItemForm],
 ):

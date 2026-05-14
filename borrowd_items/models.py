@@ -40,9 +40,9 @@ class ActiveItemQuerySet(QuerySet["Item"]):
         return self.filter(deleted_at__isnull=False)
 
 
-class ActiveItemManager(models.Manager["Item"]):
+class ActiveItemManager(models.Manager.from_queryset(ActiveItemQuerySet)):  # type: ignore[misc]
     def get_queryset(self):  # type: ignore[no-untyped-def]
-        return super().get_queryset().filter(deleted_at__isnull=True)
+        return super().get_queryset().active()
 
 
 class ItemAction(TextChoices):
