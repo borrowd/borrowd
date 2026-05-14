@@ -197,7 +197,6 @@ def inventory_view(request: HttpRequest) -> HttpResponse:
     owned_items_available = Item.objects.filter(
         owner=user,
         status=ItemStatus.AVAILABLE,
-        deleted_at__isnull=True,
     ).prefetch_related("photos")
 
     # Build card context

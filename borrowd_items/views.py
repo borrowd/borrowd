@@ -100,7 +100,10 @@ def borrow_item(request: HttpRequest, pk: int) -> HttpResponse:
     # AbstractUser or AnonymousUser, which we *would* comply with
     # here (BorrowdUser subclasses AbstractUser).
     user: BorrowdUser = request.user  # type: ignore[assignment]
-    item = get_object_or_404(Item, pk=pk, deleted_at__isnull=True)
+    item = get_object_or_404(
+        Item,
+        pk=pk,
+    )
 
     # Not currently differentiating between viewing and borrowing
     # permissions; assumed that if a user can "see" an item (and
@@ -186,19 +189,9 @@ class ItemCreateView(
         return reverse("item-detail", args=[self.object.pk])
 
 
-class ActiveItemQuerySetMixin:
-    """
-    Mixin to filter out deleted items from querysets in item views.
-    """
-
-    def get_queryset(self):  # type: ignore[no-untyped-def]
-        queryset = super().get_queryset()  # type: ignore[misc]
-        return queryset.filter(deleted_at__isnull=True)
-
-
 class ItemDeleteView(
     LoginOr404PermissionMixin,
-    ActiveItemQuerySetMixin,
+    # ActiveItemQuerySetMixin,
     BorrowdTemplateFinderMixin,
     DeleteView[Item, ModelForm[Item]],
 ):
@@ -227,7 +220,7 @@ class ItemDeleteView(
 
 class ItemDetailView(
     LoginOr404PermissionMixin,
-    ActiveItemQuerySetMixin,
+    # ActiveItemQuerySetMixin,
     BorrowdTemplateFinderMixin,
     DetailView[Item],
 ):
@@ -291,7 +284,6 @@ class ItemListView(
         context["item_cards"] = build_item_cards_for_items(items, user, "search")
         context["user_has_items"] = Item.objects.filter(
             owner=user,
-            deleted_at__isnull=True,
         ).exists
 
         return context
@@ -299,7 +291,7 @@ class ItemListView(
 
 class ItemUpdateView(
     LoginOr404PermissionMixin,
-    ActiveItemQuerySetMixin,
+    # ActiveItemQuerySetMixin,
     BorrowdTemplateFinderMixin,
     UpdateView[Item, ItemForm],
 ):
@@ -378,11 +370,7 @@ class ItemPhotoCreateView(
     form_class = ItemPhotoForm
 
     def get_permission_object(self):  # type: ignore[no-untyped-def]
-        return get_object_or_404(
-            Item,
-            pk=self.kwargs["item_pk"],
-            deleted_at__isnull=True,
-        )
+        return get_object_or_404(Item, pk=self.kwargs["item_pk"])
 
     def get_context_data(self, **kwargs: str) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)

@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Never, Optional
 
 from django.core.exceptions import ValidationError
-from django.db import transaction
+from django.db import models, transaction
 from django.db.models import (
     CASCADE,
     DO_NOTHING,
@@ -30,6 +30,19 @@ from borrowd_permissions.models import ItemOLP
 from borrowd_users.models import BorrowdUser
 
 from .exceptions import InvalidItemAction, ItemAlreadyRequested
+
+
+class ActiveItemQuerySet(QuerySet["Item"]):
+    def active(self):  # type: ignore[no-untyped-def]
+        return self.filter(deleted_at__isnull=True)
+
+    def deleted(self):  # type: ignore[no-untyped-def]
+        return self.filter(deleted_at__isnull=False)
+
+
+class ActiveItemManager(models.Manager["Item"]):
+    def get_queryset(self):  # type: ignore[no-untyped-def]
+        return super().get_queryset().filter(deleted_at__isnull=True)
 
 
 class ItemAction(TextChoices):
@@ -168,6 +181,8 @@ class Item(Model):
         related_name="+",
         help_text="Who performed the soft-delete. NULL means active or unknown.",
     )
+    objects = ActiveItemManager()
+    all_objects: models.Manager["Item"] = models.Manager()
 
     def __str__(self) -> str:
         return self.name
