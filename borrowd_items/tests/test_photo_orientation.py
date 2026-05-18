@@ -34,6 +34,9 @@ def build_uploaded_image(
 
 
 class ItemPhotoOrientationTests(TestCase):
+    owner: BorrowdUser
+    item: Item
+
     @classmethod
     def setUpTestData(cls) -> None:
         cls.owner = BorrowdUser.objects.create(
@@ -44,13 +47,20 @@ class ItemPhotoOrientationTests(TestCase):
             name="Orientation Test Item",
             description="Used for photo orientation tests",
             owner=cls.owner,
+            created_by=cls.owner,
+            updated_by=cls.owner,
             trust_level_required=TrustLevel.STANDARD,
         )
 
     def test_phone_exif_orientation_is_applied_to_processed_image(self) -> None:
         uploaded_image = build_uploaded_image(width=300, height=500, exif_orientation=6)
 
-        item_photo = ItemPhoto.objects.create(item=self.item, image=uploaded_image)
+        item_photo = ItemPhoto.objects.create(
+            item=self.item,
+            image=uploaded_image,
+            created_by=self.owner,
+            updated_by=self.owner,
+        )
 
         with Image.open(item_photo.image) as processed_image:
             self.assertEqual(processed_image.size, (1600, 960))
@@ -61,7 +71,12 @@ class ItemPhotoOrientationTests(TestCase):
     def test_upload_without_orientation_metadata_keeps_pixel_orientation(self) -> None:
         uploaded_image = build_uploaded_image(width=300, height=500)
 
-        item_photo = ItemPhoto.objects.create(item=self.item, image=uploaded_image)
+        item_photo = ItemPhoto.objects.create(
+            item=self.item,
+            image=uploaded_image,
+            created_by=self.owner,
+            updated_by=self.owner,
+        )
 
         with Image.open(item_photo.image) as processed_image:
             self.assertEqual(processed_image.size, (960, 1600))

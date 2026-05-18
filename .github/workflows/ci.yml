@@ -1,0 +1,88 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pre-commit:
+    name: Lint, format, type-check, template-lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.13"
+          enable-cache: true
+
+      - run: uv sync --frozen
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/pre-commit
+          key: pre-commit-${{ runner.os }}-${{ hashFiles('.pre-commit-config.yaml') }}
+
+      # Runs every hook defined in .pre-commit-config.yaml
+      - run: uvx pre-commit run --all-files --show-diff-on-failure
+
+  test:
+    name: Django tests (Postgres 17)
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: borrowd
+          POSTGRES_PASSWORD: borrowd
+          POSTGRES_DB: borrowd
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U borrowd"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DJANGO_SETTINGS_MODULE: borrowd.config.ci.django
+      DJANGO_SECRET_KEY: ci-not-a-real-secret
+      BORROWD_BETA_ENABLED: "False"
+      DB_NAME: borrowd
+      DB_USER: borrowd
+      DB_PASSWORD: borrowd
+      DB_HOST: 127.0.0.1
+      DB_PORT: "5432"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.13"
+          enable-cache: true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      # Mirrors(mostly) .platform.app.yaml -> hooks.build
+      - run: uv sync --frozen
+      - run: npm ci
+      - run: npm run build
+      - run: uv run manage.py collectstatic --noinput
+
+      # Mirrors .platform.app.yaml -> hooks.deploy
+      - run: uv run manage.py migrate
+
+      # Mirrors .platform.app.yaml -> hooks.post_deploy
+      - run: uv run manage.py loaddata items/item_categories
+
+      - run: uv run manage.py test

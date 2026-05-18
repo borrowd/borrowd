@@ -14,7 +14,7 @@ from typing import Any, cast
 from django.core.files.uploadedfile import SimpleUploadedFile, UploadedFile
 from django.test import TestCase
 from django.utils.datastructures import MultiValueDict
-from PIL import Image  # type: ignore[import-not-found]
+from PIL import Image
 
 from borrowd.models import TrustLevel
 from borrowd_items.forms import (

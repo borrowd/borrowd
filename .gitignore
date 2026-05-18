@@ -90,6 +90,7 @@ coverage.xml
 .cursorrules
 skills-lock.json
 *-langserver
+.claude/settings.local.json
 
 # macOS
 .DS_Store
