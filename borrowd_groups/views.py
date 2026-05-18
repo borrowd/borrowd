@@ -483,7 +483,7 @@ def get_memberships_with_pending_actions(memberships: list[Membership]) -> set[i
     Only groups where the user is a moderator are considered, and only groups
     that actually have at least one PENDING membership are returned.
     """
-    moderator_group_ids = [m.group_id for m in memberships if m.is_moderator]
+    moderator_group_ids = [m.group_id for m in memberships if m.is_moderator]  # type: ignore[attr-defined]
     if not moderator_group_ids:
         return set()
     return set(
