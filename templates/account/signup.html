@@ -83,23 +83,6 @@
                             {% endif %}
                         </div>
                     </div>
-                    <!-- Bio field --removing for now
-                    <div x-data="{ bioText: '{{ form.bio.value|default:'' }}' }">
-                        <label for="{{ form.bio.id_for_label }}" class="block text-xs font-normal text-base-content/60 mb-1.5">
-                            {% trans "Tell us about yourself and what you can share." %}
-                        </label>
-                        <div>
-                            {{ form.bio }}
-                            <div class="mt-1 text-sm text-base-content/60">
-                                <span x-text="bioText.length"></span>/200
-                            </div>
-                            {% if form.bio.errors %}
-                                <div class="mt-1 text-sm text-red-600">
-                                    {{ form.bio.errors }}
-                                </div>
-                            {% endif %}
-                        </div>
-                    </div> -->
                     <!-- Password field -->
                     <div>
                         <label for="{{ form.password1.id_for_label }}"
