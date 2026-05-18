@@ -34,16 +34,16 @@ from .processors import AutoOrientProcessor
 
 
 class ActiveItemQuerySet(QuerySet["Item"]):
-    def active(self):  # type: ignore[no-untyped-def]
+    def active(self) -> "ActiveItemQuerySet":
         return self.filter(deleted_at__isnull=True)
 
-    def deleted(self):  # type: ignore[no-untyped-def]
+    def deleted(self) -> "ActiveItemQuerySet":
         return self.filter(deleted_at__isnull=False)
 
 
-class ActiveItemManager(models.Manager.from_queryset(ActiveItemQuerySet)):  # type: ignore[misc]
-    def get_queryset(self):  # type: ignore[no-untyped-def]
-        return super().get_queryset().active()
+class ActiveItemManager(models.Manager["Item"]):
+    def get_queryset(self) -> ActiveItemQuerySet:
+        return ActiveItemQuerySet(self.model, using=self._db).active()
 
 
 class ItemAction(TextChoices):
