@@ -34,6 +34,9 @@ def build_uploaded_image(
 
 
 class ItemPhotoOrientationTests(TestCase):
+    owner: BorrowdUser
+    item: Item
+
     @classmethod
     def setUpTestData(cls) -> None:
         cls.owner = BorrowdUser.objects.create(
