@@ -48,7 +48,7 @@ class ItemDeletionTests(TestCase):
         response = self.client.post(reverse("item-delete", args=[item.pk]))
 
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(response["Location"], reverse("item-list"))
+        self.assertEqual(response["Location"], reverse("profile-inventory"))
         item.refresh_from_db()
         transaction.refresh_from_db()
         self.assertIsNotNone(item.deleted_at)
