@@ -117,18 +117,19 @@
         </section>
 
         {# ── Account ───────────────────────────────────────────────────── #}
-        <!-- <section class="flex flex-col gap-2">
-    <p class="text-xs font-semibold text-base-content px-1">{% trans "Account" %}</p>
+        <section class="flex flex-col gap-2">
+            <p class="text-xs font-semibold text-base-content px-1">{% trans "Account" %}</p>
 
-    <div class="card bg-primary-content border border-gray-200 shadow-sm rounded-md flex flex-row items-center justify-between px-4 py-3">
-      <span class="text-sm font-medium text-base-content">{% trans "Delete account" %}</span>
-      {# TODO: wire up delete-account view — see borrowd_users/views.py #}
-      <button type="button" class="btn btn-sm btn-error btn-soft rounded-sm" disabled>
-        {% include "icons/trash.svg" %}
-        {% trans "Delete" %}
-      </button>
-    </div>
-</section> -->
+            <div class="card bg-primary-content border border-gray-200 shadow-sm rounded-md flex flex-row items-center justify-between px-4 py-3">
+            <span class="text-sm font-medium text-base-content">{% trans "Delete account" %}</span>
+            <button type="button"
+                    onclick="openDeleteAccountModal()"
+                    class="btn btn-soft btn-error font-semibold rounded-sm">
+                {% include "icons/trash.svg" %}
+                {% trans "Delete" %}
+            </button>
+            </div>
+        </section>
 
     </div>
 
@@ -169,6 +170,75 @@
         </form>
     </dialog>
 
+    {# ── Delete account confirmation modal ────────────────── #}
+    <dialog id="delete-account-modal" class="modal modal-bottom sm:modal-middle">
+        <div class="modal-box rounded-t-2xl sm:rounded-2xl p-6 max-w-lg max-h-[70rem]">
+            <form method="dialog">
+                <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">
+                    {% include "icons/x-mark.svg" %}
+                </button>
+            </form>
+
+            {# ── No items borrowed ────────────────── #}
+            {% if not has_owned_items and not has_borrowed_items and not has_lended_items %}
+                <h3 class="text-xl font-bold leading-7 p-5">
+                    {% trans "Are you sure you want to delete your profile?" %}
+                </h3>
+
+                <div class="modal-action justify-end pt-6 gap-3">
+                    <form method="dialog">
+                        <button class="btn btn-ghost font-semibold">
+                            {% trans "Cancel" %}
+                        </button>
+                    </form>
+                    <button type="button"
+                            onclick="confirmDeleteAccount()"
+                            class="btn btn-soft btn-error font-semibold">
+                        {% trans "Delete" %}
+                    </button>
+                </div>
+
+            {# ── Items borrowed ────────────────── #}
+            {% elif has_borrowed_items %}
+                <h3 class="text-xl font-bold leading-7 p-5">
+                    {% trans "You're currently borrowing items" %}
+                </h3>
+
+                <p class="px-5 py-2 leading-7 text-xl">
+                    {% trans "To delete your profile, you'll need to return the items you've borrowed. Once the owner confirms the return, you'll be able to delete your profile." %}
+                </p>
+
+            {# ── Items lended ────────────────── #}
+            {% elif has_lended_items %}
+                <h3 class="text-xl font-bold leading-7 p-5">
+                    {% trans "You're still lending items" %}
+                </h3>
+                <p class="px-5 py-2 leading-7 text-xl">
+                    {% trans "If you delete your profile, your listed items will also be removed. We recommend retrieving your items before deleting your profile." %}
+                </p>
+
+                <div class="modal-action justify-end pt-6 gap-3">
+                    <form method="dialog">
+                        <button class="btn btn-ghost font-semibold">
+                            {% trans "Cancel" %}
+                        </button>
+                    </form>
+                    <button type="button"
+                            onclick="confirmDeleteAccount()"
+                            class="btn btn-soft btn-error font-semibold">
+                        {% trans "Delete" %}
+                    </button>
+                </div>
+            {% endif %}
+
+        </div>
+        <form method="dialog" class="modal-backdrop">
+            <button>
+                close
+            </button>
+        </form>
+    </dialog>
+
     <script>
   const imageInput = document.getElementById('id_image');
   const avatarPreview = document.getElementById('avatar-preview');
@@ -186,10 +256,13 @@
     });
   }
 
-  function openDeleteModal() {
+  function openDeleteAvatarModal() {
     document.getElementById('delete-avatar-modal').showModal();
   }
 
+  function openDeleteAccountModal() {
+    document.getElementById('delete-account-modal').showModal();
+  }
 
   function confirmDeleteAvatar() {
     const modal = document.getElementById('delete-avatar-modal');
@@ -211,6 +284,29 @@
       }
     })
     .catch(function () { showToast('An error occurred while deleting your profile picture.'); })
+    .finally(function () { modal.close(); });
+  }
+
+  function confirmDeleteAccount() {
+    const modal = document.getElementById('delete-account-modal');
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+    fetch('{% url "account-delete" form.instance.pk %}', {
+      method: 'POST',
+      headers: { 'X-CSRFToken': csrfToken, 'Content-Type': 'application/json' },
+    })
+    // .then(function (r) { return r.json(); })
+    // .then(function (data) {
+    //   if (data.success) {
+    //     avatarPreview.src = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(data.full_name) + '&background=random';
+    //     if (deleteBtn) deleteBtn.disabled = true;
+    //     if (imageInput) imageInput.value = '';
+    //     showToast(data.message);
+    //   } else {
+    //     showToast(data.message || 'An error occurred.');
+    //   }
+    // })
+    // .catch(function () { showToast('An error occurred while deleting your profile picture.'); })
     .finally(function () { modal.close(); });
   }
     </script>

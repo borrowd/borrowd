@@ -4,6 +4,7 @@ from allauth.account.views import PasswordChangeView
 from django.contrib import messages
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
+from django.forms import ModelForm
 from django.http import (
     Http404,
     HttpRequest,
@@ -17,18 +18,21 @@ from django.urls import reverse, reverse_lazy
 from django.views.decorators.http import require_POST
 from django.views.generic import (
     CreateView,
+    DeleteView,
 )
 
 from borrowd.util import resolve_back_url
+from borrowd.util import BorrowdTemplateFinderMixin
 from borrowd_groups.models import Membership
 from borrowd_items.card_helpers import (
     build_item_cards_for_items,
     build_item_cards_for_transactions,
 )
 from borrowd_items.models import Item, ItemStatus, Transaction
+from borrowd_permissions.mixins import LoginOr404PermissionMixin
 
 from .forms import ChangePasswordForm, CustomSignupForm, ProfileUpdateForm
-from .models import BorrowdUser, SearchTarget, SearchTerm
+from .models import BorrowdUser, Profile, SearchTarget, SearchTerm
 
 
 def build_profile_context(
@@ -109,12 +113,22 @@ def profile_view(request: HttpRequest) -> HttpResponse:
     else:
         form = ProfileUpdateForm(instance=profile)
 
+    has_borrowed_items = Transaction.get_active_borrows_for_user(user).exists()
+    has_lended_items = (
+        Transaction.get_active_lends_for_user(user).exists()
+        or Item.objects.filter(owner=user, status=ItemStatus.AVAILABLE).exists()
+    )
+    has_owned_items = Item.objects.filter(owner=user).exists()
+
     return render(
         request,
         "users/profile.html",
         {
             "profile": profile,
             "form": form,
+            "has_borrowed_items": has_borrowed_items,
+            "has_lended_items": has_lended_items,
+            "has_owned_items": has_owned_items,
         },
     )
 
@@ -126,7 +140,7 @@ def delete_profile_photo_view(request: HttpRequest) -> JsonResponse:
     Delete the user's profile photo via AJAX without affecting other form fields.
     As of this writing (Dec 28, 2025), the current photo delete flow pops up
     a modal that the user must confirm before deleting the photo.
-    If the user clicks "delete" without this view, the phot is deleted,
+    If the user clicks "delete" without this view, the photo is deleted,
     but the entire form is submitted, which means any pending updates the user
     has (email, bio, etc.) are also submitted. To avoid this terrible UX,
     this view is necessary, as it deletes only the avatar and allows the other
@@ -261,6 +275,32 @@ def inventory_view(request: HttpRequest) -> HttpResponse:
         },
     )
 
+class AccountDeleteView(
+    LoginOr404PermissionMixin,
+    BorrowdTemplateFinderMixin,
+    DeleteView[Profile, ModelForm[Profile]],
+):
+    model = Profile
+    success_url = reverse_lazy("item-list")
+    http_method_names = ["post"]
+    success_url = reverse_lazy("profile-deleted")  # Redirect after successful deletion
+
+    def form_valid(self, form: ModelForm[Profile]) -> HttpResponse:
+        item: Profile = self.object
+
+        # if item.status != ItemStatus.AVAILABLE:
+        #     _add_message_safe(
+        #         self.request,
+        #         messages.ERROR,
+        #         "Only available items can be deleted.",
+        #     )
+        #     return redirect("item-detail", pk=item.pk)
+
+        # user = cast(BorrowdUser, self.request.user)
+
+        # item.soft_delete(user)
+        _add_message_safe(self.request, messages.SUCCESS, "Profile deleted.")
+        return redirect(self.get_success_url())
 
 class CustomSignupView(CreateView[BorrowdUser, CustomSignupForm]):
     """
@@ -393,3 +433,6 @@ def search_terms_export_view(
         )[:limit]
     )
     return JsonResponse({"count": len(rows), "results": rows})
+
+def profile_deleted_view(request: HttpRequest) -> HttpResponse:
+    return render(request, "users/profile-deleted.html")
