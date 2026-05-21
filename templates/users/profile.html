@@ -26,17 +26,16 @@
 
                 {# Avatar row #}
                 <div class="flex items-center justify-between">
-                    <div class="avatar">
+                    <div class="avatar relative">
                         <div class="w-16 rounded-full ring-2 ring-base-100">
-                            {% if profile.image %}
-                                <img src="{{ profile.image.url }}"
-                                     alt="{% trans 'Profile photo' %}"
-                                     id="avatar-preview" />
-                            {% else %}
-                                <img src="https://ui-avatars.com/api/?name={{ profile.full_name|urlencode }}&background=random"
-                                     alt="{% trans 'Profile photo' %}"
-                                     id="avatar-preview" />
-                            {% endif %}
+                            <img src="{% if profile.image %}{{ profile.image.url }}{% else %}https://ui-avatars.com/api/?name={{ profile.full_name|urlencode }}&background=random{% endif %}"
+                                 alt="{% trans 'Profile photo' %}"
+                                 id="avatar-preview"
+                                 onerror="this.onerror=null; this.style.display='none'; this.nextElementSibling.style.display='inline-flex';" />
+                            <span style="display: none"
+                                  class="items-center justify-center w-16 h-16 rounded-full bg-base-200 text-base-content/40">
+                                {% heroicon_outline "user-circle" class="w-2/3 h-2/3" %}
+                            </span>
                         </div>
                     </div>
 

@@ -1,20 +1,21 @@
 {% extends "layouts/default.html" %}
 
+{% load heroicons %}
+
 {% block content %}
     <div class="w-full px-[32px] self-start rounded-md md:w-[500px] lg:w-[700px]">
         {% include "components/page_header.html" with title=_("Profile") %}
 
         <div class="lg:py-[30px] w-full flex flex-col justify-center items-center self-stretch gap-5 px-[16px] py-[14px] rounded-[4px] shadow-2xl mt-5 bg-white">
-            {% if profile_context.profile_image_url %}
-                <img src="{{ profile_context.profile_image_url }}"
-                     alt="Profile Picture"
-                     id="avatar-preview" />
-            {% else %}
-                <img class="rounded-full w-20 h-20"
-                     src="https://ui-avatars.com/api/?name={{ profile_context.full_name|urlencode }}&background=random"
-                     alt="Profile Picture"
-                     id="avatar-preview" />
-            {% endif %}
+            <img class="rounded-full w-20 h-20 object-cover"
+                 src="{% if profile_context.profile_image_url %}{{ profile_context.profile_image_url }}{% else %}https://ui-avatars.com/api/?name={{ profile_context.full_name|urlencode }}&background=random{% endif %}"
+                 alt="Profile Picture"
+                 id="avatar-preview"
+                 onerror="this.onerror=null; this.style.display='none'; this.nextElementSibling.style.display='inline-flex';" />
+            <span style="display: none"
+                  class="items-center justify-center w-20 h-20 rounded-full bg-base-200 text-base-content/40">
+                {% heroicon_outline "user-circle" class="w-2/3 h-2/3" %}
+            </span>
             <div class="text-black text-center font-inter text-base font-medium leading-normal tracking-[-0.5px]">
                 {{ profile_context.full_name }}
             </div>
