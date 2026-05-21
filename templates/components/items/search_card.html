@@ -1,0 +1,85 @@
+{% comment %}
+Compact Search Card
+
+A reduced-height card for the item search/list page.
+Clicking anywhere on the card navigates to the item detail page.
+No inline action buttons — all actions live on the detail page.
+
+Parameters:
+- pk: Item ID
+- name: Item title
+- description: Item description
+- image: Thumbnail URL
+- banner_type: 'available' | 'requested' | 'reserved' | 'borrowed' | 'pending' | 'waitlisted'
+- banner_bg: Background color classes (e.g. bg-success/15)
+- banner_text: Text/icon color classes (e.g. text-success)
+- banner_icon: SVG icon markup (HTML-safe string)
+- person_name: Name shown in status banner (for requested/reserved/borrowed)
+- person_url: Profile URL for person_name (owners only)
+- time_ago: Human-readable elapsed time (e.g. "2 hours")
+{% endcomment %}
+<a href="{% url 'item-detail' pk %}"
+   class="bg-base-100 rounded-lg shadow-sm overflow-hidden w-full flex flex-col hover:shadow-md transition-shadow">
+    {% if banner_type %}
+        <div class="flex items-center gap-2 h-8 px-3 {{ banner_bg }}">
+            <span class="{{ banner_text }} shrink-0 [&>svg]:w-4 [&>svg]:h-4">{{ banner_icon }}</span>
+            <span class="text-sm font-medium {{ banner_text }} truncate min-w-0">
+                {% if banner_type == "requested" %}
+                    Requested {{ time_ago }} ago
+                    {% if person_name %}
+                        by
+                        {% if person_url %}
+                            <span class="underline">{{ person_name }}</span>
+                        {% else %}
+                            {{ person_name }}
+                        {% endif %}
+                    {% endif %}
+                {% elif banner_type == "available" %}
+                    Available
+                {% elif banner_type == "reserved" %}
+                    Reserved {{ time_ago }} ago
+                    {% if person_name %}
+                        by
+                        {% if person_url %}
+                            <span class="underline">{{ person_name }}</span>
+                        {% else %}
+                            {{ person_name }}
+                        {% endif %}
+                    {% endif %}
+                {% elif banner_type == "borrowed" %}
+                    {% if person_name %}
+                        Borrowed {{ time_ago }} ago by
+                        {% if person_url %}
+                            <span class="underline">{{ person_name }}</span>
+                        {% else %}
+                            {{ person_name }}
+                        {% endif %}
+                    {% else %}
+                        Borrowed
+                    {% endif %}
+                {% elif banner_type == "pending" %}
+                    Pending
+                {% elif banner_type == "waitlisted" %}
+                    Waitlisted
+                {% else %}
+                    {{ banner_type|title }}
+                {% endif %}
+            </span>
+        </div>
+    {% endif %}
+    <div class="flex gap-3 items-center p-3 bg-base-100">
+        <div class="shrink-0 w-20 h-20 overflow-hidden rounded">
+            <img src="{{ image|default:'/static/items/categories/logo-tools.png' }}"
+                 alt="{{ name|default:'Item image' }}"
+                 class="w-full h-full object-cover" />
+        </div>
+        <div class="flex flex-col gap-1 min-w-0 flex-1">
+            <p class="text-sm font-semibold text-base-content line-clamp-2 break-words">
+                {{ name }}
+            </p>
+            <p class="text-sm text-base-content/70 line-clamp-3 break-words">
+                {{ description }}
+            </p>
+        </div>
+    </div>
+</a>
