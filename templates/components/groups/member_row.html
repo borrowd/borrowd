@@ -1,3 +1,5 @@
+{% load heroicons %}
+
 <div class="flex items-center py-3">
     <div class="member-avatar mr-3">
         {% if member.profile_image %}
@@ -31,13 +33,7 @@
             <button x-ref="btn"
                     @click="toggle()"
                     class="text-gray-400 hover:text-gray-600 focus:outline-none">
-                <!-- super ugly, but draws a nice vertical 3-dot for now, will be replaced with proper icon library -->
-                <svg xmlns="http://www.w3.org/2000/svg"
-                     class="h-5 w-5"
-                     viewBox="0 0 20 20"
-                     fill="currentColor">
-                    <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
-                </svg>
+                {% heroicon_mini "ellipsis-vertical" class="h-5 w-5" %}
             </button>
             <!-- todo: promote member to moderator logic -->
             <div x-ref="menu"

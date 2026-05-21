@@ -1,5 +1,6 @@
 {% load static %}
 {% load i18n %}
+{% load heroicons %}
 
 <!-- Navbar -->
 <div class="navbar bg-white shadow-sm sticky top-0 z-50">
@@ -7,13 +8,7 @@
         <!-- If authed, show 🍔  -->
         {% if user.is_authenticated %}
             <label for="main-drawer" class="btn btn-ghost btn-circle">
-                <svg xmlns="http://www.w3.org/2000/svg"
-                     class="h-5 w-5"
-                     fill="none"
-                     viewBox="0 0 24 24"
-                     stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7" />
-                </svg>
+                {% heroicon_outline "bars-3-bottom-left" class="h-5 w-5" stroke_width=2 %}
             </label>
         {% endif %}
     </div>
@@ -48,27 +43,27 @@
                 <ul class="menu bg-white min-h-full w-80 pt-20 px-4 pb-4 shadow-xl">
                     <li>
                         <a href="{% url 'item-list' %}" class="flex items-center gap-3 py-3">
-                            <i class="fas fa-magnifying-glass text-lg"></i>
+                            {% heroicon_solid "magnifying-glass" class="size-5" %}
                             <span>Item search</span>
                         </a>
                     </li>
                     <li>
                         <a href="{% url 'borrowd_groups:group-list' %}"
                            class="flex items-center gap-3 py-3">
-                            <i class="fas fa-users text-lg"></i>
+                            {% heroicon_outline "user-group" class="size-5" %}
                             <span>Groups</span>
                         </a>
                     </li>
                     <li>
                         <a href="{% url 'profile-inventory' %}"
                            class="flex items-center gap-3 py-3">
-                            <i class="fas fa-box text-lg"></i>
+                            {% heroicon_outline "archive-box" class="size-5" %}
                             <span>My inventory</span>
                         </a>
                     </li>
                     <li>
                         <a href="{% url 'profile' %}" class="flex items-center gap-3 py-3">
-                            <i class="fas fa-user text-lg"></i>
+                            {% heroicon_outline "user-circle" class="size-5" %}
                             <span>My Profile</span>
                         </a>
                     </li>
@@ -77,7 +72,7 @@
                            target="_blank"
                            rel="noopener noreferrer"
                            class="flex items-center gap-3 py-3">
-                            <i class="fas fa-circle-question text-lg"></i>
+                            {% heroicon_outline "question-mark-circle" class="size-5" %}
                             <span>FAQ</span>
                         </a>
                     </li>
@@ -89,7 +84,7 @@
                             {% csrf_token %}
                             <button type="submit"
                                     class="flex items-center gap-3 py-3 w-full text-left cursor-pointer">
-                                <i class="fas fa-right-from-bracket text-lg"></i>
+                                {% heroicon_outline "arrow-right-start-on-rectangle" class="size-5" %}
                                 <span>Logout</span>
                             </button>
                         </form>

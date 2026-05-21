@@ -1,3 +1,5 @@
+{% load heroicons %}
+
 <div id="groups-card-container"
      class="rounded-2xl shadow-md bg-white overflow-hidden">
     <!-- Header -->
@@ -25,13 +27,7 @@
                          alt="{{ membership.group.name }} Banner" />
                 {% else %}
                     <div class="w-full h-full bg-gray-200 flex items-center justify-center">
-                        <svg class="w-6 h-6 text-gray-400"
-                             fill="none"
-                             stroke="currentColor"
-                             viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z">
-                            </path>
-                        </svg>
+                        {% heroicon_outline "user-group" class="w-6 h-6 text-gray-400" stroke_width=2 %}
                     </div>
                 {% endif %}
             </div>
@@ -67,12 +63,11 @@
             <div class="text-base font-semibold text-base-content-scale-50 text-right w-10 inline-flex items-center justify-end gap-3">
                 {{ membership.group.users.count }}
                 {% if membership.has_pending_actions %}
-                    <span class="inline-flex items-center justify-center w-5 h-5"
+                    <span class="inline-flex items-center justify-center w-5 h-5 text-info"
                           title="Pending actions require moderator review"
                           aria-label="Pending actions"
                           data-testid="group-pending-actions-indicator">
-                        {% include "icons/exclamation-circle.svg" %}
-
+                        {% heroicon_mini "exclamation-circle" class="w-5 h-5" %}
                     </span>
                 {% endif %}
             </div>
