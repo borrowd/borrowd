@@ -271,6 +271,7 @@ class ItemListView(
     model = Item
     template_name_suffix = "_list"  # Reusing template from ListView
     filterset_class = ItemFilter
+    paginate_by = 6
 
     def get(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
         term = request.GET.get("search")

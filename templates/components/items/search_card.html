@@ -67,7 +67,7 @@ Parameters:
             </span>
         </div>
     {% endif %}
-    <div class="flex gap-3 items-center p-3 bg-base-100">
+    <div class="flex gap-3 items-center p-3 bg-primary-content">
         <div class="shrink-0 w-20 h-20 overflow-hidden rounded">
             <img src="{{ image|default:'/static/items/categories/logo-tools.png' }}"
                  alt="{{ name|default:'Item image' }}"
@@ -77,7 +77,7 @@ Parameters:
             <p class="text-sm font-semibold text-base-content line-clamp-2 break-words">
                 {{ name }}
             </p>
-            <p class="text-sm text-base-content/70 line-clamp-3 break-words">
+            <p class="text-sm text-base-content line-clamp-3 break-words">
                 {{ description }}
             </p>
         </div>

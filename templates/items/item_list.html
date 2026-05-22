@@ -48,5 +48,9 @@
                 {% endfor %}
             {% endif %}
         </div>
+        {% if page_obj %}
+            {% include "components/pagination.html" with page_obj=page_obj query_params=request.GET %}
+
+        {% endif %}
     </div>
 {% endblock %}
