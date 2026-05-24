@@ -243,6 +243,10 @@ BETA_COOKIE_DOMAIN: str | None = None
 BETA_SECURE_COOKIE: bool = False
 BETA_COOKIE_SAMESITE = "Lax"
 
+# tuning uploads settings
+DATA_UPLOAD_MAX_MEMORY_SIZE = 1024 * 1024  # 1MB
+FILE_UPLOAD_MAX_MEMORY_SIZE = 1024 * 1024  # 1MB
+
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
