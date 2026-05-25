@@ -177,6 +177,18 @@ AUTHENTICATION_BACKENDS = [
     "guardian.backends.ObjectPermissionBackend",
 ]
 
+# IP address handling
+
+ACCOUNT_ADAPTER = "borrowd.adapters.IPWareAccountAdapter"
+
+# Tell ipware to check Upsun's specific header first
+# Note: Django converts 'X-Client-IP' to 'HTTP_X_CLIENT_IP' in request.META
+IPWARE_META_PRECEDENCE_ORDER = (
+    "HTTP_X_CLIENT_IP",
+    "HTTP_X_FORWARDED_FOR",
+    "REMOTE_ADDR",
+)
+
 # Email
 
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"

@@ -1,18 +1,19 @@
-from typing import Any
+from typing import Any, cast
+from urllib.parse import urlencode
 
 from django.contrib import messages
 from django.contrib.messages.api import MessageFailure
 from django.core.validators import FileExtensionValidator
 from django.forms import ModelForm
 from django.http import HttpRequest, HttpResponse
-from django.shortcuts import redirect
+from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse, reverse_lazy
 from django.views.decorators.http import require_POST
 from django.views.generic import CreateView, DeleteView, DetailView, UpdateView
 from django_filters.views import FilterView
 from guardian.mixins import LoginRequiredMixin
 
-from borrowd.util import BorrowdTemplateFinderMixin
+from borrowd.util import BorrowdTemplateFinderMixin, resolve_back_url
 from borrowd_permissions.mixins import (
     LoginOr403PermissionMixin,
     LoginOr404PermissionMixin,
@@ -34,7 +35,7 @@ from .forms import (
     ItemPhotoForm,
     validate_image_size,
 )
-from .models import Item, ItemAction, ItemPhoto
+from .models import Item, ItemAction, ItemPhoto, ItemStatus
 
 
 def _build_item_action_success_message(item_name: str, action: ItemAction) -> str:
@@ -100,7 +101,10 @@ def borrow_item(request: HttpRequest, pk: int) -> HttpResponse:
     # AbstractUser or AnonymousUser, which we *would* comply with
     # here (BorrowdUser subclasses AbstractUser).
     user: BorrowdUser = request.user  # type: ignore[assignment]
-    item = Item.objects.get(pk=pk)
+    item = get_object_or_404(
+        Item,
+        pk=pk,
+    )
 
     # Not currently differentiating between viewing and borrowing
     # permissions; assumed that if a user can "see" an item (and
@@ -183,7 +187,7 @@ class ItemCreateView(
     def get_success_url(self) -> str:
         if self.object is None:
             return reverse("item-list")
-        return reverse("item-detail", args=[self.object.pk])
+        return reverse("profile-inventory")
 
 
 class ItemDeleteView(
@@ -193,8 +197,25 @@ class ItemDeleteView(
 ):
     model = Item
     permission_required = ItemOLP.DELETE
-    success_url = reverse_lazy("item-list")
+    success_url = reverse_lazy("profile-inventory")
     http_method_names = ["post"]
+
+    def form_valid(self, form: ModelForm[Item]) -> HttpResponse:
+        item: Item = self.object
+
+        if item.status != ItemStatus.AVAILABLE:
+            _add_message_safe(
+                self.request,
+                messages.ERROR,
+                "Only available items can be deleted.",
+            )
+            return redirect("item-detail", pk=item.pk)
+
+        user = cast(BorrowdUser, self.request.user)
+
+        item.soft_delete(user)
+        _add_message_safe(self.request, messages.SUCCESS, "Item deleted.")
+        return redirect(self.get_success_url())
 
 
 class ItemDetailView(
@@ -223,6 +244,19 @@ class ItemDetailView(
         """
         context = build_item_card_context(
             self.object, user, "item-details", action_context
+        )
+
+        # URL names (see urls.py) that are valid back-button targets
+        allowed_back_button_targets = {
+            "item-list",
+            "profile-inventory",
+        }
+
+        # Back arrow target. depends on how the user got here.
+        context["back_url"] = resolve_back_url(
+            self.request,
+            fallback_url=reverse("item-list"),
+            allowed_url_names=allowed_back_button_targets,
         )
 
         return context
@@ -260,7 +294,9 @@ class ItemListView(
         # Build card contexts for all items
         items = list(context["object_list"])
         context["item_cards"] = build_item_cards_for_items(items, user, "search")
-        context["user_has_items"] = Item.objects.filter(owner=user).exists
+        context["user_has_items"] = Item.objects.filter(
+            owner=user,
+        ).exists
 
         return context
 
@@ -319,20 +355,24 @@ class ItemUpdateView(
             _add_message_safe(
                 self.request,
                 messages.WARNING,
-                f"{skipped} photo(s) were skipped — invalid format or over 5 MB.",
+                f"{skipped} photo(s) were skipped -- invalid format or over 5 MB.",
             )
         over_limit = len(uploaded_files) - remaining_slots
         if over_limit > 0:
             _add_message_safe(
                 self.request,
                 messages.WARNING,
-                f"{over_limit} photo(s) were skipped — photo limit (5) reached.",
+                f"{over_limit} photo(s) were skipped -- photo limit (5) reached.",
             )
 
     def get_success_url(self) -> str:
         if self.object is None:
             return reverse("item-list")
-        return reverse("item-detail", args=[self.object.pk])
+        # Land on the edited item's detail page so the user sees their
+        # changes applied; `?next=` points its back button at inventory.
+        detail_url = reverse("item-detail", args=[self.object.pk])
+        next_query = urlencode({"next": reverse("profile-inventory")})
+        return f"{detail_url}?{next_query}"
 
 
 class ItemPhotoCreateView(
@@ -345,7 +385,7 @@ class ItemPhotoCreateView(
     form_class = ItemPhotoForm
 
     def get_permission_object(self):  # type: ignore[no-untyped-def]
-        return Item.objects.get(pk=self.kwargs["item_pk"])
+        return get_object_or_404(Item, pk=self.kwargs["item_pk"])
 
     def get_context_data(self, **kwargs: str) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)

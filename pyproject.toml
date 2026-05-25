@@ -23,6 +23,7 @@ dependencies = [
     "django-notifications-hq @ git+https://github.com/django-notifications/django-notifications.git",
     "django-imagekit>=6.0.0",
     "sentry-sdk[django]>=2.48.0",
+    "django-ipware>=7.0.1",
 ]
 
 [dependency-groups]

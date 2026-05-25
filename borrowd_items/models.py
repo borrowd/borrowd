@@ -1,8 +1,9 @@
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Never, Optional
 
 from django.core.exceptions import ValidationError
-from django.db import transaction
+from django.db import models, transaction
 from django.db.models import (
     CASCADE,
     DO_NOTHING,
@@ -29,6 +30,20 @@ from borrowd_permissions.models import ItemOLP
 from borrowd_users.models import BorrowdUser
 
 from .exceptions import InvalidItemAction, ItemAlreadyRequested
+from .processors import AutoOrientProcessor
+
+
+class ActiveItemQuerySet(QuerySet["Item"]):
+    def active(self) -> "ActiveItemQuerySet":
+        return self.filter(deleted_at__isnull=True)
+
+    def deleted(self) -> "ActiveItemQuerySet":
+        return self.filter(deleted_at__isnull=False)
+
+
+class ActiveItemManager(models.Manager["Item"]):
+    def get_queryset(self) -> ActiveItemQuerySet:
+        return ActiveItemQuerySet(self.model, using=self._db).active()
 
 
 class ItemAction(TextChoices):
@@ -152,7 +167,7 @@ class Item(Model):
         auto_now=True,
         help_text="The date and time at which the item was last updated.",
     )
-    deleted_at: DateTimeField[Never, Never] = DateTimeField(
+    deleted_at: DateTimeField[datetime | None, datetime | None] = DateTimeField(
         null=True,
         blank=True,
         default=None,
@@ -167,6 +182,8 @@ class Item(Model):
         related_name="+",
         help_text="Who performed the soft-delete. NULL means active or unknown.",
     )
+    objects = ActiveItemManager()
+    all_objects: models.Manager["Item"] = models.Manager()
 
     def __str__(self) -> str:
         return self.name
@@ -180,6 +197,11 @@ class Item(Model):
         # M2M validation only works for saved instances
         if self.pk and not self.categories.exists():
             raise ValidationError({"categories": "At least one category is required."})
+
+    def soft_delete(self, deleted_by: BorrowdUser) -> None:
+        self.deleted_at = datetime.now()
+        self.deleted_by = deleted_by
+        self.save()
 
     def get_action_context_for(self, user: BorrowdUser) -> ItemActionContext:
         """
@@ -672,7 +694,7 @@ class ItemPhoto(Model):
     item_id: int  # hint for mypy
     image = ProcessedImageField(
         upload_to="items/",
-        processors=[ResizeToFit(1600, 1600)],
+        processors=[AutoOrientProcessor(), ResizeToFit(1600, 1600)],
         format="JPEG",
         options={"quality": 75},
     )

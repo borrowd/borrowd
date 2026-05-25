@@ -13,12 +13,13 @@ from django.http import (
     JsonResponse,
 )
 from django.shortcuts import get_object_or_404, redirect, render
-from django.urls import reverse_lazy
+from django.urls import reverse, reverse_lazy
 from django.views.decorators.http import require_POST
 from django.views.generic import (
     CreateView,
 )
 
+from borrowd.util import resolve_back_url
 from borrowd_groups.models import Membership
 from borrowd_items.card_helpers import (
     build_item_cards_for_items,
@@ -226,6 +227,21 @@ def inventory_view(request: HttpRequest) -> HttpResponse:
         outgoing_borrow_requests_cards or borrowed_items_from_others_cards
     )
 
+    # URL names (see urls.py) that are valid back-button targets
+    # Inventory is reachable from the drawer on every authenticated page, so
+    # any browsable page is a realistic Referer. The set below covers all the
+    # main entries: search, item detail, groups, profile pages.
+    # Anything else (form pages, POST endpoints, etc.) should fall through.
+    allowed_back_button_targets = {
+        "item-list",
+        "item-detail",
+        "group-list",
+        "group-detail",
+        "profile",
+        "public-profile",
+        "index",
+    }
+
     return render(
         request,
         "users/inventory.html",
@@ -237,6 +253,11 @@ def inventory_view(request: HttpRequest) -> HttpResponse:
             "owned_items_available": owned_items_available_cards,
             "has_owned_items": has_owned_items,
             "has_activity": has_activity,
+            "back_url": resolve_back_url(
+                request,
+                fallback_url=reverse("index"),
+                allowed_url_names=allowed_back_button_targets,
+            ),
         },
     )
 

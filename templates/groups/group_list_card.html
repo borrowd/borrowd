@@ -64,13 +64,24 @@
             </div>
 
             <!-- Member Count -->
-            <div class="flex items-center justify-end gap-3 w-12">
-                <span class="text-base font-semibold text-base-content-scale-50 text-right">
-                    {{ membership.active_member_count }}
-                </span>
+            <div class="text-base font-semibold text-base-content-scale-50 text-right w-10 inline-flex items-center justify-end gap-3">
+                {{ membership.group.users.count }}
+
+                {% if membership.has_pending_actions %}
+                    <span class="inline-flex items-center justify-center w-5 h-5"
+                          title="Pending actions require moderator review"
+                          aria-label="Pending actions"
+                          data-testid="group-pending-actions-indicator">
+                        {% include "icons/exclamation-circle.svg" %}
+
+                    </span>
+                {% endif %}
 
                 {% if membership.group.needs_moderator and not membership.is_moderator and membership.status == "ACTIVE" %}
-                    <span class="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-warning text-white text-xs font-bold">
+                    <span class="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-warning text-white text-xs font-bold"
+                          title="This group needs a moderator"
+                          aria-label="This group needs a moderator"
+                          data-testid="group-needs-moderator-indicator">
                         !
                     </span>
                 {% endif %}

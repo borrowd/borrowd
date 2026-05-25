@@ -89,7 +89,7 @@ class BorrowdGroup(Model):
         null=True,
         blank=True,
     )
-    membership_requires_approval: BooleanField[Never, Never] = BooleanField(
+    membership_requires_approval: BooleanField[bool, bool] = BooleanField(
         default=True,
         help_text="New members require Moderator approval to join the group",
     )
