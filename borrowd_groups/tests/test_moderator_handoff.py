@@ -92,8 +92,10 @@ class ModeratorHandoffTests(TestCase):
         - no existing moderator exists
         """
         # Simulate "no moderator" state
-        BorrowdGroup.objects.filter(pk=self.group.pk).update(needs_moderator=True)
-        self.group.refresh_from_db()
+        Membership.objects.filter(
+            user=self.owner,
+            group=self.group,
+        ).update(is_moderator=False)
 
         Membership.objects.filter(user=self.owner, group=self.group).update(
             is_moderator=False
@@ -126,8 +128,10 @@ class ModeratorHandoffTests(TestCase):
         Once a moderator is assigned:
         - all moderator-needed notifications should be marked as read
         """
-        BorrowdGroup.objects.filter(pk=self.group.pk).update(needs_moderator=True)
-        self.group.refresh_from_db()
+        Membership.objects.filter(
+            user=self.owner,
+            group=self.group,
+        ).update(is_moderator=False)
 
         Membership.objects.filter(user=self.owner, group=self.group).update(
             is_moderator=False
@@ -171,8 +175,10 @@ class ModeratorHandoffTests(TestCase):
         Only the first member to claim moderator role should succeed.
         Subsequent attempts should not change moderator state.
         """
-        BorrowdGroup.objects.filter(pk=self.group.pk).update(needs_moderator=True)
-        self.group.refresh_from_db()
+        Membership.objects.filter(
+            user=self.owner,
+            group=self.group,
+        ).update(is_moderator=False)
 
         # Simulate someone already became moderator
         Membership.objects.filter(user=self.owner, group=self.group).update(
