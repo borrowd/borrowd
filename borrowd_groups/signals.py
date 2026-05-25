@@ -309,8 +309,6 @@ def flag_group_if_last_moderator_leaves(
     if not remaining_members:
         return
 
-    BorrowdGroup.objects.filter(pk=group.pk).update(needs_moderator=True)
-
     notify.send(
         instance.user,
         recipient=[membership.user for membership in remaining_members],

@@ -773,9 +773,6 @@ class BecomeModeratorView(LoginRequiredMixin, View):  # type: ignore[misc]
             membership.is_moderator = True
             membership.save(update_fields=["is_moderator"])
 
-            # Clear group flag
-            BorrowdGroup.objects.filter(pk=group.pk).update(needs_moderator=False)
-
             # Clear notifications for ALL users
             group_content_type = ContentType.objects.get_for_model(BorrowdGroup)
 

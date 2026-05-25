@@ -1,23 +1,29 @@
-from typing import Any
+from typing import Any, cast
 
 from django.http import HttpRequest
 
-from borrowd_groups.models import Membership
+from borrowd_groups.models import BorrowdGroup, Membership, MembershipStatus
 
 
-def groups_needing_moderator(request: HttpRequest) -> dict[str, Any]:
+def groups_needing_moderator(
+    request: HttpRequest,
+) -> dict[str, Any]:
     """
-    Adds a flag to templates indicating whether the current user
-    is part of any group that needs a moderator.
+    Adds a flag indicating whether the user belongs to a group
+    that currently has no moderator.
     """
     if not request.user.is_authenticated:
         return {}
 
-    has_groups_needing_moderator = Membership.objects.filter(
+    memberships = Membership.objects.filter(
         user=request.user,
-        status="ACTIVE",
-        group__needs_moderator=True,
+        status=MembershipStatus.ACTIVE,
         is_moderator=False,
-    ).exists()
+    ).select_related("group")
+
+    has_groups_needing_moderator = any(
+        cast(BorrowdGroup, membership.group).needs_moderator
+        for membership in memberships
+    )
 
     return {"has_groups_needing_moderator": has_groups_needing_moderator}
