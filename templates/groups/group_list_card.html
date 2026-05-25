@@ -39,25 +39,25 @@
             <!-- Group Info -->
             <div class="flex-1 flex flex-col gap-3 min-w-0">
                 <div class="flex items-center">
-                    {% if membership.status == "PENDING" %}
-                        <span class="text-base font-semibold text-yellow-700 cursor-pointer hover:underline truncate"
-                              onclick=" window.showToast && window.showToast('Your request is still pending.', 'warning') "
-                              title="Your request is still pending."
-                              style="pointer-events: auto">
-                            {{ membership.group.name }}
-                        </span>
-                    {% else %}
-                        <a href="{% url 'borrowd_groups:group-detail' membership.group.pk %}"
-                           class="text-base font-semibold text-base-content hover:underline truncate">
-                            {{ membership.group.name }}
-                        </a>
-                    {% endif %}
+                    <!-- On the left -->
+                    <div class="flex items-center gap-2 min-w-0">
+                        {% if membership.status == "PENDING" %}
+                            <span class="text-base font-semibold text-yellow-700 cursor-pointer hover:underline truncate">
+                                {{ membership.group.name }}
+                            </span>
+                        {% else %}
+                            <a href="{% url 'borrowd_groups:group-detail' membership.group.pk %}"
+                               class="text-base font-semibold text-base-content hover:underline truncate">
+                                {{ membership.group.name }}
+                            </a>
+                        {% endif %}
 
-                    {% if membership.status == "PENDING" %}
-                        <span class="inline-block badge badge-warning badge-soft text-xs px-2 py-1 rounded font-semibold ml-2 align-middle">
-                            Pending
-                        </span>
-                    {% endif %}
+                        {% if membership.status == "PENDING" %}
+                            <span class="inline-block badge badge-warning badge-soft text-xs px-2 py-1 rounded font-semibold">
+                                Pending
+                            </span>
+                        {% endif %}
+                    </div>
                 </div>
 
                 <c-trust-level-badge level="{{ membership.get_trust_level_display }}" />
@@ -66,6 +66,7 @@
             <!-- Member Count -->
             <div class="text-base font-semibold text-base-content-scale-50 text-right w-10 inline-flex items-center justify-end gap-3">
                 {{ membership.group.users.count }}
+
                 {% if membership.has_pending_actions %}
                     <span class="inline-flex items-center justify-center w-5 h-5"
                           title="Pending actions require moderator review"
@@ -73,6 +74,15 @@
                           data-testid="group-pending-actions-indicator">
                         {% include "icons/exclamation-circle.svg" %}
 
+                    </span>
+                {% endif %}
+
+                {% if membership.group.needs_moderator and not membership.is_moderator and membership.status == "ACTIVE" %}
+                    <span class="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-warning text-white text-xs font-bold"
+                          title="This group needs a moderator"
+                          aria-label="This group needs a moderator"
+                          data-testid="group-needs-moderator-indicator">
+                        !
                     </span>
                 {% endif %}
             </div>
