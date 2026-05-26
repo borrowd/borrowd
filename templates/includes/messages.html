@@ -1,17 +1,13 @@
-{% load i18n %}
+{% load i18n heroicons %}
 
 {% if messages %}
     {% for message in messages %}
-        {% load i18n static %}
-
         <div x-data
              x-init="setTimeout(() => { $el.style.transition = 'opacity 0.3s ease-out'; $el.style.opacity = '0'; setTimeout(() => $el.remove(), 300); }, 5000)"
              class="toast toast-center z-50">
             <div role="alert"
                  class="alert alert-{{ message.tags }} w-72 flex items-center gap-4 px-4 py-3 rounded-2xl shadow-[0px_4px_3px_-2px_rgba(0,0,0,0.08)] font-bold">
-                <img src="{% static 'icons/info-circle.svg' %}"
-                     alt="info"
-                     class="w-6 h-6{% if 'success' in message.tags %} brightness-0 invert{% endif %}" />
+                {% heroicon_outline "information-circle" class="w-6 h-6 shrink-0" stroke_width=1.5 %}
                 <span class="text-sm leading-6">{{ message }}</span>
             </div>
         </div>

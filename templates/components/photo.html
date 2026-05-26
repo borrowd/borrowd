@@ -1,11 +1,25 @@
+{% load heroicons %}
+
 {% with img_class="h-77 w-70 md:w-90 object-cover rounded" %}
 
-    {% if link %}
-        <a href="{{ link }}">
-            <img src="{{ src }}" alt="{{ alt }}" class="{{ img_class }} {{ class }}" />
-        </a>
-    {% else %}
-        <img src="{{ src }}" alt="{{ alt }}" class="{{ img_class }} {{ class }}" />
-    {% endif %}
+    <span class="relative inline-block">
+        {% if link %}
+            <a href="{{ link }}">
+                <img src="{{ src }}"
+                     alt="{{ alt }}"
+                     onerror="this.onerror=null; this.style.display='none'; this.parentElement.nextElementSibling.style.display='inline-flex';"
+                     class="{{ img_class }} {{ class }}" />
+            </a>
+        {% else %}
+            <img src="{{ src }}"
+                 alt="{{ alt }}"
+                 onerror="this.onerror=null; this.style.display='none'; this.nextElementSibling.style.display='inline-flex';"
+                 class="{{ img_class }} {{ class }}" />
+        {% endif %}
+        <span style="display: none"
+              class="items-center justify-center bg-base-200 text-base-content/40 {{ img_class }} {{ class }}">
+            {% heroicon_outline "user-circle" class="w-2/3 h-2/3" %}
+        </span>
+    </span>
 
 {% endwith %}

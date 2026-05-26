@@ -1,9 +1,9 @@
 from typing import Never, Self
+from urllib.parse import quote
 
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.db.models import DO_NOTHING, SET_NULL, DateTimeField, ForeignKey
-from django.templatetags.static import static
 from guardian.mixins import GuardianUserMixin
 from imagekit.models import ProcessedImageField
 from imagekit.processors import ResizeToFit
@@ -134,12 +134,11 @@ class Profile(models.Model):
 
     @property
     def profile_pic(self) -> str:
-        pic: str = ""
         try:
-            pic = self.image.url
+            return str(self.image.url)
         except Exception:
-            pic = static("icons/account-circle.svg")
-        return pic
+            name = quote(self.full_name() or "User")
+            return f"https://ui-avatars.com/api/?name={name}&background=random"
 
 
 class SearchTarget(models.TextChoices):
