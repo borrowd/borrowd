@@ -1,3 +1,17 @@
-<img src="{{ src }}"
-     alt="{{ alt }}"
-     class="h-10 w-10 object-cover rounded-full {{ class }}">
+{% load heroicons %}
+
+<c-vars src="" alt="" name="User" class="h-10 w-10 rounded-full" />
+
+{# Fallback chain: provided `src` (real photo) -> ui-avatars (when src empty)
+-> inline heroicon `user-circle` (onerror). #}
+
+<span class="relative inline-flex">
+    <img src="{% if src %}{{ src }}{% else %}https://ui-avatars.com/api/?name={{ name|urlencode }}&background=random{% endif %}"
+         alt="{{ alt }}"
+         onerror="this.onerror=null; this.style.display='none'; this.nextElementSibling.style.display='inline-flex';"
+         class="object-cover {{ class }}" />
+    <span style="display: none"
+          class="items-center justify-center bg-base-200 text-base-content/40 {{ class }}">
+        {% heroicon_outline "user-circle" class="w-2/3 h-2/3" %}
+    </span>
+</span>

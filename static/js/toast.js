@@ -23,7 +23,9 @@ window.showToast = function showToast(message, variant = 'success') {
   wrapper.innerHTML = `
     <div role="alert"
          class="alert alert-${variant} w-72 flex items-center gap-4 px-4 py-3 rounded-2xl shadow-[0px_4px_3px_-2px_rgba(0,0,0,0.08)] font-bold">
-      <!-- icon: static/icons/info-circle.svg -->
+      <!-- heroicons outline/information-circle,
+      {% heroicon_outline %} doesn't work here.
+      Align with templates/includes/messages.html. -->
       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
            stroke-width="1.5" stroke="currentColor" class="size-6 shrink-0">
         <path stroke-linecap="round" stroke-linejoin="round"

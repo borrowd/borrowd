@@ -1,3 +1,5 @@
+{% load heroicons %}
+
 <!-- Reusable Modal Component
      Parameters:
      - modal_id: Required, unique ID for the modal
@@ -30,26 +32,7 @@
         <button type="button"
                 onclick="this.closest('dialog').close()"
                 class="btn btn-ghost absolute top-0 right-0 h-16 w-16 p-2 flex flex-col align-items-center">
-            <svg xmlns="http://www.w3.org/2000/svg"
-                 width="22"
-                 height="22"
-                 viewBox="0 0 22 22"
-                 fill="none">
-                <g filter="url(#filter0_d_1222_4949)">
-                <path fill-rule="evenodd" clip-rule="evenodd" d="M5.01386 5.01386C5.28235 4.74538 5.71765 4.74538 5.98614 5.01386L11 10.0277L16.0139 5.01386C16.2824 4.74538 16.7177 4.74538 16.9861 5.01386C17.2546 5.28235 17.2546 5.71765 16.9861 5.98614L11.9723 11L16.9861 16.0139C17.2546 16.2824 17.2546 16.7177 16.9861 16.9861C16.7177 17.2546 16.2824 17.2546 16.0139 16.9861L11 11.9723L5.98614 16.9861C5.71765 17.2546 5.28235 17.2546 5.01386 16.9861C4.74538 16.7177 4.74538 16.2824 5.01386 16.0139L10.0277 11L5.01386 5.98614C4.74538 5.71765 4.74538 5.28235 5.01386 5.01386Z" fill="#181818" />
-                </g>
-                <defs>
-                <filter id="filter0_d_1222_4949" x="4.8125" y="4.8125" width="12.375" height="12.875" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
-                <feFlood flood-opacity="0" result="BackgroundImageFix" />
-                <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha" />
-                <feOffset dy="0.5" />
-                <feComposite in2="hardAlpha" operator="out" />
-                <feColorMatrix type="matrix" values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.15 0" />
-                <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_1222_4949" />
-                <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_1222_4949" result="shape" />
-                </filter>
-                </defs>
-            </svg>
+            {% heroicon_mini "x-mark" class="w-[22px] h-[22px] text-base-content" %}
         </button>
 
         <!-- Modal Title -->

@@ -1,5 +1,7 @@
 {% extends "items/layout.html" %}
 
+{% load heroicons %}
+
 {% comment %}
     This template is used for both creating and editing.
     Checking `view.object.pk` is strangely the best way to check
@@ -114,7 +116,7 @@
                                             </span>
                                         </template>
                                     </span>
-                                    <i class="fa-solid fa-chevron-down text-[10px] text-base-content/60 shrink-0 ml-1"></i>
+                                    {% heroicon_micro "chevron-down" class="size-3 text-base-content/60 shrink-0 ml-1" %}
                                 </button>
 
                                 <!--
@@ -170,8 +172,7 @@
                                     <button type="button"
                                             class="btn btn-xs gap-1 mt-2 text-[11px] font-semibold"
                                             onclick="showModal('item-photo-delete-modal-{{ photo.pk }}')">
-                                        {% include "icons/trash.svg" %}
-
+                                        {% heroicon_mini "trash" class="size-3" %}
                                         Delete
                                     </button>
                                 </div>
@@ -189,8 +190,7 @@
                                     <button type="button"
                                             class="btn btn-xs gap-1 mt-2 text-[11px] font-semibold"
                                             @click="removePending(index)">
-                                        {% include "icons/trash.svg" %}
-
+                                        {% heroicon_mini "trash" class="size-3" %}
                                         Remove
                                     </button>
                                 </div>
@@ -258,8 +258,7 @@
                 <button type="button"
                         class="btn btn-sm btn-error btn-soft gap-1.5"
                         onclick="showModal('item-delete-modal')">
-                    {% include "icons/trash.svg" %}
-
+                    {% heroicon_mini "trash" class="size-3" %}
                     Delete item
                 </button>
             </div>
