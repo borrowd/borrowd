@@ -156,6 +156,22 @@ class BorrowdGroup(Model):
     def get_absolute_url(self) -> str:
         return reverse("borrowd_groups:group-detail", args=[self.pk])
 
+    @property
+    def needs_moderator(self) -> bool:
+        """
+        Return True when the group has active members
+        but no active moderator.
+        """
+        active_memberships = Membership.objects.filter(
+            group=self,
+            status=MembershipStatus.ACTIVE,
+        )
+
+        return (
+            active_memberships.exists()
+            and not active_memberships.filter(is_moderator=True).exists()
+        )
+
     def add_user(
         self, user: BorrowdUser, trust_level: TrustLevel, is_moderator: bool = False
     ) -> "Membership":

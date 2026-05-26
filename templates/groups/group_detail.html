@@ -5,6 +5,27 @@
     endblock %}
     {% block groups_content %}
 
+        {% if object.needs_moderator and user_trust_level and not is_moderator %}
+            <div class="mb-4 rounded-3xl bg-yellow-50 px-6 py-8 text-center shadow-sm">
+                <p class="text-warning font-bold text-lg leading-8">
+                    This group doesn’t currently
+                    <br />
+                    have a moderator.
+                </p>
+                <p class="text-warning text-base mb-4">
+                    Would you like to step in?
+                </p>
+
+                <form method="post"
+                      action="{% url 'borrowd_groups:become-moderator' object.pk %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-primary">
+                        Become moderator
+                    </button>
+                </form>
+            </div>
+        {% endif %}
+
         <c-h1 class="text-2xl mb-4 font-medium text-center">
             Group details
         </c-h1>

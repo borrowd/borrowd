@@ -49,9 +49,20 @@
                     </li>
                     <li>
                         <a href="{% url 'borrowd_groups:group-list' %}"
-                           class="flex items-center gap-3 py-3">
-                            {% heroicon_outline "user-group" class="size-5" %}
-                            <span>Groups</span>
+                           class="flex items-center justify-between py-3">
+                            <div class="flex items-center gap-3">
+                                {% heroicon_outline "user-group" class="size-5" %}
+                                <span>Groups</span>
+                            </div>
+
+                            {% if has_groups_needing_moderator %}
+                                <span class="inline-flex items-center justify-center w-5 h-5 text-warning"
+                                      title="One or more groups need a moderator"
+                                      aria-label="One or more groups need a moderator"
+                                      data-testid="nav-groups-needing-moderator-indicator">
+                                    {% heroicon_solid "exclamation-circle" class="w-5 h-5" %}
+                                </span>
+                            {% endif %}
                         </a>
                     </li>
                     <li>

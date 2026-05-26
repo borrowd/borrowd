@@ -3,8 +3,10 @@ from typing import Any, cast
 from urllib.parse import urlencode
 
 from django.contrib import messages
+from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import PermissionDenied
 from django.core.signing import SignatureExpired, TimestampSigner
+from django.db import transaction
 from django.db.models import Q, QuerySet
 from django.forms import ModelForm
 from django.http import (
@@ -19,10 +21,12 @@ from django.urls import reverse, reverse_lazy
 from django.views.generic import CreateView, DeleteView, DetailView, UpdateView, View
 from django_filters.views import FilterView
 from guardian.mixins import LoginRequiredMixin
+from notifications.models import Notification
 
 from borrowd.models import TrustLevel
 from borrowd.util import BorrowdTemplateFinderMixin
 from borrowd_items.models import Transaction, TransactionStatus
+from borrowd_notifications.services import NotificationType
 from borrowd_permissions.mixins import (
     LoginOr403PermissionMixin,
     LoginOr404PermissionMixin,
@@ -127,18 +131,20 @@ def _blocking_group_transactions_for_user(
 
     blocking_transactions: list[Transaction] = []
 
-    for transaction in candidate_transactions:
-        if transaction.party1 == user:
-            other_party = cast(BorrowdUser, transaction.party2)
+    # ruff error fixed: F402 Import `transaction` from line 25 shadowed by loop variable
+
+    for candidate_transaction in candidate_transactions:
+        if candidate_transaction.party1 == user:
+            other_party = cast(BorrowdUser, candidate_transaction.party2)
         else:
-            other_party = cast(BorrowdUser, transaction.party1)
+            other_party = cast(BorrowdUser, candidate_transaction.party1)
 
         if not _users_share_another_active_group(
             user1=user,
             user2=other_party,
             excluding_group=group,
         ):
-            blocking_transactions.append(transaction)
+            blocking_transactions.append(candidate_transaction)
 
     blocking_transaction_ids = [transaction.pk for transaction in blocking_transactions]
 
@@ -762,3 +768,52 @@ class LeaveGroupView(LoginRequiredMixin, View):  # type: ignore[misc]
 
         messages.success(request, f"You left {group.name}.")
         return redirect("borrowd_groups:group-list")
+
+
+class BecomeModeratorView(LoginRequiredMixin, View):  # type: ignore[misc]
+    """
+    Allow first active member to claim moderator role.
+    """
+
+    def post(
+        self, request: HttpRequest, pk: int
+    ) -> HttpResponsePermanentRedirect | HttpResponseRedirect:
+        user: BorrowdUser = request.user  # type: ignore[assignment]
+
+        with transaction.atomic():
+            # Lock group row. This prevents race condition (two users clicking)
+            group = get_object_or_404(BorrowdGroup.objects.select_for_update(), pk=pk)
+
+            membership = get_object_or_404(
+                Membership,
+                user=user,
+                group=group,
+                status=MembershipStatus.ACTIVE,
+            )
+
+            # If someone already became moderator -> exit
+            already_has_moderator = Membership.objects.filter(
+                group=group,
+                is_moderator=True,
+                status=MembershipStatus.ACTIVE,
+            ).exists()
+
+            if already_has_moderator or not group.needs_moderator:
+                messages.info(request, "This group already has a moderator.")
+                return redirect("borrowd_groups:group-detail", pk=group.pk)
+
+            # Assign moderator
+            membership.is_moderator = True
+            membership.save(update_fields=["is_moderator"])
+
+            # Clear notifications for ALL users
+            group_content_type = ContentType.objects.get_for_model(BorrowdGroup)
+
+            Notification.objects.filter(
+                verb=NotificationType.GROUP_NEEDS_MODERATOR.value,
+                target_content_type=group_content_type,
+                target_object_id=group.pk,
+            ).update(unread=False)
+
+        messages.success(request, "You’re now a moderator")
+        return redirect("borrowd_groups:group-detail", pk=group.pk)
