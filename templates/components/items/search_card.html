@@ -18,6 +18,8 @@ Parameters:
 - person_url: Profile URL for person_name (owners only)
 - time_ago: Human-readable elapsed time (e.g. "2 hours")
 {% endcomment %}
+{% load static %}
+
 <a href="{% url 'item-detail' pk %}"
    class="bg-base-100 rounded-lg shadow-sm overflow-hidden w-full flex flex-col hover:shadow-md transition-shadow">
     {% if banner_type %}
@@ -69,7 +71,8 @@ Parameters:
     {% endif %}
     <div class="flex gap-3 items-center p-3 bg-primary-content">
         <div class="shrink-0 w-20 h-20 overflow-hidden rounded">
-            <img src="{{ image|default:'/static/items/categories/logo-tools.png' }}"
+            {% static 'items/categories/logo-tools.png' as fallback_image %}
+            <img src="{{ image|default:fallback_image }}"
                  alt="{{ name|default:'Item image' }}"
                  class="w-full h-full object-cover" />
         </div>
