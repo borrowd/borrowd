@@ -10,29 +10,30 @@
     <div class="flex flex-col gap-4">
         <c-items.filter-form />
         <c-divider />
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {% if not item_cards %}
-                <div class="flex flex-col gap-5 items-center py-16 px-4 md:col-span-2">
-                    {% if user_has_items %}
-                        <img src="{% static 'items/no-items-in-groups.png' %}"
-                             alt="No group items yet"
-                             class="max-w-40 h-auto" />
-                        <p class="text-base text-base-content text-center leading-normal">
-                            To grow your shared inventory, show your friends how easy it is to add items on Borrow'd!
-                        </p>
-                    {% else %}
-                        <img src="{% static 'items/no-items-img.png' %}"
-                             alt="Add an item"
-                             class="max-w-40 h-auto" />
-                        <p class="text-base text-base-content text-center leading-normal">
-                            Add an item to start sharing!
-                        </p>
-                        <c-button-nav url="{% url 'item-create' %}" class="btn btn-primary btn-lg">
-                            Add an item
-                        </c-button-nav>
-                    {% endif %}
-                </div>
-            {% else %}
+        {% if not item_cards %}
+            <div class="flex flex-col gap-5 items-center py-16 px-4">
+                {% if user_has_items %}
+                    <img src="{% static 'items/no-items-in-groups.png' %}"
+                         alt="No group items yet"
+                         class="max-w-40 h-auto" />
+                    <p class="text-base text-base-content text-center leading-normal">
+                        To grow your shared inventory, show your friends how easy it is to add items on Borrow'd!
+                    </p>
+                {% else %}
+                    <img src="{% static 'items/no-items-img.png' %}"
+                         alt="Add an item"
+                         class="max-w-40 h-auto" />
+                    <p class="text-base text-base-content text-center leading-normal">
+                        Add an item to start sharing!
+                    </p>
+                    <c-button-nav url="{% url 'item-create' %}" class="btn btn-primary btn-lg">
+                        Add an item
+                    </c-button-nav>
+                {% endif %}
+            </div>
+        {% else %}
+            <c-items.item-grid :item_cards="item_cards" class="hidden md:block" />
+            <div class="md:hidden flex flex-col gap-3">
                 {% for item_ctx in item_cards %}
                     <c-items.search-card pk="{{ item_ctx.pk }}"
                                          name="{{ item_ctx.name }}"
@@ -46,8 +47,8 @@
                                          person_url="{{ item_ctx.person_url }}"
                                          time_ago="{{ item_ctx.time_ago }}" />
                 {% endfor %}
-            {% endif %}
-        </div>
+            </div>
+        {% endif %}
         {% if page_obj %}
             {% include "components/pagination.html" with page_obj=page_obj query_params=request.GET %}
 
