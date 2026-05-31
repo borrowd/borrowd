@@ -68,6 +68,7 @@ INSTALLED_APPS = [
     "borrowd_notifications",
     "django_filters",
     "django_vite",
+    "heroicons",
     "django_cleanup.apps.CleanupConfig",  # Must go last https://github.com/un1t/django-cleanup?tab=readme-ov-file#configuration
 ]
 
@@ -98,6 +99,7 @@ TEMPLATES = [
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
                 "borrowd_beta.context_processors.beta_status",
+                "borrowd_groups.context_processors.groups_needing_moderator",
             ],
         },
     },
@@ -242,6 +244,10 @@ BETA_CHECK_EXCLUDE_PATHS = [
 BETA_COOKIE_DOMAIN: str | None = None
 BETA_SECURE_COOKIE: bool = False
 BETA_COOKIE_SAMESITE = "Lax"
+
+# tuning uploads settings
+DATA_UPLOAD_MAX_MEMORY_SIZE = 1024 * 1024  # 1MB
+FILE_UPLOAD_MAX_MEMORY_SIZE = 1024 * 1024  # 1MB
 
 LOGGING = {
     "version": 1,

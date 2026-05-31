@@ -1,0 +1,11 @@
+Hi {{ group_member_name }},
+
+{{ group_name }} doesn’t currently have a moderator.
+
+Would you like to step in?
+
+{{ group_url }}
+
+Thanks for helping build a community where sharing is second nature!
+
+The Borrow'd team

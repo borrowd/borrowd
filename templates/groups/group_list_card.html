@@ -1,3 +1,5 @@
+{% load heroicons %}
+
 <div id="groups-card-container"
      class="rounded-2xl shadow-md bg-white overflow-hidden">
     <!-- Header -->
@@ -25,13 +27,7 @@
                          alt="{{ membership.group.name }} Banner" />
                 {% else %}
                     <div class="w-full h-full bg-gray-200 flex items-center justify-center">
-                        <svg class="w-6 h-6 text-gray-400"
-                             fill="none"
-                             stroke="currentColor"
-                             viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z">
-                            </path>
-                        </svg>
+                        {% heroicon_outline "user-group" class="w-6 h-6 text-gray-400" stroke_width=2 %}
                     </div>
                 {% endif %}
             </div>
@@ -39,25 +35,25 @@
             <!-- Group Info -->
             <div class="flex-1 flex flex-col gap-3 min-w-0">
                 <div class="flex items-center">
-                    {% if membership.status == "PENDING" %}
-                        <span class="text-base font-semibold text-yellow-700 cursor-pointer hover:underline truncate"
-                              onclick=" window.showToast && window.showToast('Your request is still pending.', 'warning') "
-                              title="Your request is still pending."
-                              style="pointer-events: auto">
-                            {{ membership.group.name }}
-                        </span>
-                    {% else %}
-                        <a href="{% url 'borrowd_groups:group-detail' membership.group.pk %}"
-                           class="text-base font-semibold text-base-content hover:underline truncate">
-                            {{ membership.group.name }}
-                        </a>
-                    {% endif %}
+                    <!-- On the left -->
+                    <div class="flex items-center gap-2 min-w-0">
+                        {% if membership.status == "PENDING" %}
+                            <span class="text-base font-semibold text-yellow-700 cursor-pointer hover:underline truncate">
+                                {{ membership.group.name }}
+                            </span>
+                        {% else %}
+                            <a href="{% url 'borrowd_groups:group-detail' membership.group.pk %}"
+                               class="text-base font-semibold text-base-content hover:underline truncate">
+                                {{ membership.group.name }}
+                            </a>
+                        {% endif %}
 
-                    {% if membership.status == "PENDING" %}
-                        <span class="inline-block badge badge-warning badge-soft text-xs px-2 py-1 rounded font-semibold ml-2 align-middle">
-                            Pending
-                        </span>
-                    {% endif %}
+                        {% if membership.status == "PENDING" %}
+                            <span class="inline-block badge badge-warning badge-soft text-xs px-2 py-1 rounded font-semibold">
+                                Pending
+                            </span>
+                        {% endif %}
+                    </div>
                 </div>
 
                 <c-trust-level-badge level="{{ membership.get_trust_level_display }}" />
@@ -66,13 +62,22 @@
             <!-- Member Count -->
             <div class="text-base font-semibold text-base-content-scale-50 text-right w-10 inline-flex items-center justify-end gap-3">
                 {{ membership.group.users.count }}
+
                 {% if membership.has_pending_actions %}
-                    <span class="inline-flex items-center justify-center w-5 h-5"
+                    <span class="inline-flex items-center justify-center w-5 h-5 text-info"
                           title="Pending actions require moderator review"
                           aria-label="Pending actions"
                           data-testid="group-pending-actions-indicator">
-                        {% include "icons/exclamation-circle.svg" %}
+                        {% heroicon_mini "exclamation-circle" class="w-5 h-5" %}
+                    </span>
+                {% endif %}
 
+                {% if membership.group.needs_moderator and not membership.is_moderator and membership.status == "ACTIVE" %}
+                    <span class="inline-flex items-center justify-center w-5 h-5 shrink-0 text-warning"
+                          title="This group needs a moderator"
+                          aria-label="This group needs a moderator"
+                          data-testid="group-needs-moderator-indicator">
+                        {% heroicon_solid "exclamation-circle" class="w-5 h-5" %}
                     </span>
                 {% endif %}
             </div>

@@ -1,3 +1,5 @@
+{% load heroicons %}
+
 <!-- Item Filter Form Component -->
 <form method="get" class="flex flex-col gap-4" x-data="{ /* * Alpine UI state: which category IDs are currently selected. * Pre-populated from Django form's current value on page load. * (Empty on create, has values on edit.) */ selectedIds: [
     {% for val in filter.form.categories.value %}
@@ -19,12 +21,7 @@
     <!-- Search bar and button -->
     <div class="flex gap-4 items-start">
         <label class="input input-bordered w-full flex items-center gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg"
-                 viewBox="0 0 20 20"
-                 fill="currentColor"
-                 class="size-5 opacity-50">
-                <path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11ZM2 9a7 7 0 1 1 12.452 4.391l3.328 3.329a.75.75 0 1 1-1.06 1.06l-3.329-3.328A7 7 0 0 1 2 9Z" clip-rule="evenodd" />
-            </svg>
+            {% heroicon_mini "magnifying-glass" class="size-5 opacity-50" %}
             <input type="text"
                    name="{{ filter.form.search.html_name }}"
                    id="{{ filter.form.search.id_for_label }}"
@@ -40,12 +37,7 @@
         <button type="button"
                 @click="showModal('category-filter-modal')"
                 :class="selectedIds.length > 0 ? 'badge badge-neutral font-medium text-sm leading-6 cursor-pointer p-3' : 'badge badge-soft font-medium text-sm leading-6 cursor-pointer p-3'">
-            <svg xmlns="http://www.w3.org/2000/svg"
-                 viewBox="0 0 20 20"
-                 fill="currentColor"
-                 class="size-3">
-                <path d="M10 3.75a2 2 0 1 0-4 0 2 2 0 0 0 4 0ZM17.25 4.5a.75.75 0 0 0 0-1.5h-5.5a.75.75 0 0 0 0 1.5h5.5ZM5 3.75a.75.75 0 0 1-.75.75h-1.5a.75.75 0 0 1 0-1.5h1.5a.75.75 0 0 1 .75.75ZM4.25 17a.75.75 0 0 0 0-1.5h-1.5a.75.75 0 0 0 0 1.5h1.5ZM17.25 17a.75.75 0 0 0 0-1.5h-5.5a.75.75 0 0 0 0 1.5h5.5ZM9 10a2 2 0 1 1 4 0 2 2 0 0 1-4 0ZM7.25 10.75a.75.75 0 0 0 0-1.5h-4.5a.75.75 0 0 0 0 1.5h4.5ZM17.25 10.75a.75.75 0 0 0 0-1.5h-1.5a.75.75 0 0 0 0 1.5h1.5ZM14 16.25a2 2 0 1 0-4 0 2 2 0 0 0 4 0Z" />
-            </svg>
+            {% heroicon_mini "adjustments-horizontal" class="size-3" %}
             <span x-text="buttonText"></span>
         </button>
         <!-- Inline clear button, only visible when categories are selected -->

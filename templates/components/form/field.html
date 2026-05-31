@@ -1,4 +1,4 @@
-{% load i18n static %}
+{% load i18n static heroicons %}
 
 <c-vars type="text"
         value=""
@@ -31,14 +31,8 @@
                     @click="show = !show"
                     class="absolute right-3 top-1/2 -translate-y-1/2 text-base-content z-10"
                     :aria-label="show ? 'Hide password' : 'Show password'">
-                <img x-show="!show"
-                     src="{% static 'icons/eye.svg' %}"
-                     alt=""
-                     class="w-3.5 h-2.5">
-                <img x-show="show"
-                     src="{% static 'icons/eye-slash.svg' %}"
-                     alt=""
-                     class="w-4 h-4">
+                <span x-show="!show">{% heroicon_solid "eye" class="w-4 h-4" %}</span>
+                <span x-show="show">{% heroicon_outline "eye-slash" class="w-4 h-4" stroke_width=1.5 %}</span>
             </button>
         </div>
     {% elif max_length %}

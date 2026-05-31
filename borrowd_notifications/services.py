@@ -27,6 +27,7 @@ class NotificationType(Enum):
     )
     ITEM_RETURNED = "Item returned"
     GROUP_MEMBER_JOINED = "Change to group membership"
+    GROUP_NEEDS_MODERATOR = "Group needs moderator"  # When moderator leaves group
 
     @property
     def template_name(self) -> str:
@@ -97,14 +98,26 @@ class NotificationService:
                         }
                     )
         elif isinstance(notification.target, BorrowdGroup):
-            membership: Membership = notification.action_object
-            context.update(
-                {
-                    "group_member_name": notification.recipient.profile.full_name(),
-                    "new_member_name": membership.user.profile.full_name(),  # type: ignore[attr-defined]
-                    "group_name": membership.group.name,  # type: ignore[attr-defined]
-                }
-            )
+            if notification.verb == NotificationType.GROUP_NEEDS_MODERATOR.value:
+                context.update(
+                    {
+                        "group_member_name": notification.recipient.profile.full_name(),
+                        "group_name": notification.target.name,
+                        "group_url": settings.BASE_URL
+                        + reverse(
+                            "borrowd_groups:group-detail", args=[notification.target.pk]
+                        ),
+                    }
+                )
+            else:
+                membership: Membership = notification.action_object
+                context.update(
+                    {
+                        "group_member_name": notification.recipient.profile.full_name(),
+                        "new_member_name": membership.user.profile.full_name(),  # type: ignore[attr-defined]
+                        "group_name": membership.group.name,  # type: ignore[attr-defined]
+                    }
+                )
         elif isinstance(notification.target, AvailabilitySubscription):
             subscription: AvailabilitySubscription = notification.target
 

@@ -6,12 +6,12 @@
 {% block items_content %}
 
     {% load static %}
+    {% load heroicons %}
 
     <c-box class="border-0! shadow-none relative flex flex-col gap-3 items-center py-8">
         <div class="w-full flex relative items-center">
             <c-button-nav url="{{ back_url }}" class="absolute top-0 left-0 translate-y-1.5">
-                {% include "icons/arrow-left.svg" %}
-
+                {% heroicon_outline "arrow-left" class="size-6" stroke_width=1.5 %}
             </c-button-nav>
 
             <c-h1 class="font-normal text-[24px] w-full text-center">
@@ -96,8 +96,7 @@
                             {% if item.owner == user %}
                                 <c-button-nav url="{% url 'item-edit' item.pk %}"
                                               class="shrink-0 flex items-center gap-2 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-medium rounded-lg border border-gray-200 transition">
-                                    {% include "icons/pencil.svg" %}
-
+                                    {% heroicon_mini "pencil" class="size-4" %}
                                     Edit
                                 </c-button-nav>
                             {% endif %}
@@ -141,9 +140,8 @@
                             <button type="button"
                                     onclick="showModal('trust-level-info-modal')"
                                     class="inline-flex align-middle ml-1 cursor-pointer hover:drop-shadow-md transition">
-                                <span class="inline-flex [&>svg]:w-6 [&>svg]:h-6">
-                                    {% include "icons/information-circle.svg" %}
-
+                                <span class="inline-flex [&>svg]:w-6 [&>svg]:h-6 text-base-content/60">
+                                    {% heroicon_solid "information-circle" %}
                                 </span>
                             </button>
                         </div>
