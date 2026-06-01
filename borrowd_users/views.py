@@ -110,9 +110,11 @@ def profile_view(request: HttpRequest) -> HttpResponse:
     else:
         form = ProfileUpdateForm(instance=profile)
 
-    # Drives the delete-account modal. Borrowing blocks deletion; owning items
-    # (listed or lent out) warns they'll be removed; otherwise a plain confirm.
+    # Drives the delete-account modal. Borrowing blocks deletion; items still
+    # out on loan nudge the user to retrieve them first; owning only idle items
+    # just warns they'll be removed; with nothing at all it's a plain confirm.
     is_borrowing = Transaction.get_active_borrows_for_user(user).exists()
+    is_lending = Transaction.get_active_lends_for_user(user).exists()
     has_items = Item.objects.filter(owner=user).exists()
 
     return render(
@@ -122,6 +124,7 @@ def profile_view(request: HttpRequest) -> HttpResponse:
             "profile": profile,
             "form": form,
             "is_borrowing": is_borrowing,
+            "is_lending": is_lending,
             "has_items": has_items,
         },
     )

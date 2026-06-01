@@ -194,13 +194,21 @@
                     </form>
                 </div>
             {% else %}
-                {% if has_items %}
-                    {# ── Lending / listed items: warn, but allow ────────────────── #}
+                {% if is_lending %}
+                    {# Items out on loan: nudge to retrieve, but allow #}
                     <h3 class="text-xl font-bold leading-7 p-5">
                         {% trans "You're still lending items" %}
                     </h3>
                     <p class="px-5 py-2 leading-7 text-xl">
                         {% trans "If you delete your profile, your listed items will also be removed. We recommend retrieving your items before deleting your profile." %}
+                    </p>
+                {% elif has_items %}
+                    {# Owns only idle items: warn they'll be removed, but allow #}
+                    <h3 class="text-xl font-bold leading-7 p-5">
+                        {% trans "Your listed items will be removed" %}
+                    </h3>
+                    <p class="px-5 py-2 leading-7 text-xl">
+                        {% trans "If you delete your profile, the items you've listed on Borrow'd will be removed too." %}
                     </p>
                 {% else %}
                     <h3 class="text-xl font-bold leading-7 p-5">
