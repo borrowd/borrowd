@@ -22,6 +22,7 @@ from django.db.models import (
     UniqueConstraint,
 )
 from django.urls import reverse
+from django.utils import timezone
 from imagekit.models import ImageSpecField, ProcessedImageField
 from imagekit.processors import ResizeToFill, ResizeToFit
 
@@ -199,7 +200,7 @@ class Item(Model):
             raise ValidationError({"categories": "At least one category is required."})
 
     def soft_delete(self, deleted_by: BorrowdUser) -> None:
-        self.deleted_at = datetime.now()
+        self.deleted_at = timezone.now()
         self.deleted_by = deleted_by
         self.save()
 
