@@ -178,56 +178,66 @@
                 </button>
             </form>
 
-            {# ── No items borrowed ────────────────── #}
-            {% if not has_owned_items and not has_borrowed_items and not has_lended_items %}
-                <h3 class="text-xl font-bold leading-7 p-5">
-                    {% trans "Are you sure you want to delete your profile?" %}
-                </h3>
-
-                <div class="modal-action justify-end pt-6 gap-3">
-                    <form method="dialog">
-                        <button class="btn btn-ghost font-semibold">
-                            {% trans "Cancel" %}
-                        </button>
-                    </form>
-                    <button type="button"
-                            onclick="confirmDeleteAccount()"
-                            class="btn btn-soft btn-error font-semibold">
-                        {% trans "Delete" %}
-                    </button>
-                </div>
-
-                {# ── Items borrowed ────────────────── #}
-            {% elif has_borrowed_items %}
+            {% if is_borrowing %}
+                {# ── Borrowing: deletion blocked ────────────────── #}
                 <h3 class="text-xl font-bold leading-7 p-5">
                     {% trans "You're currently borrowing items" %}
                 </h3>
-
                 <p class="px-5 py-2 leading-7 text-xl">
                     {% trans "To delete your profile, you'll need to return the items you've borrowed. Once the owner confirms the return, you'll be able to delete your profile." %}
                 </p>
-
-                {# ── Items lended ────────────────── #}
-            {% elif has_lended_items %}
-                <h3 class="text-xl font-bold leading-7 p-5">
-                    {% trans "You're still lending items" %}
-                </h3>
-                <p class="px-5 py-2 leading-7 text-xl">
-                    {% trans "If you delete your profile, your listed items will also be removed. We recommend retrieving your items before deleting your profile." %}
-                </p>
-
-                <div class="modal-action justify-end pt-6 gap-3">
+                <div class="modal-action justify-end pt-6">
                     <form method="dialog">
                         <button class="btn btn-ghost font-semibold">
-                            {% trans "Cancel" %}
+                            {% trans "Close" %}
                         </button>
                     </form>
-                    <button type="button"
-                            onclick="confirmDeleteAccount()"
-                            class="btn btn-soft btn-error font-semibold">
-                        {% trans "Delete" %}
-                    </button>
                 </div>
+            {% else %}
+                {% if has_items %}
+                    {# ── Lending / listed items: warn, but allow ────────────────── #}
+                    <h3 class="text-xl font-bold leading-7 p-5">
+                        {% trans "You're still lending items" %}
+                    </h3>
+                    <p class="px-5 py-2 leading-7 text-xl">
+                        {% trans "If you delete your profile, your listed items will also be removed. We recommend retrieving your items before deleting your profile." %}
+                    </p>
+                {% else %}
+                    <h3 class="text-xl font-bold leading-7 p-5">
+                        {% trans "Are you sure you want to delete your profile?" %}
+                    </h3>
+                {% endif %}
+
+                <form method="post" action="{% url 'account-delete' %}" class="px-5">
+                    {% csrf_token %}
+                    <label for="confirm-username" class="block text-sm font-medium pb-1">
+                        {% blocktrans with username=profile.user.username %}To confirm, type {{ username }} below{% endblocktrans %}
+                    </label>
+                    <input type="text"
+                           id="confirm-username"
+                           name="confirm_username"
+                           autocomplete="off"
+                           autocapitalize="off"
+                           spellcheck="false"
+                           data-expected-username="{{ profile.user.username }}"
+                           oninput="syncDeleteAccountButton(this)"
+                           class="input input-bordered w-full" />
+
+                    <div class="modal-action justify-end pt-6 gap-3">
+                        <button type="button"
+                                onclick="document.getElementById('delete-account-modal').close()"
+                                class="btn btn-ghost font-semibold">
+                            {% trans "Cancel" %}
+                        </button>
+                        <button type="submit"
+                                id="delete-account-submit"
+                                class="btn btn-soft btn-error font-semibold"
+                                disabled>
+                            {% heroicon_mini "trash" class="size-3" %}
+                            {% trans "Delete" %}
+                        </button>
+                    </div>
+                </form>
             {% endif %}
 
         </div>
@@ -286,27 +296,12 @@
     .finally(function () { modal.close(); });
   }
 
-  function confirmDeleteAccount() {
-    const modal = document.getElementById('delete-account-modal');
-    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-
-    fetch('{% url "account-delete" form.instance.pk %}', {
-      method: 'POST',
-      headers: { 'X-CSRFToken': csrfToken, 'Content-Type': 'application/json' },
-    })
-    // .then(function (r) { return r.json(); })
-    // .then(function (data) {
-    //   if (data.success) {
-    //     avatarPreview.src = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(data.full_name) + '&background=random';
-    //     if (deleteBtn) deleteBtn.disabled = true;
-    //     if (imageInput) imageInput.value = '';
-    //     showToast(data.message);
-    //   } else {
-    //     showToast(data.message || 'An error occurred.');
-    //   }
-    // })
-    // .catch(function () { showToast('An error occurred while deleting your profile picture.'); })
-    .finally(function () { modal.close(); });
+  // Enable the delete button only once the typed username matches. This is a
+  // UX guard; delete_account_view re-checks the same thing server-side.
+  function syncDeleteAccountButton(input) {
+    const submit = document.getElementById('delete-account-submit');
+    if (!submit) return;
+    submit.disabled = input.value.trim() !== input.dataset.expectedUsername;
   }
     </script>
 {% endblock %}

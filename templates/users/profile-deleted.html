@@ -2,13 +2,20 @@
 
 {% load i18n %}
 
-
 {% block head_title %}
-    We are sad to see you go!
+    {% trans "Account deleted" %}
 {% endblock %}
 
 {% block content %}
-    <p>
-        We hope to see you again soon in our community to keep sharing!
-    </p>
+    <div class="flex flex-col items-center gap-4 text-center px-4 max-w-md">
+        <h1 class="text-2xl font-bold">
+            {% trans "Your account has been deleted" %}
+        </h1>
+        <p class="text-base-content/70">
+            {% trans "We hope to see you again soon in our community to keep sharing!" %}
+        </p>
+        <a href="{% url 'index' %}" class="btn btn-primary rounded-sm">
+            {% trans "Back to home" %}
+        </a>
+    </div>
 {% endblock %}

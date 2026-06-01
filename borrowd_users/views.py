@@ -2,9 +2,8 @@ from typing import Any
 
 from allauth.account.views import PasswordChangeView
 from django.contrib import messages
-from django.contrib.auth import login
+from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
-from django.forms import ModelForm
 from django.http import (
     Http404,
     HttpRequest,
@@ -16,23 +15,20 @@ from django.http import (
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse, reverse_lazy
 from django.views.decorators.http import require_POST
-from django.views.generic import (
-    CreateView,
-    DeleteView,
-)
+from django.views.generic import CreateView
 
 from borrowd.util import resolve_back_url
-from borrowd.util import BorrowdTemplateFinderMixin
 from borrowd_groups.models import Membership
 from borrowd_items.card_helpers import (
     build_item_cards_for_items,
     build_item_cards_for_transactions,
 )
 from borrowd_items.models import Item, ItemStatus, Transaction
-from borrowd_permissions.mixins import LoginOr404PermissionMixin
 
+from .exceptions import AccountDeletionBlocked
 from .forms import ChangePasswordForm, CustomSignupForm, ProfileUpdateForm
-from .models import BorrowdUser, Profile, SearchTarget, SearchTerm
+from .models import BorrowdUser, SearchTarget, SearchTerm
+from .services import soft_delete_account
 
 
 def build_profile_context(
@@ -71,7 +67,8 @@ def build_profile_context(
 def public_profile_view(
     request: HttpRequest, user_id: int
 ) -> HttpResponse | HttpResponseBase:
-    subject_user = get_object_or_404(BorrowdUser, id=user_id)
+    # Soft-deleted (deactivated) accounts have no public profile.
+    subject_user = get_object_or_404(BorrowdUser, id=user_id, is_active=True)
 
     # Redirect users to their own editable profile page via `profile_view`
     if subject_user == request.user:
@@ -113,12 +110,10 @@ def profile_view(request: HttpRequest) -> HttpResponse:
     else:
         form = ProfileUpdateForm(instance=profile)
 
-    has_borrowed_items = Transaction.get_active_borrows_for_user(user).exists()
-    has_lended_items = (
-        Transaction.get_active_lends_for_user(user).exists()
-        or Item.objects.filter(owner=user, status=ItemStatus.AVAILABLE).exists()
-    )
-    has_owned_items = Item.objects.filter(owner=user).exists()
+    # Drives the delete-account modal. Borrowing blocks deletion; owning items
+    # (listed or lent out) warns they'll be removed; otherwise a plain confirm.
+    is_borrowing = Transaction.get_active_borrows_for_user(user).exists()
+    has_items = Item.objects.filter(owner=user).exists()
 
     return render(
         request,
@@ -126,9 +121,8 @@ def profile_view(request: HttpRequest) -> HttpResponse:
         {
             "profile": profile,
             "form": form,
-            "has_borrowed_items": has_borrowed_items,
-            "has_lended_items": has_lended_items,
-            "has_owned_items": has_owned_items,
+            "is_borrowing": is_borrowing,
+            "has_items": has_items,
         },
     )
 
@@ -275,32 +269,32 @@ def inventory_view(request: HttpRequest) -> HttpResponse:
         },
     )
 
-class AccountDeleteView(
-    LoginOr404PermissionMixin,
-    BorrowdTemplateFinderMixin,
-    DeleteView[Profile, ModelForm[Profile]],
-):
-    model = Profile
-    success_url = reverse_lazy("item-list")
-    http_method_names = ["post"]
-    success_url = reverse_lazy("profile-deleted")  # Redirect after successful deletion
 
-    def form_valid(self, form: ModelForm[Profile]) -> HttpResponse:
-        item: Profile = self.object
+@login_required
+@require_POST
+def delete_account_view(request: HttpRequest) -> HttpResponse:
+    """
+    Soft-delete and anonymize the logged-in user's own account.
 
-        # if item.status != ItemStatus.AVAILABLE:
-        #     _add_message_safe(
-        #         self.request,
-        #         messages.ERROR,
-        #         "Only available items can be deleted.",
-        #     )
-        #     return redirect("item-detail", pk=item.pk)
+    Requires the user to retype their username to delete their account
+    """
+    user: BorrowdUser = request.user  # type: ignore[assignment]
 
-        # user = cast(BorrowdUser, self.request.user)
+    if request.POST.get("confirm_username", "").strip() != user.username:
+        messages.error(
+            request, "That username didn't match, so your account was not deleted."
+        )
+        return redirect("profile")
 
-        # item.soft_delete(user)
-        _add_message_safe(self.request, messages.SUCCESS, "Profile deleted.")
-        return redirect(self.get_success_url())
+    try:
+        soft_delete_account(user, deleted_by=user)
+    except AccountDeletionBlocked as exc:
+        messages.error(request, str(exc))
+        return redirect("profile")
+
+    logout(request)
+    return redirect("profile-deleted")
+
 
 class CustomSignupView(CreateView[BorrowdUser, CustomSignupForm]):
     """
@@ -434,5 +428,7 @@ def search_terms_export_view(
     )
     return JsonResponse({"count": len(rows), "results": rows})
 
+
 def profile_deleted_view(request: HttpRequest) -> HttpResponse:
+    """Post-deletion confirmation page. Reachable while logged out."""
     return render(request, "users/profile-deleted.html")
