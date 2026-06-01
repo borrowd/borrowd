@@ -1,0 +1,8 @@
+Hi {{ recipient_name }},
+
+The member who requested your item {{ item_name }} has closed their account,
+so that request has been cancelled.
+
+Your item is available again -- no action is needed on your end.
+
+The Borrow'd team
