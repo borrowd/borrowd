@@ -101,6 +101,34 @@ class ItemListPaginationTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.context["item_cards"]), 6)
         self.assertIn("page_obj", response.context)
+        self.assertContains(response, "search=Test")
+        self.assertContains(response, "page_size=6")
+        self.assertContains(response, "page=2")
+
+    def test_pagination_preserves_multi_value_category_params(self) -> None:
+        """Pagination preserves multi-value category query parameters."""
+        second_category = ItemCategory.objects.create(name="Second Category")
+        for i in range(8):
+            item = self.create_item(name=f"Item {i}", description=f"Description {i}")
+            item.categories.add(second_category)
+
+        self.client.force_login(self.viewer)
+        response = self.client.get(
+            reverse("item-list"),
+            {
+                "categories": [str(self.category.pk), str(second_category.pk)],
+                "page": "1",
+                "page_size": "6",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.context["item_cards"]), 6)
+        self.assertIn("page_obj", response.context)
+        self.assertContains(response, f"categories={self.category.pk}")
+        self.assertContains(response, f"categories={second_category.pk}")
+        self.assertContains(response, "page_size=6")
+        self.assertContains(response, "page=2")
 
     def test_no_pagination_when_few_items(self) -> None:
         """Single page when item count is below the page size."""
