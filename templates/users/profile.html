@@ -181,10 +181,10 @@
             {% if is_borrowing %}
                 {# ── Borrowing: deletion blocked ────────────────── #}
                 <h3 class="text-xl font-bold leading-7 p-5">
-                    {% trans "You're currently borrowing items" %}
+                    {% trans "You currently have pending transactions" %}
                 </h3>
                 <p class="px-5 py-2 leading-7 text-xl">
-                    {% trans "To delete your profile, you'll need to return the items you've borrowed. Once the owner confirms the return, you'll be able to delete your profile." %}
+                    {% trans "To delete your profile, you'll need to return the items you've borrowed or cancel any pending transactions. Once the owner confirms the return, you'll be able to delete your profile." %}
                 </p>
                 <div class="modal-action justify-end pt-6">
                     <form method="dialog">

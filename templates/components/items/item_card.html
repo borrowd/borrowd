@@ -35,7 +35,7 @@ Parameters:
 
     {% endif %}
 
-    <div class="flex flex-col flex-grow">
+    <div class="flex flex-col grow">
         <div class="flex flex-row items-start gap-3 p-3 {% if is_removed %}opacity-60 grayscale pointer-events-none{% endif %}">
             <!-- Thumbnail -->
             <div class="w-1/2 shrink-0">
@@ -59,10 +59,10 @@ Parameters:
                         <div class="rounded-4xl h-xs max-w-xs w-fit p-1 pl-2 pr-2 bg-gray-100 border-solid border-2 border-gray-200 mt-1 mb-3 sm:mb-4">
                             <span class="text-sm text-gray-900 text-center">Owner left Borrow'd</span>
                         </div>
-                        <h3 class="text-base sm:text-xl md:text-2xl font-semibold text-gray-900 line-clamp-2 break-words">
+                        <h3 class="text-base sm:text-xl md:text-2xl font-semibold text-gray-900 line-clamp-2 wrap-break-word">
                             {{ name }}
                         </h3>
-                        <p class="text-sm sm:text-base text-gray-900 line-clamp-5 md:line-clamp-[11] mt-2 break-words">
+                        <p class="text-sm sm:text-base text-gray-900 line-clamp-5 md:line-clamp-11 mt-2 wrap-break-word">
                             {{ description }}
                         </p>
                     </div>
@@ -73,10 +73,10 @@ Parameters:
                                 <span class="text-sm text-gray-900 text-center">Yours</span>
                             </div>
                         {% endif %}
-                        <h3 class="text-base sm:text-xl md:text-2xl font-semibold text-gray-900 line-clamp-2 break-words">
+                        <h3 class="text-base sm:text-xl md:text-2xl font-semibold text-gray-900 line-clamp-2 wrap-break-word">
                             {{ name }}
                         </h3>
-                        <p class="text-sm sm:text-base text-gray-900 line-clamp-5 md:line-clamp-[11] mt-2 break-words">
+                        <p class="text-sm sm:text-base text-gray-900 line-clamp-5 md:line-clamp-11 mt-2 wrap-break-word">
                             {{ description }}
                         </p>
                     </a>
