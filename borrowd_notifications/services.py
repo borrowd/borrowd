@@ -28,6 +28,11 @@ class NotificationType(Enum):
     ITEM_RETURNED = "Item returned"
     GROUP_MEMBER_JOINED = "Change to group membership"
     GROUP_NEEDS_MODERATOR = "Group needs moderator"  # When moderator leaves group
+    REQUEST_CANCELLED_BORROWER_LEFT = "Request cancelled - borrower left"  # When borrower closes account with an open request
+    REQUEST_CANCELLED_OWNER_LEFT = "Request cancelled - owner left"  # When owner closes account with an open request
+    LOAN_ENDED_OWNER_LEFT = (
+        "Loan ended - owner left"  # When owner closes account with an active loan
+    )
 
     @property
     def template_name(self) -> str:
@@ -60,6 +65,15 @@ class NotificationService:
     def _get_template_context_for(notification: Notification) -> Dict[str, Any]:
         """Extract context from the notification's action_object."""
         context = {}
+        if notification.verb in (
+            NotificationType.REQUEST_CANCELLED_BORROWER_LEFT.value,
+            NotificationType.REQUEST_CANCELLED_OWNER_LEFT.value,
+            NotificationType.LOAN_ENDED_OWNER_LEFT.value,
+        ) and isinstance(notification.target, Transaction):
+            return {
+                "recipient_name": notification.recipient.profile.full_name(),
+                "item_name": notification.target.item.name,  # type: ignore[attr-defined]
+            }
         if isinstance(notification.target, Transaction):
             transaction: Transaction = notification.target
             match transaction.status:

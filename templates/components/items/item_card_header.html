@@ -52,6 +52,8 @@ Parameters:
                 Pending
             {% elif banner_type == 'waitlisted' %}
                 Waitlisted
+            {% elif banner_type == 'removed' %}
+                item removed from Borrow'd
             {% else %}
                 {{ banner_type|title }}
             {% endif %}
