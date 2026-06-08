@@ -1,0 +1,40 @@
+{% comment %}
+Reusable Pagination Component
+
+Renders page number buttons with active state highlighting.
+Uses DaisyUI join pattern for grouped buttons.
+
+Parameters:
+- page_obj: Django Page object (from paginator)
+  - .number: current page number
+  - .paginator.num_pages: total pages
+  - .has_previous: boolean
+  - .has_next: boolean
+  - .previous_page_number: int (if has_previous)
+  - .next_page_number: int (if has_next)
+- query_params: Optional dict of query params to preserve (e.g., {"search": "drill", "categories": "3"})
+
+Usage:
+    {% include "components/pagination.html" with page_obj=page_obj query_params=request.GET %}
+{% endcomment %}
+
+{% if page_obj.paginator.num_pages > 1 %}
+    <div class="flex justify-center pt-4">
+        <div class="join">
+            {% for page_num in page_obj.paginator.page_range %}
+                {% if page_num == page_obj.number %}
+                    {# Current page — primary styling #}
+                    <button class="join-item btn btn-primary btn-sm min-w-[2.5rem] h-10">
+                        {{ page_num }}
+                    </button>
+                {% else %}
+                    {# Other pages — base-200 styling #}
+                    <a href="?page={{ page_num }}{% if query_params %}{% for key, values in query_params.lists %}{% if key != 'page' %}{% for value in values %}&{{ key }}={{ value }}{% endfor %}{% endif %}{% endfor %}{% endif %}"
+                       class="join-item btn btn-sm min-w-[2.5rem] h-10 bg-base-300 border-base-300 hover:bg-base-200 shadow-sm text-base-content">
+                        {{ page_num }}
+                    </a>
+                {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+{% endif %}

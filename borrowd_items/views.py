@@ -37,6 +37,13 @@ from .forms import (
 )
 from .models import Item, ItemAction, ItemPhoto, ItemStatus
 
+_MOBILE_UA_KEYWORDS = ("mobile", "android", "iphone", "ipad", "ipod")
+
+PAGE_SIZE_MOBILE_DEFAULT = 6
+PAGE_SIZE_DESKTOP_DEFAULT = 12
+PAGE_SIZE_MIN = 4
+PAGE_SIZE_MAX = 48
+
 
 def _build_item_action_success_message(item_name: str, action: ItemAction) -> str:
     """
@@ -271,6 +278,18 @@ class ItemListView(
     model = Item
     template_name_suffix = "_list"  # Reusing template from ListView
     filterset_class = ItemFilter
+
+    def get_paginate_by(self, queryset: object) -> int:
+        ua = self.request.META.get("HTTP_USER_AGENT", "").lower()
+        is_mobile = any(kw in ua for kw in _MOBILE_UA_KEYWORDS)
+        default = PAGE_SIZE_MOBILE_DEFAULT if is_mobile else PAGE_SIZE_DESKTOP_DEFAULT
+        raw = self.request.GET.get("page_size")
+        if raw is None:
+            return default
+        try:
+            return max(PAGE_SIZE_MIN, min(PAGE_SIZE_MAX, int(raw)))
+        except ValueError:
+            return default
 
     def get(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
         term = request.GET.get("search")
