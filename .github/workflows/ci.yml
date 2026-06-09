@@ -128,7 +128,7 @@ jobs:
           path: gh-pages
 
       - name: Generate Allure report with history
-        uses: simple-elf/allure-report-action@v1.9
+        uses: simple-elf/allure-report-action@v2.0
         if: always()
         with:
           allure_results: python_tests/allure-results

@@ -30,7 +30,7 @@
     "scripts": {
         "build": "vite build",
         "dev": "vite",
-
+        "test:e2e": "cd python_tests && pytest --tb=short"
     },
     "type": "commonjs",
     "version": "1.0.0"

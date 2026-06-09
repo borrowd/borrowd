@@ -16,6 +16,8 @@ repos:
         language: system
         types: [python]
         pass_filenames: false
+        exclude: ^python_tests/
+
 -   repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
     hooks:
@@ -44,11 +46,14 @@ repos:
     hooks:
       # Run the linter.
       - id: ruff
+        exclude: ^python_tests/
       # Run import order.
       - id: ruff
         args: ["check", "--select", "I", "--fix"]
+        exclude: ^python_tests/
       # Run the formatter.
       - id: ruff-format
+        exclude: ^python_tests/
 
 -   repo: https://github.com/djlint/djLint
     rev: v1.36.4
