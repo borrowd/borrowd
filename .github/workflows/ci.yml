@@ -91,6 +91,9 @@ jobs:
     name: E2E tests (Playwright/Python)
     runs-on: ubuntu-latest
     continue-on-error: true
+    permissions:
+      contents: write
+      pull-requests: write
     defaults:
       run:
         working-directory: python_tests
