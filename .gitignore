@@ -45,6 +45,7 @@ node_modules/
 
 # Virtual environments
 .env
+.env.*
 .venv
 env/
 venv/
@@ -91,6 +92,14 @@ coverage.xml
 skills-lock.json
 *-langserver
 .claude/settings.local.json
+.claude/qa_notes.md
 
 # macOS
 .DS_Store
+
+# E2E tests #
+python_tests/tests/.auth
+python_tests/allure-results/
+python_tests/allure-report/
+python_tests/test-results/
+playwright-report/
