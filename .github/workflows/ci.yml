@@ -86,3 +86,68 @@ jobs:
       - run: uv run manage.py loaddata items/item_categories
 
       - run: uv run manage.py test
+
+  e2e:
+    name: E2E tests (Playwright/Python)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: python_tests
+
+    env:
+      E2E_BASE_URL: ${{ secrets.E2E_BASE_URL }}
+      E2E_BETA_CODE: ${{ secrets.E2E_BETA_CODE }}
+      E2E_USER_EMAIL: ${{ secrets.E2E_USER_EMAIL }}
+      E2E_USER_PASSWORD: ${{ secrets.E2E_USER_PASSWORD }}
+      E2E_BORROWER_EMAIL: ${{ secrets.E2E_BORROWER_EMAIL }}
+      E2E_BORROWER_PASSWORD: ${{ secrets.E2E_BORROWER_PASSWORD }}
+      E2E_LENDER_EMAIL: ${{ secrets.E2E_LENDER_EMAIL }}
+      E2E_LENDER_PASSWORD: ${{ secrets.E2E_LENDER_PASSWORD }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: python_tests/requirements.txt
+
+      - run: pip install -r requirements.txt
+
+      - run: playwright install chromium --with-deps
+
+      - run: pytest --tb=short
+
+      - name: Get Allure history from gh-pages
+        uses: actions/checkout@v4
+        if: always()
+        continue-on-error: true
+        with:
+          ref: gh-pages
+          path: gh-pages
+
+      - name: Generate Allure report with history
+        uses: simple-elf/allure-report-action@v1.9
+        if: always()
+        with:
+          allure_results: python_tests/allure-results
+          gh_pages: gh-pages
+          allure_history: allure-history
+          keep_reports: 20
+
+      - name: Deploy Allure report to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        if: always()
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: allure-history
+
+      - name: Post report link to PR
+        uses: marocchino/sticky-pull-request-comment@v2
+        if: always() && github.event_name == 'pull_request'
+        with:
+          message: |
+            ## E2E Test Report
+            [View Allure Report](https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/)
