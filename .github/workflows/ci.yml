@@ -4,6 +4,12 @@ on:
   pull_request:
   push:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      skip_e2e:
+        description: "Skip E2E tests"
+        type: boolean
+        default: false
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -91,6 +97,7 @@ jobs:
     name: E2E tests (Playwright/Python)
     runs-on: ubuntu-latest
     continue-on-error: true
+    if: ${{ !inputs.skip_e2e }}
     permissions:
       contents: write
       pull-requests: write
