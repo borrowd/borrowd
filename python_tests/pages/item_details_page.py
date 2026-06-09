@@ -10,7 +10,7 @@ class ItemDetails:
         self.item_details_heading = page.get_by_role("heading", name="Item details")
 
         self.edit_button = page.get_by_role("link", name="Edit")
-        self.yours_badge = page.get_by_text(re.compile("yours", re.I))
+        self.yours_badge = page.get_by_text("Yours", exact=True)
         self.trust_level_text = page.get_by_text(re.compile("trust level:", re.I))
         self.trust_level_description_button = (
             page.get_by_text(re.compile("trust level:", re.I))
