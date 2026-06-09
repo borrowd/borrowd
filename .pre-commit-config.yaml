@@ -12,6 +12,7 @@ repos:
     hooks:
     -   id: mypy
         args: [--strict, --python-version=3.13]
+        exclude: ^python_tests/
         additional_dependencies: [
             pytest==8.3.3,
             sqlalchemy==2.0.36,
@@ -46,11 +47,14 @@ repos:
     hooks:
       # Run the linter.
       - id: ruff
+        exclude: ^python_tests/
       # Run import order.
       - id: ruff
         args: ["check", "--select", "I", "--fix"]
+        exclude: ^python_tests/
       # Run the formatter.
       - id: ruff-format
+        exclude: ^python_tests/
 
 -   repo: https://github.com/djlint/djLint
     rev: v1.36.4
