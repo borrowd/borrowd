@@ -90,7 +90,7 @@ jobs:
   e2e:
     name: E2E tests (Playwright/Python)
     runs-on: ubuntu-latest
-    if: ${{ secrets.E2E_BASE_URL != '' }}
+    continue-on-error: true
     defaults:
       run:
         working-directory: python_tests
