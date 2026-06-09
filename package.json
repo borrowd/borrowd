@@ -11,8 +11,6 @@
     },
     "description": "Contributions are welcome! See [CONTRIBUTING.md](docs/CONTRIBUTING.md) to get started!",
     "devDependencies": {
-        "@modelcontextprotocol/sdk": "^1.25.3",
-        "dotenv": "^17.2.3",
         "vite": "^6.3.5"
     },
     "directories": {
