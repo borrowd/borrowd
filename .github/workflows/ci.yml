@@ -140,11 +140,6 @@ jobs:
           allure_history: allure-history
           keep_reports: 20
 
-      - name: Debug allure-history
-        if: always()
-        run: ls -la ${{ github.workspace }}/allure-history/ || echo "allure-history does not exist"
-        working-directory: ${{ github.workspace }}
-
       - name: Fix allure-history permissions
         if: always()
         run: sudo chown -R $(id -u):$(id -g) ${{ github.workspace }}/allure-history/ || true
