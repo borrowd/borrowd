@@ -16,6 +16,6 @@
         {% csrf_token %}
         <input type="hidden" name="action" value="RESOLVE_DISPUTE_NOT_RETURNED">
     </form>
-    {% include "components/modal.html" with modal_id=modal_id modal_title="Dispute status" modal_content_template="components/items/_dispute_resolution_modal_content.html" %}
+    {% include "components/modal.html" with modal_id=modal_id modal_title="Dispute status" modal_content_template="components/items/modals/_dispute_resolution_modal_content.html" %}
 
 {% endwith %}

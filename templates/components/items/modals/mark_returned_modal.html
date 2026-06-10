@@ -13,6 +13,6 @@
                name="action"
                value="{{ returned_action|default:'MARK_RETURNED' }}">
     </form>
-    {% include "components/modal.html" with modal_id=modal_id modal_title="Confirm Return" button_layout="equal" confirm_button_text="Confirm" cancel_button_text="Cancel" cancel_button_class="btn btn-soft btn-error font-semibold" confirm_button_class="btn btn-soft btn-success font-semibold" confirm_submit_form_id=form_id modal_content_template="components/items/_mark_returned_modal_content.html" %}
+    {% include "components/modal.html" with modal_id=modal_id modal_title="Confirm Return" button_layout="equal" confirm_button_text="Confirm" cancel_button_text="Cancel" cancel_button_class="btn btn-soft btn-error font-semibold" confirm_button_class="btn btn-soft btn-success font-semibold" confirm_submit_form_id=form_id modal_content_template="components/items/modals/_mark_returned_modal_content.html" %}
 
 {% endwith %}

@@ -14,4 +14,4 @@
       - modal_id: unique ID for this modal instance
       - confirm_button_text: text for the right-side confirm button
 -->
-{% include "components/modal.html" with modal_id=modal_id modal_title="Select categories" modal_size="full" button_layout="equal" cancel_button_text="Clear" cancel_action="clearFilters()" cancel_button_class="btn text-primary btn-ghost font-semibold" confirm_button_text=confirm_button_text confirm_click_expression="applyFilters()" confirm_button_disabled_expression="!hasChangedSelection()" modal_content_template="components/items/_category_filter_modal_content.html" %}
+{% include "components/modal.html" with modal_id=modal_id modal_title="Select categories" modal_size="full" button_layout="equal" cancel_button_text="Clear" cancel_action="clearFilters()" cancel_button_class="btn text-primary btn-ghost font-semibold" confirm_button_text=confirm_button_text confirm_click_expression="applyFilters()" confirm_button_disabled_expression="!hasChangedSelection()" modal_content_template="components/items/modals/_category_filter_modal_content.html" %}
