@@ -225,6 +225,7 @@ class Item(Model):
 
         current_borrower = self.get_current_borrower()
         requesting_user = self.get_requesting_user()
+        current_tx = self.get_current_transaction_for_user(user)
         actions = self.get_actions_for(user)
 
         # Generate status text based on user role and current actions/status
@@ -233,6 +234,7 @@ class Item(Model):
             actions=actions,
             current_borrower=current_borrower,
             requesting_user=requesting_user,
+            current_tx=current_tx,
         )
 
         return ItemActionContext(actions=actions, status_text=status_text)
@@ -243,6 +245,7 @@ class Item(Model):
         actions: tuple[ItemAction, ...],
         current_borrower: Optional[BorrowdUser],
         requesting_user: Optional[BorrowdUser],
+        current_tx: Optional["Transaction"] = None,
     ) -> str:
         """Generate context-appropriate status text for the user."""
         # Determine user role
@@ -258,18 +261,29 @@ class Item(Model):
         )
 
         if is_owner:
-            return self._get_owner_status_text(actions, requester_name, borrower_name)
+            return self._get_owner_status_text(
+                actions, requester_name, borrower_name, current_tx
+            )
         elif is_borrower:
-            return self._get_borrower_status_text(actions)
+            return self._get_borrower_status_text(actions, current_tx)
         else:
             return self._get_other_user_status_text(actions, user)
 
     def _get_owner_status_text(
-        self, actions: tuple[ItemAction, ...], requester_name: str, borrower_name: str
+        self,
+        actions: tuple[ItemAction, ...],
+        requester_name: str,
+        borrower_name: str,
+        current_tx: Optional["Transaction"] = None,
     ) -> str:
         """Generate status text for item owners."""
+        tx_status = current_tx.status if current_tx else None
 
-        if ItemAction.ACCEPT_REQUEST in actions:
+        if tx_status == TransactionStatus.DISPUTED:
+            return f"This item is being disputed. Use dispute resolution once you've settled it with {borrower_name}."
+        elif tx_status == TransactionStatus.RETURN_REQUESTED:
+            return f"You requested this item back from {borrower_name}. Confirm once you receive it."
+        elif ItemAction.ACCEPT_REQUEST in actions:
             return f"{requester_name} has requested to borrow this item!"
         elif (
             ItemAction.MARK_COLLECTED in actions
@@ -292,10 +306,20 @@ class Item(Model):
             return "This is your item and it is available for borrowing."
 
     # Permit borrower to see owner name in status text
-    def _get_borrower_status_text(self, actions: tuple[ItemAction, ...]) -> str:
+    def _get_borrower_status_text(
+        self,
+        actions: tuple[ItemAction, ...],
+        current_tx: Optional["Transaction"] = None,
+    ) -> str:
         owner_name = self.owner.profile.full_name()  # type: ignore[attr-defined]
         """Generate status text for current borrowers."""
-        if ItemAction.CANCEL_REQUEST in actions:
+        tx_status = current_tx.status if current_tx else None
+
+        if tx_status == TransactionStatus.DISPUTED:
+            return "This item is being disputed. Please coordinate with the owner to make it right."
+        elif tx_status == TransactionStatus.RETURN_REQUESTED:
+            return f"{owner_name} has requested this item back. Please coordinate its return."
+        elif ItemAction.CANCEL_REQUEST in actions:
             return f"{owner_name} accepted request, mark Collected when you have received the item."
         elif ItemAction.CONFIRM_COLLECTED in actions:
             return (

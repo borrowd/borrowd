@@ -147,6 +147,14 @@ class ReturnRequestedHappyFlowTest(ReturnFlowTestBase):
             self.item.get_actions_for(self.borrower),
             (ItemAction.MARK_RETURNED, ItemAction.FLAG_CANNOT_RETURN),
         )
+        self.assertIn(
+            "You requested this item back",
+            self.item.get_action_context_for(self.lender).status_text,
+        )
+        self.assertIn(
+            "requested this item back",
+            self.item.get_action_context_for(self.borrower).status_text,
+        )
 
     def test_040_borrower_asserts_return(self) -> None:
         """Borrower's assertion locks them out until the lender confirms."""
@@ -221,6 +229,11 @@ class BorrowerCannotReturnFlowTest(ReturnFlowTestBase):
                 ItemAction.RESOLVE_DISPUTE_RETURNED,
             ),
         )
+        for party in (self.lender, self.borrower):
+            self.assertIn(
+                "disputed",
+                self.item.get_action_context_for(party).status_text,
+            )
 
     def test_030_lender_resolves_returned(self) -> None:
         """Resolution frees the item; the dispute record survives."""
