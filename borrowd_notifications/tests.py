@@ -1,3 +1,4 @@
+from django.core import mail
 from django.test import TestCase, TransactionTestCase
 from notifications.models import Notification
 
@@ -498,3 +499,112 @@ class ItemAvailableNotificationTests(TransactionTestCase):
         self.assertEqual(
             self.subscription.status, AvailabilitySubscriptionStatus.ACTIVE
         )
+
+
+class ReturnFlowNotificationTests(TestCase):
+    """Tests for return-request and dispute notification emails."""
+
+    def setUp(self) -> None:
+        """Set up a lender, borrower, and item."""
+        self.lender = BorrowdUser.objects.create_user(
+            username="lender",
+            email="lender@example.com",
+            password="password",
+            first_name="Lena",
+            last_name="Lender",
+        )
+        self.borrower = BorrowdUser.objects.create_user(
+            username="borrower",
+            email="borrower@example.com",
+            password="password",
+            first_name="Bo",
+            last_name="Borrower",
+        )
+        self.item = Item.objects.create(
+            name="Test Drill",
+            description="A test item",
+            owner=self.lender,
+            created_by=self.lender,
+            updated_by=self.lender,
+        )
+
+    def _create_transaction(
+        self,
+        status: TransactionStatus,
+        dispute_raised_by: BorrowdUser | None = None,
+    ) -> Transaction:
+        return Transaction.objects.create(
+            item=self.item,
+            party1=self.lender,
+            party2=self.borrower,
+            status=status,
+            dispute_raised_by=dispute_raised_by,
+            created_by=self.borrower,
+            updated_by=self.lender,
+        )
+
+    def test_return_request_emails_borrower(self) -> None:
+        """Borrower is notified when the lender requests the item back."""
+        self._create_transaction(TransactionStatus.RETURN_REQUESTED)
+
+        notifications = Notification.objects.filter(
+            recipient=self.borrower,
+            verb=NotificationType.ITEM_RETURN_REQUESTED.value,
+        )
+        self.assertEqual(notifications.count(), 1)
+
+        self.assertEqual(len(mail.outbox), 1)
+        email = mail.outbox[0]
+        self.assertEqual(email.subject, "Return requested")
+        self.assertEqual(email.to, [self.borrower.email])
+        self.assertIn("Test Drill", email.body)
+        self.assertIn("requested its return", email.body)
+        self.assertIn("/inventory/", email.body)
+
+    def test_borrower_raised_dispute_emails_lender(self) -> None:
+        """Lender is notified when the borrower raises the dispute."""
+        self._create_transaction(
+            TransactionStatus.DISPUTED, dispute_raised_by=self.borrower
+        )
+
+        notifications = Notification.objects.filter(
+            recipient=self.lender,
+            verb=NotificationType.ITEM_DISPUTED.value,
+        )
+        self.assertEqual(notifications.count(), 1)
+
+        self.assertEqual(len(mail.outbox), 1)
+        email = mail.outbox[0]
+        self.assertEqual(email.subject, "A dispute has been raised")
+        self.assertEqual(email.to, [self.lender.email])
+        self.assertIn("Hi Lena Lender", email.body)
+        self.assertIn("Test Drill", email.body)
+        self.assertIn("coordinate with Bo Borrower regarding the item", email.body)
+        self.assertIn("Bo Borrower's Borrow'd profile", email.body)
+
+    def test_lender_raised_dispute_emails_borrower(self) -> None:
+        """Borrower is notified when the lender raises the dispute."""
+        self._create_transaction(
+            TransactionStatus.DISPUTED, dispute_raised_by=self.lender
+        )
+
+        notifications = Notification.objects.filter(
+            recipient=self.borrower,
+            verb=NotificationType.ITEM_DISPUTED.value,
+        )
+        self.assertEqual(notifications.count(), 1)
+
+        self.assertEqual(len(mail.outbox), 1)
+        email = mail.outbox[0]
+        self.assertEqual(email.subject, "A dispute has been raised")
+        self.assertEqual(email.to, [self.borrower.email])
+        self.assertIn("Hi Bo Borrower", email.body)
+        self.assertIn("coordinate with Lena Lender to return the item", email.body)
+        self.assertIn("flagged on your Borrow'd profile", email.body)
+
+    def test_dispute_without_raiser_sends_nothing(self) -> None:
+        """No notification goes out if a dispute has no recorded raiser."""
+        self._create_transaction(TransactionStatus.DISPUTED)
+
+        self.assertEqual(Notification.objects.count(), 0)
+        self.assertEqual(len(mail.outbox), 0)
