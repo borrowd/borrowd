@@ -1,0 +1,17 @@
+<p>
+    Select the current status of this disputed item. Selecting "Item not returned" will remove it from your inventory.
+</p>
+<div class="grid grid-cols-2 gap-2 pt-6">
+    <button type="submit"
+            form="{{ not_returned_form_id }}"
+            onclick="closeModal('{{ modal_id }}')"
+            class="btn btn-outline btn-error font-semibold w-full">
+        Item not returned
+    </button>
+    <button type="submit"
+            form="{{ returned_form_id }}"
+            onclick="closeModal('{{ modal_id }}')"
+            class="btn btn-success font-semibold w-full">
+        Item returned
+    </button>
+</div>

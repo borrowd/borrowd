@@ -98,6 +98,10 @@ Parameters:
         {% include "components/items/mark_collected_modal.html" with item=item modal_id="confirm-collected-modal"|add:modal_suffix collected_action="CONFIRM_COLLECTED" %}
         {% include "components/items/mark_returned_modal.html" with item=item modal_id="mark-returned-modal"|add:modal_suffix %}
         {% include "components/items/mark_returned_modal.html" with item=item modal_id="confirm-returned-modal"|add:modal_suffix returned_action="CONFIRM_RETURNED" %}
+        {% include "components/items/request_return_modal.html" with item=item modal_id="request-return-modal"|add:modal_suffix %}
+        {% include "components/items/cannot_return_modal.html" with item=item modal_id="cannot-return-modal"|add:modal_suffix %}
+        {% include "components/items/raise_dispute_modal.html" with item=item modal_id="raise-dispute-modal"|add:modal_suffix %}
+        {% include "components/items/dispute_resolution_modal.html" with item=item modal_id="dispute-resolution-modal"|add:modal_suffix %}
 
     {% endif %}
 </div>
