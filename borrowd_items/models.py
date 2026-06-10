@@ -1,7 +1,8 @@
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Never, Optional
 
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
 from django.db.models import (
@@ -68,6 +69,17 @@ class ItemAction(TextChoices):
     CONFIRM_RETURNED = "CONFIRM_RETURNED", "Confirm Returned"
     CANCEL_REQUEST = "CANCEL_REQUEST", "Cancel Request"
     RESOLVE_TRANSACTION = "RESOLVE_TRANSACTION", "Close Out Transaction"
+    REQUEST_RETURN = "REQUEST_RETURN", "Request Return"
+    FLAG_CANNOT_RETURN = "FLAG_CANNOT_RETURN", "Cannot Return Item"
+    RAISE_DISPUTE = "RAISE_DISPUTE", "Raise Dispute"
+    RESOLVE_DISPUTE_RETURNED = (
+        "RESOLVE_DISPUTE_RETURNED",
+        "Resolve Dispute: Item Returned",
+    )
+    RESOLVE_DISPUTE_NOT_RETURNED = (
+        "RESOLVE_DISPUTE_NOT_RETURNED",
+        "Resolve Dispute: Item Not Returned",
+    )
 
 
 @dataclass
@@ -394,7 +406,9 @@ class Item(Model):
         if current_tx.status in (
             TransactionStatus.COLLECTION_ASSERTED,
             TransactionStatus.COLLECTED,
+            TransactionStatus.RETURN_REQUESTED,
             TransactionStatus.RETURN_ASSERTED,
+            TransactionStatus.DISPUTED,
         ):
             counterparty = (
                 current_tx.party1 if current_tx.party2 == user else current_tx.party2
@@ -432,16 +446,39 @@ class Item(Model):
                 # Otherwise, nothing to do but wait...
                 return tuple()
         elif current_tx.status == TransactionStatus.COLLECTED:
-            # Either borrower or lender can assert return.
+            # Either borrower or lender can assert return; the lender can
+            # also formally request the item back.
+            if self.owner == user:
+                return (ItemAction.MARK_RETURNED, ItemAction.REQUEST_RETURN)
             return (ItemAction.MARK_RETURNED,)
-
+        elif current_tx.status == TransactionStatus.RETURN_REQUESTED:
+            if self.owner == user:
+                # The lender confirms receipt directly; after the wait
+                # window they can escalate to a dispute.
+                if current_tx.dispute_wait_has_elapsed():
+                    return (ItemAction.RAISE_DISPUTE, ItemAction.CONFIRM_RETURNED)
+                return (ItemAction.CONFIRM_RETURNED,)
+            # The borrower asserts the return or flags that they can't.
+            return (ItemAction.MARK_RETURNED, ItemAction.FLAG_CANNOT_RETURN)
         elif current_tx.status == TransactionStatus.RETURN_ASSERTED:
             # Make sure the same person doesn't confirm the assertion
             if current_tx.updated_by != user:
+                if self.owner == user:
+                    # The lender can deny the borrower's return claim.
+                    return (ItemAction.RAISE_DISPUTE, ItemAction.CONFIRM_RETURNED)
                 return (ItemAction.CONFIRM_RETURNED,)
             else:
                 # Otherwise, nothing to do but wait...
                 return tuple()
+        elif current_tx.status == TransactionStatus.DISPUTED:
+            if self.owner == user:
+                # The lender settles the dispute one way or the other.
+                return (
+                    ItemAction.RESOLVE_DISPUTE_NOT_RETURNED,
+                    ItemAction.RESOLVE_DISPUTE_RETURNED,
+                )
+            # The borrower waits on the lender.
+            return tuple()
         else:
             # We shouldn't get here...
             raise ValueError(
@@ -485,7 +522,9 @@ class Item(Model):
                         TransactionStatus.ACCEPTED,
                         TransactionStatus.COLLECTION_ASSERTED,
                         TransactionStatus.COLLECTED,
+                        TransactionStatus.RETURN_REQUESTED,
                         TransactionStatus.RETURN_ASSERTED,
+                        TransactionStatus.DISPUTED,
                     ]
                 )
             )
@@ -504,7 +543,9 @@ class Item(Model):
                             TransactionStatus.ACCEPTED,
                             TransactionStatus.COLLECTION_ASSERTED,
                             TransactionStatus.COLLECTED,
+                            TransactionStatus.RETURN_REQUESTED,
                             TransactionStatus.RETURN_ASSERTED,
+                            TransactionStatus.DISPUTED,
                         ]
                     )
                 )
@@ -659,13 +700,36 @@ class Item(Model):
                     current_tx.status = TransactionStatus.RETURN_ASSERTED
                     current_tx.updated_by = user
                     current_tx.save()
-                case ItemAction.CONFIRM_RETURNED:
-                    # The other party confirms return.
+                case ItemAction.CONFIRM_RETURNED | ItemAction.RESOLVE_DISPUTE_RETURNED:
+                    # The other party confirms return (or the lender settles
+                    # a dispute with the item back home).
                     self.status = ItemStatus.AVAILABLE
                     self.save()
                     current_tx.status = TransactionStatus.RETURNED
                     current_tx.updated_by = user
                     current_tx.save()
+                case ItemAction.REQUEST_RETURN:
+                    # The lender formally asks for the item back.
+                    current_tx.status = TransactionStatus.RETURN_REQUESTED
+                    current_tx.return_requested_at = timezone.now()
+                    current_tx.updated_by = user
+                    current_tx.save()
+                case ItemAction.FLAG_CANNOT_RETURN | ItemAction.RAISE_DISPUTE:
+                    # Either side escalates to a dispute; disputed_at outlives
+                    # resolution as the durable record.
+                    current_tx.status = TransactionStatus.DISPUTED
+                    current_tx.disputed_at = timezone.now()
+                    current_tx.dispute_raised_by = user
+                    current_tx.updated_by = user
+                    current_tx.save()
+                case ItemAction.RESOLVE_DISPUTE_NOT_RETURNED:
+                    # Item is gone for good: soft-delete it and close out the
+                    # transaction.
+                    self.soft_delete(deleted_by=user)
+                    current_tx.force_resolve(
+                        resolved_by=user,
+                        reason=ResolutionReason.DISPUTE_ITEM_NOT_RETURNED,
+                    )
                 case ItemAction.CANCEL_REQUEST:
                     # The requestor cancels the Request.
                     self.status = ItemStatus.AVAILABLE
@@ -819,6 +883,10 @@ class ResolutionReason(TextChoices):
         "counterparty_unresponsive",
         "Other party was unresponsive",
     )
+    DISPUTE_ITEM_NOT_RETURNED = (
+        "dispute_item_not_returned",
+        "Disputed item was not returned",
+    )
 
 
 class Transaction(Model):
@@ -924,6 +992,16 @@ class Transaction(Model):
         related_name="+",
         help_text="Who performed the soft-delete. NULL means active or unknown.",
     )
+
+    def dispute_wait_has_elapsed(self) -> bool:
+        """
+        Whether the lender has waited long enough since requesting return
+        (RETURN_DISPUTE_WAIT_DAYS) to be allowed to raise a dispute.
+        """
+        if self.return_requested_at is None:
+            return False
+        wait = timedelta(days=settings.RETURN_DISPUTE_WAIT_DAYS)
+        return timezone.now() - self.return_requested_at >= wait
 
     def force_resolve(
         self, *, resolved_by: BorrowdUser, reason: ResolutionReason

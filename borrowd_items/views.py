@@ -61,6 +61,11 @@ def _build_item_action_success_message(item_name: str, action: ItemAction) -> st
         ItemAction.NOTIFY_WHEN_AVAILABLE: "notification requested",
         ItemAction.CANCEL_NOTIFICATION_REQUEST: "notification request canceled",
         ItemAction.RESOLVE_TRANSACTION: "transaction closed out",
+        ItemAction.REQUEST_RETURN: "return requested",
+        ItemAction.FLAG_CANNOT_RETURN: "flagged as cannot be returned",
+        ItemAction.RAISE_DISPUTE: "dispute raised",
+        ItemAction.RESOLVE_DISPUTE_RETURNED: "dispute resolved, item returned",
+        ItemAction.RESOLVE_DISPUTE_NOT_RETURNED: "dispute resolved, item removed",
     }
     return f"{item_name} {action_to_result[action]}."
 
