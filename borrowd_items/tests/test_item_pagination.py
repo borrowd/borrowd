@@ -130,6 +130,24 @@ class ItemListPaginationTests(TestCase):
         self.assertContains(response, "page_size=6")
         self.assertContains(response, "page=2")
 
+    def test_pages_are_ordered_newest_first_without_overlap(self) -> None:
+        """Pages follow newest-first ordering; no item repeats or goes missing."""
+        items = [
+            self.create_item(name=f"Item {i}", description=f"Desc {i}")
+            for i in range(8)
+        ]
+        expected_pks = sorted((item.pk for item in items), reverse=True)
+
+        self.client.force_login(self.viewer)
+        page1 = self.client.get(reverse("item-list"), {"page_size": "6"})
+        page2 = self.client.get(reverse("item-list"), {"page_size": "6", "page": "2"})
+
+        page1_pks = [card["pk"] for card in page1.context["item_cards"]]
+        page2_pks = [card["pk"] for card in page2.context["item_cards"]]
+
+        self.assertEqual(page1_pks, expected_pks[:6])
+        self.assertEqual(page2_pks, expected_pks[6:])
+
     def test_no_pagination_when_few_items(self) -> None:
         """Single page when item count is below the page size."""
         for i in range(3):

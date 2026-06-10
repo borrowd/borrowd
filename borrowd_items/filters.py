@@ -79,7 +79,8 @@ class ItemFilter(FilterSet):  # type: ignore[misc]
                 # ensure form validation before filtering
                 self.errors
                 qs = self.filter_queryset(qs)
-            self._qs = qs
+            # Stable ordering keeps page boundaries deterministic; pk breaks created_at ties.
+            self._qs = qs.order_by("-created_at", "-pk")
         return self._qs
 
     class Meta:
