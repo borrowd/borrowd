@@ -92,6 +92,9 @@ class ItemActionContext:
 
     actions: tuple[ItemAction, ...]
     status_text: str
+    # Non-interactive chip shown in place of action buttons while the user
+    # waits on the other party.
+    waiting_text: Optional[str] = None
 
 
 class ItemCategory(Model):
@@ -237,7 +240,20 @@ class Item(Model):
             current_tx=current_tx,
         )
 
-        return ItemActionContext(actions=actions, status_text=status_text)
+        # The borrower who asserted return of a requested item can only wait
+        # on the lender's confirmation.
+        waiting_text = None
+        if (
+            current_tx is not None
+            and current_tx.status == TransactionStatus.RETURN_ASSERTED
+            and current_tx.return_requested_at is not None
+            and current_tx.updated_by == user
+        ):
+            waiting_text = "Waiting on confirmation from lender..."
+
+        return ItemActionContext(
+            actions=actions, status_text=status_text, waiting_text=waiting_text
+        )
 
     def _get_status_text_for_user(
         self,

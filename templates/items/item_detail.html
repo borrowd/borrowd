@@ -151,11 +151,13 @@
                         {{ item.description }}
                     </div>
 
-                    {% if show_actions and action_context.actions %}
-                        <div class="mt-auto">
-                            {% include "components/items/action_buttons_with_status.html" with item=item action_context=action_context variant="card" container_id=actions_container_id modal_suffix=modal_suffix %}
+                    {% if show_actions %}
+                        {% if action_context.actions or action_context.waiting_text %}
+                            <div class="mt-auto">
+                                {% include "components/items/action_buttons_with_status.html" with item=item action_context=action_context variant="card" container_id=actions_container_id modal_suffix=modal_suffix %}
 
-                        </div>
+                            </div>
+                        {% endif %}
                     {% endif %}
                 </div>
             </div>

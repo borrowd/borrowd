@@ -292,6 +292,7 @@ def build_item_card_context(
                 a for a in action_context.actions if a != ItemAction.CANCEL_REQUEST
             ),
             status_text=action_context.status_text,
+            waiting_text=action_context.waiting_text,
         )
 
     first_photo = item.photos.first()

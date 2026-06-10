@@ -24,6 +24,14 @@ For variant='card', also accepts:
     {% if variant == 'card' %}
         <!-- Card variant: just buttons, no status box -->
         <div id="{{ container_id }}" class="flex gap-2 p-3">
+            {% if action_context.waiting_text %}
+                <div class="flex-1">
+                    <div class="btn btn-ghost no-animation pointer-events-none btn-sm md:btn-md w-full">
+                        {% heroicon_solid "clock" class="size-5" %}
+                        {{ action_context.waiting_text }}
+                    </div>
+                </div>
+            {% endif %}
             {% for action in action_context.actions %}
                 <!-- Modal actions -->
                 <!-- Modal's hidden form handles the actual POST -->
@@ -204,6 +212,12 @@ For variant='card', also accepts:
 
                 <!-- Action Buttons -->
                 <div class="flex gap-2 w-full">
+                    {% if action_context.waiting_text %}
+                        <div class="btn btn-ghost no-animation pointer-events-none flex-1">
+                            {% heroicon_solid "clock" class="size-6" %}
+                            {{ action_context.waiting_text }}
+                        </div>
+                    {% endif %}
                     {% for action in action_context.actions %}
                         <!-- Modal actions -->
                         <!-- modal's hidden form handles the POST -->

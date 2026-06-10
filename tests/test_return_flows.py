@@ -166,6 +166,11 @@ class ReturnRequestedHappyFlowTest(ReturnFlowTestBase):
             self.item.get_actions_for(self.lender),
             (ItemAction.RAISE_DISPUTE, ItemAction.CONFIRM_RETURNED),
         )
+        self.assertEqual(
+            self.item.get_action_context_for(self.borrower).waiting_text,
+            "Waiting on confirmation from lender...",
+        )
+        self.assertIsNone(self.item.get_action_context_for(self.lender).waiting_text)
 
     def test_050_lender_confirms_return(self) -> None:
         """Confirmation completes the loan and frees the item."""
@@ -347,6 +352,9 @@ class BorrowerCannotDisputeLenderAssertionTest(ReturnFlowTestBase):
             self.item.get_actions_for(self.borrower),
             (ItemAction.CONFIRM_RETURNED,),
         )
+        # Lender asserted directly (no return request): borrower-facing chip copy must not show.
+        self.assertIsNone(self.item.get_action_context_for(self.lender).waiting_text)
+        self.assertIsNone(self.item.get_action_context_for(self.borrower).waiting_text)
 
 
 class DisputeWaitWindowTest(SimpleTestCase):
