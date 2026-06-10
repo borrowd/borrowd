@@ -14,6 +14,7 @@ from django_filters.views import FilterView
 from guardian.mixins import LoginRequiredMixin
 
 from borrowd.util import BorrowdTemplateFinderMixin, resolve_back_url
+from borrowd_groups.models import Membership, MembershipStatus
 from borrowd_permissions.mixins import (
     LoginOr403PermissionMixin,
     LoginOr404PermissionMixin,
@@ -325,6 +326,10 @@ class ItemListView(
         context["user_has_items"] = Item.objects.filter(
             owner=user,
         ).exists
+        context["user_has_groups"] = Membership.objects.filter(
+            user=user,
+            status=MembershipStatus.ACTIVE,
+        ).exists()
 
         return context
 
