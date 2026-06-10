@@ -98,8 +98,8 @@ skills-lock.json
 .DS_Store
 
 # E2E tests #
-python_tests/tests/.auth
-python_tests/allure-results/
-python_tests/allure-report/
-python_tests/test-results/
+e2e_tests/tests/.auth
+e2e_tests/allure-results/
+e2e_tests/allure-report/
+e2e_tests/test-results/
 playwright-report/
