@@ -799,7 +799,9 @@ class TransactionStatus(IntegerChoices):
     ACCEPTED = 30, "Accepted"
     COLLECTION_ASSERTED = 40, "Collection Asserted"
     COLLECTED = 50, "Collected"
+    RETURN_REQUESTED = 55, "Return Requested"
     RETURN_ASSERTED = 60, "Return Asserted"
+    DISPUTED = 65, "Disputed"
     RETURNED = 70, "Returned"
     CANCELLED = 80, "Cancelled"
     RESOLVED = 90, "Resolved"  # any force-resolved transaction, regardless of reason
@@ -853,6 +855,35 @@ class Transaction(Model):
             "Why the Transaction was force-resolved outside the normal "
             "dual-confirmation flow. NULL for normally-completed Transactions."
         ),
+    )
+    return_requested_at: DateTimeField[datetime | None, datetime | None] = (
+        DateTimeField(
+            null=True,
+            blank=True,
+            default=None,
+            help_text=(
+                "When the lender requested return of the item. Anchors the "
+                "dispute wait window. NULL means no return request was made."
+            ),
+        )
+    )
+    disputed_at: DateTimeField[datetime | None, datetime | None] = DateTimeField(
+        null=True,
+        blank=True,
+        default=None,
+        help_text=(
+            "When the Transaction entered DISPUTED. Survives resolution as a "
+            "durable record that a dispute occurred. NULL means never disputed."
+        ),
+    )
+    dispute_raised_by: ForeignKey[BorrowdUser] = ForeignKey(
+        BorrowdUser,
+        null=True,
+        blank=True,
+        default=None,
+        on_delete=SET_NULL,
+        related_name="+",
+        help_text="Who raised the dispute. NULL means never disputed.",
     )
     created_by: ForeignKey[BorrowdUser] = ForeignKey(
         BorrowdUser,
