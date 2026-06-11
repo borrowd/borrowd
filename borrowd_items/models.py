@@ -296,7 +296,7 @@ class Item(Model):
         tx_status = current_tx.status if current_tx else None
 
         if tx_status == TransactionStatus.DISPUTED:
-            return f"This item is being disputed. Use dispute resolution once you've settled it with {borrower_name}."
+            return f"This item is being disputed. Use 'resolve dispute' once you've settled it with {borrower_name}."
         elif tx_status == TransactionStatus.RETURN_REQUESTED:
             return f"You requested this item back from {borrower_name}. Confirm once you receive it."
         elif ItemAction.ACCEPT_REQUEST in actions:

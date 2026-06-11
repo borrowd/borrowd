@@ -72,18 +72,14 @@ For variant='card', also accepts:
                         <button type="button"
                                 onclick="showModal('mark-returned-modal{{ modal_suffix }}')"
                                 class="btn btn-soft btn-primary btn-sm md:btn-md w-full">
-                            {% if banner_type == 'return_requested' %}
-                                I have returned this item
-                            {% else %}
-                                Confirm returned
-                            {% endif %}
+                            Confirm returned
                         </button>
                     </div>
                 {% elif action.name == 'CONFIRM_RETURNED' %}
                     <div class="flex-1">
                         <button type="button"
                                 onclick="showModal('confirm-returned-modal{{ modal_suffix }}')"
-                                class="{% if banner_type == 'return_requested' %}btn btn-success{% else %}btn btn-soft btn-primary{% endif %} btn-sm md:btn-md w-full">
+                                class="{% if banner_type == 'return_requested' %}btn btn-soft btn-success{% else %}btn btn-soft btn-primary{% endif %} btn-sm md:btn-md w-full">
                             {% if banner_type == 'return_requested' %}
                                 Item was returned
                             {% else %}
@@ -103,15 +99,15 @@ For variant='card', also accepts:
                     <div class="flex-1">
                         <button type="button"
                                 onclick="showModal('cannot-return-modal{{ modal_suffix }}')"
-                                class="btn btn-outline btn-error btn-sm md:btn-md w-full">
-                            I cannot return the item
+                                class="btn btn-soft btn-error btn-sm md:btn-md w-full">
+                            Cannot return
                         </button>
                     </div>
                 {% elif action.name == 'RAISE_DISPUTE' %}
                     <div class="flex-1">
                         <button type="button"
                                 onclick="showModal('raise-dispute-modal{{ modal_suffix }}')"
-                                class="btn btn-outline btn-error btn-sm md:btn-md w-full">
+                                class="btn btn-soft btn-error btn-sm md:btn-md w-full">
                             Item not returned
                         </button>
                     </div>
@@ -119,8 +115,8 @@ For variant='card', also accepts:
                     <div class="flex-1">
                         <button type="button"
                                 onclick="showModal('dispute-resolution-modal{{ modal_suffix }}')"
-                                class="btn btn-primary btn-sm md:btn-md w-full">
-                            Dispute resolution
+                                class="btn btn-soft btn-primary btn-sm md:btn-md w-full">
+                            Resolve dispute
                         </button>
                     </div>
                 {% elif action.name == 'RESOLVE_DISPUTE_NOT_RETURNED' %}
@@ -258,7 +254,7 @@ For variant='card', also accepts:
                         {% elif action.name == 'CONFIRM_RETURNED' %}
                             <button type="button"
                                     onclick="showModal('confirm-returned-modal{{ modal_suffix }}')"
-                                    class="{% if banner_type == 'return_requested' %}btn btn-success{% else %}btn btn-soft btn-primary{% endif %} flex-1">
+                                    class="{% if banner_type == 'return_requested' %}btn btn-soft btn-success{% else %}btn btn-soft btn-primary{% endif %} flex-1">
                                 {% if banner_type == 'return_requested' %}
                                     Item was returned
                                 {% else %}
@@ -286,8 +282,8 @@ For variant='card', also accepts:
                         {% elif action.name == 'RESOLVE_DISPUTE_RETURNED' %}
                             <button type="button"
                                     onclick="showModal('dispute-resolution-modal{{ modal_suffix }}')"
-                                    class="btn btn-primary flex-1">
-                                Dispute resolution
+                                    class="btn btn-soft btn-primary flex-1">
+                                Resolve dispute
                             </button>
                         {% elif action.name == 'RESOLVE_DISPUTE_NOT_RETURNED' %}
                             {# Offered inside the dispute resolution modal. #}

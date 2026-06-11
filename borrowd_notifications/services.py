@@ -125,19 +125,10 @@ class NotificationService:
                         }
                     )
                 case TransactionStatus.DISPUTED:
-                    recipient_is_borrower = notification.recipient == transaction.party2
-                    other_party = (
-                        transaction.party1
-                        if recipient_is_borrower
-                        else transaction.party2
-                    )
                     context.update(
                         {
                             "recipient_name": notification.recipient.profile.full_name(),
                             "item_name": transaction.item.name,  # type: ignore[attr-defined]
-                            "other_party_name": other_party.profile.full_name(),  # type: ignore[attr-defined]
-                            "recipient_is_borrower": recipient_is_borrower,
-                            "borrower_name": transaction.party2.profile.full_name(),  # type: ignore[attr-defined]
                         }
                     )
         elif isinstance(notification.target, BorrowdGroup):

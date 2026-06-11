@@ -9,6 +9,6 @@
         {% csrf_token %}
         <input type="hidden" name="action" value="FLAG_CANNOT_RETURN">
     </form>
-    {% include "components/modal.html" with modal_id=modal_id modal_title="I cannot return the item" button_layout="equal" confirm_button_text="I will make it right" cancel_button_text="Cancel" confirm_submit_form_id=form_id modal_content_template="components/items/modals/_cannot_return_modal_content.html" %}
+    {% include "components/modal.html" with modal_id=modal_id modal_title="Starting a dispute" button_layout="equal" confirm_button_text="I will make it right" confirm_button_style="btn btn-soft btn-primary" cancel_button_text="Cancel" confirm_submit_form_id=form_id modal_content_template="components/items/modals/_cannot_return_modal_content.html" %}
 
 {% endwith %}
