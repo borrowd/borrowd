@@ -579,8 +579,13 @@ class ReturnFlowNotificationTests(TestCase):
         self.assertEqual(email.to, [self.lender.email])
         self.assertIn("Hi Lena Lender", email.body)
         self.assertIn("Test Drill", email.body)
-        self.assertIn("coordinate with Bo Borrower regarding the item", email.body)
-        self.assertIn("Bo Borrower's Borrow'd profile", email.body)
+        self.assertIn(
+            "good faith effort to resolve this directly with the other person",
+            email.body,
+        )
+        self.assertIn(
+            "disputes are reflected on user profiles within Borrow'd", email.body
+        )
 
     def test_lender_raised_dispute_emails_borrower(self) -> None:
         """Borrower is notified when the lender raises the dispute."""
@@ -599,8 +604,13 @@ class ReturnFlowNotificationTests(TestCase):
         self.assertEqual(email.subject, "A dispute has been raised")
         self.assertEqual(email.to, [self.borrower.email])
         self.assertIn("Hi Bo Borrower", email.body)
-        self.assertIn("coordinate with Lena Lender to return the item", email.body)
-        self.assertIn("flagged on your Borrow'd profile", email.body)
+        self.assertIn(
+            "good faith effort to resolve this directly with the other person",
+            email.body,
+        )
+        self.assertIn(
+            "disputes are reflected on user profiles within Borrow'd", email.body
+        )
 
     def test_dispute_without_raiser_sends_nothing(self) -> None:
         """No notification goes out if a dispute has no recorded raiser."""
