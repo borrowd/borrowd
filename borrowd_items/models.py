@@ -92,8 +92,7 @@ class ItemActionContext:
 
     actions: tuple[ItemAction, ...]
     status_text: str
-    # Non-interactive chip shown in place of action buttons while the user
-    # waits on the other party.
+    # Non-interactive text to show in place of action buttons
     waiting_text: Optional[str] = None
 
 
@@ -240,8 +239,8 @@ class Item(Model):
             current_tx=current_tx,
         )
 
-        # The borrower who asserted return of a requested item can only wait
-        # on the lender's confirmation.
+        # The borrower who asserted return of a requested item must wait for
+        # the lender to confirm the item has been returned.
         waiting_text = None
         if (
             current_tx is not None
@@ -486,19 +485,18 @@ class Item(Model):
                 # Otherwise, nothing to do but wait...
                 return tuple()
         elif current_tx.status == TransactionStatus.COLLECTED:
-            # Either borrower or lender can assert return; the lender can
-            # also formally request the item back.
+            # Either borrower or lender can assert return
+            # The lender can also request the item back.
             if self.owner == user:
                 return (ItemAction.MARK_RETURNED, ItemAction.REQUEST_RETURN)
             return (ItemAction.MARK_RETURNED,)
         elif current_tx.status == TransactionStatus.RETURN_REQUESTED:
             if self.owner == user:
-                # The lender confirms receipt directly; after the wait
-                # window they can escalate to a dispute.
+                # The lender can escalate to a dispute only if the wait window has passed
                 if current_tx.dispute_wait_has_elapsed():
                     return (ItemAction.RAISE_DISPUTE, ItemAction.CONFIRM_RETURNED)
                 return (ItemAction.CONFIRM_RETURNED,)
-            # The borrower asserts the return or flags that they can't.
+            # The borrower confirms the return or flags that they can't return the item.
             return (ItemAction.MARK_RETURNED, ItemAction.FLAG_CANNOT_RETURN)
         elif current_tx.status == TransactionStatus.RETURN_ASSERTED:
             # Make sure the same person doesn't confirm the assertion
@@ -517,7 +515,7 @@ class Item(Model):
                     ItemAction.RESOLVE_DISPUTE_NOT_RETURNED,
                     ItemAction.RESOLVE_DISPUTE_RETURNED,
                 )
-            # The borrower waits on the lender.
+            # The borrower waits on the lender. (no options for borrower)
             return tuple()
         else:
             # We shouldn't get here...
@@ -741,30 +739,28 @@ class Item(Model):
                     current_tx.updated_by = user
                     current_tx.save()
                 case ItemAction.CONFIRM_RETURNED | ItemAction.RESOLVE_DISPUTE_RETURNED:
-                    # The other party confirms return (or the lender settles
-                    # a dispute with the item back home).
+                    # The other party confirms return or lender resolved dispute happily
                     self.status = ItemStatus.AVAILABLE
                     self.save()
                     current_tx.status = TransactionStatus.RETURNED
                     current_tx.updated_by = user
                     current_tx.save()
                 case ItemAction.REQUEST_RETURN:
-                    # The lender formally asks for the item back.
+                    # The lender asks for the item back from the borrower
                     current_tx.status = TransactionStatus.RETURN_REQUESTED
                     current_tx.return_requested_at = timezone.now()
                     current_tx.updated_by = user
                     current_tx.save()
                 case ItemAction.FLAG_CANNOT_RETURN | ItemAction.RAISE_DISPUTE:
-                    # Either side escalates to a dispute; disputed_at outlives
-                    # resolution as the durable record.
+                    # Either side escalates to a dispute
                     current_tx.status = TransactionStatus.DISPUTED
                     current_tx.disputed_at = timezone.now()
                     current_tx.dispute_raised_by = user
                     current_tx.updated_by = user
                     current_tx.save()
                 case ItemAction.RESOLVE_DISPUTE_NOT_RETURNED:
-                    # Item is gone for good: soft-delete it and close out the
-                    # transaction.
+                    # Item is gone for good
+                    # soft-delete it and close out the transaction.
                     self.soft_delete(deleted_by=user)
                     current_tx.force_resolve(
                         resolved_by=user,
@@ -970,8 +966,8 @@ class Transaction(Model):
             blank=True,
             default=None,
             help_text=(
-                "When the lender requested return of the item. Anchors the "
-                "dispute wait window. NULL means no return request was made."
+                "When the lender requested the return of the item. Wait window "
+                "starts from this time. NULL means no return request was made."
             ),
         )
     )
@@ -979,10 +975,7 @@ class Transaction(Model):
         null=True,
         blank=True,
         default=None,
-        help_text=(
-            "When the Transaction entered DISPUTED. Survives resolution as a "
-            "durable record that a dispute occurred. NULL means never disputed."
-        ),
+        help_text=("When the Transaction entered DISPUTED. NULL means never disputed."),
     )
     dispute_raised_by: ForeignKey[BorrowdUser] = ForeignKey(
         BorrowdUser,
@@ -1035,9 +1028,10 @@ class Transaction(Model):
 
     def dispute_wait_has_elapsed(self) -> bool:
         """
-        Whether the lender has waited long enough since requesting return
-        (RETURN_DISPUTE_WAIT_DAYS) to be allowed to raise a dispute.
+        Whether the lender has waited long enough since requesting a return
+        to be allowed to raise a dispute. Wait time is (RETURN_DISPUTE_WAIT_DAYS)
         """
+
         if self.return_requested_at is None:
             return False
         wait = timedelta(days=settings.RETURN_DISPUTE_WAIT_DAYS)
