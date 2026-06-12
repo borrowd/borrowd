@@ -7,8 +7,6 @@ from django.db import models
 from django.db.models import (
     CASCADE,
     ForeignKey,
-    IntegerChoices,
-    IntegerField,
     Model,
     TextChoices,
 )
@@ -23,27 +21,25 @@ from borrowd_items.models import (
 from borrowd_users.models import BorrowdUser
 
 
-class NotificationType(IntegerChoices):
-    ITEM_REQUESTED = 10, "Item requested"
-    ITEM_REQUEST_ACCEPTED = 15, "Item request accepted"
-    ITEM_REQUEST_DENIED = 20, "Item request denied"
+class NotificationType(models.TextChoices):
+    ITEM_REQUESTED = "Item requested"
+    ITEM_REQUEST_ACCEPTED = "Item request accepted"
+    ITEM_REQUEST_DENIED = "Item request denied"
     ITEM_NOTIFY_WHEN_AVAILABLE = (
-        25,
         "Item notify when available",
     )  # When the item becomes available
     ITEM_SUBSCRIPTION = (
-        30,
         "Item subscription",
     )  # When a user subscribes to notifications for an item
 
-    ITEM_RETURNED = 35, "Item returned"
-    GROUP_MEMBER_JOINED = 40, "Change to group membership"
-    GROUP_NEEDS_MODERATOR = 45, "Group needs moderator"  # When moderator leaves group
-
-    # TODO implement the context build here instead of inside the service to keep the logic in one place.
+    ITEM_RETURNED = "Item returned"
+    GROUP_MEMBER_JOINED = "Change to group membership"
+    GROUP_NEEDS_MODERATOR = "Group needs moderator"  # When moderator leaves group
 
     def __str__(self) -> str:
         return self.name.lower()
+
+    # TODO simplify the logic to make it cleaner.
 
     @staticmethod
     def _get_template_context_for(notification: notifications) -> Dict[str, Any]:
@@ -138,14 +134,16 @@ class ChannelType(TextChoices):
 
 
 class NotificationPreference(Model):
-    user: ForeignKey["BorrowdUser"] = ForeignKey(
-        to="BorrowdUser",
+    user: ForeignKey[BorrowdUser] = ForeignKey(
+        BorrowdUser,
+        null=False,
+        blank=False,
         on_delete=CASCADE,
         related_name="notifications_preferences",
         help_text="The user who owns thoses preferences",
     )
-    notification_type: IntegerField[NotificationType, int] = IntegerField(
-        choices=NotificationType
+    notification_type: models.CharField[NotificationType, int] = models.CharField(
+        choices=NotificationType.choices
     )
     channel: models.CharField[ChannelType, str] = models.CharField(
         max_length=20, choices=ChannelType.choices, default=ChannelType.APP, blank=False
@@ -187,6 +185,16 @@ class NotificationData:
 
     def _success(self, channel: ChannelType) -> None:
         self.channels[channel] = ChannelResult(status=NotificationState.SUCCES)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "context": self.context,
+            "icon": self.icon,
+            "channels": {
+                channel.value: {"status": result.status.value, "error": result.error}
+                for channel, result in self.channels.items()
+            },
+        }
 
     @classmethod
     def create(

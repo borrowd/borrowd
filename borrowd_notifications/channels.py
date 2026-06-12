@@ -26,7 +26,7 @@ class NotificationPayload:
         return cls(
             notification=notification,
             notification_type=notification_type,
-            template_name=str(NotificationType(notification.verb)),
+            template_name=str(notification_type),
             data=NotificationData.create(context, channels),
         )
 

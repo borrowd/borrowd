@@ -71,5 +71,6 @@ class NotificationService:
             strategy = cls.get_strategy(channel)
             strategy.send(notification_payload)
 
-        notification.data = notification_payload.data
-        notification.save()
+        Notification.objects.filter(pk=notification.pk).update(
+            data=notification_payload.data.to_dict()
+        )
