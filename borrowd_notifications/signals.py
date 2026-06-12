@@ -17,7 +17,7 @@ django-notifications repo: https://github.com/django-notifications/django-notifi
 from typing import cast
 
 from django.db import transaction
-from django.db.models.signals import post_save, pre_save
+from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.utils import timezone
 from notifications.models import Notification
@@ -32,7 +32,8 @@ from borrowd_items.models import (
     TransactionStatus,
 )
 
-from .services import NotificationService, NotificationType
+from .models import NotificationType
+from .services import NotificationService
 
 
 def _notify_subscribers_if_available(item: Item) -> None:
@@ -63,25 +64,43 @@ def _notify_subscribers_if_available(item: Item) -> None:
             )
 
 
-@receiver(pre_save, sender=Notification)
-def send_notification_email(
-    sender: Notification, instance: Notification, **kwargs: str
+# @receiver(pre_save, sender=Notification)
+# def send_notification_email(
+#     sender: Notification, instance: Notification, **kwargs: str
+# ) -> None:
+#     """Send email notification."""
+
+#     # Not sure what impact public has, but defaulting to False to be safe
+#     instance.public = False
+
+#     try:
+#         user = instance.recipient
+#         if user.email:
+#             NotificationService.send_email_notification(instance)
+#             instance.emailed = True
+#     except Exception as e:
+#         instance.emailed = False
+#         instance.data = {
+#             "error": str(e),
+#         }
+
+
+@receiver(post_save, sender=Notification)
+def send_notification(
+    sender: Notification, instance: Notification, created: bool, **kwargs: str
 ) -> None:
-    """Send email notification."""
+    """
+    Delegates to the service layer to handle the Notification Preferences
+    Business logic.
+    """
 
     # Not sure what impact public has, but defaulting to False to be safe
     instance.public = False
 
-    try:
-        user = instance.recipient
-        if user.email:
-            NotificationService.send_email_notification(instance)
-            instance.emailed = True
-    except Exception as e:
-        instance.emailed = False
-        instance.data = {
-            "error": str(e),
-        }
+    if not created:
+        return
+
+    transaction.on_commit(lambda: NotificationService.send_notification(instance))
 
 
 @receiver(post_save, sender=Transaction)

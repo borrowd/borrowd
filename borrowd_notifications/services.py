@@ -1,11 +1,14 @@
-from enum import Enum
-from typing import Any, Dict
+from typing import Any, Dict, Type
 
 from django.conf import settings
-from django.core.mail import send_mail
-from django.template.loader import render_to_string
+from django.db.models import Q
 from django.urls import reverse
-from notifications.models import Notification
+from notifications.models import (
+    ChannelType,
+    Notification,
+    NotificationPreference,
+    NotificationType,
+)
 
 from borrowd_groups.models import BorrowdGroup, Membership
 from borrowd_items.models import (
@@ -13,48 +16,71 @@ from borrowd_items.models import (
     Transaction,
     TransactionStatus,
 )
-
-
-class NotificationType(Enum):
-    ITEM_REQUESTED = "Item requested"
-    ITEM_REQUEST_ACCEPTED = "Item request accepted"
-    ITEM_REQUEST_DENIED = "Item request denied"
-    ITEM_NOTIFY_WHEN_AVAILABLE = (
-        "Item notify when available"  # When the item becomes available
-    )
-    ITEM_SUBSCRIPTION = (
-        "Item subscription"  # When a user subscribes to notifications for an item
-    )
-    ITEM_RETURNED = "Item returned"
-    GROUP_MEMBER_JOINED = "Change to group membership"
-    GROUP_NEEDS_MODERATOR = "Group needs moderator"  # When moderator leaves group
-
-    @property
-    def template_name(self) -> str:
-        return self.name.lower()
+from borrowd_notifications.channels import (
+    AppNotificationStrategy,
+    EmailNotificationStrategy,
+    NotificationPayload,
+    NotificationStrategy,
+    PUSHNotificationStrategy,
+)
+from borrowd_users.models import BorrowdUser
 
 
 class NotificationService:
     """Service for sending notifications."""
 
+    _strategies: dict[Type[ChannelType], Type[NotificationStrategy]] = {
+        ChannelType.APP: AppNotificationStrategy,
+        ChannelType.EMAIL: EmailNotificationStrategy,
+        ChannelType.PUSH: PUSHNotificationStrategy,
+    }
+
+    @classmethod
+    def get_strategy(cls, channel: ChannelType) -> NotificationStrategy:
+        try:
+            strategy = cls._strategies[channel]
+        except KeyError:
+            raise Exception(f"Unknown notification strategy {channel}")
+
+        return strategy()
+
     @staticmethod
-    def send_email_notification(
+    def _get_user_preferences(
+        user: BorrowdUser, notification_type: NotificationType
+    ) -> set[ChannelType]:
+        """Return the user preferences for a specific notification type."""
+
+        preferences = NotificationPreference.objects.filter(
+            Q(user=user) & Q(notification_type=notification_type)
+        )
+
+        result = set()
+
+        for pref in preferences:
+            result.add(pref.channel)
+
+        return result
+
+    @classmethod
+    def send_notification(
+        cls,
         notification: Notification,
     ) -> None:
-        """Send an email notification."""
-        template_name = NotificationType(notification.verb).template_name
-        context = NotificationService._get_template_context_for(notification)
-        html_message = render_to_string(f"notifications/{template_name}.html", context)
-        text_message = render_to_string(f"notifications/{template_name}.txt", context)
+        """Send the notification through the right channel"""
 
-        send_mail(
-            subject=notification.description,
-            message=text_message,
-            html_message=html_message,
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[notification.recipient.email],
-            fail_silently=False,
+        notification_preferences = NotificationService._get_user_preferences(
+            notification.recipient, notification.verb
         )
+        notification_payload = NotificationPayload.from_notification(
+            notification, channels=notification_preferences
+        )
+
+        for channel in notification_preferences:
+            strategy = cls.get_strategy(channel)
+            strategy.send(notification_payload)
+
+        notification.data = notification_payload.data
+        notification.save()
 
     @staticmethod
     def _get_template_context_for(notification: Notification) -> Dict[str, Any]:

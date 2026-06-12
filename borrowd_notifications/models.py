@@ -37,7 +37,7 @@ class NotificationType(IntegerChoices):
         return self.name.lower()
 
 
-class ChannelType(models.TextChoices):
+class ChannelType(TextChoices):
     APP = "APP", "In-App Notification"
     PUSH = "PUSH", "Push Notification"
     EMAIL = "EMAIL", "Email"
