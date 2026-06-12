@@ -7,7 +7,6 @@ from django.template.loader import render_to_string
 from notifications.models import Notification
 
 from borrowd_notifications.models import ChannelType, NotificationData, NotificationType
-from borrowd_notifications.services import NotificationService
 
 
 @dataclass
@@ -22,7 +21,7 @@ class NotificationPayload:
         cls, notification: Notification, channels: set[ChannelType]
     ) -> "NotificationPayload":
         notification_type = NotificationType(notification.verb)
-        context = NotificationService._get_template_context_for(notification)
+        context = NotificationType._get_template_context_for(notification)
 
         return cls(
             notification=notification,
