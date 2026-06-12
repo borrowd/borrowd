@@ -3,12 +3,13 @@ from urllib.parse import quote
 
 from django.contrib.auth.models import AbstractUser
 from django.db import models
-from django.db.models import DO_NOTHING, SET_NULL, DateTimeField, ForeignKey
+from django.db.models import DO_NOTHING, SET_NULL, DateTimeField, ForeignKey, QuerySet
 from guardian.mixins import GuardianUserMixin
 from imagekit.models import ProcessedImageField
 from imagekit.processors import ResizeToFit
 
 from borrowd_groups.mixins import BorrowdGroupPermissionMixin
+from borrowd_notifications.models import NotificationPreference
 
 
 # No typing for django-guardian, so mypy doesn't like us subclassing.
@@ -69,6 +70,9 @@ class BorrowdUser(AbstractUser, BorrowdGroupPermissionMixin, GuardianUserMixin):
 
     # Hint for mypy (actual field created from reverse relation)
     profile: "Profile"
+
+    # Notification prederences for this user.
+    notification_preference: QuerySet["NotificationPreference"]
 
 
 class Profile(models.Model):
