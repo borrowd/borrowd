@@ -25,6 +25,15 @@ NOTIFICATION_CATEGORIES: list[dict[str, Any]] = [
             (NotificationType.COLLECTION_CONFIRMED, "Collection confirmed"),
             (NotificationType.RETURN_ASSERTED, "Borrower says they've returned"),
             (NotificationType.RETURN_CONFIRMED, "Return confirmed"),
+            (
+                NotificationType.REQUEST_CANCELLED_BORROWER_LEFT,
+                "Request cancelled - borrower left",
+            ),
+            (
+                NotificationType.REQUEST_CANCELLED_OWNER_LEFT,
+                "Request cancelled - owner left",
+            ),
+            (NotificationType.LOAN_ENDED_OWNER_LEFT, "Loan ended - owner left"),
         ],
     },
     {
@@ -72,13 +81,6 @@ def _optional_types_for_scope(scope: str) -> list[NotificationType]:
         if cat["slug"] == scope:
             return [ntype for ntype, _ in cat["types"] if ntype not in mandatory]
     return []
-
-
-_CHANNEL_FIELD: dict[ChannelType, str] = {
-    ChannelType.APP: "in_app_enabled",
-    ChannelType.EMAIL: "email_enabled",
-    ChannelType.PUSH: "push_enabled",
-}
 
 
 def _build_preferences_context(user: BorrowdUser) -> dict[str, Any]:
@@ -167,7 +169,7 @@ def toggle_preference(request: HttpRequest) -> HttpResponse:
         return HttpResponse(status=403)
 
     channel = ChannelType(channel_value)
-    field_name = _CHANNEL_FIELD[channel]
+    field_name = channel.label
     obj, _ = NotificationPreference.objects.get_or_create(
         user=user,
         notification_type=type_value,
@@ -196,7 +198,7 @@ def bulk_toggle_preferences(request: HttpRequest) -> HttpResponse:
     if not types_to_update:
         return HttpResponse(status=400)
 
-    field_name = _CHANNEL_FIELD[channel]
+    field_name = channel.label
     NotificationPreference.objects.filter(
         user=user,
         notification_type__in=[t.value for t in types_to_update],
@@ -209,33 +211,17 @@ def bulk_toggle_preferences(request: HttpRequest) -> HttpResponse:
 
 _INBOX_PAGE_SIZE = 25
 
-_NOTIFICATION_MESSAGES: dict[str, str] = {
-    NotificationType.ITEM_REQUESTED.value: "{requester_name} wants to borrow your {item_name}",
-    NotificationType.ITEM_REQUEST_ACCEPTED.value: "Your request for {item_name} was accepted by {item_owner_name}",
-    NotificationType.ITEM_REQUEST_DENIED.value: "Your request for {item_name} was declined",
-    NotificationType.COLLECTION_ASSERTED.value: "{requester_name} says they have collected {item_name}",
-    NotificationType.COLLECTION_CONFIRMED.value: "Collection of {item_name} has been confirmed",
-    NotificationType.RETURN_ASSERTED.value: "{requester_name} says they have returned {item_name}",
-    NotificationType.RETURN_CONFIRMED.value: "Return of {item_name} has been confirmed",
-    NotificationType.ITEM_RETURNED.value: "{item_name} has been returned by {requester_name}",
-    NotificationType.ITEM_NOTIFY_WHEN_AVAILABLE.value: "{item_name} is now available to borrow",
-    NotificationType.ITEM_SUBSCRIPTION.value: "{subscriber_name} wants to be notified when {item_name} is available",
-    NotificationType.GROUP_MEMBER_JOINED.value: "{new_member_name} joined {group_name}",
-    NotificationType.GROUP_NEEDS_MODERATOR.value: "{group_name} needs a moderator",
-    NotificationType.MEMBERSHIP_PENDING.value: "{new_member_name} has requested to join {group_name}",
-    NotificationType.MEMBERSHIP_APPROVED.value: "Your membership to {group_name} was approved",
-    NotificationType.COMMUNITY_REQUEST_POSTED.value: "A new community request was posted in {group_name}",
-    NotificationType.COMMUNITY_REQUEST_FULFILLED.value: "A community request in {group_name} was fulfilled",
-}
-
 
 def _format_notification(notification: Notification) -> str:
-    template = _NOTIFICATION_MESSAGES.get(notification.verb, notification.verb)
+    try:
+        template = NotificationType(notification.verb).message_template
+    except ValueError:
+        return str(notification.verb)
     context: dict[str, Any] = {}
     if isinstance(notification.data, dict):
         context = notification.data.get("context", {})
     try:
-        return str(template.format(**context))
+        return template.format(**context)
     except KeyError:
         return str(notification.verb)
 

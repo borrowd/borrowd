@@ -23,33 +23,79 @@ from borrowd_users.models import BorrowdUser
 
 class NotificationType(models.TextChoices):
     # Lending lifecycle
-    ITEM_REQUESTED = "Item requested"
-    ITEM_REQUEST_ACCEPTED = "Item request accepted"
-    ITEM_REQUEST_DENIED = "Item request denied"
-    COLLECTION_ASSERTED = "Collection asserted"
-    COLLECTION_CONFIRMED = "Collection confirmed"
-    RETURN_ASSERTED = "Return asserted"
-    RETURN_CONFIRMED = "Return confirmed"
-    ITEM_RETURNED = "Item returned"
+    ITEM_REQUESTED = (
+        "Item requested",
+        "{requester_name} wants to borrow your {item_name}",
+    )
+    ITEM_REQUEST_ACCEPTED = (
+        "Item request accepted",
+        "Your request for {item_name} was accepted by {item_owner_name}",
+    )
+    ITEM_REQUEST_DENIED = (
+        "Item request denied",
+        "Your request for {item_name} was declined",
+    )
+    COLLECTION_ASSERTED = (
+        "Collection asserted",
+        "{requester_name} says they have collected {item_name}",
+    )
+    COLLECTION_CONFIRMED = (
+        "Collection confirmed",
+        "Collection of {item_name} has been confirmed",
+    )
+    RETURN_ASSERTED = (
+        "Return asserted",
+        "{requester_name} says they have returned {item_name}",
+    )
+    RETURN_CONFIRMED = "Return confirmed", "Return of {item_name} has been confirmed"
+    ITEM_RETURNED = "Item returned", "{item_name} has been returned by {requester_name}"
 
     # Item availability
-    ITEM_NOTIFY_WHEN_AVAILABLE = "Item notify when available"
-    ITEM_SUBSCRIPTION = "Item subscription"
+    ITEM_NOTIFY_WHEN_AVAILABLE = (
+        "Item notify when available",
+        "{item_name} is now available to borrow",
+    )
+    ITEM_SUBSCRIPTION = (
+        "Item subscription",
+        "{subscriber_name} wants to be notified when {item_name} is available",
+    )
 
     # Group & membership
-    GROUP_MEMBER_JOINED = "Change to group membership"
-    GROUP_NEEDS_MODERATOR = "Group needs moderator"
-    MEMBERSHIP_PENDING = "Membership pending"
-    MEMBERSHIP_APPROVED = "Membership approved"
+    GROUP_MEMBER_JOINED = (
+        "Change to group membership",
+        "{new_member_name} joined {group_name}",
+    )
+    GROUP_NEEDS_MODERATOR = "Group needs moderator", "{group_name} needs a moderator"
+    MEMBERSHIP_PENDING = (
+        "Membership pending",
+        "{new_member_name} has requested to join {group_name}",
+    )
+    MEMBERSHIP_APPROVED = (
+        "Membership approved",
+        "Your membership to {group_name} was approved",
+    )
 
     # Community wishlist
-    COMMUNITY_REQUEST_POSTED = "Community request posted"
-    COMMUNITY_REQUEST_FULFILLED = "Community request fulfilled"
+    COMMUNITY_REQUEST_POSTED = (
+        "Community request posted",
+        "A new community request was posted in {group_name}",
+    )
+    COMMUNITY_REQUEST_FULFILLED = (
+        "Community request fulfilled",
+        "A community request in {group_name} was fulfilled",
+    )
 
-    REQUEST_CANCELLED_BORROWER_LEFT = "Request cancelled - borrower left"  # When borrower closes account with an open request
-    REQUEST_CANCELLED_OWNER_LEFT = "Request cancelled - owner left"  # When owner closes account with an open request
+    REQUEST_CANCELLED_BORROWER_LEFT = (
+        "Request cancelled - borrower left",
+        "Your borrow request for {item_name} was cancelled",
+    )
+    REQUEST_CANCELLED_OWNER_LEFT = (
+        "Request cancelled - owner left",
+        "Your request for {item_name} was cancelled because the owner left",
+    )
     LOAN_ENDED_OWNER_LEFT = (
-        "Loan ended - owner left"  # When owner closes account with an active loan
+        "Loan ended - owner left",
+        "Your loan of {item_name} has ended because the owner left",
     )
 
     @classmethod
@@ -65,6 +111,10 @@ class NotificationType(models.TextChoices):
 
     def __str__(self) -> str:
         return self.name.lower()
+
+    @property
+    def message_template(self) -> str:
+        return self.label
 
     # TODO simplify the logic to make it cleaner.
 
@@ -176,9 +226,10 @@ class NotificationType(models.TextChoices):
 
 
 class ChannelType(TextChoices):
-    APP = "APP", "In-App Notification"
-    PUSH = "PUSH", "Push Notification"
-    EMAIL = "EMAIL", "Email"
+    # channel type, and field name in the Preferences db
+    APP = "APP", "in_app_enabled"
+    PUSH = "PUSH", "email_enabled"
+    EMAIL = "EMAIL", "push_enabled"
 
 
 class NotificationPreference(Model):

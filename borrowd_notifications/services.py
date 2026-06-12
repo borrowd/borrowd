@@ -16,6 +16,7 @@ from borrowd_notifications.channels import (
 from borrowd_notifications.models import (
     ChannelType,
     NotificationPreference,
+    NotificationState,
     NotificationType,
 )
 from borrowd_users.models import BorrowdUser
@@ -24,6 +25,7 @@ logger = logging.getLogger(__name__)
 
 _DEDUP_WINDOW = timedelta(minutes=10)
 _EMAIL_HOURLY_LIMIT = 10
+_SUMMARY_DIGEST_DELAY = timedelta(hours=1)
 
 
 class NotificationService:
@@ -91,6 +93,14 @@ class NotificationService:
             >= _EMAIL_HOURLY_LIMIT
         )
 
+    @staticmethod
+    def _schedule_summary_digest(recipient: BorrowdUser) -> dict[str, object]:
+        return {
+            "recipient_id": recipient.pk,
+            "scheduled_for": (timezone.now() + _SUMMARY_DIGEST_DELAY).isoformat(),
+            "status": NotificationState.PENDING.value,
+        }
+
     @classmethod
     def send_notification(cls, notification: Notification) -> None:
         if notification.actor == notification.recipient:
@@ -106,14 +116,19 @@ class NotificationService:
             return
 
         channels = cls._get_enabled_channels(notification.recipient, notification_type)
+        summary_digest: dict[str, object] | None = None
 
         if ChannelType.EMAIL in channels and cls._is_email_throttled(
             notification.recipient
         ):
             channels.discard(ChannelType.EMAIL)
-            # TODO(AC 2.7): schedule a summary digest for this recipient
+            summary_digest = cls._schedule_summary_digest(notification.recipient)
 
         if not channels:
+            if summary_digest is not None:
+                Notification.objects.filter(pk=notification.pk).update(
+                    data={"summary_digest": summary_digest}
+                )
             return
 
         payload = NotificationPayload.from_notification(notification, channels)
@@ -126,6 +141,8 @@ class NotificationService:
                 sentry_sdk.capture_exception(exc)
                 payload.data._error(channel, str(exc))
 
-        Notification.objects.filter(pk=notification.pk).update(
-            data=payload.data.to_dict()
-        )
+        data = payload.data.to_dict()
+        if summary_digest is not None:
+            data["summary_digest"] = summary_digest
+
+        Notification.objects.filter(pk=notification.pk).update(data=data)
