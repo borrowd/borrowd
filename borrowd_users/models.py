@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Never, Self
 from urllib.parse import quote
 
@@ -51,7 +52,7 @@ class BorrowdUser(AbstractUser, BorrowdGroupPermissionMixin, GuardianUserMixin):
         auto_now=True,
         help_text="The date and time at which the user was last updated.",
     )
-    deleted_at: DateTimeField[Never, Never] = DateTimeField(
+    deleted_at: DateTimeField[datetime | None, datetime | None] = DateTimeField(
         null=True,
         blank=True,
         default=None,

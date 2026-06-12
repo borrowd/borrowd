@@ -37,6 +37,13 @@ from .forms import (
 )
 from .models import Item, ItemAction, ItemPhoto, ItemStatus
 
+_MOBILE_UA_KEYWORDS = ("mobile", "android", "iphone", "ipad", "ipod")
+
+PAGE_SIZE_MOBILE_DEFAULT = 6
+PAGE_SIZE_DESKTOP_DEFAULT = 12
+PAGE_SIZE_MIN = 4
+PAGE_SIZE_MAX = 48
+
 
 def _build_item_action_success_message(item_name: str, action: ItemAction) -> str:
     """
@@ -53,6 +60,7 @@ def _build_item_action_success_message(item_name: str, action: ItemAction) -> st
         ItemAction.CANCEL_REQUEST: "request canceled",
         ItemAction.NOTIFY_WHEN_AVAILABLE: "notification requested",
         ItemAction.CANCEL_NOTIFICATION_REQUEST: "notification request canceled",
+        ItemAction.RESOLVE_TRANSACTION: "transaction closed out",
     }
     return f"{item_name} {action_to_result[action]}."
 
@@ -101,8 +109,12 @@ def borrow_item(request: HttpRequest, pk: int) -> HttpResponse:
     # AbstractUser or AnonymousUser, which we *would* comply with
     # here (BorrowdUser subclasses AbstractUser).
     user: BorrowdUser = request.user  # type: ignore[assignment]
+    # Resolve against all items, including soft-deleted ones: an owner closing
+    # their account soft-eletes their items, but the borrower may still need to
+    # close out the stranded loan (RESOLVE_TRANSACTION). The guard below keeps
+    # every other action off soft-deleted items.
     item = get_object_or_404(
-        Item,
+        Item.all_objects,
         pk=pk,
     )
 
@@ -131,6 +143,10 @@ def borrow_item(request: HttpRequest, pk: int) -> HttpResponse:
             f"Unknown action for '{item.name}'.",
         )
         return redirect(redirect_url)
+
+    # A soft-deleted item stays reachable only to close out a stranded loan.
+    if item.deleted_at is not None and action != ItemAction.RESOLVE_TRANSACTION:
+        return HttpResponse("Not found", status=404)
 
     try:
         item.process_action(user=user, action=action)
@@ -271,6 +287,18 @@ class ItemListView(
     model = Item
     template_name_suffix = "_list"  # Reusing template from ListView
     filterset_class = ItemFilter
+
+    def get_paginate_by(self, queryset: object) -> int:
+        ua = self.request.META.get("HTTP_USER_AGENT", "").lower()
+        is_mobile = any(kw in ua for kw in _MOBILE_UA_KEYWORDS)
+        default = PAGE_SIZE_MOBILE_DEFAULT if is_mobile else PAGE_SIZE_DESKTOP_DEFAULT
+        raw = self.request.GET.get("page_size")
+        if raw is None:
+            return default
+        try:
+            return max(PAGE_SIZE_MIN, min(PAGE_SIZE_MAX, int(raw)))
+        except ValueError:
+            return default
 
     def get(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
         term = request.GET.get("search")

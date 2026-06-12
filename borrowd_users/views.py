@@ -2,7 +2,7 @@ from typing import Any
 
 from allauth.account.views import PasswordChangeView
 from django.contrib import messages
-from django.contrib.auth import login
+from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
 from django.http import (
     Http404,
@@ -15,9 +15,7 @@ from django.http import (
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse, reverse_lazy
 from django.views.decorators.http import require_POST
-from django.views.generic import (
-    CreateView,
-)
+from django.views.generic import CreateView
 
 from borrowd.util import resolve_back_url
 from borrowd_groups.models import Membership
@@ -27,8 +25,10 @@ from borrowd_items.card_helpers import (
 )
 from borrowd_items.models import Item, ItemStatus, Transaction
 
+from .exceptions import AccountDeletionBlocked
 from .forms import ChangePasswordForm, CustomSignupForm, ProfileUpdateForm
 from .models import BorrowdUser, SearchTarget, SearchTerm
+from .services import soft_delete_account
 
 
 def build_profile_context(
@@ -67,7 +67,8 @@ def build_profile_context(
 def public_profile_view(
     request: HttpRequest, user_id: int
 ) -> HttpResponse | HttpResponseBase:
-    subject_user = get_object_or_404(BorrowdUser, id=user_id)
+    # Soft-deleted (deactivated) accounts have no public profile.
+    subject_user = get_object_or_404(BorrowdUser, id=user_id, is_active=True)
 
     # Redirect users to their own editable profile page via `profile_view`
     if subject_user == request.user:
@@ -109,12 +110,22 @@ def profile_view(request: HttpRequest) -> HttpResponse:
     else:
         form = ProfileUpdateForm(instance=profile)
 
+    # Drives the delete-account modal. Borrowing blocks deletion; items still
+    # out on loan nudge the user to retrieve them first; owning only idle items
+    # just warns they'll be removed; with nothing at all it's a plain confirm.
+    is_borrowing = Transaction.get_active_borrows_for_user(user).exists()
+    is_lending = Transaction.get_active_lends_for_user(user).exists()
+    has_items = Item.objects.filter(owner=user).exists()
+
     return render(
         request,
         "users/profile.html",
         {
             "profile": profile,
             "form": form,
+            "is_borrowing": is_borrowing,
+            "is_lending": is_lending,
+            "has_items": has_items,
         },
     )
 
@@ -126,7 +137,7 @@ def delete_profile_photo_view(request: HttpRequest) -> JsonResponse:
     Delete the user's profile photo via AJAX without affecting other form fields.
     As of this writing (Dec 28, 2025), the current photo delete flow pops up
     a modal that the user must confirm before deleting the photo.
-    If the user clicks "delete" without this view, the phot is deleted,
+    If the user clicks "delete" without this view, the photo is deleted,
     but the entire form is submitted, which means any pending updates the user
     has (email, bio, etc.) are also submitted. To avoid this terrible UX,
     this view is necessary, as it deletes only the avatar and allows the other
@@ -262,6 +273,32 @@ def inventory_view(request: HttpRequest) -> HttpResponse:
     )
 
 
+@login_required
+@require_POST
+def delete_account_view(request: HttpRequest) -> HttpResponse:
+    """
+    Soft-delete and anonymize the logged-in user's own account.
+
+    Requires the user to retype their username to delete their account
+    """
+    user: BorrowdUser = request.user  # type: ignore[assignment]
+
+    if request.POST.get("confirm_username", "").strip() != user.username:
+        messages.error(
+            request, "That username didn't match, so your account was not deleted."
+        )
+        return redirect("profile")
+
+    try:
+        soft_delete_account(user, deleted_by=user)
+    except AccountDeletionBlocked as exc:
+        messages.error(request, str(exc))
+        return redirect("profile")
+
+    logout(request)
+    return redirect("profile-deleted")
+
+
 class CustomSignupView(CreateView[BorrowdUser, CustomSignupForm]):
     """
     Custom signup view that handles user registration with first/last names
@@ -393,3 +430,8 @@ def search_terms_export_view(
         )[:limit]
     )
     return JsonResponse({"count": len(rows), "results": rows})
+
+
+def profile_deleted_view(request: HttpRequest) -> HttpResponse:
+    """Post-deletion confirmation page. Reachable while logged out."""
+    return render(request, "users/profile-deleted.html")

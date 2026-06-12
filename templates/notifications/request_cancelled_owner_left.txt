@@ -1,0 +1,6 @@
+Hi {{ recipient_name }},
+
+The owner of {{ item_name }} has closed their account, so your request has
+been cancelled. The item is no longer available on Borrow'd.
+
+The Borrow'd team
