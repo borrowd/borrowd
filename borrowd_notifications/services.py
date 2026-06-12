@@ -1,6 +1,10 @@
+import logging
+from datetime import timedelta
 from typing import Type
 
+import sentry_sdk
 from django.db.models import Q
+from django.utils import timezone
 from notifications.models import Notification
 
 from borrowd_notifications.channels import (
@@ -17,60 +21,101 @@ from borrowd_notifications.models import (
 )
 from borrowd_users.models import BorrowdUser
 
+logger = logging.getLogger(__name__)
+
+_DEDUP_WINDOW = timedelta(minutes=10)
+_EMAIL_HOURLY_LIMIT = 10
+
 
 class NotificationService:
-    """Service for sending notifications."""
-
-    _strategies: dict[ChannelType, Type[NotificationStrategy]] = {
+    _backends: dict[ChannelType, Type[NotificationStrategy]] = {
         ChannelType.APP: AppNotificationStrategy,
         ChannelType.EMAIL: EmailNotificationStrategy,
         ChannelType.PUSH: PUSHNotificationStrategy,
     }
 
     @classmethod
-    def get_strategy(cls, channel: ChannelType) -> NotificationStrategy:
+    def _get_backend(cls, channel: ChannelType) -> NotificationStrategy:
         try:
-            strategy = cls._strategies[channel]
+            backend_cls = cls._backends[channel]
         except KeyError:
-            raise Exception(f"Unknown notification strategy {channel}")
-
-        return strategy()
+            raise ValueError(f"Unknown notification backend: {channel}")
+        return backend_cls()
 
     @staticmethod
-    def _get_user_preferences(
+    def _get_enabled_channels(
         user: BorrowdUser, notification_type: NotificationType
     ) -> set[ChannelType]:
-        """Return the user preferences for a specific notification type."""
+        if notification_type in NotificationType.mandatory_types():
+            return {ChannelType.APP, ChannelType.EMAIL}
 
         preferences = NotificationPreference.objects.filter(
             Q(user=user) & Q(notification_type=notification_type)
         )
+        return {ChannelType(pref.channel) for pref in preferences}
 
-        result = set()
+    @staticmethod
+    def _is_duplicate(notification: Notification) -> bool:
+        return bool(
+            Notification.objects.filter(
+                actor_content_type=notification.actor_content_type,
+                actor_object_id=notification.actor_object_id,
+                recipient=notification.recipient,
+                verb=notification.verb,
+                target_content_type=notification.target_content_type,
+                target_object_id=notification.target_object_id,
+                timestamp__gte=timezone.now() - _DEDUP_WINDOW,
+            )
+            .exclude(pk=notification.pk)
+            .exists()
+        )
 
-        for pref in preferences:
-            result.add(ChannelType(pref.channel))
-
-        return result
+    @staticmethod
+    def _is_email_throttled(recipient: BorrowdUser) -> bool:
+        return bool(
+            Notification.objects.filter(
+                recipient=recipient,
+                emailed=True,
+                timestamp__gte=timezone.now() - timedelta(hours=1),
+            ).count()
+            >= _EMAIL_HOURLY_LIMIT
+        )
 
     @classmethod
-    def send_notification(
-        cls,
-        notification: Notification,
-    ) -> None:
-        """Send the notification through the right channel"""
+    def send_notification(cls, notification: Notification) -> None:
+        if notification.actor == notification.recipient:
+            return
 
-        notification_preferences = NotificationService._get_user_preferences(
-            notification.recipient, notification.verb
-        )
-        notification_payload = NotificationPayload.from_notification(
-            notification, channels=notification_preferences
-        )
+        if cls._is_duplicate(notification):
+            return
 
-        for channel in notification_preferences:
-            strategy = cls.get_strategy(channel)
-            strategy.send(notification_payload)
+        try:
+            notification_type = NotificationType(notification.verb)
+        except ValueError:
+            logger.warning("Unknown notification verb: %s", notification.verb)
+            return
+
+        channels = cls._get_enabled_channels(notification.recipient, notification_type)
+
+        if ChannelType.EMAIL in channels and cls._is_email_throttled(
+            notification.recipient
+        ):
+            channels.discard(ChannelType.EMAIL)
+            # TODO(AC 2.7): schedule a summary digest for this recipient
+
+        if not channels:
+            return
+
+        payload = NotificationPayload.from_notification(notification, channels)
+
+        for channel in channels:
+            try:
+                backend = cls._get_backend(channel)
+                backend.send(payload)
+            except Exception as exc:
+                sentry_sdk.capture_exception(exc)
+                payload.data._error(channel, str(exc))
 
         Notification.objects.filter(pk=notification.pk).update(
-            data=notification_payload.data.to_dict()
+            data=payload.data.to_dict()
         )

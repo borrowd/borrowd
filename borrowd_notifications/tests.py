@@ -13,7 +13,7 @@ from borrowd_items.models import (
 )
 from borrowd_users.models import BorrowdUser
 
-from .services import NotificationType
+from .models import NotificationType
 
 
 class GroupMemberJoinedNotificationTests(TestCase):
@@ -104,13 +104,11 @@ class GroupMemberJoinedNotificationTests(TestCase):
             "Existing member should receive notification when the first new member joins",
         )
 
-        # Notification is proper type and mentions user 2 "joined"
+        # Notification is proper type and mentions user 2 wanting to join
         notification = user1_notifications.first()
-        self.assertEqual(notification.verb, NotificationType.GROUP_MEMBER_JOINED.value)
+        self.assertEqual(notification.verb, NotificationType.MEMBERSHIP_PENDING.value)
         self.assertEqual(notification.target, group)
-        self.assertIn(
-            "joined", notification.description.lower()
-        )  # Fragile but I can't think of a better way to do this at the moment.
+        self.assertIn("join", notification.description.lower())
 
     def test_group_creator_receives_notification_when_multiple_members_join(
         self,
@@ -139,28 +137,28 @@ class GroupMemberJoinedNotificationTests(TestCase):
 
         notifications_list = list(user1_notifications.order_by("timestamp"))
 
-        # First notification should be about user2 joining
+        # First notification should be about user2 requesting to join
         first_notification = notifications_list[0]
         self.assertEqual(
-            first_notification.verb, NotificationType.GROUP_MEMBER_JOINED.value
+            first_notification.verb, NotificationType.MEMBERSHIP_PENDING.value
         )
         self.assertEqual(first_notification.target, group)
-        self.assertIn("joined", first_notification.description.lower())
+        self.assertIn("join", first_notification.description.lower())
         self.assertIsInstance(first_notification.action_object, Membership)
         self.assertEqual(first_notification.action_object.user, self.user2)
 
-        # Second notification should be about user3 joining
+        # Second notification should be about user3 requesting to join
         second_notification = notifications_list[1]
         self.assertEqual(
-            second_notification.verb, NotificationType.GROUP_MEMBER_JOINED.value
+            second_notification.verb, NotificationType.MEMBERSHIP_PENDING.value
         )
         self.assertEqual(second_notification.target, group)
-        self.assertIn("joined", second_notification.description.lower())
+        self.assertIn("join", second_notification.description.lower())
         self.assertIsInstance(second_notification.action_object, Membership)
         self.assertEqual(second_notification.action_object.user, self.user3)
 
-    def test_all_existing_members_receive_notifications(self) -> None:
-        """Test that all existing members receive notification when a new member joins."""
+    def test_only_moderators_receive_membership_pending_notification(self) -> None:
+        """Test that only moderators receive notification when a new member requests to join."""
         group = BorrowdGroup.objects.create(
             name="Test Group",
             created_by=self.user1,
@@ -170,24 +168,24 @@ class GroupMemberJoinedNotificationTests(TestCase):
 
         group.add_user(self.user2, trust_level=TrustLevel.STANDARD)
 
-        # Clear notifications about user2 joining
+        # Clear notifications about user2's request
         Notification.objects.all().delete()
 
         group.add_user(self.user3, trust_level=TrustLevel.STANDARD)
 
-        # Both user1 and user2 should receive notifications
+        # Only user1 (moderator) should receive notification; user2 is not a moderator
         user1_notifications = Notification.objects.filter(recipient=self.user1)
         user2_notifications = Notification.objects.filter(recipient=self.user2)
 
         self.assertEqual(
             user1_notifications.count(),
             1,
-            "User1 should receive notification when user3 joins",
+            "Moderator should receive notification when user3 requests to join",
         )
         self.assertEqual(
             user2_notifications.count(),
-            1,
-            "User2 should receive notification when user3 joins",
+            0,
+            "Non-moderator user2 should not receive notification for a pending membership",
         )
 
 

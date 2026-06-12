@@ -1,0 +1,162 @@
+{% extends "layouts/default.html" %}
+
+{% load i18n %}
+
+{% block head_title %}
+    {% trans "Notification settings" %}
+{% endblock %}
+
+{% block content %}
+    <div class="flex flex-col w-full max-w-2xl mx-auto px-4 py-4 gap-6">
+
+        <div class="flex flex-col gap-1">
+            <h1 class="text-xl font-semibold">
+                {% trans "Notification settings" %}
+            </h1>
+            <p class="text-sm text-base-content/60">
+                {% trans "Choose how you want to be notified." %}
+            </p>
+        </div>
+
+        {# ── Master toggles ──────────────────────────────────────────────── #}
+        <div class="card bg-primary-content rounded-md border border-gray-200 shadow-sm p-4">
+            <div class="flex items-center justify-between mb-3">
+                <p class="text-sm font-semibold">
+                    {% trans "All notifications" %}
+                </p>
+                <div class="flex items-center gap-6">
+                    <span class="text-xs text-base-content/50 font-medium">{% trans "In-app" %}</span>
+                    <span class="text-xs text-base-content/50 font-medium">{% trans "Email" %}</span>
+                </div>
+            </div>
+            <div class="flex items-center justify-between">
+                <p class="text-sm text-base-content/70">
+                    {% trans "Enable or disable all optional notifications" %}
+                </p>
+                <div class="flex items-center gap-6">
+                    <form x-data="{ enabled: {{ master_app_enabled|yesno:'true,false' }} }"
+                          hx-post="{% url 'notification-bulk-toggle' %}"
+                          hx-trigger="change from:input[type=checkbox]">
+                        {% csrf_token %}
+                        <input type="hidden" name="scope" value="master">
+                        <input type="hidden" name="channel" value="APP">
+                        <input type="hidden" name="enabled" :value="enabled ? 'true' : 'false'">
+                        <input type="checkbox"
+                               :checked="enabled"
+                               @change="enabled = $event.target.checked"
+                               class="toggle toggle-primary toggle-sm">
+                    </form>
+                    <form x-data="{ enabled: {{ master_email_enabled|yesno:'true,false' }} }"
+                          hx-post="{% url 'notification-bulk-toggle' %}"
+                          hx-trigger="change from:input[type=checkbox]">
+                        {% csrf_token %}
+                        <input type="hidden" name="scope" value="master">
+                        <input type="hidden" name="channel" value="EMAIL">
+                        <input type="hidden" name="enabled" :value="enabled ? 'true' : 'false'">
+                        <input type="checkbox"
+                               :checked="enabled"
+                               @change="enabled = $event.target.checked"
+                               class="toggle toggle-primary toggle-sm">
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        {# ── Category sections ────────────────────────────────────────────── #}
+        {% for category in categories %}
+            <div class="flex flex-col gap-2">
+                <div class="flex items-center justify-between px-1">
+                    <p class="text-xs font-semibold text-base-content">
+                        {{ category.name }}
+                    </p>
+                    <div class="flex items-center gap-6">
+                        {# Category in-app bulk toggle #}
+                        <form x-data="{ enabled: {{ category.all_optional_app_enabled|yesno:'true,false' }} }"
+                              hx-post="{% url 'notification-bulk-toggle' %}"
+                              hx-trigger="change from:input[type=checkbox]">
+                            {% csrf_token %}
+                            <input type="hidden" name="scope" value="{{ category.slug }}">
+                            <input type="hidden" name="channel" value="APP">
+                            <input type="hidden" name="enabled" :value="enabled ? 'true' : 'false'">
+                            <input type="checkbox"
+                                   :checked="enabled"
+                                   @change="enabled = $event.target.checked"
+                                   class="toggle toggle-primary toggle-xs">
+                        </form>
+                        {# Category email bulk toggle #}
+                        <form x-data="{ enabled: {{ category.all_optional_email_enabled|yesno:'true,false' }} }"
+                              hx-post="{% url 'notification-bulk-toggle' %}"
+                              hx-trigger="change from:input[type=checkbox]">
+                            {% csrf_token %}
+                            <input type="hidden" name="scope" value="{{ category.slug }}">
+                            <input type="hidden" name="channel" value="EMAIL">
+                            <input type="hidden" name="enabled" :value="enabled ? 'true' : 'false'">
+                            <input type="checkbox"
+                                   :checked="enabled"
+                                   @change="enabled = $event.target.checked"
+                                   class="toggle toggle-primary toggle-xs">
+                        </form>
+                    </div>
+                </div>
+
+                <div class="card bg-primary-content rounded-md border border-gray-200 shadow-sm divide-y divide-gray-100">
+                    {% for type in category.types %}
+                        <div class="flex items-center justify-between px-4 py-3">
+                            <div class="flex flex-col gap-0.5">
+                                <span class="text-sm">{{ type.label }}</span>
+                                {% if type.is_mandatory %}
+                                    <span class="text-xs text-base-content/40">
+                                        {% trans "Required for transaction handshakes" %}
+                                    </span>
+                                {% endif %}
+                            </div>
+                            <div class="flex items-center gap-6">
+                                {# In-app toggle #}
+                                {% if type.is_mandatory %}
+                                    <input type="checkbox"
+                                           checked
+                                           disabled
+                                           class="toggle toggle-primary toggle-sm opacity-40">
+                                {% else %}
+                                    <form x-data="{ enabled: {{ type.app_enabled|yesno:'true,false' }} }"
+                                          hx-post="{% url 'notification-toggle' %}"
+                                          hx-trigger="change from:input[type=checkbox]">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="notification_type" value="{{ type.type_value }}">
+                                        <input type="hidden" name="channel" value="APP">
+                                        <input type="hidden" name="enabled" :value="enabled ? 'true' : 'false'">
+                                        <input type="checkbox"
+                                               :checked="enabled"
+                                               @change="enabled = $event.target.checked"
+                                               class="toggle toggle-primary toggle-sm">
+                                    </form>
+                                {% endif %}
+                                {# Email toggle #}
+                                {% if type.is_mandatory %}
+                                    <input type="checkbox"
+                                           checked
+                                           disabled
+                                           class="toggle toggle-primary toggle-sm opacity-40">
+                                {% else %}
+                                    <form x-data="{ enabled: {{ type.email_enabled|yesno:'true,false' }} }"
+                                          hx-post="{% url 'notification-toggle' %}"
+                                          hx-trigger="change from:input[type=checkbox]">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="notification_type" value="{{ type.type_value }}">
+                                        <input type="hidden" name="channel" value="EMAIL">
+                                        <input type="hidden" name="enabled" :value="enabled ? 'true' : 'false'">
+                                        <input type="checkbox"
+                                               :checked="enabled"
+                                               @change="enabled = $event.target.checked"
+                                               class="toggle toggle-primary toggle-sm">
+                                    </form>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        {% endfor %}
+
+    </div>
+{% endblock %}

@@ -63,6 +63,7 @@ urlpatterns: List[URLPattern | URLResolver] = [
     path("profile/", include("borrowd_users.urls")),
     path("items/", include("borrowd_items.urls")),
     path("groups/", include("borrowd_groups.urls")),
+    path("settings/", include("borrowd_notifications.urls")),
     path("favicon.ico", favicon, name="favicon"),
     path("", include("borrowd_web.urls")),
 ]
