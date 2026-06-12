@@ -22,19 +22,40 @@ from borrowd_users.models import BorrowdUser
 
 
 class NotificationType(models.TextChoices):
+    # Lending lifecycle
     ITEM_REQUESTED = "Item requested"
     ITEM_REQUEST_ACCEPTED = "Item request accepted"
     ITEM_REQUEST_DENIED = "Item request denied"
-    ITEM_NOTIFY_WHEN_AVAILABLE = (
-        "Item notify when available",
-    )  # When the item becomes available
-    ITEM_SUBSCRIPTION = (
-        "Item subscription",
-    )  # When a user subscribes to notifications for an item
-
+    COLLECTION_ASSERTED = "Collection asserted"
+    COLLECTION_CONFIRMED = "Collection confirmed"
+    RETURN_ASSERTED = "Return asserted"
+    RETURN_CONFIRMED = "Return confirmed"
     ITEM_RETURNED = "Item returned"
+
+    # Item availability
+    ITEM_NOTIFY_WHEN_AVAILABLE = "Item notify when available"
+    ITEM_SUBSCRIPTION = "Item subscription"
+
+    # Group & membership
     GROUP_MEMBER_JOINED = "Change to group membership"
-    GROUP_NEEDS_MODERATOR = "Group needs moderator"  # When moderator leaves group
+    GROUP_NEEDS_MODERATOR = "Group needs moderator"
+    MEMBERSHIP_PENDING = "Membership pending"
+    MEMBERSHIP_APPROVED = "Membership approved"
+
+    # Community wishlist
+    COMMUNITY_REQUEST_POSTED = "Community request posted"
+    COMMUNITY_REQUEST_FULFILLED = "Community request fulfilled"
+
+    @classmethod
+    def mandatory_types(cls) -> "frozenset[NotificationType]":
+        return frozenset(
+            {
+                cls.ITEM_REQUESTED,
+                cls.COLLECTION_ASSERTED,
+                cls.RETURN_ASSERTED,
+                cls.MEMBERSHIP_PENDING,
+            }
+        )
 
     def __str__(self) -> str:
         return self.name.lower()
@@ -72,6 +93,18 @@ class NotificationType(models.TextChoices):
                         {
                             "requester_name": transaction.party2.profile.full_name(),  # type: ignore[attr-defined]
                             "item_name": transaction.item.name,  # type: ignore[attr-defined]
+                        }
+                    )
+                case (
+                    TransactionStatus.COLLECTION_ASSERTED
+                    | TransactionStatus.COLLECTED
+                    | TransactionStatus.RETURN_ASSERTED
+                ):
+                    context.update(
+                        {
+                            "requester_name": transaction.party2.profile.full_name(),  # type: ignore[attr-defined]
+                            "item_name": transaction.item.name,  # type: ignore[attr-defined]
+                            "item_owner_name": transaction.party1.profile.full_name(),  # type: ignore[attr-defined]
                         }
                     )
                 case TransactionStatus.RETURNED:
@@ -149,9 +182,17 @@ class NotificationPreference(Model):
         max_length=20, choices=ChannelType.choices, default=ChannelType.APP, blank=False
     )
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "notification_type", "channel"],
+                name="unique_notification_preference",
+            )
+        ]
+
 
 class NotificationState(TextChoices):
-    SUCCES = "SUCCES"
+    SUCCESS = "SUCCESS"
     PENDING = "PENDING"
     ERROR = "ERROR"
 
@@ -175,7 +216,7 @@ class NotificationData:
             return NotificationState.ERROR
         if NotificationState.PENDING in statuses:
             return NotificationState.PENDING
-        return NotificationState.SUCCES
+        return NotificationState.SUCCESS
 
     def _error(self, channel: ChannelType, error: str) -> None:
         self.channels[channel] = ChannelResult(
@@ -184,7 +225,7 @@ class NotificationData:
         )
 
     def _success(self, channel: ChannelType) -> None:
-        self.channels[channel] = ChannelResult(status=NotificationState.SUCCES)
+        self.channels[channel] = ChannelResult(status=NotificationState.SUCCESS)
 
     def to_dict(self) -> dict[str, Any]:
         return {
