@@ -46,6 +46,12 @@ class NotificationType(models.TextChoices):
     COMMUNITY_REQUEST_POSTED = "Community request posted"
     COMMUNITY_REQUEST_FULFILLED = "Community request fulfilled"
 
+    REQUEST_CANCELLED_BORROWER_LEFT = "Request cancelled - borrower left"  # When borrower closes account with an open request
+    REQUEST_CANCELLED_OWNER_LEFT = "Request cancelled - owner left"  # When owner closes account with an open request
+    LOAN_ENDED_OWNER_LEFT = (
+        "Loan ended - owner left"  # When owner closes account with an active loan
+    )
+
     @classmethod
     def mandatory_types(cls) -> "frozenset[NotificationType]":
         return frozenset(
@@ -66,6 +72,15 @@ class NotificationType(models.TextChoices):
     def _get_template_context_for(notification: notifications) -> Dict[str, Any]:
         """Extract context from the notification's action_object."""
         context = {}
+        if notification.verb in (
+            NotificationType.REQUEST_CANCELLED_BORROWER_LEFT.value,
+            NotificationType.REQUEST_CANCELLED_OWNER_LEFT.value,
+            NotificationType.LOAN_ENDED_OWNER_LEFT.value,
+        ) and isinstance(notification.target, Transaction):
+            return {
+                "recipient_name": notification.recipient.profile.full_name(),
+                "item_name": notification.target.item.name,  # type: ignore[attr-defined]
+            }
         if isinstance(notification.target, Transaction):
             transaction: Transaction = notification.target
             match transaction.status:
