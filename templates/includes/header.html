@@ -73,6 +73,13 @@
                         </a>
                     </li>
                     <li>
+                        <a href="{% url 'notification-inbox' %}"
+                           class="flex items-center gap-3 py-3">
+                            {% heroicon_outline "bell" class="size-5" %}
+                            <span>Notifications</span>
+                        </a>
+                    </li>
+                    <li>
                         <a href="{% url 'profile' %}" class="flex items-center gap-3 py-3">
                             {% heroicon_outline "user-circle" class="size-5" %}
                             <span>My Profile</span>

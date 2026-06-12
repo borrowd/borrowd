@@ -1,9 +1,11 @@
 from typing import Any
 
 from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator
 from django.http import HttpRequest, HttpResponse
-from django.shortcuts import render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
+from notifications.models import Notification
 
 from borrowd_users.models import BorrowdUser
 
@@ -201,3 +203,83 @@ def bulk_toggle_preferences(request: HttpRequest) -> HttpResponse:
     ).update(**{field_name: enabled})
 
     return HttpResponse(status=204)
+
+
+# ── Inbox ──────────────────────────────────────────────────────────────────
+
+_INBOX_PAGE_SIZE = 25
+
+_NOTIFICATION_MESSAGES: dict[str, str] = {
+    NotificationType.ITEM_REQUESTED.value: "{requester_name} wants to borrow your {item_name}",
+    NotificationType.ITEM_REQUEST_ACCEPTED.value: "Your request for {item_name} was accepted by {item_owner_name}",
+    NotificationType.ITEM_REQUEST_DENIED.value: "Your request for {item_name} was declined",
+    NotificationType.COLLECTION_ASSERTED.value: "{requester_name} says they have collected {item_name}",
+    NotificationType.COLLECTION_CONFIRMED.value: "Collection of {item_name} has been confirmed",
+    NotificationType.RETURN_ASSERTED.value: "{requester_name} says they have returned {item_name}",
+    NotificationType.RETURN_CONFIRMED.value: "Return of {item_name} has been confirmed",
+    NotificationType.ITEM_RETURNED.value: "{item_name} has been returned by {requester_name}",
+    NotificationType.ITEM_NOTIFY_WHEN_AVAILABLE.value: "{item_name} is now available to borrow",
+    NotificationType.ITEM_SUBSCRIPTION.value: "{subscriber_name} wants to be notified when {item_name} is available",
+    NotificationType.GROUP_MEMBER_JOINED.value: "{new_member_name} joined {group_name}",
+    NotificationType.GROUP_NEEDS_MODERATOR.value: "{group_name} needs a moderator",
+    NotificationType.MEMBERSHIP_PENDING.value: "{new_member_name} has requested to join {group_name}",
+    NotificationType.MEMBERSHIP_APPROVED.value: "Your membership to {group_name} was approved",
+    NotificationType.COMMUNITY_REQUEST_POSTED.value: "A new community request was posted in {group_name}",
+    NotificationType.COMMUNITY_REQUEST_FULFILLED.value: "A community request in {group_name} was fulfilled",
+}
+
+
+def _format_notification(notification: Notification) -> str:
+    template = _NOTIFICATION_MESSAGES.get(notification.verb, notification.verb)
+    context: dict[str, Any] = {}
+    if isinstance(notification.data, dict):
+        context = notification.data.get("context", {})
+    try:
+        return str(template.format(**context))
+    except KeyError:
+        return str(notification.verb)
+
+
+def _notification_target_url(notification: Notification) -> str | None:
+    if not isinstance(notification.data, dict):
+        return None
+    ctx = notification.data.get("context", {})
+    return ctx.get("respond_url") or ctx.get("item_url") or ctx.get("group_url") or None
+
+
+@login_required
+def notification_inbox_view(request: HttpRequest) -> HttpResponse:
+    user: BorrowdUser = request.user  # type: ignore[assignment]
+    qs = user.notifications.all()
+    paginator = Paginator(qs, _INBOX_PAGE_SIZE)
+    page_obj = paginator.get_page(request.GET.get("page", 1))
+
+    for notification in page_obj:
+        notification.formatted_message = _format_notification(notification)
+        notification.target_url = _notification_target_url(notification)
+
+    return render(
+        request,
+        "notifications/inbox.html",
+        {
+            "page_obj": page_obj,
+            "unread_count": user.notifications.unread().count(),
+        },
+    )
+
+
+@login_required
+@require_POST
+def mark_notification_read(request: HttpRequest, pk: int) -> HttpResponse:
+    notification = get_object_or_404(Notification, pk=pk, recipient=request.user)
+    notification.mark_as_read()
+    target_url = _notification_target_url(notification)
+    return redirect(target_url or "notification-inbox")
+
+
+@login_required
+@require_POST
+def mark_all_notifications_read(request: HttpRequest) -> HttpResponse:
+    user: BorrowdUser = request.user  # type: ignore[assignment]
+    user.notifications.mark_all_as_read()
+    return redirect("notification-inbox")
