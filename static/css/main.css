@@ -92,4 +92,9 @@ TODO: Transfer over all to daisy */
     color: var(--color-warning-content);
     border-color: var(--color-warning);
   }
+  .alert-info {
+    background-color: var(--color-info);
+    color: var(--color-info-content);
+    border-color: var(--color-info)
+  }
 }

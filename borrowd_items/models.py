@@ -22,6 +22,7 @@ from django.db.models import (
     UniqueConstraint,
 )
 from django.urls import reverse
+from django.utils import timezone
 from imagekit.models import ImageSpecField, ProcessedImageField
 from imagekit.processors import ResizeToFill, ResizeToFit
 
@@ -66,6 +67,7 @@ class ItemAction(TextChoices):
     MARK_RETURNED = "MARK_RETURNED", "Mark Returned"
     CONFIRM_RETURNED = "CONFIRM_RETURNED", "Confirm Returned"
     CANCEL_REQUEST = "CANCEL_REQUEST", "Cancel Request"
+    RESOLVE_TRANSACTION = "RESOLVE_TRANSACTION", "Close Out Transaction"
 
 
 @dataclass
@@ -199,7 +201,7 @@ class Item(Model):
             raise ValidationError({"categories": "At least one category is required."})
 
     def soft_delete(self, deleted_by: BorrowdUser) -> None:
-        self.deleted_at = datetime.now()
+        self.deleted_at = timezone.now()
         self.deleted_by = deleted_by
         self.save()
 
@@ -385,6 +387,21 @@ class Item(Model):
         # this Item and this User. Let's figure out what are the
         # valid next ItemActions...
         # TODO. This is a bit hairy. Upgrade to state machine?
+
+        # If the other party's account is inactive (they closed it), the
+        # dual-confirmation handshake can never complete.
+        # therefore, let the remaining party close the loan out single-handed.
+        if current_tx.status in (
+            TransactionStatus.COLLECTION_ASSERTED,
+            TransactionStatus.COLLECTED,
+            TransactionStatus.RETURN_ASSERTED,
+        ):
+            counterparty = (
+                current_tx.party1 if current_tx.party2 == user else current_tx.party2
+            )
+            if not counterparty.is_active:  # type: ignore[attr-defined]
+                return (ItemAction.RESOLVE_TRANSACTION,)
+
         if current_tx.status == TransactionStatus.REQUESTED:
             if self.owner == user:
                 # The User is the owner of the Item, and the current
@@ -515,6 +532,7 @@ class Item(Model):
                         TransactionStatus.RETURNED,
                         TransactionStatus.REJECTED,
                         TransactionStatus.CANCELLED,
+                        TransactionStatus.RESOLVED,
                     ]
                 )
             )
@@ -655,6 +673,24 @@ class Item(Model):
                     current_tx.status = TransactionStatus.CANCELLED
                     current_tx.updated_by = user
                     current_tx.save()
+                case ItemAction.RESOLVE_TRANSACTION:
+                    # Counterparty's account is gone, so the normal confirm step
+                    # can't happen; close the loan out single-handed.
+                    counterparty = (
+                        current_tx.party1
+                        if current_tx.party2 == user
+                        else current_tx.party2
+                    )
+                    owner_deleted = (
+                        counterparty == current_tx.party1
+                        and counterparty.deleted_at is not None  # type: ignore[attr-defined]
+                    )
+                    reason = (
+                        ResolutionReason.OWNER_ACCOUNT_DELETED
+                        if owner_deleted
+                        else ResolutionReason.COUNTERPARTY_UNRESPONSIVE
+                    )
+                    current_tx.force_resolve(resolved_by=user, reason=reason)
                 case _:
                     # We shouldn't get here...
                     raise ValueError(
@@ -766,6 +802,21 @@ class TransactionStatus(IntegerChoices):
     RETURN_ASSERTED = 60, "Return Asserted"
     RETURNED = 70, "Returned"
     CANCELLED = 80, "Cancelled"
+    RESOLVED = 90, "Resolved"  # any force-resolved transaction, regardless of reason
+
+
+class ResolutionReason(TextChoices):
+    """
+    Why a Transaction was force-resolved instead of completing the normal flow.
+    Set alongside TransactionStatus.RESOLVED.
+    """
+
+    OWNER_ACCOUNT_DELETED = ("owner_account_deleted", "Owner closed their account")
+    MODERATOR_OVERRIDE = ("moderator_override", "Resolved by a moderator")
+    COUNTERPARTY_UNRESPONSIVE = (
+        "counterparty_unresponsive",
+        "Other party was unresponsive",
+    )
 
 
 class Transaction(Model):
@@ -791,6 +842,17 @@ class Transaction(Model):
         choices=TransactionStatus.choices,
         default=TransactionStatus.REQUESTED,
         help_text="The current status of the Transaction.",
+    )
+    resolution_reason: CharField[ResolutionReason, str] = CharField(
+        max_length=32,
+        choices=ResolutionReason.choices,
+        null=True,
+        blank=True,
+        default=None,
+        help_text=(
+            "Why the Transaction was force-resolved outside the normal "
+            "dual-confirmation flow. NULL for normally-completed Transactions."
+        ),
     )
     created_by: ForeignKey[BorrowdUser] = ForeignKey(
         BorrowdUser,
@@ -832,6 +894,30 @@ class Transaction(Model):
         help_text="Who performed the soft-delete. NULL means active or unknown.",
     )
 
+    def force_resolve(
+        self, *, resolved_by: BorrowdUser, reason: ResolutionReason
+    ) -> None:
+        """
+        Close this Transaction forcibly.
+
+        For cases the standard flow can't finish: a party closed their account,
+        a moderator stepped in, the counterparty went unresponsive, etc. The
+        transaction is always set to RESOLVED with the given reason. The item is
+        freed back to AVAILABLE if it's still active; a soft-deleted item (e.g. a
+        departed owner's) is left as-is.
+        """
+
+        with transaction.atomic():
+            item: Item = self.item  # type: ignore[assignment]
+            if item.deleted_at is None:  # item not deleted
+                item.status = ItemStatus.AVAILABLE
+                item.save()
+
+            self.status = TransactionStatus.RESOLVED
+            self.resolution_reason = reason
+            self.updated_by = resolved_by
+            self.save()
+
     @staticmethod
     def get_requested_status_transactions_for_user(
         user: BorrowdUser,
@@ -866,6 +952,7 @@ class Transaction(Model):
                     TransactionStatus.REQUESTED,
                     TransactionStatus.REJECTED,
                     TransactionStatus.CANCELLED,
+                    TransactionStatus.RESOLVED,
                 ]
             )
         )
@@ -886,6 +973,7 @@ class Transaction(Model):
                     TransactionStatus.REQUESTED,
                     TransactionStatus.REJECTED,
                     TransactionStatus.CANCELLED,
+                    TransactionStatus.RESOLVED,
                 ]
             )
         )

@@ -687,10 +687,7 @@ class ApproveMemberView(LoginRequiredMixin, View):  # type: ignore[misc]
         membership.status = MembershipStatus.ACTIVE
         membership.save(update_fields=["status"])
 
-        messages.success(
-            request,
-            f"{membership.user.profile.full_name()} has been approved.",  # type: ignore[attr-defined]
-        )
+        messages.success(request, "Request approved.")
         return redirect("borrowd_groups:group-detail", pk=membership.group.pk)  # type: ignore[attr-defined]
 
 
@@ -713,10 +710,7 @@ class DenyMemberView(LoginRequiredMixin, View):  # type: ignore[misc]
             raise PermissionDenied
 
         membership.delete()
-        messages.success(
-            request,
-            f"{membership.user.profile.full_name()} has been denied.",  # type: ignore[attr-defined]
-        )
+        messages.info(request, "Request denied.")
         return redirect("borrowd_groups:group-detail", pk=membership.group.pk)  # type: ignore[attr-defined]
 
 

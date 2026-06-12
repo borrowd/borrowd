@@ -111,6 +111,14 @@ For variant='card', also accepts:
                             Cancel notification request
                         </button>
                     </form>
+                {% elif action.name == 'RESOLVE_TRANSACTION' %}
+                    <form method="POST" action="{% url 'item-borrow' item.pk %}" class="flex-1">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="RESOLVE_TRANSACTION">
+                        <button type="submit" class="btn btn-error btn-sm md:btn-md w-full">
+                            Close out transaction
+                        </button>
+                    </form>
                 {% else %}
                     <form method="POST" action="{% url 'item-borrow' item.pk %}" class="flex-1">
                         {% csrf_token %}
