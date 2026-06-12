@@ -3,7 +3,6 @@ from datetime import timedelta
 from typing import Type
 
 import sentry_sdk
-from django.db.models import Q
 from django.utils import timezone
 from notifications.models import Notification
 
@@ -49,10 +48,21 @@ class NotificationService:
         if notification_type in NotificationType.mandatory_types():
             return {ChannelType.APP, ChannelType.EMAIL}
 
-        preferences = NotificationPreference.objects.filter(
-            Q(user=user) & Q(notification_type=notification_type)
-        )
-        return {ChannelType(pref.channel) for pref in preferences}
+        try:
+            pref = NotificationPreference.objects.get(
+                user=user, notification_type=notification_type.value
+            )
+        except NotificationPreference.DoesNotExist:
+            return set()
+
+        channels: set[ChannelType] = set()
+        if pref.in_app_enabled:
+            channels.add(ChannelType.APP)
+        if pref.email_enabled:
+            channels.add(ChannelType.EMAIL)
+        if pref.push_enabled:
+            channels.add(ChannelType.PUSH)
+        return channels
 
     @staticmethod
     def _is_duplicate(notification: Notification) -> bool:

@@ -72,13 +72,18 @@ def _optional_types_for_scope(scope: str) -> list[NotificationType]:
     return []
 
 
+_CHANNEL_FIELD: dict[ChannelType, str] = {
+    ChannelType.APP: "in_app_enabled",
+    ChannelType.EMAIL: "email_enabled",
+    ChannelType.PUSH: "push_enabled",
+}
+
+
 def _build_preferences_context(user: BorrowdUser) -> dict[str, Any]:
     mandatory = NotificationType.mandatory_types()
-    enabled_set: set[tuple[str, str]] = set(
-        NotificationPreference.objects.filter(user=user).values_list(
-            "notification_type", "channel"
-        )
-    )
+    prefs: dict[str, NotificationPreference] = {
+        p.notification_type: p for p in NotificationPreference.objects.filter(user=user)
+    }
 
     categories = []
     all_optional_app = True
@@ -91,8 +96,9 @@ def _build_preferences_context(user: BorrowdUser) -> dict[str, Any]:
 
         for ntype, label in cat["types"]:
             is_mandatory = ntype in mandatory
-            app_on = is_mandatory or (ntype.value, ChannelType.APP) in enabled_set
-            email_on = is_mandatory or (ntype.value, ChannelType.EMAIL) in enabled_set
+            pref = prefs.get(ntype.value)
+            app_on = is_mandatory or (pref is not None and pref.in_app_enabled)
+            email_on = is_mandatory or (pref is not None and pref.email_enabled)
 
             if not is_mandatory:
                 if not app_on:
@@ -153,18 +159,15 @@ def toggle_preference(request: HttpRequest) -> HttpResponse:
     if ntype in NotificationType.mandatory_types():
         return HttpResponse(status=403)
 
-    if enabled:
-        NotificationPreference.objects.get_or_create(
-            user=user,
-            notification_type=type_value,
-            channel=channel_value,
-        )
-    else:
-        NotificationPreference.objects.filter(
-            user=user,
-            notification_type=type_value,
-            channel=channel_value,
-        ).delete()
+    channel = ChannelType(channel_value)
+    field_name = _CHANNEL_FIELD[channel]
+    obj, _ = NotificationPreference.objects.get_or_create(
+        user=user,
+        notification_type=type_value,
+        defaults={"in_app_enabled": True, "email_enabled": True, "push_enabled": False},
+    )
+    setattr(obj, field_name, enabled)
+    obj.save(update_fields=[field_name])
 
     return HttpResponse(status=204)
 
@@ -178,7 +181,7 @@ def bulk_toggle_preferences(request: HttpRequest) -> HttpResponse:
     enabled = request.POST.get("enabled") == "true"
 
     try:
-        ChannelType(channel_value)
+        channel = ChannelType(channel_value)
     except ValueError:
         return HttpResponse(status=400)
 
@@ -186,32 +189,10 @@ def bulk_toggle_preferences(request: HttpRequest) -> HttpResponse:
     if not types_to_update:
         return HttpResponse(status=400)
 
-    type_values = [t.value for t in types_to_update]
-
-    if enabled:
-        existing = set(
-            NotificationPreference.objects.filter(
-                user=user,
-                notification_type__in=type_values,
-                channel=channel_value,
-            ).values_list("notification_type", flat=True)
-        )
-        NotificationPreference.objects.bulk_create(
-            [
-                NotificationPreference(
-                    user=user,
-                    notification_type=tv,
-                    channel=channel_value,
-                )
-                for tv in type_values
-                if tv not in existing
-            ]
-        )
-    else:
-        NotificationPreference.objects.filter(
-            user=user,
-            notification_type__in=type_values,
-            channel=channel_value,
-        ).delete()
+    field_name = _CHANNEL_FIELD[channel]
+    NotificationPreference.objects.filter(
+        user=user,
+        notification_type__in=[t.value for t in types_to_update],
+    ).update(**{field_name: enabled})
 
     return HttpResponse(status=204)

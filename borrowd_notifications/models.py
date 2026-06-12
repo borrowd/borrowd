@@ -173,19 +173,19 @@ class NotificationPreference(Model):
         blank=False,
         on_delete=CASCADE,
         related_name="notifications_preferences",
-        help_text="The user who owns thoses preferences",
+        help_text="The user who owns these preferences",
     )
-    notification_type: models.CharField[NotificationType, int] = models.CharField(
-        choices=NotificationType.choices
+    notification_type: models.CharField[str, str] = models.CharField(
+        max_length=100, choices=NotificationType.choices
     )
-    channel: models.CharField[ChannelType, str] = models.CharField(
-        max_length=20, choices=ChannelType.choices, default=ChannelType.APP, blank=False
-    )
+    in_app_enabled: models.BooleanField[bool, bool] = models.BooleanField(default=True)
+    email_enabled: models.BooleanField[bool, bool] = models.BooleanField(default=True)
+    push_enabled: models.BooleanField[bool, bool] = models.BooleanField(default=False)
 
     class Meta:
         constraints = [
             models.UniqueConstraint(
-                fields=["user", "notification_type", "channel"],
+                fields=["user", "notification_type"],
                 name="unique_notification_preference",
             )
         ]
