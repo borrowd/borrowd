@@ -1,0 +1,23 @@
+{% extends "notifications/messages/layout.html" %}
+
+{% block title %}
+    Membership Approved - Borrow'd
+{% endblock %}
+
+{% block content %}
+    <h2>
+        Hi {{ group_member_name }},
+    </h2>
+
+    <div class="success">
+        <strong>You're in! Your request to join {{ group_name }} has been approved.</strong>
+    </div>
+
+    <p>
+        You can now browse items shared within the group and request to borrow them. Welcome to the community!
+    </p>
+
+    <p>
+        The Borrow'd team
+    </p>
+{% endblock %}

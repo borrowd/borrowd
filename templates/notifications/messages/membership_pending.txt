@@ -1,0 +1,7 @@
+Hi {{ group_member_name }},
+
+{{ new_member_name }} has requested to join {{ group_name }}.
+
+As a moderator, you can review and approve or decline this request directly on Borrow'd.
+
+The Borrow'd team

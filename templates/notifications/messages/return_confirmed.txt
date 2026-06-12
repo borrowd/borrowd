@@ -1,0 +1,7 @@
+Hi {{ requester_name }},
+
+{{ item_owner_name }} has confirmed the return of {{ item_name }}. The loan is now complete.
+
+Thanks for borrowing responsibly and returning it on time. That's what makes this community work for everyone.
+
+The Borrow'd team

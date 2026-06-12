@@ -1,0 +1,7 @@
+Hi {{ item_owner_name }},
+
+{{ requester_name }} says they have returned {{ item_name }}.
+
+Please confirm on Borrow'd once you have it back in hand. This closes the loan and makes the item available for your group again.
+
+The Borrow'd team

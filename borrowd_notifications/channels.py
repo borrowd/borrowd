@@ -43,10 +43,12 @@ class EmailNotificationStrategy(NotificationStrategy):
 
         try:
             text_message = render_to_string(
-                f"notifications/{payload.template_name}.txt", payload.data.context
+                f"notifications/messages/{payload.template_name}.txt",
+                payload.data.context,
             )
             html_message = render_to_string(
-                f"notifications/{payload.template_name}.html", payload.data.context
+                f"notifications/messages/{payload.template_name}.html",
+                payload.data.context,
             )
 
             self._send_email(

@@ -1,0 +1,7 @@
+Hi,
+
+A new community request has been posted in {{ group_name }}.
+
+Check it out on Borrow'd — you might have just what they need.
+
+The Borrow'd team

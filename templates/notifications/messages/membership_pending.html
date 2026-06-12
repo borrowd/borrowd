@@ -1,0 +1,23 @@
+{% extends "notifications/messages/layout.html" %}
+
+{% block title %}
+    New Join Request - Borrow'd
+{% endblock %}
+
+{% block content %}
+    <h2>
+        Hi {{ group_member_name }},
+    </h2>
+
+    <div class="info">
+        <strong>{{ new_member_name }} has requested to join {{ group_name }}.</strong>
+    </div>
+
+    <p>
+        As a moderator, you can review and approve or decline this request directly on Borrow'd.
+    </p>
+
+    <p>
+        The Borrow'd team
+    </p>
+{% endblock %}
