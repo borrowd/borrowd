@@ -3,12 +3,7 @@ from typing import Any, Dict, Type
 from django.conf import settings
 from django.db.models import Q
 from django.urls import reverse
-from notifications.models import (
-    ChannelType,
-    Notification,
-    NotificationPreference,
-    NotificationType,
-)
+from notifications.models import Notification
 
 from borrowd_groups.models import BorrowdGroup, Membership
 from borrowd_items.models import (
@@ -23,13 +18,18 @@ from borrowd_notifications.channels import (
     NotificationStrategy,
     PUSHNotificationStrategy,
 )
+from borrowd_notifications.models import (
+    ChannelType,
+    NotificationPreference,
+    NotificationType,
+)
 from borrowd_users.models import BorrowdUser
 
 
 class NotificationService:
     """Service for sending notifications."""
 
-    _strategies: dict[Type[ChannelType], Type[NotificationStrategy]] = {
+    _strategies: dict[ChannelType, Type[NotificationStrategy]] = {
         ChannelType.APP: AppNotificationStrategy,
         ChannelType.EMAIL: EmailNotificationStrategy,
         ChannelType.PUSH: PUSHNotificationStrategy,
@@ -57,7 +57,7 @@ class NotificationService:
         result = set()
 
         for pref in preferences:
-            result.add(pref.channel)
+            result.add(ChannelType(pref.channel))
 
         return result
 
