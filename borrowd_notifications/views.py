@@ -86,8 +86,6 @@ def _build_preferences_context(user: BorrowdUser) -> dict[str, Any]:
     }
 
     categories = []
-    all_optional_app = True
-    all_optional_email = True
 
     for cat in NOTIFICATION_CATEGORIES:
         cat_optional_app = True
@@ -103,10 +101,8 @@ def _build_preferences_context(user: BorrowdUser) -> dict[str, Any]:
             if not is_mandatory:
                 if not app_on:
                     cat_optional_app = False
-                    all_optional_app = False
                 if not email_on:
                     cat_optional_email = False
-                    all_optional_email = False
 
             types_ctx.append(
                 {
@@ -128,10 +124,19 @@ def _build_preferences_context(user: BorrowdUser) -> dict[str, Any]:
             }
         )
 
+    prefs_json: dict[str, Any] = {}
+    for cat_ctx in categories:
+        for type_ctx in cat_ctx["types"]:
+            prefs_json[type_ctx["type_value"]] = {
+                "in_app": type_ctx["app_enabled"],
+                "email": type_ctx["email_enabled"],
+                "is_mandatory": type_ctx["is_mandatory"],
+                "category": cat_ctx["slug"],
+            }
+
     return {
         "categories": categories,
-        "master_app_enabled": all_optional_app,
-        "master_email_enabled": all_optional_email,
+        "prefs_json": prefs_json,
     }
 
 
