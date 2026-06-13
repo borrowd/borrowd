@@ -357,6 +357,49 @@ class BorrowerCannotDisputeLenderAssertionTest(ReturnFlowTestBase):
         self.assertIsNone(self.item.get_action_context_for(self.borrower).waiting_text)
 
 
+class BorrowerCannotResolveDisputeTest(ReturnFlowTestBase):
+    """
+    The not-returned resolution soft-deletes the owner's item, so dispute
+    resolution must stay lender-only. A borrower attempting it -- via the
+    POST endpoint or the model directly -- must be refused without the item
+    being touched.
+    """
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
+        cls.create_loan_fixtures("ret_borrower_resolve")
+        cls.advance_to_return_requested()
+        cls.item.process_action(user=cls.borrower, action=ItemAction.FLAG_CANNOT_RETURN)
+
+    def test_010_disputed_precondition(self) -> None:
+        """Start in DISPUTED with the borrower holding no actions."""
+        self.assertEqual(self.current_tx().status, TransactionStatus.DISPUTED)
+        self.assertTupleEqual(self.item.get_actions_for(self.borrower), tuple())
+
+    def test_020_borrower_post_is_rejected_and_item_survives(self) -> None:
+        """A borrower POST of the destructive resolve is a graceful no-op."""
+        request = self.factory.post(
+            reverse("item-borrow", args=[self.item.pk]),
+            {"action": ItemAction.RESOLVE_DISPUTE_NOT_RETURNED},
+        )
+        request.user = self.borrower
+        response = borrow_item(request, pk=self.item.pk)
+        # Rejected gracefully (redirect + message), not a 500.
+        self.assertEqual(response.status_code, 302)
+        self.item.refresh_from_db()
+        self.assertIsNone(self.item.deleted_at)
+        self.assertEqual(self.current_tx().status, TransactionStatus.DISPUTED)
+
+    def test_030_model_guard_raises(self) -> None:
+        """process_action refuses the action directly, too."""
+        with self.assertRaises(InvalidItemAction):
+            self.item.process_action(
+                user=self.borrower,
+                action=ItemAction.RESOLVE_DISPUTE_NOT_RETURNED,
+            )
+
+
 class DisputeWaitWindowTest(SimpleTestCase):
     """Unit tests for Transaction.dispute_wait_has_elapsed."""
 
