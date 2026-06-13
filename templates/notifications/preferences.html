@@ -126,6 +126,10 @@
             return {
                 prefs: JSON.parse(document.getElementById('notification-prefs').textContent),
 
+                init() {
+                    this._initPushPermissionState();
+                },
+
                 toggle(typeValue, channel, field, enabled) {
                     this.prefs[typeValue][field] = enabled;
                     this._persist('{% url "notification-toggle" %}', {
@@ -133,7 +137,10 @@
                         channel,
                         enabled: enabled ? 'true' : 'false',
                     });
-                    if (channel === 'PUSH' && enabled) this._ensurePushSubscribed();
+                    if (channel === 'PUSH') {
+                        if (enabled) this._ensurePushSubscribed();
+                        else this._checkDropSubscription();
+                    }
                 },
 
                 bulkToggle(scope, channel, field, enabled) {
@@ -150,7 +157,10 @@
                         channel,
                         enabled: enabled ? 'true' : 'false',
                     });
-                    if (channel === 'PUSH' && enabled) this._ensurePushSubscribed();
+                    if (channel === 'PUSH') {
+                        if (enabled) this._ensurePushSubscribed();
+                        else this._checkDropSubscription();
+                    }
                 },
 
                 masterEnabled(field) {
@@ -166,14 +176,71 @@
                     return relevant.length === 0 || relevant.some(p => p[field]);
                 },
 
+                async _initPushPermissionState() {
+                    if (!('Notification' in window)) return;
+                    if (Notification.permission === 'denied') {
+                        await this._onPushPermissionDenied();
+                        return;
+                    }
+                    if ('permissions' in navigator) {
+                        const status = await navigator.permissions.query({ name: 'notifications' });
+                        status.onchange = () => {
+                            if (status.state === 'denied') this._onPushPermissionDenied();
+                        };
+                    }
+                },
+
+                async _onPushPermissionDenied() {
+                    for (const type of Object.keys(this.prefs)) {
+                        this.prefs[type].push = false;
+                    }
+                    this._persist('{% url "notification-bulk-toggle" %}', {
+                        scope: 'master',
+                        channel: 'PUSH',
+                        enabled: 'false',
+                    });
+                    await this._dropPushSubscription();
+                },
+
+                _checkDropSubscription() {
+                    const anyPushActive = Object.values(this.prefs).some(p => p.push);
+                    if (!anyPushActive) this._dropPushSubscription();
+                },
+
+                async _dropPushSubscription() {
+                    if (!('serviceWorker' in navigator)) return;
+                    try {
+                        const reg = await navigator.serviceWorker.getRegistration('/sw.js');
+                        if (!reg) return;
+                        const sub = await reg.pushManager.getSubscription();
+                        if (sub) {
+                            await fetch('{% url "push-unsubscribe" %}', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-CSRFToken': '{{ csrf_token }}',
+                                },
+                                body: JSON.stringify({ endpoint: sub.endpoint }),
+                            });
+                            await sub.unsubscribe();
+                        }
+                        await reg.unregister();
+                    } catch (e) {
+                        console.error('Push unsubscribe failed:', e);
+                    }
+                },
+
                 async _ensurePushSubscribed() {
                     if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
                     try {
-                        const reg = await navigator.serviceWorker.register('/static/js/sw.js');
+                        const reg = await navigator.serviceWorker.register('/sw.js');
                         let sub = await reg.pushManager.getSubscription();
                         if (!sub) {
                             const permission = await Notification.requestPermission();
-                            if (permission !== 'granted') return;
+                            if (permission !== 'granted') {
+                                await this._onPushPermissionDenied();
+                                return;
+                            }
                             sub = await reg.pushManager.subscribe({
                                 userVisibleOnly: true,
                                 applicationServerKey: this._urlBase64ToUint8Array('{{ vapid_public_key }}'),
