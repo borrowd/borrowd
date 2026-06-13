@@ -168,8 +168,7 @@ def toggle_preference(request: HttpRequest) -> HttpResponse:
     if ntype in NotificationType.mandatory_types():
         return HttpResponse(status=403)
 
-    channel = ChannelType(channel_value)
-    field_name = channel.label
+    field_name = ChannelType(channel_value).label
     obj, _ = NotificationPreference.objects.get_or_create(
         user=user,
         notification_type=type_value,
