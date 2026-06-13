@@ -234,7 +234,7 @@ class ProfileUpdateForm(forms.ModelForm[Profile]):
         return profile
 
 
-class ChangePasswordForm(SetPasswordForm):  # type: ignore[misc]
+class ChangePasswordForm(SetPasswordForm):
     """
     Custom password change form that doesn't require the old password.
 

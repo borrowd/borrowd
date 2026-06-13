@@ -349,7 +349,7 @@ class CustomSignupView(CreateView[BorrowdUser, CustomSignupForm]):
         return super().form_invalid(form)
 
 
-class CustomPasswordChangeView(PasswordChangeView):  # type: ignore[misc]
+class CustomPasswordChangeView(PasswordChangeView):
     """
     Custom password change view that displays validation errors as warning toasts.
 
