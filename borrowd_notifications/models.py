@@ -117,7 +117,6 @@ class NotificationType(models.TextChoices):
         return self.label
 
     # TODO simplify the logic to make it cleaner.
-
     @staticmethod
     def _get_template_context_for(notification: notifications) -> Dict[str, Any]:
         """Extract context from the notification's action_object."""
@@ -227,6 +226,7 @@ class NotificationType(models.TextChoices):
 
 class ChannelType(TextChoices):
     """Channel type, and uses labels as field name in the Preferences table"""
+
     APP = "APP", "in_app_enabled"
     EMAIL = "EMAIL", "email_enabled"
     PUSH = "PUSH", "push_enabled"
