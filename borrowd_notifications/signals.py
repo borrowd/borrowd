@@ -71,6 +71,8 @@ def send_notification(
     """
     Delegates to the service layer to handle notification preferences and channel dispatch.
     """
+
+    # Not sure what impact public has, but defaulting to False to be safe
     instance.public = False
 
     if not created:
