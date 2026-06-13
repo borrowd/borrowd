@@ -114,11 +114,7 @@ def borrow_item(request: HttpRequest, pk: int) -> HttpResponse:
     if req_action is None:
         return HttpResponse("No action specified.", status=400)
 
-    # mypy complains that `request.user` is a AbstractBaseUser or
-    # AnonymousUser, but when I follow the code it looks like it's
-    # AbstractUser or AnonymousUser, which we *would* comply with
-    # here (BorrowdUser subclasses AbstractUser).
-    user: BorrowdUser = request.user  # type: ignore[assignment]
+    user = get_authenticated_user(request)
     # Resolve against all items, including soft-deleted ones: an owner closing
     # their account soft-eletes their items, but the borrower may still need to
     # close out the stranded loan (RESOLVE_TRANSACTION). The guard below keeps
@@ -314,9 +310,8 @@ class ItemListView(
     def get(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
         term = request.GET.get("search")
         if term is not None:
-            user: BorrowdUser = request.user  # type: ignore[assignment]
             SearchTerm.record_search(
-                user=user,
+                user=get_authenticated_user(request),
                 target=SearchTarget.ITEMS,
                 term=term,
             )
