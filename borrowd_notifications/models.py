@@ -226,7 +226,7 @@ class NotificationType(models.TextChoices):
 
 
 class ChannelType(TextChoices):
-    # channel type, and field name in the Preferences db
+    """Channel type, and uses labels as field name in the Preferences table"""
     APP = "APP", "in_app_enabled"
     EMAIL = "EMAIL", "email_enabled"
     PUSH = "PUSH", "push_enabled"
