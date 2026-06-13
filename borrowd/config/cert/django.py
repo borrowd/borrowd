@@ -1,6 +1,5 @@
 import os
 
-# for some reason, pre-commit cannot find sentry_sdk
 import sentry_sdk
 from environ import ImproperlyConfigured
 

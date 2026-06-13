@@ -60,8 +60,8 @@ def get_members_data(group: BorrowdGroup) -> list[dict[str, Any]]:
     for membership in memberships:
         members_data.append(
             {
-                "user_id": membership.user.id,  # type: ignore
-                "membership_id": membership.id,  # type: ignore
+                "user_id": membership.user.pk,
+                "membership_id": membership.pk,
                 "full_name": membership.user.profile.full_name(),
                 "profile_image": membership.user.profile.image,
                 "role": membership.is_moderator and "Moderator" or "Member",

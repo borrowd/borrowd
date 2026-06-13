@@ -11,6 +11,7 @@ from imagekit.processors import ResizeToFit
 
 from borrowd_groups.mixins import BorrowdGroupPermissionMixin
 
+# will be deleted in future pr
 if TYPE_CHECKING:
     from borrowd_groups.models import BorrowdGroup
 
@@ -73,6 +74,7 @@ class BorrowdUser(AbstractUser, BorrowdGroupPermissionMixin, GuardianUserMixin):
     )
 
     # Hints for mypy (actual fields created from reverse relations)
+    # will be deleted in future PR.
     profile: "Profile"
     borrowd_groups: "QuerySet[BorrowdGroup]"
 

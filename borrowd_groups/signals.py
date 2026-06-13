@@ -189,8 +189,9 @@ def refresh_permissions_on_membership_update(
 
         for item_perm in [ItemOLP.VIEW]:  # will have more later
             remove_perm(item_perm, group, items_requiring_higher_trust)
-            # assign_perm accepts QuerySets for bulk assignment, but upstream
-            # annotates obj as Model | None (remove_perm has the wider type).
+            # assign_perm accepts QuerySets for bulk assignment, but guardian just under-types it
+            # therefore, ignore the issue.
+            # See https://django-guardian.readthedocs.io/en/stable/userguide/remove/#for-multiple-objects
             assign_perm(item_perm, group, items_requiring_lower_trust)  # type: ignore[arg-type]
 
         member_perms = [BorrowdGroupOLP.VIEW]
