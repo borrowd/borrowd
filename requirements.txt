@@ -132,7 +132,9 @@ django-stubs==6.0.5 \
 django-stubs-ext==6.0.5 \
     --hash=sha256:1cc325e991303849bce70e19748981b225ef08b37256f263e113caf97cd3bcc0 \
     --hash=sha256:a9932c8233d6dd4e34ae0b192026379c1a9be8f0b7c27aa1fa09ae215169773e
-    # via django-stubs
+    # via
+    #   borrowd
+    #   django-stubs
 django-vite==3.1.0 \
     --hash=sha256:4e46572bd6b1ce70784be129205dc2ffcbc7a3c19fea50bebfb72b327bbde5fc \
     --hash=sha256:8b4ffe4a9fa81ff568bfb195e74dde8694aaf13fd4b656ae60bf59cce08b85e8
