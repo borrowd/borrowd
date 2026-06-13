@@ -447,7 +447,7 @@ class ItemPhotoCreateView(
         return super().form_valid(form)
 
     def get_success_url(self) -> str:
-        instance: ItemPhoto = self.object  # type: ignore[assignment]
+        instance: ItemPhoto | None = self.object
         if instance is None:
             return reverse("item-list")
 

@@ -374,7 +374,10 @@ class CustomPasswordChangeView(PasswordChangeView):
         if error_message:
             messages.warning(self.request, error_message)
 
-        return super().form_invalid(form)  # type: ignore[no-any-return]
+        # allauth's PasswordChangeView.form_invalid is loosely typed (returns
+        # Any); pin it to the real return type.
+        response: HttpResponse = super().form_invalid(form)
+        return response
 
 
 @login_required
