@@ -48,7 +48,6 @@ class NotificationType(models.TextChoices):
         "{requester_name} says they have returned {item_name}",
     )
     RETURN_CONFIRMED = "Return confirmed", "Return of {item_name} has been confirmed"
-    ITEM_RETURNED = "Item returned", "{item_name} has been returned by {requester_name}"
 
     # Item availability
     ITEM_NOTIFY_WHEN_AVAILABLE = (

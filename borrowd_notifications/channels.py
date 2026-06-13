@@ -80,8 +80,9 @@ class EmailNotificationStrategy(NotificationStrategy):
 class AppNotificationStrategy(NotificationStrategy):
     def send(self, payload: NotificationPayload) -> None:
         try:
-            # be carefull because the notification could have not been created yet
+            # TODO: Migration to a push-based channel for real-time updates
             # use_sse_channe(notification)
+
             payload.data._success(channel=ChannelType.APP)
         except Exception as e:
             payload.data._error(channel=ChannelType.APP, error=str(e))
