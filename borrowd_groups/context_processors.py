@@ -1,8 +1,8 @@
-from typing import Any, cast
+from typing import Any
 
 from django.http import HttpRequest
 
-from borrowd_groups.models import BorrowdGroup, Membership, MembershipStatus
+from borrowd_groups.models import Membership, MembershipStatus
 
 
 def groups_needing_moderator(
@@ -22,8 +22,7 @@ def groups_needing_moderator(
     ).select_related("group")
 
     has_groups_needing_moderator = any(
-        cast(BorrowdGroup, membership.group).needs_moderator
-        for membership in memberships
+        membership.group.needs_moderator for membership in memberships
     )
 
     return {"has_groups_needing_moderator": has_groups_needing_moderator}
