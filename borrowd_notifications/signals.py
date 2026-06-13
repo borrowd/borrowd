@@ -269,7 +269,7 @@ def send_item_available_notification_on_subscription(
         and not item.is_borrowable()
     ):
         notify.send(
-            instance.user,
+            instance.item,
             recipient=[instance.user],
             verb=NotificationType.ITEM_SUBSCRIPTION.value,
             action_object=item,
