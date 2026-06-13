@@ -423,7 +423,7 @@ class ItemPhotoCreateView(
     permission_required = ItemOLP.EDIT
     form_class = ItemPhotoForm
 
-    def get_permission_object(self):  # type: ignore[no-untyped-def]
+    def get_permission_object(self) -> Item:
         return get_object_or_404(Item, pk=self.kwargs["item_pk"])
 
     def get_context_data(self, **kwargs: str) -> dict[str, Any]:
@@ -464,7 +464,7 @@ class ItemPhotoDeleteView(
     permission_required = ItemOLP.EDIT
     http_method_names = ["post"]
 
-    def get_permission_object(self):  # type: ignore[no-untyped-def]
+    def get_permission_object(self) -> Item:
         return self.get_object().item
 
     def form_valid(self, form: ModelForm[ItemPhoto]) -> HttpResponse:
