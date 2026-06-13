@@ -490,7 +490,8 @@ def get_memberships_with_pending_actions(memberships: list[Membership]) -> set[i
     )
 
 
-# No typing for django_filter, so mypy doesn't like us subclassing.
+# django-filter is untyped (see the django_filters note in mypy.ini), so
+# subclassing FilterView trips strict mode's "subclass of Any" check.
 class GroupListView(LoginRequiredMixin, FilterView):  # type: ignore[misc]
     template_name = "groups/group_list.html"
     model = Membership
@@ -504,7 +505,10 @@ class GroupListView(LoginRequiredMixin, FilterView):  # type: ignore[misc]
                 target=SearchTarget.GROUPS,
                 term=term,
             )
-        return super().get(request, *args, **kwargs)  # type: ignore[no-any-return]
+        # super() is FilterView.get, which is Any (see the django_filters note
+        # in mypy.ini); annotating pins it to the real return type.
+        response: HttpResponse = super().get(request, *args, **kwargs)
+        return response
 
     def get_template_names(self) -> list[str]:
         if self.request.headers.get("HX-Request"):
