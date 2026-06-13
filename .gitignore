@@ -10,6 +10,9 @@ staticfiles/
 # Backup files
 *.bak
 
+# Secrets
+private_key.pem
+
 # Python-generated files
 __pycache__/
 *.py[ocd]

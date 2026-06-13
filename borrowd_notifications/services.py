@@ -2,7 +2,7 @@ import logging
 from datetime import timedelta
 from typing import Type
 
-import sentry_sdk
+import sentry_sdk  # type: ignore[import-not-found]
 from django.utils import timezone
 from notifications.models import Notification
 
@@ -47,13 +47,16 @@ class NotificationService:
     def _get_enabled_channels(
         user: BorrowdUser, notification_type: NotificationType
     ) -> set[ChannelType]:
-        if notification_type in NotificationType.mandatory_types():
-            return {ChannelType.APP, ChannelType.EMAIL}
-
         try:
             pref = NotificationPreference.objects.get(
                 user=user, notification_type=notification_type.value
             )
+            if notification_type in NotificationType.mandatory_types():
+                return (
+                    {ChannelType.APP, ChannelType.EMAIL, ChannelType.PUSH}
+                    if pref.push_enabled
+                    else {ChannelType.APP, ChannelType.EMAIL}
+                )
         except NotificationPreference.DoesNotExist:
             return set()
 

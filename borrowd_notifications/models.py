@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, Dict
+from typing import Any, Dict, Never
 
 import notifications
 from django.conf import settings
@@ -313,3 +313,17 @@ class NotificationData:
                 ch: ChannelResult(status=NotificationState.PENDING) for ch in channels
             },
         )
+
+
+class PushSubscription(Model):
+    user: ForeignKey[BorrowdUser] = ForeignKey(
+        BorrowdUser,
+        on_delete=CASCADE,
+        related_name="push_subscriptions",
+    )
+    endpoint: models.TextField[str, str] = models.TextField(unique=True)
+    p256dh: models.TextField[str, str] = models.TextField()
+    auth: models.TextField[str, str] = models.TextField()
+    created_at: models.DateTimeField[Never, Never] = models.DateTimeField(
+        auto_now_add=True
+    )

@@ -166,8 +166,11 @@ def _build_preferences_context(user: BorrowdUser) -> dict[str, Any]:
 
 @login_required
 def notification_preferences_view(request: HttpRequest) -> HttpResponse:
+    from django.conf import settings
+
     user: BorrowdUser = request.user  # type: ignore[assignment]
     context = _build_preferences_context(user)
+    context["vapid_public_key"] = settings.VAPID_PUBLIC_KEY
     return render(request, "notifications/preferences.html", context)
 
 
