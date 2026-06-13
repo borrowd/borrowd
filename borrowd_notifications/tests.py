@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, cast
 from unittest.mock import patch
 
 from django.http import HttpResponse
@@ -525,14 +525,16 @@ class TransactionNotificationTests(TestCase):
             updated_by=self.owner,
         )
 
-    def _create_transaction(self, status: TransactionStatus) -> Transaction:
+    def _create_transaction(
+        self, status: TransactionStatus, updated_by: BorrowdUser | None = None
+    ) -> Transaction:
         return Transaction.objects.create(
             item=self.item,
             party1=self.owner,
             party2=self.borrower,
             status=status,
             created_by=self.borrower,
-            updated_by=self.owner,
+            updated_by=updated_by if updated_by else self.owner,
         )
 
     def test_requested_notifies_owner(self) -> None:
@@ -571,52 +573,56 @@ class TransactionNotificationTests(TestCase):
         self.assertEqual(Notification.objects.filter(recipient=self.owner).count(), 0)
 
     def test_collection_asserted_notifies_owner(self) -> None:
-        """Owner receives COLLECTION_ASSERTED from the borrower; borrower receives nothing."""
-        self._create_transaction(TransactionStatus.COLLECTION_ASSERTED)
+        """Counterpartie receives COLLECTION_ASSERTED from the asserter; asserter receives nothing."""
+        transaction = self._create_transaction(TransactionStatus.COLLECTION_ASSERTED)
+        updated_by = cast(BorrowdUser, transaction.updated_by)
 
         notifications = Notification.objects.filter(
-            recipient=self.owner, verb=NotificationType.COLLECTION_ASSERTED.value
+            recipient=transaction.counter_party(updated_by),
+            verb=NotificationType.COLLECTION_ASSERTED.value,
         )
         self.assertEqual(notifications.count(), 1)
-        self.assertEqual(notifications.first().actor, self.borrower)
-        self.assertEqual(
-            Notification.objects.filter(recipient=self.borrower).count(), 0
-        )
+        self.assertEqual(notifications.first().actor, updated_by)
+        self.assertEqual(Notification.objects.filter(recipient=updated_by).count(), 0)
 
-    def test_collection_confirmed_notifies_borrower(self) -> None:
-        """Borrower receives COLLECTION_CONFIRMED from the owner; owner receives nothing."""
-        self._create_transaction(TransactionStatus.COLLECTED)
+    def test_collection_confirmed_notifies_counterparty(self) -> None:
+        """Counterpartie receives COLLECTION_CONFIRMED from the confirmer; confirmer receives nothing."""
+        transaction = self._create_transaction(TransactionStatus.COLLECTED)
+        updated_by = cast(BorrowdUser, transaction.updated_by)
 
         notifications = Notification.objects.filter(
-            recipient=self.borrower, verb=NotificationType.COLLECTION_CONFIRMED.value
+            recipient=transaction.counter_party(updated_by),
+            verb=NotificationType.COLLECTION_CONFIRMED.value,
         )
         self.assertEqual(notifications.count(), 1)
-        self.assertEqual(notifications.first().actor, self.owner)
-        self.assertEqual(Notification.objects.filter(recipient=self.owner).count(), 0)
+        self.assertEqual(notifications.first().actor, updated_by)
+        self.assertEqual(Notification.objects.filter(recipient=updated_by).count(), 0)
 
-    def test_return_asserted_notifies_owner(self) -> None:
-        """Owner receives RETURN_ASSERTED from the borrower; borrower receives nothing."""
-        self._create_transaction(TransactionStatus.RETURN_ASSERTED)
+    def test_return_asserted_notifies_counterpartie(self) -> None:
+        """Counterparty receives RETURN_ASSERTED from the the asserter; and asserter receives nothing themselves."""
+        transaction = self._create_transaction(TransactionStatus.RETURN_ASSERTED)
+        updated_by = cast(BorrowdUser, transaction.updated_by)
 
         notifications = Notification.objects.filter(
-            recipient=self.owner, verb=NotificationType.RETURN_ASSERTED.value
+            recipient=transaction.counter_party(updated_by),
+            verb=NotificationType.RETURN_ASSERTED.value,
         )
         self.assertEqual(notifications.count(), 1)
-        self.assertEqual(notifications.first().actor, self.borrower)
-        self.assertEqual(
-            Notification.objects.filter(recipient=self.borrower).count(), 0
-        )
+        self.assertEqual(notifications.first().actor, updated_by)
+        self.assertEqual(Notification.objects.filter(recipient=updated_by).count(), 0)
 
     def test_return_confirmed_notifies_borrower(self) -> None:
         """Borrower receives RETURN_CONFIRMED from the owner; owner receives nothing."""
-        self._create_transaction(TransactionStatus.RETURNED)
+        transaction = self._create_transaction(TransactionStatus.RETURNED)
+        updated_by = cast(BorrowdUser, transaction.updated_by)
 
         notifications = Notification.objects.filter(
-            recipient=self.borrower, verb=NotificationType.RETURN_CONFIRMED.value
+            recipient=transaction.counter_party(updated_by),
+            verb=NotificationType.RETURN_CONFIRMED.value,
         )
         self.assertEqual(notifications.count(), 1)
-        self.assertEqual(notifications.first().actor, self.owner)
-        self.assertEqual(Notification.objects.filter(recipient=self.owner).count(), 0)
+        self.assertEqual(notifications.first().actor, updated_by)
+        self.assertEqual(Notification.objects.filter(recipient=updated_by).count(), 0)
 
 
 @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
