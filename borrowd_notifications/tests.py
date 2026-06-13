@@ -1,4 +1,8 @@
-from django.test import TestCase, TransactionTestCase
+from typing import Any
+from unittest.mock import patch
+
+from django.http import HttpResponse
+from django.test import TestCase, TransactionTestCase, override_settings
 from notifications.models import Notification
 
 from borrowd.models import TrustLevel
@@ -11,9 +15,14 @@ from borrowd_items.models import (
     Transaction,
     TransactionStatus,
 )
+from borrowd_notifications.channels import (
+    AppNotificationStrategy,
+    EmailNotificationStrategy,
+)
+from borrowd_notifications.services import NotificationService
 from borrowd_users.models import BorrowdUser
 
-from .models import NotificationType
+from .models import NotificationPreference, NotificationType
 
 
 class GroupMemberJoinedNotificationTests(TestCase):
@@ -496,3 +505,594 @@ class ItemAvailableNotificationTests(TransactionTestCase):
         self.assertEqual(
             self.subscription.status, AvailabilitySubscriptionStatus.ACTIVE
         )
+
+
+class TransactionNotificationTests(TestCase):
+    """Tests for lending lifecycle notifications fired by the Transaction post_save signal."""
+
+    def setUp(self) -> None:
+        self.owner = BorrowdUser.objects.create_user(
+            username="owner", email="owner@example.com", password="password"
+        )
+        self.borrower = BorrowdUser.objects.create_user(
+            username="borrower", email="borrower@example.com", password="password"
+        )
+        self.item = Item.objects.create(
+            name="Test Item",
+            description="A test item",
+            owner=self.owner,
+            created_by=self.owner,
+            updated_by=self.owner,
+        )
+
+    def _create_transaction(self, status: TransactionStatus) -> Transaction:
+        return Transaction.objects.create(
+            item=self.item,
+            party1=self.owner,
+            party2=self.borrower,
+            status=status,
+            created_by=self.borrower,
+            updated_by=self.owner,
+        )
+
+    def test_requested_notifies_owner(self) -> None:
+        """Owner receives ITEM_REQUESTED from the borrower; borrower receives nothing."""
+        self._create_transaction(TransactionStatus.REQUESTED)
+
+        notifications = Notification.objects.filter(
+            recipient=self.owner, verb=NotificationType.ITEM_REQUESTED.value
+        )
+        self.assertEqual(notifications.count(), 1)
+        self.assertEqual(notifications.first().actor, self.borrower)
+        self.assertEqual(
+            Notification.objects.filter(recipient=self.borrower).count(), 0
+        )
+
+    def test_accepted_notifies_borrower(self) -> None:
+        """Borrower receives ITEM_REQUEST_ACCEPTED from the owner; owner receives nothing."""
+        self._create_transaction(TransactionStatus.ACCEPTED)
+
+        notifications = Notification.objects.filter(
+            recipient=self.borrower, verb=NotificationType.ITEM_REQUEST_ACCEPTED.value
+        )
+        self.assertEqual(notifications.count(), 1)
+        self.assertEqual(notifications.first().actor, self.owner)
+        self.assertEqual(Notification.objects.filter(recipient=self.owner).count(), 0)
+
+    def test_rejected_notifies_borrower(self) -> None:
+        """Borrower receives ITEM_REQUEST_DENIED from the owner; owner receives nothing."""
+        self._create_transaction(TransactionStatus.REJECTED)
+
+        notifications = Notification.objects.filter(
+            recipient=self.borrower, verb=NotificationType.ITEM_REQUEST_DENIED.value
+        )
+        self.assertEqual(notifications.count(), 1)
+        self.assertEqual(notifications.first().actor, self.owner)
+        self.assertEqual(Notification.objects.filter(recipient=self.owner).count(), 0)
+
+    def test_collection_asserted_notifies_owner(self) -> None:
+        """Owner receives COLLECTION_ASSERTED from the borrower; borrower receives nothing."""
+        self._create_transaction(TransactionStatus.COLLECTION_ASSERTED)
+
+        notifications = Notification.objects.filter(
+            recipient=self.owner, verb=NotificationType.COLLECTION_ASSERTED.value
+        )
+        self.assertEqual(notifications.count(), 1)
+        self.assertEqual(notifications.first().actor, self.borrower)
+        self.assertEqual(
+            Notification.objects.filter(recipient=self.borrower).count(), 0
+        )
+
+    def test_collection_confirmed_notifies_borrower(self) -> None:
+        """Borrower receives COLLECTION_CONFIRMED from the owner; owner receives nothing."""
+        self._create_transaction(TransactionStatus.COLLECTED)
+
+        notifications = Notification.objects.filter(
+            recipient=self.borrower, verb=NotificationType.COLLECTION_CONFIRMED.value
+        )
+        self.assertEqual(notifications.count(), 1)
+        self.assertEqual(notifications.first().actor, self.owner)
+        self.assertEqual(Notification.objects.filter(recipient=self.owner).count(), 0)
+
+    def test_return_asserted_notifies_owner(self) -> None:
+        """Owner receives RETURN_ASSERTED from the borrower; borrower receives nothing."""
+        self._create_transaction(TransactionStatus.RETURN_ASSERTED)
+
+        notifications = Notification.objects.filter(
+            recipient=self.owner, verb=NotificationType.RETURN_ASSERTED.value
+        )
+        self.assertEqual(notifications.count(), 1)
+        self.assertEqual(notifications.first().actor, self.borrower)
+        self.assertEqual(
+            Notification.objects.filter(recipient=self.borrower).count(), 0
+        )
+
+    def test_return_confirmed_notifies_borrower(self) -> None:
+        """Borrower receives RETURN_CONFIRMED from the owner; owner receives nothing."""
+        self._create_transaction(TransactionStatus.RETURNED)
+
+        notifications = Notification.objects.filter(
+            recipient=self.borrower, verb=NotificationType.RETURN_CONFIRMED.value
+        )
+        self.assertEqual(notifications.count(), 1)
+        self.assertEqual(notifications.first().actor, self.owner)
+        self.assertEqual(Notification.objects.filter(recipient=self.owner).count(), 0)
+
+
+@override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
+class NotificationPreferenceRoutingTests(TransactionTestCase):
+    """Tests that NotificationService dispatches to channels according to user preferences."""
+
+    def setUp(self) -> None:
+        self.owner = BorrowdUser.objects.create_user(
+            username="owner", email="owner@example.com", password="password"
+        )
+        self.borrower = BorrowdUser.objects.create_user(
+            username="borrower", email="borrower@example.com", password="password"
+        )
+        self.item = Item.objects.create(
+            name="Test Item",
+            description="A test item",
+            owner=self.owner,
+            created_by=self.owner,
+            updated_by=self.owner,
+        )
+
+    def _set_preference(
+        self,
+        user: BorrowdUser,
+        ntype: NotificationType,
+        *,
+        in_app: bool,
+        email: bool,
+    ) -> NotificationPreference:
+        obj, _ = NotificationPreference.objects.get_or_create(
+            user=user,
+            notification_type=ntype.value,
+            defaults={
+                "in_app_enabled": in_app,
+                "email_enabled": email,
+                "push_enabled": False,
+            },
+        )
+        obj.in_app_enabled = in_app
+        obj.email_enabled = email
+        obj.save()
+        return obj
+
+    def _trigger_accepted(self) -> Notification:
+        """owner accepts → borrower gets ITEM_REQUEST_ACCEPTED (optional type)."""
+        Transaction.objects.create(
+            item=self.item,
+            party1=self.owner,
+            party2=self.borrower,
+            status=TransactionStatus.ACCEPTED,
+            created_by=self.borrower,
+            updated_by=self.owner,
+        )
+        n = Notification.objects.get(
+            recipient=self.borrower,
+            verb=NotificationType.ITEM_REQUEST_ACCEPTED.value,
+        )
+        n.refresh_from_db()
+        return n
+
+    def _trigger_requested(self) -> Notification:
+        """borrower requests → owner gets ITEM_REQUESTED (mandatory type)."""
+        Transaction.objects.create(
+            item=self.item,
+            party1=self.owner,
+            party2=self.borrower,
+            status=TransactionStatus.REQUESTED,
+            created_by=self.borrower,
+            updated_by=self.borrower,
+        )
+        n = Notification.objects.get(
+            recipient=self.owner,
+            verb=NotificationType.ITEM_REQUESTED.value,
+        )
+        n.refresh_from_db()
+        return n
+
+    def _dispatched_channels(self, notification: Notification) -> set[str]:
+        if not isinstance(notification.data, dict):
+            return set()
+        return set(notification.data.get("channels", {}).keys())
+
+    def test_no_preference_row_suppresses_optional_notification(self) -> None:
+        """Without a preference row, an optional notification is not dispatched to any channel."""
+        n = self._trigger_accepted()
+        self.assertEqual(self._dispatched_channels(n), set())
+
+    def test_in_app_only_dispatches_app_channel(self) -> None:
+        """With in_app_enabled=True and email_enabled=False, only APP channel is dispatched."""
+        self._set_preference(
+            self.borrower,
+            NotificationType.ITEM_REQUEST_ACCEPTED,
+            in_app=True,
+            email=False,
+        )
+        n = self._trigger_accepted()
+        channels = self._dispatched_channels(n)
+        self.assertIn("APP", channels)
+        self.assertNotIn("EMAIL", channels)
+
+    def test_email_only_dispatches_email_channel(self) -> None:
+        """With in_app_enabled=False and email_enabled=True, only EMAIL channel is dispatched."""
+        self._set_preference(
+            self.borrower,
+            NotificationType.ITEM_REQUEST_ACCEPTED,
+            in_app=False,
+            email=True,
+        )
+        n = self._trigger_accepted()
+        channels = self._dispatched_channels(n)
+        self.assertNotIn("APP", channels)
+        self.assertIn("EMAIL", channels)
+
+    def test_both_disabled_suppresses_optional_notification(self) -> None:
+        """With both channels disabled, an optional notification is not dispatched."""
+        self._set_preference(
+            self.borrower,
+            NotificationType.ITEM_REQUEST_ACCEPTED,
+            in_app=False,
+            email=False,
+        )
+        n = self._trigger_accepted()
+        self.assertEqual(self._dispatched_channels(n), set())
+
+    def test_both_enabled_dispatches_all_channels(self) -> None:
+        """With both channels enabled, APP and EMAIL are both dispatched."""
+        self._set_preference(
+            self.borrower,
+            NotificationType.ITEM_REQUEST_ACCEPTED,
+            in_app=True,
+            email=True,
+        )
+        n = self._trigger_accepted()
+        channels = self._dispatched_channels(n)
+        self.assertIn("APP", channels)
+        self.assertIn("EMAIL", channels)
+
+    def test_mandatory_type_bypasses_disabled_preferences(self) -> None:
+        """A mandatory notification dispatches to APP+EMAIL even when both are disabled in preferences."""
+        self._set_preference(
+            self.owner,
+            NotificationType.ITEM_REQUESTED,
+            in_app=False,
+            email=False,  # should never happen, by just in case
+        )
+        n = self._trigger_requested()
+        channels = self._dispatched_channels(n)
+        self.assertIn("APP", channels)
+        self.assertIn("EMAIL", channels)
+
+
+@override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
+class NotificationChannelErrorTests(TransactionTestCase):
+    """Tests that a failing channel records an error without blocking other channels."""
+
+    def setUp(self) -> None:
+        self.owner = BorrowdUser.objects.create_user(
+            username="owner", email="owner@example.com", password="password"
+        )
+        self.borrower = BorrowdUser.objects.create_user(
+            username="borrower", email="borrower@example.com", password="password"
+        )
+        self.item = Item.objects.create(
+            name="Test Item",
+            description="A test item",
+            owner=self.owner,
+            created_by=self.owner,
+            updated_by=self.owner,
+        )
+        NotificationPreference.objects.create(
+            user=self.borrower,
+            notification_type=NotificationType.ITEM_REQUEST_ACCEPTED.value,
+            in_app_enabled=True,
+            email_enabled=True,
+            push_enabled=False,
+        )
+
+    def _trigger_accepted(self) -> Notification:
+        Transaction.objects.create(
+            item=self.item,
+            party1=self.owner,
+            party2=self.borrower,
+            status=TransactionStatus.ACCEPTED,
+            created_by=self.borrower,
+            updated_by=self.owner,
+        )
+        n = Notification.objects.get(
+            recipient=self.borrower,
+            verb=NotificationType.ITEM_REQUEST_ACCEPTED.value,
+        )
+        n.refresh_from_db()
+        return n
+
+    def _channel_results(self, notification: Notification) -> dict[str, Any]:
+        if not isinstance(notification.data, dict):
+            return {}
+        result: dict[str, Any] = notification.data.get("channels", {})
+        return result
+
+    def test_email_failure_recorded_and_app_still_succeeds(self) -> None:
+        """When EMAIL raises, the error is recorded and APP is still dispatched successfully."""
+        with patch.object(
+            EmailNotificationStrategy,
+            "send",
+            side_effect=RuntimeError("SMTP unavailable"),
+        ):
+            n = self._trigger_accepted()
+
+        results = self._channel_results(n)
+        self.assertEqual(results.get("APP", {}).get("status"), "SUCCESS")
+        self.assertEqual(results.get("EMAIL", {}).get("status"), "ERROR")
+        self.assertIn("SMTP unavailable", results.get("EMAIL", {}).get("error", ""))
+
+    def test_app_failure_recorded_and_email_still_succeeds(self) -> None:
+        """When APP raises, the error is recorded and EMAIL is still dispatched successfully."""
+        with patch.object(
+            AppNotificationStrategy,
+            "send",
+            side_effect=RuntimeError("Push service down"),
+        ):
+            n = self._trigger_accepted()
+
+        results = self._channel_results(n)
+        self.assertEqual(results.get("APP", {}).get("status"), "ERROR")
+        self.assertIn("Push service down", results.get("APP", {}).get("error", ""))
+        self.assertEqual(results.get("EMAIL", {}).get("status"), "SUCCESS")
+
+
+@override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
+class NotificationEmailThrottleTests(TransactionTestCase):
+    """Tests for the per-recipient hourly email cap and summary digest scheduling."""
+
+    def setUp(self) -> None:
+        self.owner = BorrowdUser.objects.create_user(
+            username="owner", email="owner@example.com", password="password"
+        )
+        self.borrower = BorrowdUser.objects.create_user(
+            username="borrower", email="borrower@example.com", password="password"
+        )
+        self.item = Item.objects.create(
+            name="Test Item",
+            description="A test item",
+            owner=self.owner,
+            created_by=self.owner,
+            updated_by=self.owner,
+        )
+        NotificationPreference.objects.create(
+            user=self.borrower,
+            notification_type=NotificationType.ITEM_REQUEST_ACCEPTED.value,
+            in_app_enabled=True,
+            email_enabled=True,
+            push_enabled=False,
+        )
+
+    def _trigger_accepted(self) -> Notification:
+        Transaction.objects.create(
+            item=self.item,
+            party1=self.owner,
+            party2=self.borrower,
+            status=TransactionStatus.ACCEPTED,
+            created_by=self.borrower,
+            updated_by=self.owner,
+        )
+        n = Notification.objects.get(
+            recipient=self.borrower,
+            verb=NotificationType.ITEM_REQUEST_ACCEPTED.value,
+        )
+        n.refresh_from_db()
+        return n
+
+    def test_throttled_email_drops_email_and_keeps_app(self) -> None:
+        """When the hourly email cap is reached, EMAIL is not dispatched but APP still is."""
+        with patch.object(
+            NotificationService, "_is_email_throttled", return_value=True
+        ):
+            n = self._trigger_accepted()
+
+        channels = (
+            set(n.data.get("channels", {}).keys())
+            if isinstance(n.data, dict)
+            else set()
+        )
+        self.assertIn("APP", channels)
+        self.assertNotIn("EMAIL", channels)
+
+    def test_throttled_email_schedules_summary_digest(self) -> None:
+        """When EMAIL is throttled, a summary_digest entry is added to notification.data."""
+        with patch.object(
+            NotificationService, "_is_email_throttled", return_value=True
+        ):
+            n = self._trigger_accepted()
+
+        self.assertIsInstance(n.data, dict)
+        self.assertIn("summary_digest", n.data)
+        digest = n.data["summary_digest"]
+        self.assertEqual(digest.get("recipient_id"), self.borrower.pk)
+        self.assertEqual(digest.get("status"), "PENDING")
+        self.assertIn("scheduled_for", digest)
+
+    def test_email_only_preference_throttled_saves_digest_and_skips_dispatch(
+        self,
+    ) -> None:
+        """When only EMAIL is enabled and it is throttled, no channels fire but digest is saved."""
+        NotificationPreference.objects.filter(
+            user=self.borrower,
+            notification_type=NotificationType.ITEM_REQUEST_ACCEPTED.value,
+        ).update(in_app_enabled=False, email_enabled=True)
+
+        with patch.object(
+            NotificationService, "_is_email_throttled", return_value=True
+        ):
+            n = self._trigger_accepted()
+
+        self.assertIsInstance(n.data, dict)
+        self.assertEqual(n.data.get("channels", {}), {})
+        self.assertIn("summary_digest", n.data)
+
+    def test_mandatory_type_throttled_still_dispatches_app(self) -> None:
+        """Mandatory notifications still dispatch APP when EMAIL is throttled."""
+        NotificationPreference.objects.create(
+            user=self.owner,
+            notification_type=NotificationType.ITEM_REQUESTED.value,
+            in_app_enabled=False,
+            email_enabled=False,
+            push_enabled=False,
+        )
+        with patch.object(
+            NotificationService, "_is_email_throttled", return_value=True
+        ):
+            Transaction.objects.create(
+                item=self.item,
+                party1=self.owner,
+                party2=self.borrower,
+                status=TransactionStatus.REQUESTED,
+                created_by=self.borrower,
+                updated_by=self.borrower,
+            )
+
+        n = Notification.objects.get(
+            recipient=self.owner,
+            verb=NotificationType.ITEM_REQUESTED.value,
+        )
+        n.refresh_from_db()
+        channels = (
+            set(n.data.get("channels", {}).keys())
+            if isinstance(n.data, dict)
+            else set()
+        )
+        self.assertIn("APP", channels)
+        self.assertNotIn("EMAIL", channels)
+        self.assertIn("summary_digest", n.data)
+
+
+class NotificationPreferenceToggleViewTests(TestCase):
+    """Tests for the toggle_preference and bulk_toggle_preferences endpoints."""
+
+    def setUp(self) -> None:
+        self.user = BorrowdUser.objects.create_user(
+            username="user", email="user@example.com", password="password"
+        )
+        self.client.force_login(self.user)
+
+    def _toggle(
+        self, ntype: NotificationType, channel: str, enabled: bool
+    ) -> HttpResponse:
+        return self.client.post(  # type: ignore[return-value]
+            "/settings/notifications/toggle/",
+            {
+                "notification_type": ntype.value,
+                "channel": channel,
+                "enabled": str(enabled).lower(),
+            },
+        )
+
+    def _bulk_toggle(self, scope: str, channel: str, enabled: bool) -> HttpResponse:
+        return self.client.post(  # type: ignore[return-value]
+            "/settings/notifications/bulk-toggle/",
+            {"scope": scope, "channel": channel, "enabled": str(enabled).lower()},
+        )
+
+    def test_toggle_creates_preference_row_on_first_call(self) -> None:
+        """The first toggle for a user+type creates the preference row."""
+        self.assertFalse(
+            NotificationPreference.objects.filter(
+                user=self.user,
+                notification_type=NotificationType.ITEM_REQUEST_ACCEPTED.value,
+            ).exists()
+        )
+        response = self._toggle(NotificationType.ITEM_REQUEST_ACCEPTED, "EMAIL", False)
+        self.assertEqual(response.status_code, 204)
+        pref = NotificationPreference.objects.get(
+            user=self.user,
+            notification_type=NotificationType.ITEM_REQUEST_ACCEPTED.value,
+        )
+        self.assertFalse(pref.email_enabled)
+
+    def test_toggle_updates_existing_preference(self) -> None:
+        """Toggling again flips the stored value."""
+        NotificationPreference.objects.create(
+            user=self.user,
+            notification_type=NotificationType.ITEM_REQUEST_ACCEPTED.value,
+            in_app_enabled=True,
+            email_enabled=True,
+            push_enabled=False,
+        )
+        self._toggle(NotificationType.ITEM_REQUEST_ACCEPTED, "EMAIL", False)
+        pref = NotificationPreference.objects.get(
+            user=self.user,
+            notification_type=NotificationType.ITEM_REQUEST_ACCEPTED.value,
+        )
+        self.assertFalse(pref.email_enabled)
+        self.assertTrue(pref.in_app_enabled)
+
+    def test_toggle_mandatory_type_returns_403(self) -> None:
+        """Attempting to toggle a mandatory type is rejected."""
+        response = self._toggle(NotificationType.ITEM_REQUESTED, "EMAIL", False)
+        self.assertEqual(response.status_code, 403)
+        self.assertFalse(
+            NotificationPreference.objects.filter(
+                user=self.user, notification_type=NotificationType.ITEM_REQUESTED.value
+            ).exists()
+        )
+
+    def test_toggle_invalid_notification_type_returns_400(self) -> None:
+        """An unrecognised notification_type value returns 400."""
+        response = self.client.post(
+            "/settings/notifications/toggle/",
+            {"notification_type": "not-a-type", "channel": "EMAIL", "enabled": "false"},
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_toggle_invalid_channel_returns_400(self) -> None:
+        """An unrecognised channel value returns 400."""
+        response = self.client.post(
+            "/settings/notifications/toggle/",
+            {
+                "notification_type": NotificationType.ITEM_REQUEST_ACCEPTED.value,
+                "channel": "CARRIER_PIGEON",
+                "enabled": "false",
+            },
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_bulk_toggle_disables_all_optional_types_in_category(self) -> None:
+        """Bulk-disable EMAIL for the lending category updates all existing rows in that scope."""
+        for ntype, _ in [
+            (NotificationType.ITEM_REQUEST_ACCEPTED, "accepted"),
+            (NotificationType.ITEM_REQUEST_DENIED, "denied"),
+        ]:
+            NotificationPreference.objects.create(
+                user=self.user,
+                notification_type=ntype.value,
+                in_app_enabled=True,
+                email_enabled=True,
+                push_enabled=False,
+            )
+
+        response = self._bulk_toggle("lending", "EMAIL", False)
+        self.assertEqual(response.status_code, 204)
+
+        for ntype in [
+            NotificationType.ITEM_REQUEST_ACCEPTED,
+            NotificationType.ITEM_REQUEST_DENIED,
+        ]:
+            pref = NotificationPreference.objects.get(
+                user=self.user, notification_type=ntype.value
+            )
+            self.assertFalse(pref.email_enabled, f"{ntype} should have email disabled")
+            self.assertTrue(pref.in_app_enabled, f"{ntype} in_app should be unchanged")
+
+    def test_bulk_toggle_invalid_channel_returns_400(self) -> None:
+        """An unrecognised channel in a bulk-toggle returns 400."""
+        response = self._bulk_toggle("lending", "FAX", False)
+        self.assertEqual(response.status_code, 400)
+
+    def test_bulk_toggle_invalid_scope_returns_400(self) -> None:
+        """An unrecognised scope in a bulk-toggle returns 400."""
+        response = self._bulk_toggle("nonexistent-scope", "EMAIL", False)
+        self.assertEqual(response.status_code, 400)
