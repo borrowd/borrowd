@@ -2,6 +2,7 @@ from typing import Any
 
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
+from django.db.models import Func, TextField, Value
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
@@ -235,7 +236,16 @@ def _notification_target_url(notification: Notification) -> str | None:
 @login_required
 def notification_inbox_view(request: HttpRequest) -> HttpResponse:
     user: BorrowdUser = request.user  # type: ignore[assignment]
-    qs = user.notifications.all()
+
+    # only show the notifications that where sent through the in-app channel
+    qs = user.notifications.annotate(
+        app_channel=Func(
+            "data",
+            Value("$.channels.APP"),
+            function="JSON_TYPE",
+            output_field=TextField(),
+        )
+    ).filter(app_channel__isnull=False)
     paginator = Paginator(qs, _INBOX_PAGE_SIZE)
     page_obj = paginator.get_page(request.GET.get("page", 1))
 
