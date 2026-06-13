@@ -1,3 +1,4 @@
+import json
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
@@ -5,8 +6,17 @@ from django.conf import settings
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from notifications.models import Notification
+from pywebpush import (
+    WebPushException,
+    webpush,
+)
 
-from borrowd_notifications.models import ChannelType, NotificationData, NotificationType
+from borrowd_notifications.models import (
+    ChannelType,
+    NotificationData,
+    NotificationType,
+    PushSubscription,
+)
 
 
 @dataclass
@@ -81,7 +91,7 @@ class AppNotificationStrategy(NotificationStrategy):
     def send(self, payload: NotificationPayload) -> None:
         try:
             # TODO: Migration to a push-based channel for real-time updates
-            # use_sse_channe(notification)
+            # use sse/websocket channel
 
             payload.data._success(channel=ChannelType.APP)
         except Exception as e:
@@ -91,21 +101,18 @@ class AppNotificationStrategy(NotificationStrategy):
 
 class PUSHNotificationStrategy(NotificationStrategy):
     def send(self, payload: NotificationPayload) -> None:
-        import json
-
-        from django.conf import settings
-        from pywebpush import (
-            WebPushException,
-            webpush,
-        )
-
-        from borrowd_notifications.models import PushSubscription
-
+        """
+        Sends web-push notifications to all of the user subscribed browser.
+        This would work for open browsers tabs and open/closed pwa.
+        No native push framework required.
+        """
         subscriptions = list(
             PushSubscription.objects.filter(user=payload.notification.recipient)
         )
         if not subscriptions:
-            payload.data._success(channel=ChannelType.PUSH)
+            payload.data._error(
+                channel=ChannelType.PUSH, error="No subscription for this device."
+            )
             return
 
         context = payload.data.context
@@ -119,7 +126,7 @@ class PUSHNotificationStrategy(NotificationStrategy):
             {
                 "title": "Borrow'd",
                 "body": body,
-                "icon": f"{base_url}/static/icon.svg",
+                "icon": f"{base_url}/static/icon.svg",  # safari doesnt support this.
                 "url": (
                     context.get("respond_url")
                     or context.get("item_url")
@@ -132,8 +139,6 @@ class PUSHNotificationStrategy(NotificationStrategy):
         errors: list[str] = []
         for sub in subscriptions:
             try:
-                print("Atempting push in channels")
-
                 webpush(
                     subscription_info={
                         "endpoint": sub.endpoint,
@@ -143,11 +148,12 @@ class PUSHNotificationStrategy(NotificationStrategy):
                     vapid_private_key=settings.VAPID_PRIVATE_KEY,
                     vapid_claims={"sub": f"mailto:{settings.VAPID_ADMIN_EMAIL}"},
                 )
-                print(f"Private key: {settings.VAPID_PRIVATE_KEY}")
             except WebPushException as exc:
                 errors.append(str(exc))
                 if exc.response is not None and exc.response.status_code in (404, 410):
                     sub.delete()
+            except Exception as exc:
+                errors.append(str(exc))
 
         if errors:
             payload.data._error(channel=ChannelType.PUSH, error="; ".join(errors))
