@@ -31,6 +31,7 @@ from borrowd_items.models import (
     Transaction,
     TransactionStatus,
 )
+from borrowd_users.models import BorrowdUser
 
 from .models import NotificationType
 from .services import NotificationService
@@ -87,6 +88,9 @@ def send_transaction_notifications(
 ) -> None:
     """Send notifications when transaction status changes."""
 
+    counterparty: BorrowdUser = instance.counter_party(
+        cast(BorrowdUser, instance.updated_by)
+    )
     match instance.status:
         case TransactionStatus.REQUESTED:
             notify.send(
@@ -117,39 +121,39 @@ def send_transaction_notifications(
             )
         case TransactionStatus.COLLECTION_ASSERTED:
             notify.send(
-                instance.party2,
-                recipient=[instance.party1],
+                instance.updated_by,
+                recipient=[counterparty],
                 verb=NotificationType.COLLECTION_ASSERTED.value,
                 action_object=instance.item,
                 target=instance,
-                description=f"{instance.party2.first_name} says they've collected {instance.item.name}. Please confirm.",  # type: ignore[attr-defined]
+                description=f"{instance.updated_by} says they've collected {instance.item.name}. Please confirm.",  # type: ignore[attr-defined]
             )
         case TransactionStatus.COLLECTED:
             notify.send(
-                instance.party1,
-                recipient=[instance.party2],
+                instance.updated_by,
+                recipient=[counterparty],
                 verb=NotificationType.COLLECTION_CONFIRMED.value,
                 action_object=instance.item,
                 target=instance,
-                description=f"Your collection of {instance.item.name} has been confirmed!",  # type: ignore[attr-defined]
+                description=f"The collection of {instance.item.name} has been confirmed!",  # type: ignore[attr-defined]
             )
         case TransactionStatus.RETURN_ASSERTED:
             notify.send(
-                instance.party2,
-                recipient=[instance.party1],
+                instance.updated_by,
+                recipient=[counterparty],
                 verb=NotificationType.RETURN_ASSERTED.value,
                 action_object=instance.item,
                 target=instance,
-                description=f"{instance.party2.first_name} says they've returned {instance.item.name}. Please confirm.",  # type: ignore[attr-defined]
+                description=f"{instance.updated_by} says {instance.item.name} has been returned. Please confirm.",  # type: ignore[attr-defined]
             )
         case TransactionStatus.RETURNED:
             notify.send(
-                instance.party1,
-                recipient=[instance.party2],
+                instance.updated_by,
+                recipient=[counterparty],
                 verb=NotificationType.RETURN_CONFIRMED.value,
                 action_object=instance.item,
                 target=instance,
-                description=f"{instance.item.name} return confirmed. Thanks for borrowing!",  # type: ignore[attr-defined]
+                description="{instance.item.name} return confirmed. Thanks for borrowing!",
             )
 
 
