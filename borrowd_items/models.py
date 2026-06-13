@@ -1052,6 +1052,7 @@ class Transaction(Model):
 
         with transaction.atomic():
             item: Item = self.item  # type: ignore[assignment]
+            item.refresh_from_db()
             if item.deleted_at is None:  # item not deleted
                 item.status = ItemStatus.AVAILABLE
                 item.save()
