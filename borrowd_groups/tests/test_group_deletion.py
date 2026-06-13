@@ -17,7 +17,7 @@ class GroupDeletionTests(TestCase):
         )
 
     def test_deleting_group_removes_linked_perms_group(self) -> None:
-        group = BorrowdGroup.objects.create(
+        group = BorrowdGroup.objects.create_group(
             name="Delete Me",
             created_by=self.owner,
             updated_by=self.owner,
@@ -25,6 +25,7 @@ class GroupDeletionTests(TestCase):
             membership_requires_approval=False,
         )
         group.add_user(self.member, trust_level=TrustLevel.STANDARD)
+        assert group.perms_group is not None
         perms_group_id = group.perms_group.pk
         group_id = group.pk
 
@@ -35,13 +36,14 @@ class GroupDeletionTests(TestCase):
         self.assertFalse(Group.objects.filter(pk=perms_group_id).exists())
 
     def test_delete_view_removes_group_and_linked_perms_group(self) -> None:
-        group = BorrowdGroup.objects.create(
+        group = BorrowdGroup.objects.create_group(
             name="Delete Via View",
             created_by=self.owner,
             updated_by=self.owner,
             trust_level=TrustLevel.STANDARD,
             membership_requires_approval=False,
         )
+        assert group.perms_group is not None
         perms_group_id = group.perms_group.pk
 
         self.client.force_login(self.owner)
@@ -54,18 +56,19 @@ class GroupDeletionTests(TestCase):
         self.assertFalse(Group.objects.filter(pk=perms_group_id).exists())
 
     def test_can_create_new_group_with_same_name_after_deletion(self) -> None:
-        original_group = BorrowdGroup.objects.create(
+        original_group = BorrowdGroup.objects.create_group(
             name="Reusable Name",
             created_by=self.owner,
             updated_by=self.owner,
             trust_level=TrustLevel.STANDARD,
             membership_requires_approval=False,
         )
+        assert original_group.perms_group is not None
         original_perms_group_id = original_group.perms_group.pk
 
         original_group.delete()
 
-        replacement_group = BorrowdGroup.objects.create(
+        replacement_group = BorrowdGroup.objects.create_group(
             name="Reusable Name",
             created_by=self.owner,
             updated_by=self.owner,
@@ -75,6 +78,7 @@ class GroupDeletionTests(TestCase):
 
         self.assertFalse(Group.objects.filter(pk=original_perms_group_id).exists())
         self.assertEqual(replacement_group.name, "Reusable Name")
+        assert replacement_group.perms_group is not None
         self.assertIsNotNone(replacement_group.perms_group.pk)
         self.assertNotEqual(replacement_group.perms_group.pk, original_perms_group_id)
         self.assertTrue(

@@ -13,6 +13,12 @@ jobs:
   pre-commit:
     name: Lint, format, type-check, template-lint
     runs-on: ubuntu-latest
+
+    env:
+      # The django-stubs mypy plugin imports the settings module (see
+      # mypy.ini), which requires a secret key to be present.
+      DJANGO_SECRET_KEY: ci-not-a-real-secret
+
     steps:
       - uses: actions/checkout@v4
 

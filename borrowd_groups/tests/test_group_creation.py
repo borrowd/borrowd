@@ -17,7 +17,7 @@ class GroupCreationTests(TestCase):
 
         # Act
         ## Create the Group with created_by
-        group: BorrowdGroup = BorrowdGroup.objects.create(
+        group: BorrowdGroup = BorrowdGroup.objects.create_group(
             name="Group 1",
             created_by=owner,
             updated_by=owner,

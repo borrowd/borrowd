@@ -1,4 +1,3 @@
-# for some unknown reason, pre-commit cannot find sentry_sdk
 import sentry_sdk
 
 from borrowd.config.env import env

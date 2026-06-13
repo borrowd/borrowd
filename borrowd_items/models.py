@@ -1,6 +1,5 @@
 from dataclasses import dataclass
-from datetime import datetime
-from typing import Never, Optional
+from typing import Optional
 
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
@@ -83,18 +82,15 @@ class ItemActionContext:
 
 
 class ItemCategory(Model):
-    name: CharField[str, str] = CharField(max_length=50, null=False, blank=False)
-    description: CharField[str, str] = CharField(max_length=100, null=True, blank=True)
-
-    # Hint for mypy (actual field created from reverse M2M relation)
-    items: QuerySet["Item"]
+    name = CharField(max_length=50, null=False, blank=False)
+    description = CharField(max_length=100, null=True, blank=True)
 
     def __str__(self) -> str:
         return self.name
 
     class Meta:
-        verbose_name: str = "Item Category"
-        verbose_name_plural: str = "Item Categories"
+        verbose_name = "Item Category"
+        verbose_name_plural = "Item Categories"
 
 
 class ItemStatus(IntegerChoices):
@@ -113,20 +109,18 @@ class ItemStatus(IntegerChoices):
 
 
 class Item(Model):
-    name: CharField[str, str] = CharField(max_length=50, null=False, blank=False)
-    description: CharField[str, str] = CharField(
-        max_length=500, null=False, blank=False
-    )
+    name = CharField(max_length=50, null=False, blank=False)
+    description = CharField(max_length=500, null=False, blank=False)
     # If user is deleted, delete their Items
-    owner: ForeignKey[BorrowdUser] = ForeignKey(BorrowdUser, on_delete=CASCADE)
+    owner = ForeignKey(BorrowdUser, on_delete=CASCADE)
 
-    categories: ManyToManyField[ItemCategory, ItemCategory] = ManyToManyField(
+    categories = ManyToManyField(
         ItemCategory,
         related_name="items",
         blank=False,
         help_text="Categories this item belongs to. At least one required.",
     )
-    trust_level_required: IntegerField[TrustLevel, int] = IntegerField(
+    trust_level_required = IntegerField(
         choices=TrustLevel,
         default=TrustLevel.STANDARD,
         help_text=(
@@ -135,17 +129,13 @@ class Item(Model):
             " of that Group."
         ),
     )
-    status: IntegerField[ItemStatus, int] = IntegerField(
+    status = IntegerField(
         choices=ItemStatus.choices,
         default=ItemStatus.AVAILABLE,
         help_text="The current status of the Item.",
     )
 
-    # Hints for mypy (actual fields created from reverse relations)
-    transactions: QuerySet["Transaction"]
-    subscriptions: QuerySet["AvailabilitySubscription"]
-    photos: QuerySet["ItemPhoto"]
-    created_by: ForeignKey[BorrowdUser] = ForeignKey(
+    created_by = ForeignKey(
         BorrowdUser,
         related_name="+",  # No reverse relation needed
         null=False,
@@ -153,11 +143,11 @@ class Item(Model):
         help_text="The user who created the item.",
         on_delete=DO_NOTHING,
     )
-    created_at: DateTimeField[Never, Never] = DateTimeField(
+    created_at = DateTimeField(
         auto_now_add=True,
         help_text="The date and time at which the item was created.",
     )
-    updated_by: ForeignKey[BorrowdUser] = ForeignKey(
+    updated_by = ForeignKey(
         BorrowdUser,
         related_name="+",  # No reverse relation needed
         null=False,
@@ -165,17 +155,17 @@ class Item(Model):
         help_text="The last user who updated the item.",
         on_delete=DO_NOTHING,
     )
-    updated_at: DateTimeField[Never, Never] = DateTimeField(
+    updated_at = DateTimeField(
         auto_now=True,
         help_text="The date and time at which the item was last updated.",
     )
-    deleted_at: DateTimeField[datetime | None, datetime | None] = DateTimeField(
+    deleted_at = DateTimeField(
         null=True,
         blank=True,
         default=None,
         help_text="Set when the record is soft-deleted. NULL means active.",
     )
-    deleted_by: ForeignKey[BorrowdUser] = ForeignKey(
+    deleted_by = ForeignKey(
         BorrowdUser,
         null=True,
         blank=True,
@@ -185,7 +175,7 @@ class Item(Model):
         help_text="Who performed the soft-delete. NULL means active or unknown.",
     )
     objects = ActiveItemManager()
-    all_objects: models.Manager["Item"] = models.Manager()
+    all_objects = models.Manager()
 
     def __str__(self) -> str:
         return self.name
@@ -726,7 +716,7 @@ class ItemPhoto(Model):
     # Not including owner as permissions/ownership should be inherited from Item
     # Alt text could be a good additional field to support via user input
     # Height/Width might also need to be stored by parsing image metadata on save
-    item: ForeignKey[Item] = ForeignKey(Item, on_delete=CASCADE, related_name="photos")
+    item = ForeignKey(Item, on_delete=CASCADE, related_name="photos")
     item_id: int  # hint for mypy
     image = ProcessedImageField(
         upload_to="items/",
@@ -740,7 +730,7 @@ class ItemPhoto(Model):
         format="JPEG",
         options={"quality": 75},
     )
-    created_by: ForeignKey[BorrowdUser] = ForeignKey(
+    created_by = ForeignKey(
         BorrowdUser,
         related_name="+",  # No reverse relation needed
         null=False,
@@ -748,11 +738,11 @@ class ItemPhoto(Model):
         help_text="The user who created the item photo.",
         on_delete=DO_NOTHING,
     )
-    created_at: DateTimeField[Never, Never] = DateTimeField(
+    created_at = DateTimeField(
         auto_now_add=True,
         help_text="The date and time at which the item photo was created.",
     )
-    updated_by: ForeignKey[BorrowdUser] = ForeignKey(
+    updated_by = ForeignKey(
         BorrowdUser,
         related_name="+",  # No reverse relation needed
         null=False,
@@ -760,17 +750,17 @@ class ItemPhoto(Model):
         help_text="The last user who updated the item photo.",
         on_delete=DO_NOTHING,
     )
-    updated_at: DateTimeField[Never, Never] = DateTimeField(
+    updated_at = DateTimeField(
         auto_now=True,
         help_text="The date and time at which the item photo was last updated.",
     )
-    deleted_at: DateTimeField[Never, Never] = DateTimeField(
+    deleted_at = DateTimeField(
         null=True,
         blank=True,
         default=None,
         help_text="Set when the record is soft-deleted. NULL means active.",
     )
-    deleted_by: ForeignKey[BorrowdUser] = ForeignKey(
+    deleted_by = ForeignKey(
         BorrowdUser,
         null=True,
         blank=True,
@@ -820,30 +810,30 @@ class ResolutionReason(TextChoices):
 
 
 class Transaction(Model):
-    item: ForeignKey["Item"] = ForeignKey(
+    item = ForeignKey(
         to="Item",
         on_delete=PROTECT,
         related_name="transactions",
         help_text="The Item which is the subject of the Transaction.",
     )
-    party1: ForeignKey[BorrowdUser] = ForeignKey(
+    party1 = ForeignKey(
         to=BorrowdUser,
         on_delete=PROTECT,
         related_name="+",  # No reverse relation needed
         help_text="The first party in the Transaction: 'lender', 'giver', 'owner', etc.",
     )
-    party2: ForeignKey[BorrowdUser] = ForeignKey(
+    party2 = ForeignKey(
         to=BorrowdUser,
         on_delete=PROTECT,
         related_name="+",  # No reverse relation needed
         help_text="The second party in the Transaction: 'borrower', 'receiver', etc.",
     )
-    status: IntegerField[TransactionStatus, int] = IntegerField(
+    status = IntegerField(
         choices=TransactionStatus.choices,
         default=TransactionStatus.REQUESTED,
         help_text="The current status of the Transaction.",
     )
-    resolution_reason: CharField[ResolutionReason, str] = CharField(
+    resolution_reason = CharField(
         max_length=32,
         choices=ResolutionReason.choices,
         null=True,
@@ -854,7 +844,7 @@ class Transaction(Model):
             "dual-confirmation flow. NULL for normally-completed Transactions."
         ),
     )
-    created_by: ForeignKey[BorrowdUser] = ForeignKey(
+    created_by = ForeignKey(
         BorrowdUser,
         related_name="+",  # No reverse relation needed
         null=False,
@@ -862,11 +852,11 @@ class Transaction(Model):
         help_text="The user who created the transaction.",
         on_delete=DO_NOTHING,
     )
-    created_at: DateTimeField[Never, Never] = DateTimeField(
+    created_at = DateTimeField(
         auto_now_add=True,
         help_text="The date and time at which the transaction was created.",
     )
-    updated_by: ForeignKey[BorrowdUser] = ForeignKey(
+    updated_by = ForeignKey(
         BorrowdUser,
         related_name="+",  # No reverse relation needed
         null=False,
@@ -874,17 +864,17 @@ class Transaction(Model):
         help_text="The last user who updated the transaction.",
         on_delete=PROTECT,
     )
-    updated_at: DateTimeField[Never, Never] = DateTimeField(
+    updated_at = DateTimeField(
         auto_now=True,
         help_text="The date and time at which the transaction was last updated.",
     )
-    deleted_at: DateTimeField[Never, Never] = DateTimeField(
+    deleted_at = DateTimeField(
         null=True,
         blank=True,
         default=None,
         help_text="Set when the record is soft-deleted. NULL means active.",
     )
-    deleted_by: ForeignKey[BorrowdUser] = ForeignKey(
+    deleted_by = ForeignKey(
         BorrowdUser,
         null=True,
         blank=True,
@@ -993,33 +983,33 @@ class AvailabilitySubscriptionStatus(IntegerChoices):
 
 
 class AvailabilitySubscription(Model):
-    item: ForeignKey["Item"] = ForeignKey(
+    item = ForeignKey(
         to="Item",
         on_delete=PROTECT,
         related_name="subscriptions",
         help_text="The Item which is the subject of the Subscription.",
     )
-    user: ForeignKey[BorrowdUser] = ForeignKey(
+    user = ForeignKey(
         to=BorrowdUser,
         on_delete=PROTECT,
         related_name="+",  # No reverse relation needed
         help_text="The User who is subscribed to the Item.",
     )
-    status: IntegerField[AvailabilitySubscriptionStatus, int] = IntegerField(
+    status = IntegerField(
         choices=AvailabilitySubscriptionStatus.choices,
         default=AvailabilitySubscriptionStatus.ACTIVE,
         help_text="The current status of the Subscription.",
     )
-    created_at: DateTimeField[Never, Never] = DateTimeField(
+    created_at = DateTimeField(
         auto_now_add=True,
         help_text="When this Subscription was created.",
     )
-    notified_at: DateTimeField[Optional[str], Optional[str]] = DateTimeField(
+    notified_at = DateTimeField(
         null=True,
         blank=True,
         help_text="When the user was notified that the item became available.",
     )
-    language: CharField[str, str] = CharField(
+    language = CharField(
         max_length=10,
         null=False,
         blank=False,
