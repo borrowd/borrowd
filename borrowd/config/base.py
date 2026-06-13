@@ -15,9 +15,14 @@ import sys
 from pathlib import Path
 from typing import cast
 
+import django_stubs_ext
 from django.urls import reverse_lazy
 
 from borrowd.config.env import env
+
+# Make Django classes that django-stubs types as generic (CBVs, fields,
+# ModelForm, etc.) subscriptable at runtime so annotations can use them.
+django_stubs_ext.monkeypatch()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -288,47 +293,3 @@ if IS_RUNNING_MANAGE_PY_TESTS:
     }
 
 SENTRY_DSN = "https://ba24455003326bec7fc90b49af2d5c27@o4510502108594176.ingest.us.sentry.io/4510660596137984"
-
-#
-# Shim for mypy to play nice with certain generic types
-#
-from django.db.models import (  # noqa: E402
-    BooleanField,
-    CharField,
-    DateTimeField,
-    ForeignKey,
-    IntegerField,
-    ManyToManyField,
-    TextField,
-)
-from django.db.models.manager import BaseManager  # noqa: E402
-from django.db.models.query import QuerySet  # noqa: E402
-from django.forms import ModelForm  # noqa: E402
-from django.views.generic import (  # noqa: E402
-    CreateView,
-    DeleteView,
-    DetailView,
-    ListView,
-    UpdateView,
-)
-
-# NOTE: there are probably other items you'll need to monkey patch depending on
-# your version.
-for cls in [
-    BaseManager,
-    BooleanField,
-    CharField,
-    CreateView,
-    DateTimeField,
-    DeleteView,
-    DetailView,
-    ForeignKey,
-    IntegerField,
-    ListView,
-    ManyToManyField,
-    ModelForm,
-    QuerySet,
-    TextField,
-    UpdateView,
-]:
-    cls.__class_getitem__ = classmethod(lambda cls, *args, **kwargs: cls)  # type: ignore [attr-defined]
