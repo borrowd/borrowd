@@ -1,4 +1,4 @@
-from django.contrib.auth.models import PermissionsMixin
+from django.contrib.auth.models import Group, PermissionsMixin
 from django.db.models import ManyToManyField
 
 
@@ -6,7 +6,12 @@ class BorrowdGroupPermissionMixin(PermissionsMixin):
     # As documented at:
     # https://django-guardian.readthedocs.io/en/latest/userguide/custom-group-model/
     # Note this is pre-release functionality, but... we need it!
-    groups = ManyToManyField(
+    #
+    # NOTE: this field is currently inert: AbstractUser comes first in
+    # BorrowdUser's MRO, so its auth.Group-targeting field wins (see the
+    # borrowd_users 0001 migration). The annotation reflects that runtime
+    # reality, which call sites like user.groups.add(perms_group) rely on.
+    groups: ManyToManyField[Group, Group] = ManyToManyField(
         "BorrowdGroup",
         verbose_name=("groups"),
         blank=True,
@@ -18,6 +23,5 @@ class BorrowdGroupPermissionMixin(PermissionsMixin):
         related_query_name="user",
     )
 
-    # No typing for django-guardian, so mypy doesn't like us subclassing.
-    class Meta(PermissionsMixin.Meta):  # type: ignore[name-defined,misc]
+    class Meta(PermissionsMixin.Meta):
         abstract = True

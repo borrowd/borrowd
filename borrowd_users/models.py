@@ -1,18 +1,22 @@
 from datetime import datetime
-from typing import Never, Self
+from typing import TYPE_CHECKING, Never, Self
 from urllib.parse import quote
 
 from django.contrib.auth.models import AbstractUser
 from django.db import models
-from django.db.models import DO_NOTHING, SET_NULL, DateTimeField, ForeignKey
+from django.db.models import DO_NOTHING, SET_NULL, DateTimeField, ForeignKey, QuerySet
 from guardian.mixins import GuardianUserMixin
 from imagekit.models import ProcessedImageField
 from imagekit.processors import ResizeToFit
 
 from borrowd_groups.mixins import BorrowdGroupPermissionMixin
 
+if TYPE_CHECKING:
+    from borrowd_groups.models import BorrowdGroup
 
-# No typing for django-guardian, so mypy doesn't like us subclassing.
+
+# AbstractUser and BorrowdGroupPermissionMixin both define Meta, which mypy
+# flags as incompatible bases.
 class BorrowdUser(AbstractUser, BorrowdGroupPermissionMixin, GuardianUserMixin):  # type: ignore[misc]
     """
     Borrow'd's custom user model, extending Django's AbstractUser.
@@ -68,8 +72,9 @@ class BorrowdUser(AbstractUser, BorrowdGroupPermissionMixin, GuardianUserMixin):
         help_text="Who performed the soft-delete. NULL means active or unknown.",
     )
 
-    # Hint for mypy (actual field created from reverse relation)
+    # Hints for mypy (actual fields created from reverse relations)
     profile: "Profile"
+    borrowd_groups: "QuerySet[BorrowdGroup]"
 
 
 class Profile(models.Model):

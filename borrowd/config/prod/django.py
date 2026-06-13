@@ -1,7 +1,7 @@
 import os
 
 # for some unknown reason, pre-commit cannot find sentry_sdk
-import sentry_sdk  # type: ignore[import-not-found]
+import sentry_sdk
 from environ import ImproperlyConfigured
 
 from borrowd.util import decode

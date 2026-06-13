@@ -3,7 +3,7 @@ from django.http import Http404
 from guardian.mixins import PermissionRequiredMixin
 
 
-class LoginOr404PermissionMixin(PermissionRequiredMixin):  # type: ignore[misc]
+class LoginOr404PermissionMixin(PermissionRequiredMixin):
     """
     Anonymous users → redirect to login
     Authenticated users without permission → 404
@@ -16,7 +16,7 @@ class LoginOr404PermissionMixin(PermissionRequiredMixin):  # type: ignore[misc]
         raise Http404
 
 
-class LoginOr403PermissionMixin(PermissionRequiredMixin):  # type: ignore[misc]
+class LoginOr403PermissionMixin(PermissionRequiredMixin):
     """
     Anonymous users → redirect to login
     Authenticated users without permission → 403
