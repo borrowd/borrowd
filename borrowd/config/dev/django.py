@@ -1,4 +1,5 @@
-import sentry_sdk
+# for some unknown reason, pre-commit cannot find sentry_sdk
+import sentry_sdk  # type: ignore[import-not-found]
 
 from borrowd.config.env import env
 

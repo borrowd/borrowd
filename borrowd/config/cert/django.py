@@ -1,6 +1,7 @@
 import os
 
-import sentry_sdk
+# for some reason, pre-commit cannot find sentry_sdk
+import sentry_sdk  # type: ignore[import-not-found]
 from environ import ImproperlyConfigured
 
 from borrowd.util import decode, get_platformsh_base_url
