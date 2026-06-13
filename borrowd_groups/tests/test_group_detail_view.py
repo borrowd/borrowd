@@ -27,7 +27,7 @@ class GroupDetailViewTests(TestCase):
         owner = self.owner
 
         ## Create Group
-        group = BorrowdGroup.objects.create(
+        group = BorrowdGroup.objects.create_group(
             name="Test Group",
             created_by=owner,
             updated_by=owner,
@@ -58,7 +58,7 @@ class GroupDetailViewTests(TestCase):
         another = self.member
 
         ## Create Group
-        group = BorrowdGroup.objects.create(
+        group = BorrowdGroup.objects.create_group(
             name="Test Group",
             created_by=owner,
             updated_by=owner,
@@ -86,7 +86,7 @@ class GroupDetailViewTests(TestCase):
         owner = self.owner
 
         ## Create Group
-        group = BorrowdGroup.objects.create(
+        group = BorrowdGroup.objects.create_group(
             name="Test Group",
             created_by=owner,
             updated_by=owner,

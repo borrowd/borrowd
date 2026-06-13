@@ -32,6 +32,7 @@ from borrowd_permissions.mixins import (
 )
 from borrowd_permissions.models import BorrowdGroupOLP
 from borrowd_users.models import BorrowdUser, SearchTarget, SearchTerm
+from borrowd_users.request import get_authenticated_user
 
 from .exceptions import ModeratorRequiredException
 from .filters import GroupFilter
@@ -223,7 +224,7 @@ class GroupCreateView(
 
     def form_valid(self, form: GroupCreateForm) -> HttpResponse:
         if self.request.user.is_authenticated:
-            form.instance.created_by_id = form.instance.updated_by_id = (  # type: ignore[attr-defined]
+            form.instance.created_by_id = form.instance.updated_by_id = (
                 self.request.user.pk
             )
 
@@ -398,7 +399,7 @@ class GroupJoinView(LoginRequiredMixin, View):
 
         # Check if the user already has a membership record
         existing_membership = Membership.objects.filter(
-            user=self.request.user, group=group
+            user=get_authenticated_user(self.request), group=group
         ).first()
         if existing_membership:
             if existing_membership.status == MembershipStatus.PENDING:
@@ -478,7 +479,7 @@ def get_memberships_with_pending_actions(memberships: list[Membership]) -> set[i
     Only groups where the user is a moderator are considered, and only groups
     that actually have at least one PENDING membership are returned.
     """
-    moderator_group_ids = [m.group_id for m in memberships if m.is_moderator]  # type: ignore[attr-defined]
+    moderator_group_ids = [m.group_id for m in memberships if m.is_moderator]
     if not moderator_group_ids:
         return set()
     return set(
@@ -548,7 +549,7 @@ class GroupUpdateView(
 
     def form_valid(self, form: GroupUpdateForm) -> HttpResponse:
         if self.request.user.is_authenticated:
-            form.instance.updated_by_id = self.request.user.pk  # type: ignore[attr-defined]
+            form.instance.updated_by_id = self.request.user.pk
         return super().form_valid(form)
 
     def form_invalid(self, form: GroupUpdateForm) -> HttpResponse:
@@ -579,7 +580,9 @@ class UpdateTrustLevelView(LoginRequiredMixin, View):
             return redirect("borrowd_groups:group-list")
 
         try:
-            membership = Membership.objects.get(user=request.user, group=group)
+            membership = Membership.objects.get(
+                user=get_authenticated_user(request), group=group
+            )
         except Membership.DoesNotExist:
             messages.error(request, "You are not a member of this group.")
             return redirect("borrowd_groups:group-detail", pk=pk)
@@ -618,7 +621,7 @@ class RemoveMemberView(LoginRequiredMixin, View):
 
         # Check if the requesting user is a moderator
         is_moderator = Membership.objects.filter(
-            user=request.user, group=group, is_moderator=True
+            user=get_authenticated_user(request), group=group, is_moderator=True
         ).exists()
 
         if not is_moderator:
@@ -665,7 +668,7 @@ class ApproveMemberView(LoginRequiredMixin, View):
 
         # Only moderators can approve
         if not Membership.objects.filter(
-            user=request.user,
+            user=get_authenticated_user(request),
             group=membership.group,
             is_moderator=True,
             status=MembershipStatus.ACTIVE,
@@ -690,7 +693,7 @@ class DenyMemberView(LoginRequiredMixin, View):
 
         # Only moderators can deny
         if not Membership.objects.filter(
-            user=request.user,
+            user=get_authenticated_user(request),
             group=membership.group,
             is_moderator=True,
             status=MembershipStatus.ACTIVE,

@@ -375,7 +375,7 @@ class AccountDeletionGroupTests(TestCase):
         self.other = _make_user("groupother")
 
     def _group(self, creator: BorrowdUser, name: str) -> BorrowdGroup:
-        return BorrowdGroup.objects.create(
+        return BorrowdGroup.objects.create_group(
             name=name,
             created_by=creator,
             updated_by=creator,
@@ -498,7 +498,7 @@ class PublicProfileAfterDeletionTests(TestCase):
         self.subject = _make_user("subject")
         # Put them in a shared group so the viewer is normally allowed to see
         # the subject's public profile.
-        group = BorrowdGroup.objects.create(
+        group = BorrowdGroup.objects.create_group(
             name="Shared",
             created_by=self.viewer,
             updated_by=self.viewer,

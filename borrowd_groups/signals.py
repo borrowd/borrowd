@@ -43,15 +43,20 @@ def maintain_perms_group_on_borrowd_group_change(
 
     # on update, make sure that the names still match
     else:
-        perms_group = instance.perms_group
+        linked_perms_group = instance.perms_group
+        if linked_perms_group is None:
+            # This should never happen, but just in case...
+            raise ValueError(
+                "This BorrowdGroup has no perms_group; cannot sync its name."
+            )
         creator = instance.created_by
         perms_group_name = compute_per_group_unique_name(
             instance.name,
             creator.pk,
         )
-        if perms_group.name != perms_group_name:
-            perms_group.name = perms_group_name
-            perms_group.save()
+        if linked_perms_group.name != perms_group_name:
+            linked_perms_group.name = perms_group_name
+            linked_perms_group.save()
 
 
 @receiver(pre_delete, sender=BorrowdGroup)
@@ -62,7 +67,12 @@ def stash_perms_group_for_cleanup(
     Keep track of the linked auth Group so it can be deleted once the
     BorrowdGroup cascade has completed.
     """
-    setattr(instance, "_perms_group_id_for_cleanup", instance.perms_group.pk)
+    perms_group = instance.perms_group
+    setattr(
+        instance,
+        "_perms_group_id_for_cleanup",
+        perms_group.pk if perms_group is not None else None,
+    )
 
 
 @receiver(post_delete, sender=BorrowdGroup)

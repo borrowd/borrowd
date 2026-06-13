@@ -17,7 +17,7 @@ def forwards_func(apps, schema_editor):  # type: ignore[no-untyped-def]
                 name=f"{borrowd_group.name}_user_{borrowd_group.created_by.pk}"
             )
             # must use ids here because django complains with an internally inconsistent error
-            borrowd_group.perms_group_id = perms_group.id  # type: ignore[attr-defined]
+            borrowd_group.perms_group_id = perms_group.id
             borrowd_group.save()
         except Group.DoesNotExist:
             logger.warning(
