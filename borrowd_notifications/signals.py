@@ -127,6 +127,32 @@ def send_transaction_notifications(
                 target=instance,
                 description="Borrow'd item returned",
             )
+        case TransactionStatus.RETURN_REQUESTED:
+            notify.send(
+                instance.party1,
+                recipient=[instance.party2],
+                verb=NotificationType.ITEM_RETURN_REQUESTED.value,
+                action_object=instance.item,
+                target=instance,
+                description="Return requested",
+            )
+        case TransactionStatus.DISPUTED:
+            # The party who raised the dispute notifies the other one.
+            if instance.dispute_raised_by is None:
+                return
+            recipient = (
+                instance.party1
+                if instance.dispute_raised_by == instance.party2
+                else instance.party2
+            )
+            notify.send(
+                instance.dispute_raised_by,
+                recipient=[recipient],
+                verb=NotificationType.ITEM_DISPUTED.value,
+                action_object=instance.item,
+                target=instance,
+                description="A dispute has been raised",
+            )
 
 
 @receiver(post_save, sender=Membership)

@@ -26,6 +26,8 @@ class NotificationType(Enum):
         "Item subscription"  # When a user subscribes to notifications for an item
     )
     ITEM_RETURNED = "Item returned"
+    ITEM_RETURN_REQUESTED = "Item return requested"
+    ITEM_DISPUTED = "Item disputed"
     GROUP_MEMBER_JOINED = "Change to group membership"
     GROUP_NEEDS_MODERATOR = "Group needs moderator"  # When moderator leaves group
     REQUEST_CANCELLED_BORROWER_LEFT = "Request cancelled - borrower left"  # When borrower closes account with an open request
@@ -64,6 +66,8 @@ class NotificationService:
     @staticmethod
     def _get_template_context_for(notification: Notification) -> Dict[str, Any]:
         """Extract context from the notification's action_object."""
+        # attr-defined ignores: ForeignKey[X] annotations hide related-model attrs from mypy
+        # TODO: adopt two-arg ForeignKey[X, X] annotations repo-wide and drop these ignores
         context = {}
         if notification.verb in (
             NotificationType.REQUEST_CANCELLED_BORROWER_LEFT.value,
@@ -108,6 +112,22 @@ class NotificationService:
                         {
                             "item_owner_name": transaction.party1.profile.full_name(),  # type: ignore[attr-defined]
                             "requester_name": transaction.party2.profile.full_name(),  # type: ignore[attr-defined]
+                            "item_name": transaction.item.name,  # type: ignore[attr-defined]
+                        }
+                    )
+                case TransactionStatus.RETURN_REQUESTED:
+                    context.update(
+                        {
+                            "borrower_name": transaction.party2.profile.full_name(),  # type: ignore[attr-defined]
+                            "item_name": transaction.item.name,  # type: ignore[attr-defined]
+                            "inventory_url": settings.BASE_URL
+                            + reverse("profile-inventory"),
+                        }
+                    )
+                case TransactionStatus.DISPUTED:
+                    context.update(
+                        {
+                            "recipient_name": notification.recipient.profile.full_name(),
                             "item_name": transaction.item.name,  # type: ignore[attr-defined]
                         }
                     )
