@@ -91,7 +91,65 @@ class AppNotificationStrategy(NotificationStrategy):
 
 class PUSHNotificationStrategy(NotificationStrategy):
     def send(self, payload: NotificationPayload) -> None:
-        # Push delivery is not yet implemented; intentionally a no-op so the
-        # audit trail on the notification row never shows a false SUCCESS.
-        # Will be implemented in a different PR
-        pass
+        import json
+
+        from django.conf import settings
+        from pywebpush import (
+            WebPushException,
+            webpush,
+        )
+
+        from borrowd_notifications.models import PushSubscription
+
+        subscriptions = list(
+            PushSubscription.objects.filter(user=payload.notification.recipient)
+        )
+        if not subscriptions:
+            payload.data._success(channel=ChannelType.PUSH)
+            return
+
+        context = payload.data.context
+        try:
+            body = payload.notification_type.message_template.format(**context)
+        except KeyError:
+            body = payload.notification_type.label
+
+        base_url = settings.BASE_URL.rstrip("/")
+        push_data = json.dumps(
+            {
+                "title": "Borrow'd",
+                "body": body,
+                "icon": f"{base_url}/static/icon.svg",
+                "url": (
+                    context.get("respond_url")
+                    or context.get("item_url")
+                    or context.get("group_url")
+                    or f"{base_url}/notifications/"
+                ),
+            }
+        )
+
+        errors: list[str] = []
+        for sub in subscriptions:
+            try:
+                print("Atempting push in channels")
+
+                webpush(
+                    subscription_info={
+                        "endpoint": sub.endpoint,
+                        "keys": {"p256dh": sub.p256dh, "auth": sub.auth},
+                    },
+                    data=push_data,
+                    vapid_private_key=settings.VAPID_PRIVATE_KEY,
+                    vapid_claims={"sub": f"mailto:{settings.VAPID_ADMIN_EMAIL}"},
+                )
+                print(f"Private key: {settings.VAPID_PRIVATE_KEY}")
+            except WebPushException as exc:
+                errors.append(str(exc))
+                if exc.response is not None and exc.response.status_code in (404, 410):
+                    sub.delete()
+
+        if errors:
+            payload.data._error(channel=ChannelType.PUSH, error="; ".join(errors))
+        else:
+            payload.data._success(channel=ChannelType.PUSH)

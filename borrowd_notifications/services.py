@@ -77,6 +77,12 @@ class NotificationService:
             pref = NotificationPreference.objects.get(
                 user=user, notification_type=notification_type.value
             )
+            if notification_type in NotificationType.mandatory_types():
+                return (
+                    {ChannelType.APP, ChannelType.EMAIL, ChannelType.PUSH}
+                    if pref.push_enabled
+                    else {ChannelType.APP, ChannelType.EMAIL}
+                )
         except NotificationPreference.DoesNotExist:
             NotificationPreference.objects.create(
                 user=user,

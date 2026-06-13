@@ -120,6 +120,7 @@
                         channel,
                         enabled: enabled ? 'true' : 'false',
                     });
+                    if (channel === 'PUSH' && enabled) this._ensurePushSubscribed();
                 },
 
                 bulkToggle(scope, channel, field, enabled) {
@@ -136,27 +137,53 @@
                         channel,
                         enabled: enabled ? 'true' : 'false',
                     });
+                    if (channel === 'PUSH' && enabled) this._ensurePushSubscribed();
                 },
 
                 masterEnabled(field) {
-                    return field !== "push" ?
-                    Object.values(this.prefs)
-                        .filter(p => !p.is_mandatory)
-                        .some(p => p[field])
-                        :
-                    Object.values(this.prefs)
-                        .some(p => p[field]);
+                    return field !== 'push'
+                        ? Object.values(this.prefs).filter(p => !p.is_mandatory).some(p => p[field])
+                        : Object.values(this.prefs).some(p => p[field]);
                 },
 
                 categoryEnabled(slug, field) {
-                    const relevant =
-                        field!=="push" ?
-                            Object.values(this.prefs)
-                                .filter(p => p.category === slug && !p.is_mandatory )
-                            :
-                            Object.values(this.prefs)
-                                .filter(p => p.category === slug);
+                    const relevant = field !== 'push'
+                        ? Object.values(this.prefs).filter(p => p.category === slug && !p.is_mandatory)
+                        : Object.values(this.prefs).filter(p => p.category === slug);
                     return relevant.length === 0 || relevant.some(p => p[field]);
+                },
+
+                async _ensurePushSubscribed() {
+                    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+                    try {
+                        const reg = await navigator.serviceWorker.register('/static/js/sw.js');
+                        let sub = await reg.pushManager.getSubscription();
+                        if (!sub) {
+                            const permission = await Notification.requestPermission();
+                            if (permission !== 'granted') return;
+                            sub = await reg.pushManager.subscribe({
+                                userVisibleOnly: true,
+                                applicationServerKey: this._urlBase64ToUint8Array('{{ vapid_public_key }}'),
+                            });
+                            await fetch('{% url "push-subscribe" %}', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-CSRFToken': '{{ csrf_token }}',
+                                },
+                                body: JSON.stringify(sub.toJSON()),
+                            });
+                        }
+                    } catch (e) {
+                        console.error('Push subscription failed:', e);
+                    }
+                },
+
+                _urlBase64ToUint8Array(base64String) {
+                    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+                    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+                    const rawData = atob(base64);
+                    return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
                 },
 
                 _persist(url, data) {
