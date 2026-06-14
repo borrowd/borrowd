@@ -41,6 +41,11 @@ NOTIFICATION_CATEGORIES: list[dict[str, Any]] = [
         "name": "Group & Membership",
         "slug": "membership",
         "types": [
+            (
+                NotificationType.GROUP_MEMBER_JOINED,
+                "A member joined a group you're part of",
+            ),
+            (NotificationType.GROUP_NEEDS_MODERATOR, "Group needs moderator"),
             (NotificationType.MEMBERSHIP_PENDING, "New member join request"),
             (NotificationType.MEMBERSHIP_APPROVED, "Membership approved"),
         ],
