@@ -207,8 +207,8 @@ class NotificationType(models.TextChoices):
                     {
                         "subscriber_name": subscription.user.profile.full_name(),  # type: ignore[attr-defined]
                         "item_name": subscription.item.name,  # type: ignore[attr-defined]
-                        "item_url": f"{base_url}/items/{subscription.item}"
-                        + reverse("item-detail", args=[subscription.item]),
+                        "item_url": base_url
+                        + reverse("item-detail", args=[subscription.item.pk]),  # type: ignore[attr-defined]
                     }
                 )
             elif notification.verb == NotificationType.ITEM_NOTIFY_WHEN_AVAILABLE.value:
@@ -216,8 +216,8 @@ class NotificationType(models.TextChoices):
                     {
                         "subscriber_name": subscription.user.profile.full_name(),  # type: ignore[attr-defined]
                         "item_name": subscription.item.name,  # type: ignore[attr-defined]
-                        "item_url": f"{base_url}/items/{subscription.item}"
-                        + reverse("item-detail", args=[subscription.item]),
+                        "item_url": base_url
+                        + reverse("item-detail", args=[subscription.item.pk]),  # type: ignore[attr-defined]
                     }
                 )
         return context
