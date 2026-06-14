@@ -94,11 +94,15 @@ skills-lock.json
 .claude/settings.local.json
 .claude/qa_notes.md
 
+# IDEs
+.idea/
+
 # macOS
 .DS_Store
 
 # E2E tests #
 e2e_tests/tests/.auth
+e2e_tests/playwright/
 e2e_tests/allure-results/
 e2e_tests/allure-report/
 e2e_tests/test-results/
