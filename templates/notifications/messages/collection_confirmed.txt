@@ -1,0 +1,7 @@
+Hi {{ requester_name }},
+
+{{ item_owner_name }} has confirmed that you collected {{ item_name }}. Enjoy!
+
+When you're done, remember to mark it as returned on Borrow'd so {{ item_owner_name }} can confirm it's back.
+
+The Borrow'd team

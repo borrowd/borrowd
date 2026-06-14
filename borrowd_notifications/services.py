@@ -1,156 +1,151 @@
-from enum import Enum
-from typing import Any, Dict
+import logging
+from datetime import timedelta
+from typing import Type
 
-from django.conf import settings
-from django.core.mail import send_mail
-from django.template.loader import render_to_string
-from django.urls import reverse
+import sentry_sdk  # type: ignore[import-not-found]
+from django.utils import timezone
 from notifications.models import Notification
 
-from borrowd_groups.models import BorrowdGroup, Membership
-from borrowd_items.models import (
-    AvailabilitySubscription,
-    Transaction,
-    TransactionStatus,
+from borrowd_notifications.channels import (
+    AppNotificationStrategy,
+    EmailNotificationStrategy,
+    NotificationPayload,
+    NotificationStrategy,
+    PUSHNotificationStrategy,
 )
+from borrowd_notifications.models import (
+    ChannelType,
+    NotificationPreference,
+    NotificationState,
+    NotificationType,
+)
+from borrowd_users.models import BorrowdUser
 
+logger = logging.getLogger(__name__)
 
-class NotificationType(Enum):
-    ITEM_REQUESTED = "Item requested"
-    ITEM_REQUEST_ACCEPTED = "Item request accepted"
-    ITEM_REQUEST_DENIED = "Item request denied"
-    ITEM_NOTIFY_WHEN_AVAILABLE = (
-        "Item notify when available"  # When the item becomes available
-    )
-    ITEM_SUBSCRIPTION = (
-        "Item subscription"  # When a user subscribes to notifications for an item
-    )
-    ITEM_RETURNED = "Item returned"
-    GROUP_MEMBER_JOINED = "Change to group membership"
-    GROUP_NEEDS_MODERATOR = "Group needs moderator"  # When moderator leaves group
-    REQUEST_CANCELLED_BORROWER_LEFT = "Request cancelled - borrower left"  # When borrower closes account with an open request
-    REQUEST_CANCELLED_OWNER_LEFT = "Request cancelled - owner left"  # When owner closes account with an open request
-    LOAN_ENDED_OWNER_LEFT = (
-        "Loan ended - owner left"  # When owner closes account with an active loan
-    )
-
-    @property
-    def template_name(self) -> str:
-        return self.name.lower()
+_DEDUP_WINDOW = timedelta(minutes=10)
+_EMAIL_HOURLY_LIMIT = 10
+_SUMMARY_DIGEST_DELAY = timedelta(hours=1)
 
 
 class NotificationService:
-    """Service for sending notifications."""
+    _backends: dict[ChannelType, Type[NotificationStrategy]] = {
+        ChannelType.APP: AppNotificationStrategy,
+        ChannelType.EMAIL: EmailNotificationStrategy,
+        ChannelType.PUSH: PUSHNotificationStrategy,
+    }
+
+    @classmethod
+    def _get_backend(cls, channel: ChannelType) -> NotificationStrategy:
+        try:
+            backend_cls = cls._backends[channel]
+        except KeyError:
+            raise ValueError(f"Unknown notification backend: {channel}")
+        return backend_cls()
 
     @staticmethod
-    def send_email_notification(
-        notification: Notification,
-    ) -> None:
-        """Send an email notification."""
-        template_name = NotificationType(notification.verb).template_name
-        context = NotificationService._get_template_context_for(notification)
-        html_message = render_to_string(f"notifications/{template_name}.html", context)
-        text_message = render_to_string(f"notifications/{template_name}.txt", context)
+    def _get_enabled_channels(
+        user: BorrowdUser, notification_type: NotificationType
+    ) -> set[ChannelType]:
+        try:
+            pref = NotificationPreference.objects.get(
+                user=user, notification_type=notification_type.value
+            )
+            if notification_type in NotificationType.mandatory_types():
+                return (
+                    {ChannelType.APP, ChannelType.EMAIL, ChannelType.PUSH}
+                    if pref.push_enabled
+                    else {ChannelType.APP, ChannelType.EMAIL}
+                )
+        except NotificationPreference.DoesNotExist:
+            return set()
 
-        send_mail(
-            subject=notification.description,
-            message=text_message,
-            html_message=html_message,
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[notification.recipient.email],
-            fail_silently=False,
+        channels: set[ChannelType] = set()
+        if pref.in_app_enabled:
+            channels.add(ChannelType.APP)
+        if pref.email_enabled:
+            channels.add(ChannelType.EMAIL)
+        if pref.push_enabled:
+            channels.add(ChannelType.PUSH)
+        return channels
+
+    @staticmethod
+    def _is_duplicate(notification: Notification) -> bool:
+        return bool(
+            Notification.objects.filter(
+                actor_content_type=notification.actor_content_type,
+                actor_object_id=notification.actor_object_id,
+                recipient=notification.recipient,
+                verb=notification.verb,
+                target_content_type=notification.target_content_type,
+                target_object_id=notification.target_object_id,
+                timestamp__gte=timezone.now() - _DEDUP_WINDOW,
+            )
+            .exclude(pk=notification.pk)
+            .exists()
         )
 
     @staticmethod
-    def _get_template_context_for(notification: Notification) -> Dict[str, Any]:
-        """Extract context from the notification's action_object."""
-        context = {}
-        if notification.verb in (
-            NotificationType.REQUEST_CANCELLED_BORROWER_LEFT.value,
-            NotificationType.REQUEST_CANCELLED_OWNER_LEFT.value,
-            NotificationType.LOAN_ENDED_OWNER_LEFT.value,
-        ) and isinstance(notification.target, Transaction):
-            return {
-                "recipient_name": notification.recipient.profile.full_name(),
-                "item_name": notification.target.item.name,  # type: ignore[attr-defined]
-            }
-        if isinstance(notification.target, Transaction):
-            transaction: Transaction = notification.target
-            match transaction.status:
-                case TransactionStatus.REQUESTED:
-                    context.update(
-                        {
-                            "requester_name": transaction.party2.profile.full_name(),  # type: ignore[attr-defined]
-                            "item_name": transaction.item.name,  # type: ignore[attr-defined]
-                            "item_owner_name": transaction.party1.profile.full_name(),  # type: ignore[attr-defined]
-                            "respond_url": settings.BASE_URL
-                            + reverse("item-detail", args=[transaction.item.pk]),  # type: ignore[attr-defined]
-                        }
-                    )
-                case TransactionStatus.ACCEPTED:
-                    context.update(
-                        {
-                            "requester_name": transaction.party2.profile.full_name(),  # type: ignore[attr-defined]
-                            "item_name": transaction.item.name,  # type: ignore[attr-defined]
-                            "item_owner_name": transaction.party1.profile.full_name(),  # type: ignore[attr-defined]
-                            "item_owner_email": transaction.party1.email,  # type: ignore[attr-defined]
-                        }
-                    )
-                case TransactionStatus.REJECTED:
-                    context.update(
-                        {
-                            "requester_name": transaction.party2.profile.full_name(),  # type: ignore[attr-defined]
-                            "item_name": transaction.item.name,  # type: ignore[attr-defined]
-                        }
-                    )
-                case TransactionStatus.RETURNED:
-                    context.update(
-                        {
-                            "item_owner_name": transaction.party1.profile.full_name(),  # type: ignore[attr-defined]
-                            "requester_name": transaction.party2.profile.full_name(),  # type: ignore[attr-defined]
-                            "item_name": transaction.item.name,  # type: ignore[attr-defined]
-                        }
-                    )
-        elif isinstance(notification.target, BorrowdGroup):
-            if notification.verb == NotificationType.GROUP_NEEDS_MODERATOR.value:
-                context.update(
-                    {
-                        "group_member_name": notification.recipient.profile.full_name(),
-                        "group_name": notification.target.name,
-                        "group_url": settings.BASE_URL
-                        + reverse(
-                            "borrowd_groups:group-detail", args=[notification.target.pk]
-                        ),
-                    }
-                )
-            else:
-                membership: Membership = notification.action_object
-                context.update(
-                    {
-                        "group_member_name": notification.recipient.profile.full_name(),
-                        "new_member_name": membership.user.profile.full_name(),  # type: ignore[attr-defined]
-                        "group_name": membership.group.name,  # type: ignore[attr-defined]
-                    }
-                )
-        elif isinstance(notification.target, AvailabilitySubscription):
-            subscription: AvailabilitySubscription = notification.target
+    def _is_email_throttled(recipient: BorrowdUser) -> bool:
+        return bool(
+            Notification.objects.filter(
+                recipient=recipient,
+                emailed=True,
+                timestamp__gte=timezone.now() - timedelta(hours=1),
+            ).count()
+            >= _EMAIL_HOURLY_LIMIT
+        )
 
-            if notification.verb == NotificationType.ITEM_SUBSCRIPTION.value:
-                context.update(
-                    {
-                        "subscriber_name": subscription.user.profile.full_name(),  # type: ignore[attr-defined]
-                        "item_name": subscription.item.name,  # type: ignore[attr-defined]
-                        "item_url": settings.BASE_URL
-                        + reverse("item-detail", args=[subscription.item.pk]),  # type: ignore[attr-defined]
-                    }
+    @staticmethod
+    def _schedule_summary_digest(recipient: BorrowdUser) -> dict[str, object]:
+        return {
+            "recipient_id": recipient.pk,
+            "scheduled_for": (timezone.now() + _SUMMARY_DIGEST_DELAY).isoformat(),
+            "status": NotificationState.PENDING.value,
+        }
+
+    @classmethod
+    def send_notification(cls, notification: Notification) -> None:
+        if notification.actor == notification.recipient:
+            return
+
+        if cls._is_duplicate(notification):
+            return
+
+        try:
+            notification_type = NotificationType(notification.verb)
+        except ValueError:
+            logger.warning("Unknown notification verb: %s", notification.verb)
+            return
+
+        channels = cls._get_enabled_channels(notification.recipient, notification_type)
+        summary_digest: dict[str, object] | None = None
+
+        if ChannelType.EMAIL in channels and cls._is_email_throttled(
+            notification.recipient
+        ):
+            channels.discard(ChannelType.EMAIL)
+            summary_digest = cls._schedule_summary_digest(notification.recipient)
+
+        if not channels:
+            if summary_digest is not None:
+                Notification.objects.filter(pk=notification.pk).update(
+                    data={"summary_digest": summary_digest}
                 )
-            elif notification.verb == NotificationType.ITEM_NOTIFY_WHEN_AVAILABLE.value:
-                context.update(
-                    {
-                        "subscriber_name": subscription.user.profile.full_name(),  # type: ignore[attr-defined]
-                        "item_name": subscription.item.name,  # type: ignore[attr-defined]
-                        "item_url": settings.BASE_URL
-                        + reverse("item-detail", args=[subscription.item.pk]),  # type: ignore[attr-defined]
-                    }
-                )
-        return context
+            return
+
+        payload = NotificationPayload.from_notification(notification, channels)
+
+        for channel in channels:
+            try:
+                backend = cls._get_backend(channel)
+                backend.send(payload)
+            except Exception as exc:
+                sentry_sdk.capture_exception(exc)
+                payload.data._error(channel, str(exc))
+
+        data = payload.data.to_dict()
+        if summary_digest is not None:
+            data["summary_digest"] = summary_digest
+
+        Notification.objects.filter(pk=notification.pk).update(data=data)

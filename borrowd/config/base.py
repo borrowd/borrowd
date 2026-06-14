@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "django.contrib.humanize",
     "django_cotton",
     "borrowd",
     "borrowd_users",  # Must be above `allauth` to use our templates
@@ -193,6 +194,12 @@ IPWARE_META_PRECEDENCE_ORDER = (
 # Email
 
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+
+# Web Push (VAPID)
+# Generate keys once with: python -c "from py_vapid import Vapid; v=Vapid(); v.generate_keys(); print(v.private_key.decode()); print(v.public_key.decode())"
+VAPID_PRIVATE_KEY: str = env("VAPID_PRIVATE_KEY", default="")
+VAPID_PUBLIC_KEY: str = env("VAPID_PUBLIC_KEY", default="")
+VAPID_ADMIN_EMAIL: str = env("VAPID_ADMIN_EMAIL", default="")
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/

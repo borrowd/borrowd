@@ -25,7 +25,7 @@ from borrowd_items.models import (
     Transaction,
     TransactionStatus,
 )
-from borrowd_notifications.services import NotificationType
+from borrowd_notifications.models import NotificationType
 from borrowd_users.exceptions import AccountDeletionBlocked
 from borrowd_users.models import BorrowdUser
 from borrowd_users.services import soft_delete_account

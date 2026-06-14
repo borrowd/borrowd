@@ -26,7 +26,7 @@ from notifications.models import Notification
 from borrowd.models import TrustLevel
 from borrowd.util import BorrowdTemplateFinderMixin
 from borrowd_items.models import Transaction, TransactionStatus
-from borrowd_notifications.services import NotificationType
+from borrowd_notifications.models import NotificationType
 from borrowd_permissions.mixins import (
     LoginOr403PermissionMixin,
     LoginOr404PermissionMixin,

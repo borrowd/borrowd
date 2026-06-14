@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Never, Optional
+from typing import Never, Optional, cast
 
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
@@ -893,6 +893,15 @@ class Transaction(Model):
         related_name="+",
         help_text="Who performed the soft-delete. NULL means active or unknown.",
     )
+
+    def counter_party(self, user: BorrowdUser) -> BorrowdUser:
+        if user == self.party1:
+            return cast(BorrowdUser, self.party2)
+
+        if user == self.party2:
+            return cast(BorrowdUser, self.party1)
+
+        raise ValueError("User is not a party to this transaction.")
 
     def force_resolve(
         self, *, resolved_by: BorrowdUser, reason: ResolutionReason

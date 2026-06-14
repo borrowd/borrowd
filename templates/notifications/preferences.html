@@ -1,0 +1,282 @@
+{% extends "layouts/default.html" %}
+
+{% load i18n %}
+
+{% block head_title %}
+    {% trans "Notification settings" %}
+{% endblock %}
+
+{% block content %}
+    {{ prefs_json|json_script:"notification-prefs" }}
+
+    <div x-data="notificationPrefs()"
+         class="flex flex-col w-full max-w-2xl mx-auto px-4 py-4 gap-6">
+
+        <div class="flex flex-col gap-1">
+            <h1 class="text-xl font-semibold">
+                {% trans "Notification settings" %}
+            </h1>
+            <p class="text-sm text-base-content/60">
+                {% trans "Choose how you want to be notified." %}
+            </p>
+        </div>
+
+        {# ── Master toggles ──────────────────────────────────────────────── #}
+        <div class="card bg-primary-content rounded-md border border-gray-200 shadow-sm p-4">
+            <div class="flex items-center justify-between mb-3">
+                <p class="text-sm font-semibold">
+                    {% trans "All notifications" %}
+                </p>
+                <div class="flex items-center gap-6">
+                    <span class="text-xs text-base-content/50 font-medium">{% trans "In-app" %}</span>
+                    <span class="text-xs text-base-content/50 font-medium">{% trans "Email" %}</span>
+                    <span class="text-xs text-base-content/50 font-medium">{% trans "Push" %}</span>
+                </div>
+            </div>
+            <div class="flex items-center justify-between">
+                <p class="text-sm text-base-content/70">
+                    {% trans "Enable or disable all optional notifications" %}
+                </p>
+                <div class="flex items-center gap-6">
+                    <input type="checkbox"
+                           :checked="masterEnabled('in_app')"
+                           @change="bulkToggle('master', 'APP', 'in_app', $event.target.checked)"
+                           class="toggle toggle-primary toggle-sm">
+                    <input type="checkbox"
+                           :checked="masterEnabled('email')"
+                           @change="bulkToggle('master', 'EMAIL', 'email', $event.target.checked)"
+                           class="toggle toggle-primary toggle-sm">
+                    <input type="checkbox"
+                           :checked="masterEnabled('push')"
+                           @change="bulkToggle('master', 'PUSH', 'push', $event.target.checked)"
+                           class="toggle toggle-primary toggle-sm">
+                </div>
+            </div>
+        </div>
+
+        {# ── Category sections ────────────────────────────────────────────── #}
+        {% for category in categories %}
+            <div class="flex flex-col gap-2">
+                <div class="flex items-center justify-between px-1">
+                    <p class="text-xs font-semibold text-base-content">
+                        {{ category.name }}
+                    </p>
+                    <div class="flex items-center gap-6">
+                        <input type="checkbox"
+                               :checked="categoryEnabled('{{ category.slug }}', 'in_app')"
+                               @change="bulkToggle('{{ category.slug }}', 'APP', 'in_app', $event.target.checked)"
+                               class="toggle toggle-primary toggle-xs">
+                        <input type="checkbox"
+                               :checked="categoryEnabled('{{ category.slug }}', 'email')"
+                               @change="bulkToggle('{{ category.slug }}', 'EMAIL', 'email', $event.target.checked)"
+                               class="toggle toggle-primary toggle-xs">
+                        <input type="checkbox"
+                               :checked="categoryEnabled('{{ category.slug }}', 'push')"
+                               @change="bulkToggle('{{ category.slug }}', 'PUSH', 'push', $event.target.checked)"
+                               class="toggle toggle-primary toggle-xs">
+                    </div>
+                </div>
+
+                <div class="card bg-primary-content rounded-md border border-gray-200 shadow-sm divide-y divide-gray-100">
+                    {% for type in category.types %}
+                        <div class="flex items-center justify-between px-4 py-3">
+                            <div class="flex flex-col gap-0.5">
+                                <span class="text-sm">{{ type.label }}</span>
+                                {% if type.is_mandatory %}
+                                    <span class="text-xs text-base-content/40">
+                                        {% trans "Required for transaction handshakes" %}
+                                    </span>
+                                {% endif %}
+                            </div>
+                            <div class="flex items-center gap-6">
+                                {% if type.is_mandatory %}
+                                    <input type="checkbox"
+                                           checked
+                                           disabled
+                                           class="toggle toggle-primary toggle-sm opacity-40">
+                                    <input type="checkbox"
+                                           checked
+                                           disabled
+                                           class="toggle toggle-primary toggle-sm opacity-40">
+                                {% else %}
+                                    <input type="checkbox"
+                                           :checked="prefs['{{ type.type_value }}'].in_app"
+                                           @change="toggle('{{ type.type_value }}', 'APP', 'in_app', $event.target.checked)"
+                                           class="toggle toggle-primary toggle-sm">
+                                    <input type="checkbox"
+                                           :checked="prefs['{{ type.type_value }}'].email"
+                                           @change="toggle('{{ type.type_value }}', 'EMAIL', 'email', $event.target.checked)"
+                                           class="toggle toggle-primary toggle-sm">
+                                {% endif %}
+                                <input type="checkbox"
+                                       :checked="prefs['{{ type.type_value }}'].push"
+                                       @change="toggle('{{ type.type_value }}', 'PUSH', 'push', $event.target.checked)"
+                                       class="toggle toggle-primary toggle-sm">
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        {% endfor %}
+
+    </div>
+
+    <script>
+        function notificationPrefs() {
+            return {
+                prefs: JSON.parse(document.getElementById('notification-prefs').textContent),
+
+                init() {
+                    this._initPushPermissionState();
+                },
+
+                toggle(typeValue, channel, field, enabled) {
+                    this.prefs[typeValue][field] = enabled;
+                    this._persist('{% url "notification-toggle" %}', {
+                        notification_type: typeValue,
+                        channel,
+                        enabled: enabled ? 'true' : 'false',
+                    });
+                    if (channel === 'PUSH') {
+                        if (enabled) this._ensurePushSubscribed();
+                        else this._checkDropSubscription();
+                    }
+                },
+
+                bulkToggle(scope, channel, field, enabled) {
+                    for (const [type, pref] of Object.entries(this.prefs)) {
+                        if (
+                            (channel === 'PUSH' || !pref.is_mandatory) &&
+                            (scope === 'master' || pref.category === scope)
+                        ) {
+                            this.prefs[type][field] = enabled;
+                        }
+                    }
+                    this._persist('{% url "notification-bulk-toggle" %}', {
+                        scope,
+                        channel,
+                        enabled: enabled ? 'true' : 'false',
+                    });
+                    if (channel === 'PUSH') {
+                        if (enabled) this._ensurePushSubscribed();
+                        else this._checkDropSubscription();
+                    }
+                },
+
+                masterEnabled(field) {
+                    return field !== 'push'
+                        ? Object.values(this.prefs).filter(p => !p.is_mandatory).some(p => p[field])
+                        : Object.values(this.prefs).some(p => p[field]);
+                },
+
+                categoryEnabled(slug, field) {
+                    const relevant = field !== 'push'
+                        ? Object.values(this.prefs).filter(p => p.category === slug && !p.is_mandatory)
+                        : Object.values(this.prefs).filter(p => p.category === slug);
+                    return relevant.length === 0 || relevant.some(p => p[field]);
+                },
+
+                async _initPushPermissionState() {
+                    if (!('Notification' in window)) return;
+                    if (Notification.permission === 'denied') {
+                        await this._onPushPermissionDenied();
+                        return;
+                    }
+                    if ('permissions' in navigator) {
+                        const status = await navigator.permissions.query({ name: 'notifications' });
+                        status.onchange = () => {
+                            if (status.state === 'denied') this._onPushPermissionDenied();
+                        };
+                    }
+                },
+
+                async _onPushPermissionDenied() {
+                    for (const type of Object.keys(this.prefs)) {
+                        this.prefs[type].push = false;
+                    }
+                    this._persist('{% url "notification-bulk-toggle" %}', {
+                        scope: 'master',
+                        channel: 'PUSH',
+                        enabled: 'false',
+                    });
+                    await this._dropPushSubscription();
+                },
+
+                _checkDropSubscription() {
+                    const anyPushActive = Object.values(this.prefs).some(p => p.push);
+                    if (!anyPushActive) this._dropPushSubscription();
+                },
+
+                async _dropPushSubscription() {
+                    if (!('serviceWorker' in navigator)) return;
+                    try {
+                        const reg = await navigator.serviceWorker.getRegistration('/sw.js');
+                        if (!reg) return;
+                        const sub = await reg.pushManager.getSubscription();
+                        if (sub) {
+                            await fetch('{% url "push-unsubscribe" %}', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-CSRFToken': '{{ csrf_token }}',
+                                },
+                                body: JSON.stringify({ endpoint: sub.endpoint }),
+                            });
+                            await sub.unsubscribe();
+                        }
+                        await reg.unregister();
+                    } catch (e) {
+                        console.error('Push unsubscribe failed:', e);
+                    }
+                },
+
+                async _ensurePushSubscribed() {
+                    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+                    try {
+                        const reg = await navigator.serviceWorker.register('/sw.js');
+                        let sub = await reg.pushManager.getSubscription();
+                        if (!sub) {
+                            const permission = await Notification.requestPermission();
+                            if (permission !== 'granted') {
+                                await this._onPushPermissionDenied();
+                                return;
+                            }
+                            sub = await reg.pushManager.subscribe({
+                                userVisibleOnly: true,
+                                applicationServerKey: this._urlBase64ToUint8Array('{{ vapid_public_key }}'),
+                            });
+                            await fetch('{% url "push-subscribe" %}', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-CSRFToken': '{{ csrf_token }}',
+                                },
+                                body: JSON.stringify(sub.toJSON()),
+                            });
+                        }
+                    } catch (e) {
+                        console.error('Push subscription failed:', e);
+                    }
+                },
+
+                _urlBase64ToUint8Array(base64String) {
+                    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+                    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+                    const rawData = atob(base64);
+                    return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
+                },
+
+                _persist(url, data) {
+                    fetch(url, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                            'X-CSRFToken': '{{ csrf_token }}',
+                        },
+                        body: new URLSearchParams(data),
+                    });
+                },
+            };
+        }
+    </script>
+{% endblock %}

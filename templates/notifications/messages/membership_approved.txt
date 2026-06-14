@@ -1,0 +1,7 @@
+Hi {{ group_member_name }},
+
+You're in! Your request to join {{ group_name }} has been approved.
+
+You can now browse items shared within the group and request to borrow them. Welcome to the community!
+
+The Borrow'd team

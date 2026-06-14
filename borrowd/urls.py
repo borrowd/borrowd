@@ -25,6 +25,7 @@ from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect
 from django.urls import URLPattern, URLResolver, include, path
 
+from borrowd_notifications.push_views import service_worker
 from borrowd_users.views import CustomPasswordChangeView, CustomSignupView
 from borrowd_web.views import favicon
 
@@ -63,6 +64,10 @@ urlpatterns: List[URLPattern | URLResolver] = [
     path("profile/", include("borrowd_users.urls")),
     path("items/", include("borrowd_items.urls")),
     path("groups/", include("borrowd_groups.urls")),
+    path("notifications/", include("borrowd_notifications.inbox_urls")),
+    path("settings/", include("borrowd_notifications.urls")),
+    path("push/", include("borrowd_notifications.push_urls")),
+    path("sw.js", service_worker, name="service-worker"),
     path("favicon.ico", favicon, name="favicon"),
     path("", include("borrowd_web.urls")),
 ]

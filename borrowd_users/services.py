@@ -17,7 +17,7 @@ from borrowd_items.models import (
     Transaction,
     TransactionStatus,
 )
-from borrowd_notifications.services import NotificationType
+from borrowd_notifications.models import NotificationType
 
 from .exceptions import AccountDeletionBlocked
 from .models import BorrowdUser
