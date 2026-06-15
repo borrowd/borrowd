@@ -74,7 +74,7 @@ class BetaSignup(models.Model):
     submitted_at: DateTimeField[Never, Never] = models.DateTimeField(auto_now_add=True)
 
     def __str__(self) -> str:
-        return f"Code: {self.beta_code.code} - Token: {self.token}"  # type: ignore[attr-defined]
+        return f"Code: {self.beta_code.code} - Token: {self.token}"
 
     def save(self, *args: Any, **kwargs: Any) -> None:
         if self.beta_code.signups.count() >= self.beta_code.num_uses:  # type: ignore[attr-defined]

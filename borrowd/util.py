@@ -2,7 +2,7 @@ import base64
 import json
 import logging
 import os
-import sys
+from typing import Any
 from urllib.parse import urlparse
 
 from django.db.models import Model
@@ -137,7 +137,7 @@ class BorrowdTemplateFinderMixin:
 # Helper function for decoding base64-encoded JSON variables.
 # There is a platform.sh helper package for reading config variables: https://github.com/platformsh/config-reader-python
 # but not sure it is worth adding another dependency at this point.
-def decode(variable: str):  # type: ignore
+def decode(variable: str) -> Any:
     """Decodes a Platform.sh environment variable.
     Args:
         variable (string):
@@ -148,10 +148,7 @@ def decode(variable: str):  # type: ignore
         JSON decoding error.
     """
     try:
-        if sys.version_info[1] > 5:
-            return json.loads(base64.b64decode(variable))
-        else:
-            return json.loads(base64.b64decode(variable).decode("utf-8"))
+        return json.loads(base64.b64decode(variable))
     except json.decoder.JSONDecodeError as e:
         print("Error decoding JSON, code %d", json.decoder.JSONDecodeError)
         raise e

@@ -98,7 +98,7 @@ def send_transaction_notifications(
                 verb=NotificationType.ITEM_REQUESTED.value,
                 action_object=instance.item,
                 target=instance,
-                description=f"Someone's hoping to borrow your {instance.item.name}",  # type: ignore[attr-defined]
+                description=f"Someone's hoping to borrow your {instance.item.name}",
             )
         case TransactionStatus.ACCEPTED:
             notify.send(
@@ -107,7 +107,7 @@ def send_transaction_notifications(
                 verb=NotificationType.ITEM_REQUEST_ACCEPTED.value,
                 action_object=instance.item,
                 target=instance,
-                description=f"Your request to borrow {instance.item.name} was approved",  # type: ignore[attr-defined]
+                description=f"Your request to borrow {instance.item.name} was approved",
             )
         case TransactionStatus.REJECTED:
             notify.send(
@@ -146,7 +146,7 @@ def send_group_member_joined_notifications(
             verb=NotificationType.GROUP_MEMBER_JOINED.value,
             action_object=instance,
             target=instance.group,
-            description=f"A new member just joined your {instance.group.name} group",  # type: ignore[attr-defined]
+            description=f"A new member just joined your {instance.group.name} group",
         )
 
 
