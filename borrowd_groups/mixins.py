@@ -1,4 +1,4 @@
-from django.contrib.auth.models import PermissionsMixin
+from django.contrib.auth.models import Group, PermissionsMixin
 from django.db.models import ManyToManyField
 
 
@@ -6,7 +6,7 @@ class BorrowdGroupPermissionMixin(PermissionsMixin):
     # As documented at:
     # https://django-guardian.readthedocs.io/en/latest/userguide/custom-group-model/
     # Note this is pre-release functionality, but... we need it!
-    groups = ManyToManyField(
+    groups: ManyToManyField[Group, Group] = ManyToManyField(
         "BorrowdGroup",
         verbose_name=("groups"),
         blank=True,
@@ -18,6 +18,5 @@ class BorrowdGroupPermissionMixin(PermissionsMixin):
         related_query_name="user",
     )
 
-    # No typing for django-guardian, so mypy doesn't like us subclassing.
-    class Meta(PermissionsMixin.Meta):  # type: ignore[name-defined,misc]
+    class Meta(PermissionsMixin.Meta):
         abstract = True

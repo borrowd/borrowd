@@ -11,6 +11,8 @@ def favicon(request: HttpRequest) -> FileResponse:
 
 
 def index(request: HttpRequest) -> HttpResponse:
+    if request.user.is_authenticated:
+        return redirect("item-list")
     template = loader.get_template("landing/index.html")
     return HttpResponse(template.render({}, request))
 

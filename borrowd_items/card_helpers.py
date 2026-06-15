@@ -380,6 +380,6 @@ def build_item_cards_for_transactions(
         # ForeignKey type not fully resolved without django-stubs mypy plugin
         # Ref: https://forum.djangoproject.com/t/mypy-and-type-checking/15787,
         # Ref: https://github.com/typeddjango/django-stubs
-        build_item_card_context(transaction.item, user, context)  # type: ignore[arg-type]
+        build_item_card_context(transaction.item, user, context)
         for transaction in transactions
     ]

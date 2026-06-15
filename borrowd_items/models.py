@@ -326,7 +326,7 @@ class Item(Model):
         actions: tuple[ItemAction, ...],
         current_tx: Optional["Transaction"] = None,
     ) -> str:
-        owner_name = self.owner.profile.full_name()  # type: ignore[attr-defined]
+        owner_name = self.owner.profile.full_name() 
         """Generate status text for current borrowers."""
         tx_status = current_tx.status if current_tx else None
 
@@ -452,7 +452,7 @@ class Item(Model):
             counterparty = (
                 current_tx.party1 if current_tx.party2 == user else current_tx.party2
             )
-            if not counterparty.is_active:  # type: ignore[attr-defined]
+            if not counterparty.is_active:
                 return (ItemAction.RESOLVE_TRANSACTION,)
 
         if current_tx.status == TransactionStatus.REQUESTED:
@@ -533,7 +533,7 @@ class Item(Model):
                 Q(item=self) & Q(status=TransactionStatus.REQUESTED)
             )
             # party2 is the requestor
-            return transaction.party2  # type: ignore[return-value]
+            return transaction.party2
         except Transaction.DoesNotExist:
             return None
         except Transaction.MultipleObjectsReturned:
@@ -545,7 +545,7 @@ class Item(Model):
                 .order_by("-created_at")
                 .first()
             )
-            return txn.party2 if txn else None  # type: ignore[return-value]
+            return txn.party2 if txn else None
 
     def get_current_borrower(self) -> Optional[BorrowdUser]:
         """
@@ -567,7 +567,7 @@ class Item(Model):
                 )
             )
             # party2 is the borrower
-            return transaction.party2  # type: ignore[return-value]
+            return transaction.party2
         except Transaction.DoesNotExist:
             return None
         except Transaction.MultipleObjectsReturned:
@@ -590,7 +590,7 @@ class Item(Model):
                 .order_by("-updated_at")
                 .first()
             )
-            return txn.party2 if txn else None  # type: ignore[return-value]
+            return txn.party2 if txn else None
 
     def get_current_transaction_for_user(
         self, user: BorrowdUser
@@ -783,7 +783,7 @@ class Item(Model):
                     )
                     owner_deleted = (
                         counterparty == current_tx.party1
-                        and counterparty.deleted_at is not None  # type: ignore[attr-defined]
+                        and counterparty.deleted_at is not None
                     )
                     reason = (
                         ResolutionReason.OWNER_ACCOUNT_DELETED
@@ -882,7 +882,7 @@ class ItemPhoto(Model):
 
     def __str__(self) -> str:
         # error: "_ST" has no attribute "name"  [attr-defined]
-        return f"Photo of {self.item.name}"  # type: ignore[attr-defined]
+        return f"Photo of {self.item.name}"
 
 
 class TransactionStatus(IntegerChoices):
@@ -1051,7 +1051,7 @@ class Transaction(Model):
         """
 
         with transaction.atomic():
-            item: Item = self.item  # type: ignore[assignment]
+            item: Item = self.item
             item.refresh_from_db()
             if item.deleted_at is None:  # item not deleted
                 item.status = ItemStatus.AVAILABLE

@@ -76,7 +76,7 @@ class NotificationService:
         ) and isinstance(notification.target, Transaction):
             return {
                 "recipient_name": notification.recipient.profile.full_name(),
-                "item_name": notification.target.item.name,  # type: ignore[attr-defined]
+                "item_name": notification.target.item.name,
             }
         if isinstance(notification.target, Transaction):
             transaction: Transaction = notification.target
@@ -84,35 +84,35 @@ class NotificationService:
                 case TransactionStatus.REQUESTED:
                     context.update(
                         {
-                            "requester_name": transaction.party2.profile.full_name(),  # type: ignore[attr-defined]
-                            "item_name": transaction.item.name,  # type: ignore[attr-defined]
-                            "item_owner_name": transaction.party1.profile.full_name(),  # type: ignore[attr-defined]
+                            "requester_name": transaction.party2.profile.full_name(),
+                            "item_name": transaction.item.name,
+                            "item_owner_name": transaction.party1.profile.full_name(),
                             "respond_url": settings.BASE_URL
-                            + reverse("item-detail", args=[transaction.item.pk]),  # type: ignore[attr-defined]
+                            + reverse("item-detail", args=[transaction.item.pk]),
                         }
                     )
                 case TransactionStatus.ACCEPTED:
                     context.update(
                         {
-                            "requester_name": transaction.party2.profile.full_name(),  # type: ignore[attr-defined]
-                            "item_name": transaction.item.name,  # type: ignore[attr-defined]
-                            "item_owner_name": transaction.party1.profile.full_name(),  # type: ignore[attr-defined]
-                            "item_owner_email": transaction.party1.email,  # type: ignore[attr-defined]
+                            "requester_name": transaction.party2.profile.full_name(),
+                            "item_name": transaction.item.name,
+                            "item_owner_name": transaction.party1.profile.full_name(),
+                            "item_owner_email": transaction.party1.email,
                         }
                     )
                 case TransactionStatus.REJECTED:
                     context.update(
                         {
-                            "requester_name": transaction.party2.profile.full_name(),  # type: ignore[attr-defined]
-                            "item_name": transaction.item.name,  # type: ignore[attr-defined]
+                            "requester_name": transaction.party2.profile.full_name(),
+                            "item_name": transaction.item.name,
                         }
                     )
                 case TransactionStatus.RETURNED:
                     context.update(
                         {
-                            "item_owner_name": transaction.party1.profile.full_name(),  # type: ignore[attr-defined]
-                            "requester_name": transaction.party2.profile.full_name(),  # type: ignore[attr-defined]
-                            "item_name": transaction.item.name,  # type: ignore[attr-defined]
+                            "item_owner_name": transaction.party1.profile.full_name(),
+                            "requester_name": transaction.party2.profile.full_name(),
+                            "item_name": transaction.item.name,
                         }
                     )
                 case TransactionStatus.RETURN_REQUESTED:
@@ -148,8 +148,8 @@ class NotificationService:
                 context.update(
                     {
                         "group_member_name": notification.recipient.profile.full_name(),
-                        "new_member_name": membership.user.profile.full_name(),  # type: ignore[attr-defined]
-                        "group_name": membership.group.name,  # type: ignore[attr-defined]
+                        "new_member_name": membership.user.profile.full_name(),
+                        "group_name": membership.group.name,
                     }
                 )
         elif isinstance(notification.target, AvailabilitySubscription):
@@ -158,19 +158,19 @@ class NotificationService:
             if notification.verb == NotificationType.ITEM_SUBSCRIPTION.value:
                 context.update(
                     {
-                        "subscriber_name": subscription.user.profile.full_name(),  # type: ignore[attr-defined]
-                        "item_name": subscription.item.name,  # type: ignore[attr-defined]
+                        "subscriber_name": subscription.user.profile.full_name(),
+                        "item_name": subscription.item.name,
                         "item_url": settings.BASE_URL
-                        + reverse("item-detail", args=[subscription.item.pk]),  # type: ignore[attr-defined]
+                        + reverse("item-detail", args=[subscription.item.pk]),
                     }
                 )
             elif notification.verb == NotificationType.ITEM_NOTIFY_WHEN_AVAILABLE.value:
                 context.update(
                     {
-                        "subscriber_name": subscription.user.profile.full_name(),  # type: ignore[attr-defined]
-                        "item_name": subscription.item.name,  # type: ignore[attr-defined]
+                        "subscriber_name": subscription.user.profile.full_name(),
+                        "item_name": subscription.item.name,
                         "item_url": settings.BASE_URL
-                        + reverse("item-detail", args=[subscription.item.pk]),  # type: ignore[attr-defined]
+                        + reverse("item-detail", args=[subscription.item.pk]),
                     }
                 )
         return context
