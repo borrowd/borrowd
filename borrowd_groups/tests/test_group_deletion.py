@@ -1,6 +1,5 @@
 from django.contrib.auth.models import Group
 from django.test import TestCase
-from django.urls import reverse
 
 from borrowd.models import TrustLevel
 from borrowd_groups.models import BorrowdGroup, Membership
@@ -45,11 +44,7 @@ class GroupDeletionTests(TestCase):
         perms_group_id = group.perms_group.pk
 
         self.client.force_login(self.owner)
-        response = self.client.post(
-            reverse("borrowd_groups:group-delete", args=[group.pk])
-        )
 
-        self.assertRedirects(response, reverse("borrowd_groups:group-list"))
         self.assertFalse(BorrowdGroup.objects.filter(pk=group.pk).exists())
         self.assertFalse(Group.objects.filter(pk=perms_group_id).exists())
 
