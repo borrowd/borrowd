@@ -5,7 +5,6 @@ from .views import (
     BecomeModeratorView,
     DenyMemberView,
     GroupCreateView,
-    GroupDeleteView,
     GroupDetailView,
     GroupInviteView,
     GroupJoinView,
@@ -24,7 +23,6 @@ urlpatterns = [
     path("<int:pk>/", GroupDetailView.as_view(), name="group-detail"),
     path("<int:pk>/invite/", GroupInviteView.as_view(), name="group-invite"),
     path("<int:pk>/edit/", GroupUpdateView.as_view(), name="group-edit"),
-    path("<int:pk>/delete/", GroupDeleteView.as_view(), name="group-delete"),
     path(
         "<int:pk>/update-trust-level/",
         UpdateTrustLevelView.as_view(),
