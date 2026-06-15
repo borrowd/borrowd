@@ -118,8 +118,8 @@ class NotificationService:
                 case TransactionStatus.RETURN_REQUESTED:
                     context.update(
                         {
-                            "borrower_name": transaction.party2.profile.full_name(),  # type: ignore[attr-defined]
-                            "item_name": transaction.item.name,  # type: ignore[attr-defined]
+                            "borrower_name": transaction.party2.profile.full_name(),
+                            "item_name": transaction.item.name,
                             "inventory_url": settings.BASE_URL
                             + reverse("profile-inventory"),
                         }
@@ -128,7 +128,7 @@ class NotificationService:
                     context.update(
                         {
                             "recipient_name": notification.recipient.profile.full_name(),
-                            "item_name": transaction.item.name,  # type: ignore[attr-defined]
+                            "item_name": transaction.item.name,
                         }
                     )
         elif isinstance(notification.target, BorrowdGroup):

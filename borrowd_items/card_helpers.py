@@ -186,7 +186,7 @@ def get_banner_info_for_item(
         if current_borrower == viewing_user:
             return {
                 "banner_type": "return_requested",
-                "person_name": item.owner.first_name.capitalize(),  # type: ignore[attr-defined]
+                "person_name": item.owner.first_name.capitalize(),
             }
         return {"banner_type": "borrowed"}
 

@@ -326,7 +326,7 @@ class Item(Model):
         actions: tuple[ItemAction, ...],
         current_tx: Optional["Transaction"] = None,
     ) -> str:
-        owner_name = self.owner.profile.full_name() 
+        owner_name = self.owner.profile.full_name()
         """Generate status text for current borrowers."""
         tx_status = current_tx.status if current_tx else None
 
