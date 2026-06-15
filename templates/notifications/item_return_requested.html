@@ -1,0 +1,27 @@
+{% extends "notifications/layout.html" %}
+
+{% block title %}
+    Return Requested - Borrow'd
+{% endblock %}
+
+{% block content %}
+    <h2>
+        Hi {{ borrower_name }},
+    </h2>
+
+    <p>
+        The owner of <strong>{{ item_name }}</strong> has requested its return.
+    </p>
+
+    <p>
+        Please coordinate a return as soon as you can. Borrow'd works best when our community feels confident sharing.
+    </p>
+
+    <div class="text-center">
+        <a href="{{ inventory_url }}" class="button">Go to my inventory</a>
+    </div>
+
+    <p>
+        The Borrow'd team
+    </p>
+{% endblock %}
