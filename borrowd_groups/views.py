@@ -1,5 +1,5 @@
 from collections import namedtuple
-from typing import Any, cast
+from typing import Any
 from urllib.parse import urlencode
 
 from django.contrib import messages
@@ -59,10 +59,10 @@ def get_members_data(group: BorrowdGroup) -> list[dict[str, Any]]:
     for membership in memberships:
         members_data.append(
             {
-                "user_id": membership.user.id,  # type: ignore
-                "membership_id": membership.id,  # type: ignore
-                "full_name": membership.user.profile.full_name(),  # type: ignore
-                "profile_image": membership.user.profile.image,  # type: ignore
+                "user_id": membership.user.pk,
+                "membership_id": membership.pk,
+                "full_name": membership.user.profile.full_name(),
+                "profile_image": membership.user.profile.image,
                 "role": membership.is_moderator and "Moderator" or "Member",
             }
         )
@@ -134,9 +134,9 @@ def _blocking_group_transactions_for_user(
 
     for candidate_transaction in candidate_transactions:
         if candidate_transaction.party1 == user:
-            other_party = cast(BorrowdUser, candidate_transaction.party2)
+            other_party = candidate_transaction.party2
         else:
-            other_party = cast(BorrowdUser, candidate_transaction.party1)
+            other_party = candidate_transaction.party1
 
         if not _users_share_another_active_group(
             user1=user,
@@ -209,7 +209,7 @@ class InviteSigner:
 
 
 class GroupCreateView(
-    LoginRequiredMixin,  # type: ignore[misc]
+    LoginRequiredMixin,
     BorrowdTemplateFinderMixin,
     CreateView[BorrowdGroup, GroupCreateForm],
 ):
@@ -264,7 +264,7 @@ class GroupDetailView(
         context["members_data"] = get_members_data(group)
 
         if self.request.user.is_authenticated:
-            user: BorrowdUser = self.request.user  # type: ignore[assignment]
+            user: BorrowdUser = self.request.user
 
             context["is_moderator"] = Membership.objects.filter(
                 user=user,
@@ -328,8 +328,7 @@ class GroupInviteView(
         return context
 
 
-# No typing for django_guardian, so mypy doesn't like us subclassing.
-class GroupJoinView(LoginRequiredMixin, View):  # type: ignore[misc]
+class GroupJoinView(LoginRequiredMixin, View):
     """
     View to handle group join requests via invite link.
 
@@ -354,7 +353,8 @@ class GroupJoinView(LoginRequiredMixin, View):  # type: ignore[misc]
             query = urlencode({"next": join_path})
             return redirect(f"{login_url}?{query}")
 
-        return super().dispatch(request, encoded=encoded, *args, **kwargs)
+        # guardian's LoginRequiredMixin.dispatch is unannotated upstream.
+        return super().dispatch(request, encoded=encoded, *args, **kwargs)  # type: ignore[no-untyped-call,no-any-return]
 
     def _validate_invite(
         self, request: HttpRequest, encoded: str
@@ -564,7 +564,7 @@ class GroupUpdateView(
         return reverse("borrowd_groups:group-detail", args=[self.object.pk])
 
 
-class UpdateTrustLevelView(LoginRequiredMixin, View):  # type: ignore[misc]
+class UpdateTrustLevelView(LoginRequiredMixin, View):
     """
     View to handle updating a user's trust level for a group they're a member of.
     """
@@ -600,7 +600,7 @@ class UpdateTrustLevelView(LoginRequiredMixin, View):  # type: ignore[misc]
         return redirect("borrowd_groups:group-detail", pk=pk)
 
 
-class RemoveMemberView(LoginRequiredMixin, View):  # type: ignore[misc]
+class RemoveMemberView(LoginRequiredMixin, View):
     """
     View to handle removing a member from a group.
     Only moderators can remove members.
@@ -640,9 +640,9 @@ class RemoveMemberView(LoginRequiredMixin, View):  # type: ignore[misc]
         # Remove the member using the model method, which also removes the
         # user from the underlying Django auth Group (perms_group), revoking
         # their inherited object-level permissions on other members' items.
-        member_name = membership.user.profile.full_name()  # type: ignore
+        member_name = membership.user.profile.full_name()
         try:
-            group.remove_user(membership.user)  # type: ignore[arg-type]
+            group.remove_user(membership.user)
         except ModeratorRequiredException:
             messages.error(
                 request,
@@ -655,7 +655,7 @@ class RemoveMemberView(LoginRequiredMixin, View):  # type: ignore[misc]
 
 
 # 255: Handles approving pending members, which is just changing their status to active. Only moderators can approve.
-class ApproveMemberView(LoginRequiredMixin, View):  # type: ignore[misc]
+class ApproveMemberView(LoginRequiredMixin, View):
     def post(
         self, request: HttpRequest, membership_id: int
     ) -> HttpResponsePermanentRedirect | HttpResponseRedirect:
@@ -676,11 +676,11 @@ class ApproveMemberView(LoginRequiredMixin, View):  # type: ignore[misc]
         membership.save(update_fields=["status"])
 
         messages.success(request, "Request approved.")
-        return redirect("borrowd_groups:group-detail", pk=membership.group.pk)  # type: ignore[attr-defined]
+        return redirect("borrowd_groups:group-detail", pk=membership.group.pk)
 
 
 # 255:  handles denial of membership requests by moderator
-class DenyMemberView(LoginRequiredMixin, View):  # type: ignore[misc]
+class DenyMemberView(LoginRequiredMixin, View):
     def post(
         self, request: HttpRequest, membership_id: int
     ) -> HttpResponsePermanentRedirect | HttpResponseRedirect:
@@ -699,10 +699,10 @@ class DenyMemberView(LoginRequiredMixin, View):  # type: ignore[misc]
 
         membership.delete()
         messages.info(request, "Request denied.")
-        return redirect("borrowd_groups:group-detail", pk=membership.group.pk)  # type: ignore[attr-defined]
+        return redirect("borrowd_groups:group-detail", pk=membership.group.pk)
 
 
-class LeaveGroupView(LoginRequiredMixin, View):  # type: ignore[misc]
+class LeaveGroupView(LoginRequiredMixin, View):
     """
     Allow a group member to leave a group.
     Currently, users with active transactions cannot leave.
@@ -752,7 +752,7 @@ class LeaveGroupView(LoginRequiredMixin, View):  # type: ignore[misc]
         return redirect("borrowd_groups:group-list")
 
 
-class BecomeModeratorView(LoginRequiredMixin, View):  # type: ignore[misc]
+class BecomeModeratorView(LoginRequiredMixin, View):
     """
     Allow first active member to claim moderator role.
     """
