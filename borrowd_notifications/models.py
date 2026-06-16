@@ -61,7 +61,7 @@ class NotificationType(models.TextChoices):
 
     # Group & membership
     GROUP_MEMBER_JOINED = (
-        "Change to group membership",
+        "A member joined a group you're part of",
         "{new_member_name} joined {group_name}",
     )
     GROUP_NEEDS_MODERATOR = "Group needs moderator", "{group_name} needs a moderator"
@@ -201,13 +201,13 @@ class NotificationType(models.TextChoices):
                 )
         elif isinstance(notification.target, AvailabilitySubscription):
             subscription: AvailabilitySubscription = notification.target
-
+            base_url = settings.BASE_URL.rstrip("/")
             if notification.verb == NotificationType.ITEM_SUBSCRIPTION.value:
                 context.update(
                     {
                         "subscriber_name": subscription.user.profile.full_name(),  # type: ignore[attr-defined]
                         "item_name": subscription.item.name,  # type: ignore[attr-defined]
-                        "item_url": settings.BASE_URL
+                        "item_url": base_url
                         + reverse("item-detail", args=[subscription.item.pk]),  # type: ignore[attr-defined]
                     }
                 )
@@ -216,7 +216,7 @@ class NotificationType(models.TextChoices):
                     {
                         "subscriber_name": subscription.user.profile.full_name(),  # type: ignore[attr-defined]
                         "item_name": subscription.item.name,  # type: ignore[attr-defined]
-                        "item_url": settings.BASE_URL
+                        "item_url": base_url
                         + reverse("item-detail", args=[subscription.item.pk]),  # type: ignore[attr-defined]
                     }
                 )
@@ -232,6 +232,16 @@ class ChannelType(TextChoices):
 
 
 class NotificationPreference(Model):
+    """
+    To add a new channel:
+        1. Add a value to ChannelType above — label must match the field name below (used as setattr key in views.py).
+        2. Add a BooleanField here for the new channel (e.g. sms_enabled).
+        3. Create and apply a migration.
+        4. Add a NotificationStrategy subclass in channels.py and wire it into NotificationService._get_strategy_for() in services.py.
+        5. Add the channel column to the preferences UI in templates/notifications/preferences.html.
+        6. For channels that require external credentials (like PUSH), guard the send() call with a settings check.
+    """
+
     user: ForeignKey[BorrowdUser] = ForeignKey(
         BorrowdUser,
         null=False,
