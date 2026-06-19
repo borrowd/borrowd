@@ -100,17 +100,17 @@
                                            class="toggle toggle-primary toggle-sm opacity-40">
                                 {% else %}
                                     <input type="checkbox"
-                                           :checked="prefs['{{ type.type_value }}'].in_app"
-                                           @change="toggle('{{ type.type_value }}', 'APP', 'in_app', $event.target.checked)"
+                                           :checked="prefs['{{ type.type_value|escapejs }}'].in_app"
+                                           @change="toggle('{{ type.type_value|escapejs }}', 'APP', 'in_app', $event.target.checked)"
                                            class="toggle toggle-primary toggle-sm">
                                     <input type="checkbox"
-                                           :checked="prefs['{{ type.type_value }}'].email"
-                                           @change="toggle('{{ type.type_value }}', 'EMAIL', 'email', $event.target.checked)"
+                                           :checked="prefs['{{ type.type_value|escapejs }}'].email"
+                                           @change="toggle('{{ type.type_value|escapejs }}', 'EMAIL', 'email', $event.target.checked)"
                                            class="toggle toggle-primary toggle-sm">
                                 {% endif %}
                                 <input type="checkbox"
-                                       :checked="prefs['{{ type.type_value }}'].push"
-                                       @change="toggle('{{ type.type_value }}', 'PUSH', 'push', $event.target.checked)"
+                                       :checked="prefs['{{ type.type_value|escapejs }}'].push"
+                                       @change="toggle('{{ type.type_value|escapejs }}', 'PUSH', 'push', $event.target.checked)"
                                        class="toggle toggle-primary toggle-sm">
                             </div>
                         </div>

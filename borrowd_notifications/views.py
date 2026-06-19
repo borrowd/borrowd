@@ -308,8 +308,7 @@ def notification_inbox_view(request: HttpRequest) -> HttpResponse:
 def mark_notification_read(request: HttpRequest, pk: int) -> HttpResponse:
     notification = get_object_or_404(Notification, pk=pk, recipient=request.user)
     notification.mark_as_read()
-    target_url = _notification_target_url(notification)
-    return redirect(target_url or "notification-inbox")
+    return redirect("notification-inbox")
 
 
 @login_required
