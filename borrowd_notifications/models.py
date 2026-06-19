@@ -257,6 +257,27 @@ class NotificationPreference(Model):
     email_enabled: models.BooleanField[bool, bool] = models.BooleanField(default=True)
     push_enabled: models.BooleanField[bool, bool] = models.BooleanField(default=False)
 
+    @staticmethod
+    def init_new_user_preferences(user: BorrowdUser) -> None:
+        """When a new user is created, the preferences must be initialised."""
+        if user.DoesNotExist:
+            return
+
+        for notification_type in NotificationType.values:
+            mandatory = (
+                True
+                if notification_type in NotificationType.mandatory_types()
+                else False
+            )
+
+            NotificationPreference.objects.create(
+                user=user,
+                notification_type=notification_type,
+                in_app_enabled=mandatory | False,
+                email_enabled=mandatory | False,
+                push_enabled=False,
+            )
+
     class Meta:
         constraints = [
             models.UniqueConstraint(
@@ -283,6 +304,33 @@ class NotificationData:
     context: dict[str, Any]
     icon: str | None
     channels: dict[ChannelType, ChannelResult]
+
+    def __init__(
+        self,
+        data: dict[str, Any] | None = None,
+        *,
+        context: dict[str, Any] | None = None,
+        icon: str | None = None,
+        channels: dict[ChannelType, ChannelResult] | None = None,
+    ) -> None:
+        if data is not None:
+            context = dict(data.get("context", {}))
+            icon = data.get("icon")
+            channels = {
+                ChannelType(channel): (
+                    result
+                    if isinstance(result, ChannelResult)
+                    else ChannelResult(
+                        status=NotificationState(result["status"]),
+                        error=result.get("error"),
+                    )
+                )
+                for channel, result in data.get("channels", {}).items()
+            }
+
+        self.context = context or {}
+        self.icon = icon
+        self.channels = channels or {}
 
     @property
     def status(self) -> NotificationState:

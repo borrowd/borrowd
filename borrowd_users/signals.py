@@ -2,6 +2,8 @@ from django.db.models import Model
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
+from borrowd_notifications.models import NotificationPreference
+
 from .models import BorrowdUser, Profile
 
 
@@ -11,6 +13,7 @@ from .models import BorrowdUser, Profile
 def user_postsave(
     sender: Model, instance: BorrowdUser, created: bool, **kwargs: str
 ) -> None:
-    """Add Profile whenever User is created."""
+    """Add Profile and Notification Preferences whenever User is created."""
     if created:
         Profile.objects.create(user=instance, created_by=instance, updated_by=instance)
+        NotificationPreference.init_new_user_preferences(user=instance)

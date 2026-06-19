@@ -1,4 +1,4 @@
-from typing import Any, cast
+from typing import cast
 from unittest.mock import patch
 
 from django.http import HttpResponse
@@ -700,15 +700,10 @@ class NotificationPreferenceRoutingTests(TransactionTestCase):
         n.refresh_from_db()
         return n
 
-    def _dispatched_channels(self, notification: Notification) -> set[str]:
-        if not isinstance(notification.data, dict):
-            return set()
-        return set(notification.data.get("channels", {}).keys())
-
     def test_no_preference_row_suppresses_optional_notification(self) -> None:
         """Without a preference row, an optional notification is not dispatched to any channel."""
         n = self._trigger_accepted()
-        self.assertEqual(self._dispatched_channels(n), set())
+        self.assertEqual(NotificationService._dispatched_channels(n), set())
 
     def test_in_app_only_dispatches_app_channel(self) -> None:
         """With in_app_enabled=True and email_enabled=False, only APP channel is dispatched."""
@@ -719,7 +714,7 @@ class NotificationPreferenceRoutingTests(TransactionTestCase):
             email=False,
         )
         n = self._trigger_accepted()
-        channels = self._dispatched_channels(n)
+        channels = NotificationService._dispatched_channels(n)
         self.assertIn("APP", channels)
         self.assertNotIn("EMAIL", channels)
 
@@ -732,7 +727,7 @@ class NotificationPreferenceRoutingTests(TransactionTestCase):
             email=True,
         )
         n = self._trigger_accepted()
-        channels = self._dispatched_channels(n)
+        channels = NotificationService._dispatched_channels(n)
         self.assertNotIn("APP", channels)
         self.assertIn("EMAIL", channels)
 
@@ -745,7 +740,7 @@ class NotificationPreferenceRoutingTests(TransactionTestCase):
             email=False,
         )
         n = self._trigger_accepted()
-        self.assertEqual(self._dispatched_channels(n), set())
+        self.assertEqual(NotificationService._dispatched_channels(n), set())
 
     def test_both_enabled_dispatches_all_channels(self) -> None:
         """With both channels enabled, APP and EMAIL are both dispatched."""
@@ -756,7 +751,7 @@ class NotificationPreferenceRoutingTests(TransactionTestCase):
             email=True,
         )
         n = self._trigger_accepted()
-        channels = self._dispatched_channels(n)
+        channels = NotificationService._dispatched_channels(n)
         self.assertIn("APP", channels)
         self.assertIn("EMAIL", channels)
 
@@ -769,7 +764,7 @@ class NotificationPreferenceRoutingTests(TransactionTestCase):
             email=False,  # should never happen, by just in case
         )
         n = self._trigger_requested()
-        channels = self._dispatched_channels(n)
+        channels = NotificationService._dispatched_channels(n)
         self.assertIn("APP", channels)
         self.assertIn("EMAIL", channels)
 
@@ -816,12 +811,6 @@ class NotificationChannelErrorTests(TransactionTestCase):
         n.refresh_from_db()
         return n
 
-    def _channel_results(self, notification: Notification) -> dict[str, Any]:
-        if not isinstance(notification.data, dict):
-            return {}
-        result: dict[str, Any] = notification.data.get("channels", {})
-        return result
-
     def test_email_failure_recorded_and_app_still_succeeds(self) -> None:
         """When EMAIL raises, the error is recorded and APP is still dispatched successfully."""
         with patch.object(
@@ -831,7 +820,7 @@ class NotificationChannelErrorTests(TransactionTestCase):
         ):
             n = self._trigger_accepted()
 
-        results = self._channel_results(n)
+        results = NotificationService._channel_results(n)
         self.assertEqual(results.get("APP", {}).get("status"), "SUCCESS")
         self.assertEqual(results.get("EMAIL", {}).get("status"), "ERROR")
         self.assertIn("SMTP unavailable", results.get("EMAIL", {}).get("error", ""))
@@ -845,7 +834,7 @@ class NotificationChannelErrorTests(TransactionTestCase):
         ):
             n = self._trigger_accepted()
 
-        results = self._channel_results(n)
+        results = NotificationService._channel_results(n)
         self.assertEqual(results.get("APP", {}).get("status"), "ERROR")
         self.assertIn("Push service down", results.get("APP", {}).get("error", ""))
         self.assertEqual(results.get("EMAIL", {}).get("status"), "SUCCESS")
