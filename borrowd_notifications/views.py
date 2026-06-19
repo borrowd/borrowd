@@ -2,7 +2,9 @@ from typing import Any
 
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
+from django.db import connection
 from django.db.models import Func, QuerySet, TextField, Value
+from django.db.models.expressions import RawSQL
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
@@ -252,6 +254,31 @@ def bulk_toggle_preferences(request: HttpRequest) -> HttpResponse:
 _INBOX_PAGE_SIZE = 25
 
 
+def _app_channel_qs(qs: QuerySet[Notification]) -> QuerySet[Notification]:
+    """Filter to notifications that were dispatched via the APP channel.
+
+    The `data` field from django-notifications-hq is stored as plain text (not
+    native jsonb), so we must branch on the DB vendor: SQLite supports
+    JSON_TYPE(); PostgreSQL requires an explicit ::jsonb cast plus the -> operator.
+    """
+    if connection.vendor == "postgresql":
+        return qs.annotate(
+            app_channel=RawSQL(
+                "(data::jsonb) -> 'channels' -> 'APP'",
+                [],
+                output_field=TextField(),
+            )
+        ).filter(app_channel__isnull=False)
+    return qs.annotate(
+        app_channel=Func(
+            "data",
+            Value("$.channels.APP"),
+            function="JSON_TYPE",
+            output_field=TextField(),
+        )
+    ).filter(app_channel__isnull=False)
+
+
 def _format_notification(notification: Notification) -> str:
     try:
         template = NotificationType(notification.verb).message_template
@@ -278,14 +305,7 @@ def notification_inbox_view(request: HttpRequest) -> HttpResponse:
     user: BorrowdUser = request.user  # type: ignore[assignment]
 
     # only show the notifications that where sent through the in-app channel
-    qs: QuerySet[Notification] = user.notifications.annotate(
-        app_channel=Func(
-            "data",
-            Value("$.channels.APP"),
-            function="JSON_TYPE",
-            output_field=TextField(),
-        )
-    ).filter(app_channel__isnull=False)
+    qs: QuerySet[Notification] = _app_channel_qs(user.notifications.all())
     paginator = Paginator(qs, _INBOX_PAGE_SIZE)
     page_obj = paginator.get_page(request.GET.get("page", 1))
 
@@ -330,6 +350,7 @@ def delete_app_notification(notification: Notification) -> None:
         channels.pop(ChannelType.APP.value, None)
         data["channels"] = channels
         notification.data = data
+        notification.delete = True
         notification.unread = False
         notification.save(update_fields=["data", "unread"])
 
@@ -347,7 +368,6 @@ def remove_app_notification(request: HttpRequest, pk: int) -> HttpResponse:
 @require_POST
 def remove_all_app_notifications(request: HttpRequest) -> HttpResponse:
     user: BorrowdUser = request.user  # type: ignore[assignment]
-    notifications: QuerySet[Notification] = user.notifications
-    for notification in notifications.iterator():
+    for notification in _app_channel_qs(user.notifications.all()).iterator():
         delete_app_notification(notification)
     return redirect("notification-inbox")

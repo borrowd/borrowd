@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from typing import Any, Dict
 
+# from .base.models import AbstractNotification
 import notifications
 from django.conf import settings
 from django.db import models
