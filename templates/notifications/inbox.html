@@ -2,6 +2,7 @@
 
 {% load i18n %}
 {% load humanize %}
+{% load heroicons %}
 
 {% block head_title %}
     {% trans "Notifications" %}
@@ -27,10 +28,22 @@
                     </button>
                 </form>
             {% endif %}
+
+            {% if page_obj.object_list %}
+                <form method="post" action="{% url 'notification-delete-all' %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-warning btn-sm text-base-content/60">
+                        {% trans "Delete all" %}
+                    </button>
+                </form>
+            {% endif %}
         </div>
 
         {% if page_obj.object_list %}
-            <div class="card bg-primary-content rounded-md border border-gray-200 shadow-sm divide-y divide-gray-100">
+            <div hx-get="{% url 'notification-inbox' %}"
+                 hx-trigger="every 30s"
+                 hx-swap="outerHTML"
+                 class="card bg-primary-content rounded-md border border-gray-200 shadow-sm divide-y divide-gray-100">
                 {% for notification in page_obj %}
                     <div class="flex items-start gap-3 px-4 py-3 {% if notification.unread %}bg-blue-50/60{% endif %}">
 
@@ -51,11 +64,18 @@
                                 {% csrf_token %}
                                 <button type="submit"
                                         class="btn btn-ghost btn-xs text-base-content/40 mt-0.5">
-                                    {% trans "Dismiss" %}
+                                    {% trans "Mark as read" %}
                                 </button>
                             </form>
                         {% endif %}
-
+                        <form method="post"
+                              action="{% url 'notification-delete' pk=notification.pk %}">
+                            {% csrf_token %}
+                            <button type="submit"
+                                    class="btn btn-warning btn-xs text-base-content/40 mt-0.5">
+                                {% heroicon_outline "trash" class="size-5" %}
+                            </button>
+                        </form>
                     </div>
                 {% endfor %}
             </div>

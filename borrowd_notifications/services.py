@@ -1,8 +1,8 @@
 import logging
 from datetime import timedelta
-from typing import Type
+from typing import Any, Type
 
-import sentry_sdk
+import sentry_sdk  # type: ignore[import-not-found]
 from django.utils import timezone
 from notifications.models import Notification
 
@@ -42,6 +42,21 @@ class NotificationService:
         except KeyError:
             raise ValueError(f"Unknown notification backend: {channel}")
         return backend_cls()
+
+    @staticmethod
+    def _dispatched_channels(notification: Notification) -> set[str]:
+        """Channels through witch this notification was sent."""
+        if not isinstance(notification.data, dict):
+            return set()
+        return set(notification.data.get("channels", {}).keys())
+
+    @staticmethod
+    def _channel_results(notification: Notification) -> dict[str, Any]:
+        """Channels and status for this notification."""
+        if not isinstance(notification.data, dict):
+            return {}
+        result: dict[str, Any] = notification.data.get("channels", {})
+        return result
 
     @staticmethod
     def _get_enabled_channels(

@@ -2,15 +2,21 @@ from typing import Any
 
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
-from django.db.models import Func, TextField, Value
+from django.db.models import Func, QuerySet, TextField, Value
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 from notifications.models import Notification
 
+from borrowd_notifications.services import NotificationService
 from borrowd_users.models import BorrowdUser
 
-from .models import ChannelType, NotificationPreference, NotificationType
+from .models import (
+    ChannelType,
+    NotificationData,
+    NotificationPreference,
+    NotificationType,
+)
 
 # Categories shown on the settings page, in display order.
 # Each entry is (NotificationType, human-readable label).
@@ -229,10 +235,13 @@ def bulk_toggle_preferences(request: HttpRequest) -> HttpResponse:
         return HttpResponse(status=400)
 
     field_name = channel.label
-    NotificationPreference.objects.filter(
-        user=user,
-        notification_type__in=[t.value for t in types_to_update],
-    ).update(**{field_name: enabled})
+
+    for ntype in types_to_update:
+        NotificationPreference.objects.update_or_create(
+            user=user,
+            notification_type=ntype.value,
+            defaults={field_name: enabled},
+        )
 
     return HttpResponse(status=204)
 
@@ -268,7 +277,7 @@ def notification_inbox_view(request: HttpRequest) -> HttpResponse:
     user: BorrowdUser = request.user  # type: ignore[assignment]
 
     # only show the notifications that where sent through the in-app channel
-    qs = user.notifications.annotate(
+    qs: QuerySet[Notification] = user.notifications.annotate(
         app_channel=Func(
             "data",
             Value("$.channels.APP"),
@@ -288,7 +297,7 @@ def notification_inbox_view(request: HttpRequest) -> HttpResponse:
         "notifications/inbox.html",
         {
             "page_obj": page_obj,
-            "unread_count": user.notifications.unread().count(),
+            "unread_count": qs.unread().count(),  # type: ignore[attr-defined]
         },
     )
 
@@ -307,4 +316,38 @@ def mark_notification_read(request: HttpRequest, pk: int) -> HttpResponse:
 def mark_all_notifications_read(request: HttpRequest) -> HttpResponse:
     user: BorrowdUser = request.user  # type: ignore[assignment]
     user.notifications.mark_all_as_read()
+    return redirect("notification-inbox")
+
+
+def delete_app_notification(notification: Notification) -> None:
+    dispatched_channels = NotificationService._dispatched_channels(
+        notification=notification
+    )
+
+    if ChannelType.APP in dispatched_channels:
+        data_payload: NotificationData = NotificationData(notification.data)
+        data_payload.channels.pop(ChannelType.APP)
+
+        setattr(notification, "data", data_payload.to_dict())
+        setattr(notification, "unread", False)
+
+        notification.save(update_fields=["data", "unread"])
+
+
+@login_required
+@require_POST
+def remove_app_notification(request: HttpRequest, pk: int) -> HttpResponse:
+    notification = get_object_or_404(Notification, pk=pk, recipient=request.user)
+
+    delete_app_notification(notification=notification)
+    return redirect("notification-inbox")
+
+
+@login_required
+@require_POST
+def remove_all_app_notifications(request: HttpRequest) -> HttpResponse:
+    user: BorrowdUser = request.user  # type: ignore[assignment]
+    notifications: list[Notification] = user.notifications
+    for notification in notifications:
+        delete_app_notification(notification)
     return redirect("notification-inbox")
