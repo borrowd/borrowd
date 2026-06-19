@@ -88,9 +88,7 @@ def send_transaction_notifications(
 ) -> None:
     """Send notifications when transaction status changes."""
 
-    counterparty: BorrowdUser = instance.counter_party(
-        cast(BorrowdUser, instance.updated_by)
-    )
+    counterparty: BorrowdUser = instance.counter_party(instance.updated_by)
     match instance.status:
         case TransactionStatus.REQUESTED:
             notify.send(
@@ -126,7 +124,7 @@ def send_transaction_notifications(
                 verb=NotificationType.COLLECTION_ASSERTED.value,
                 action_object=instance.item,
                 target=instance,
-                description=f"{instance.updated_by} says they've collected {instance.item.name}. Please confirm.",  
+                description=f"{instance.updated_by} says they've collected {instance.item.name}. Please confirm.",
             )
         case TransactionStatus.COLLECTED:
             notify.send(
@@ -135,7 +133,7 @@ def send_transaction_notifications(
                 verb=NotificationType.COLLECTION_CONFIRMED.value,
                 action_object=instance.item,
                 target=instance,
-                description=f"The collection of {instance.item.name} has been confirmed!",  
+                description=f"The collection of {instance.item.name} has been confirmed!",
             )
         case TransactionStatus.RETURN_ASSERTED:
             notify.send(
@@ -144,7 +142,7 @@ def send_transaction_notifications(
                 verb=NotificationType.RETURN_ASSERTED.value,
                 action_object=instance.item,
                 target=instance,
-                description=f"{instance.updated_by} says {instance.item.name} has been returned. Please confirm.",  
+                description=f"{instance.updated_by} says {instance.item.name} has been returned. Please confirm.",
             )
         case TransactionStatus.RETURNED:
             notify.send(
@@ -168,14 +166,19 @@ def send_transaction_notifications(
             # The party who raised the dispute notifies the other one.
             if instance.dispute_raised_by is None:
                 return
+            notified_party = (
+                instance.party1
+                if instance.dispute_raised_by == instance.party2
+                else instance.party2
+            )
             notify.send(
                 instance.dispute_raised_by,
-                recipient=[counterparty],
+                recipient=[notified_party],
                 verb=NotificationType.ITEM_DISPUTED.value,
                 action_object=instance.item,
                 target=instance,
                 description="A dispute has been raised",
-            )            
+            )
 
 
 @receiver(pre_save, sender=Membership)
@@ -185,13 +188,13 @@ def capture_membership_previous_status(
     """Store the pre-save status on the instance so post_save can detect transitions."""
     if instance.pk:
         try:
-            instance._previous_status = Membership.objects.values_list( 
+            instance._previous_status = Membership.objects.values_list(  # type: ignore[attr-defined]
                 "status", flat=True
             ).get(pk=instance.pk)
         except Membership.DoesNotExist:
-            instance._previous_status = None 
+            instance._previous_status = None  # type: ignore[attr-defined]
     else:
-        instance._previous_status = None  
+        instance._previous_status = None  # type: ignore[attr-defined]
 
 
 @receiver(post_save, sender=Membership)
@@ -216,12 +219,12 @@ def send_membership_notifications(
                     verb=NotificationType.MEMBERSHIP_PENDING.value,
                     action_object=instance,
                     target=instance.group,
-                    description=f"{instance.user.first_name} wants to join {instance.group.name}. Review their request.", 
+                    description=f"{instance.user.first_name} wants to join {instance.group.name}. Review their request.",
                 )
         elif instance.status == MembershipStatus.ACTIVE:
             notify.send(
                 instance.user,
-                recipient=instance.group.users.exclude(id=instance.user.id),
+                recipient=instance.group.users.exclude(id=instance.user.pk),
                 verb=NotificationType.GROUP_MEMBER_JOINED.value,
                 action_object=instance,
                 target=instance.group,
@@ -243,11 +246,11 @@ def send_membership_notifications(
             )
             notify.send(
                 instance.user,
-                recipient=instance.group.users.exclude(id=instance.user.id),
+                recipient=instance.group.users.exclude(id=instance.user.pk),
                 verb=NotificationType.GROUP_MEMBER_JOINED.value,
                 action_object=instance,
                 target=instance.group,
-                description=f"{instance.user.first_name} just joined {instance.group.name}", 
+                description=f"{instance.user.first_name} just joined {instance.group.name}",
             )
 
 

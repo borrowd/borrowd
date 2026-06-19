@@ -41,6 +41,8 @@ NOTIFICATION_CATEGORIES: list[dict[str, Any]] = [
                 "Request cancelled - owner left",
             ),
             (NotificationType.LOAN_ENDED_OWNER_LEFT, "Loan ended - owner left"),
+            (NotificationType.ITEM_RETURN_REQUESTED, "Item return requested"),
+            (NotificationType.ITEM_DISPUTED, "Item disputed"),
         ],
     },
     {
@@ -202,7 +204,7 @@ def toggle_preference(request: HttpRequest) -> HttpResponse:
     ):
         return HttpResponse(status=403)
 
-    field_name = ChannelType(channel_value).label
+    field_name = str(ChannelType(channel_value).label)
     obj, _ = NotificationPreference.objects.get_or_create(
         user=user,
         notification_type=type_value,
@@ -234,7 +236,7 @@ def bulk_toggle_preferences(request: HttpRequest) -> HttpResponse:
     if not types_to_update:
         return HttpResponse(status=400)
 
-    field_name = channel.label
+    field_name = str(channel.label)
 
     for ntype in types_to_update:
         NotificationPreference.objects.update_or_create(
@@ -315,7 +317,7 @@ def mark_notification_read(request: HttpRequest, pk: int) -> HttpResponse:
 @require_POST
 def mark_all_notifications_read(request: HttpRequest) -> HttpResponse:
     user: BorrowdUser = request.user  # type: ignore[assignment]
-    user.notifications.mark_all_as_read()
+    user.notifications.mark_all_as_read()  # type: ignore[attr-defined]
     return redirect("notification-inbox")
 
 
@@ -347,7 +349,7 @@ def remove_app_notification(request: HttpRequest, pk: int) -> HttpResponse:
 @require_POST
 def remove_all_app_notifications(request: HttpRequest) -> HttpResponse:
     user: BorrowdUser = request.user  # type: ignore[assignment]
-    notifications: list[Notification] = user.notifications
+    notifications: QuerySet[Notification] = user.notifications
     for notification in notifications:
         delete_app_notification(notification)
     return redirect("notification-inbox")

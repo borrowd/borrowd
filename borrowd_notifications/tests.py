@@ -1,9 +1,8 @@
-from typing import cast
 from unittest.mock import patch
 
+from django.core import mail
 from django.http import HttpResponse
 from django.test import TestCase, TransactionTestCase, override_settings
-from django.core import mail
 from notifications.models import Notification
 
 from borrowd.models import TrustLevel
@@ -576,7 +575,7 @@ class TransactionNotificationTests(TestCase):
     def test_collection_asserted_notifies_owner(self) -> None:
         """Counterpartie receives COLLECTION_ASSERTED from the asserter; asserter receives nothing."""
         transaction = self._create_transaction(TransactionStatus.COLLECTION_ASSERTED)
-        updated_by = cast(BorrowdUser, transaction.updated_by)
+        updated_by = transaction.updated_by
 
         notifications = Notification.objects.filter(
             recipient=transaction.counter_party(updated_by),
@@ -589,7 +588,7 @@ class TransactionNotificationTests(TestCase):
     def test_collection_confirmed_notifies_counterparty(self) -> None:
         """Counterpartie receives COLLECTION_CONFIRMED from the confirmer; confirmer receives nothing."""
         transaction = self._create_transaction(TransactionStatus.COLLECTED)
-        updated_by = cast(BorrowdUser, transaction.updated_by)
+        updated_by = transaction.updated_by
 
         notifications = Notification.objects.filter(
             recipient=transaction.counter_party(updated_by),
@@ -602,7 +601,7 @@ class TransactionNotificationTests(TestCase):
     def test_return_asserted_notifies_counterpartie(self) -> None:
         """Counterparty receives RETURN_ASSERTED from the the asserter; and asserter receives nothing themselves."""
         transaction = self._create_transaction(TransactionStatus.RETURN_ASSERTED)
-        updated_by = cast(BorrowdUser, transaction.updated_by)
+        updated_by = transaction.updated_by
 
         notifications = Notification.objects.filter(
             recipient=transaction.counter_party(updated_by),
@@ -615,7 +614,7 @@ class TransactionNotificationTests(TestCase):
     def test_return_confirmed_notifies_borrower(self) -> None:
         """Borrower receives RETURN_CONFIRMED from the owner; owner receives nothing."""
         transaction = self._create_transaction(TransactionStatus.RETURNED)
-        updated_by = cast(BorrowdUser, transaction.updated_by)
+        updated_by = transaction.updated_by
 
         notifications = Notification.objects.filter(
             recipient=transaction.counter_party(updated_by),
@@ -788,12 +787,14 @@ class NotificationChannelErrorTests(TransactionTestCase):
             created_by=self.owner,
             updated_by=self.owner,
         )
-        NotificationPreference.objects.create(
+        NotificationPreference.objects.update_or_create(
             user=self.borrower,
             notification_type=NotificationType.ITEM_REQUEST_ACCEPTED.value,
-            in_app_enabled=True,
-            email_enabled=True,
-            push_enabled=False,
+            defaults={
+                "in_app_enabled": True,
+                "email_enabled": True,
+                "push_enabled": False,
+            },
         )
 
     def _trigger_accepted(self) -> Notification:
@@ -859,12 +860,14 @@ class NotificationEmailThrottleTests(TransactionTestCase):
             created_by=self.owner,
             updated_by=self.owner,
         )
-        NotificationPreference.objects.create(
+        NotificationPreference.objects.update_or_create(
             user=self.borrower,
             notification_type=NotificationType.ITEM_REQUEST_ACCEPTED.value,
-            in_app_enabled=True,
-            email_enabled=True,
-            push_enabled=False,
+            defaults={
+                "in_app_enabled": True,
+                "email_enabled": True,
+                "push_enabled": False,
+            },
         )
 
     def _trigger_accepted(self) -> Notification:
@@ -932,12 +935,14 @@ class NotificationEmailThrottleTests(TransactionTestCase):
 
     def test_mandatory_type_throttled_still_dispatches_app(self) -> None:
         """Mandatory notifications still dispatch APP when EMAIL is throttled."""
-        NotificationPreference.objects.create(
+        NotificationPreference.objects.update_or_create(
             user=self.owner,
             notification_type=NotificationType.ITEM_REQUESTED.value,
-            in_app_enabled=False,
-            email_enabled=False,
-            push_enabled=False,
+            defaults={
+                "in_app_enabled": False,
+                "email_enabled": False,
+                "push_enabled": False,
+            },
         )
         with patch.object(
             NotificationService, "_is_email_throttled", return_value=True
@@ -994,13 +999,8 @@ class NotificationPreferenceToggleViewTests(TestCase):
         )
 
     def test_toggle_creates_preference_row_on_first_call(self) -> None:
-        """The first toggle for a user+type creates the preference row."""
-        self.assertFalse(
-            NotificationPreference.objects.filter(
-                user=self.user,
-                notification_type=NotificationType.ITEM_REQUEST_ACCEPTED.value,
-            ).exists()
-        )
+        """Toggling an optional type sets the stored value correctly."""
+
         response = self._toggle(NotificationType.ITEM_REQUEST_ACCEPTED, "EMAIL", False)
         self.assertEqual(response.status_code, 204)
         pref = NotificationPreference.objects.get(
@@ -1011,12 +1011,14 @@ class NotificationPreferenceToggleViewTests(TestCase):
 
     def test_toggle_updates_existing_preference(self) -> None:
         """Toggling again flips the stored value."""
-        NotificationPreference.objects.create(
+        NotificationPreference.objects.update_or_create(
             user=self.user,
             notification_type=NotificationType.ITEM_REQUEST_ACCEPTED.value,
-            in_app_enabled=True,
-            email_enabled=True,
-            push_enabled=False,
+            defaults={
+                "in_app_enabled": True,
+                "email_enabled": True,
+                "push_enabled": False,
+            },
         )
         self._toggle(NotificationType.ITEM_REQUEST_ACCEPTED, "EMAIL", False)
         pref = NotificationPreference.objects.get(
@@ -1028,13 +1030,15 @@ class NotificationPreferenceToggleViewTests(TestCase):
 
     def test_toggle_mandatory_type_returns_403(self) -> None:
         """Attempting to toggle a mandatory type is rejected."""
+        pref_before = NotificationPreference.objects.get(
+            user=self.user, notification_type=NotificationType.ITEM_REQUESTED.value
+        )
         response = self._toggle(NotificationType.ITEM_REQUESTED, "EMAIL", False)
         self.assertEqual(response.status_code, 403)
-        self.assertFalse(
-            NotificationPreference.objects.filter(
-                user=self.user, notification_type=NotificationType.ITEM_REQUESTED.value
-            ).exists()
+        pref_after = NotificationPreference.objects.get(
+            user=self.user, notification_type=NotificationType.ITEM_REQUESTED.value
         )
+        self.assertEqual(pref_before.email_enabled, pref_after.email_enabled)
 
     def test_toggle_invalid_notification_type_returns_400(self) -> None:
         """An unrecognised notification_type value returns 400."""
@@ -1062,12 +1066,14 @@ class NotificationPreferenceToggleViewTests(TestCase):
             (NotificationType.ITEM_REQUEST_ACCEPTED, "accepted"),
             (NotificationType.ITEM_REQUEST_DENIED, "denied"),
         ]:
-            NotificationPreference.objects.create(
+            NotificationPreference.objects.update_or_create(
                 user=self.user,
                 notification_type=ntype.value,
-                in_app_enabled=True,
-                email_enabled=True,
-                push_enabled=False,
+                defaults={
+                    "in_app_enabled": True,
+                    "email_enabled": True,
+                    "push_enabled": False,
+                },
             )
 
         response = self._bulk_toggle("lending", "EMAIL", False)
@@ -1092,6 +1098,8 @@ class NotificationPreferenceToggleViewTests(TestCase):
         """An unrecognised scope in a bulk-toggle returns 400."""
         response = self._bulk_toggle("nonexistent-scope", "EMAIL", False)
         self.assertEqual(response.status_code, 400)
+
+
 class ReturnFlowNotificationTests(TestCase):
     """Tests for return-request and dispute notification emails."""
 
@@ -1118,32 +1126,42 @@ class ReturnFlowNotificationTests(TestCase):
             created_by=self.lender,
             updated_by=self.lender,
         )
+        for user in (self.lender, self.borrower):
+            NotificationPreference.objects.update_or_create(
+                user=user,
+                notification_type=NotificationType.ITEM_DISPUTED.value,
+                defaults={
+                    "in_app_enabled": True,
+                    "email_enabled": True,
+                    "push_enabled": False,
+                },
+            )
 
     def _create_transaction(
         self,
         status: TransactionStatus,
         dispute_raised_by: BorrowdUser | None = None,
     ) -> Transaction:
-        return Transaction.objects.create(
-            item=self.item,
-            party1=self.lender,
-            party2=self.borrower,
-            status=status,
-            dispute_raised_by=dispute_raised_by,
-            created_by=self.borrower,
-            updated_by=self.lender,
-        )
+        with self.captureOnCommitCallbacks(execute=True):
+            return Transaction.objects.create(
+                item=self.item,
+                party1=self.lender,
+                party2=self.borrower,
+                status=status,
+                dispute_raised_by=dispute_raised_by,
+                created_by=self.borrower,
+                updated_by=self.lender,
+            )
 
     def test_return_request_emails_borrower(self) -> None:
         """Borrower is notified when the lender requests the item back."""
         self._create_transaction(TransactionStatus.RETURN_REQUESTED)
 
-        notifications = Notification.objects.filter(
+        notifications: Notification = Notification.objects.filter(
             recipient=self.borrower,
             verb=NotificationType.ITEM_RETURN_REQUESTED.value,
         )
         self.assertEqual(notifications.count(), 1)
-
         self.assertEqual(len(mail.outbox), 1)
         email = mail.outbox[0]
         self.assertEqual(email.subject, "Return requested")

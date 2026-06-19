@@ -58,6 +58,11 @@ class NotificationType(models.TextChoices):
         "Item subscription",
         "{subscriber_name} wants to be notified when {item_name} is available",
     )
+    ITEM_RETURN_REQUESTED = (
+        "Item return requested",
+        "The owner of {item_name} has requested to get it back. Please coordinate with them the return of this item.",
+    )
+    ITEM_DISPUTED = ("Item disputed", "This item has escalated to a dispute!")
 
     # Group & membership
     GROUP_MEMBER_JOINED = (
@@ -105,6 +110,7 @@ class NotificationType(models.TextChoices):
                 cls.COLLECTION_ASSERTED,
                 cls.RETURN_ASSERTED,
                 cls.MEMBERSHIP_PENDING,
+                cls.ITEM_RETURN_REQUESTED,
             }
         )
 
@@ -113,7 +119,7 @@ class NotificationType(models.TextChoices):
 
     @property
     def message_template(self) -> str:
-        return self.label
+        return str(self.label)
 
     # TODO simplify the logic to make it cleaner.
     @staticmethod
@@ -127,7 +133,7 @@ class NotificationType(models.TextChoices):
         ) and isinstance(notification.target, Transaction):
             return {
                 "recipient_name": notification.recipient.profile.full_name(),
-                "item_name": notification.target.item.name,  # type: ignore[attr-defined]
+                "item_name": notification.target.item.name,
             }
         if isinstance(notification.target, Transaction):
             transaction: Transaction = notification.target
@@ -135,27 +141,27 @@ class NotificationType(models.TextChoices):
                 case TransactionStatus.REQUESTED:
                     context.update(
                         {
-                            "requester_name": transaction.party2.profile.full_name(),  # type: ignore[attr-defined]
-                            "item_name": transaction.item.name,  # type: ignore[attr-defined]
-                            "item_owner_name": transaction.party1.profile.full_name(),  # type: ignore[attr-defined]
+                            "requester_name": transaction.party2.profile.full_name(),
+                            "item_name": transaction.item.name,
+                            "item_owner_name": transaction.party1.profile.full_name(),
                             "respond_url": settings.BASE_URL
-                            + reverse("item-detail", args=[transaction.item.pk]),  # type: ignore[attr-defined]
+                            + reverse("item-detail", args=[transaction.item.pk]),
                         }
                     )
                 case TransactionStatus.ACCEPTED:
                     context.update(
                         {
-                            "requester_name": transaction.party2.profile.full_name(),  # type: ignore[attr-defined]
-                            "item_name": transaction.item.name,  # type: ignore[attr-defined]
-                            "item_owner_name": transaction.party1.profile.full_name(),  # type: ignore[attr-defined]
-                            "item_owner_email": transaction.party1.email,  # type: ignore[attr-defined]
+                            "requester_name": transaction.party2.profile.full_name(),
+                            "item_name": transaction.item.name,
+                            "item_owner_name": transaction.party1.profile.full_name(),
+                            "item_owner_email": transaction.party1.email,
                         }
                     )
                 case TransactionStatus.REJECTED:
                     context.update(
                         {
-                            "requester_name": transaction.party2.profile.full_name(),  # type: ignore[attr-defined]
-                            "item_name": transaction.item.name,  # type: ignore[attr-defined]
+                            "requester_name": transaction.party2.profile.full_name(),
+                            "item_name": transaction.item.name,
                         }
                     )
                 case (
@@ -165,17 +171,33 @@ class NotificationType(models.TextChoices):
                 ):
                     context.update(
                         {
-                            "requester_name": transaction.party2.profile.full_name(),  # type: ignore[attr-defined]
-                            "item_name": transaction.item.name,  # type: ignore[attr-defined]
-                            "item_owner_name": transaction.party1.profile.full_name(),  # type: ignore[attr-defined]
+                            "requester_name": transaction.party2.profile.full_name(),
+                            "item_name": transaction.item.name,
+                            "item_owner_name": transaction.party1.profile.full_name(),
                         }
                     )
                 case TransactionStatus.RETURNED:
                     context.update(
                         {
-                            "item_owner_name": transaction.party1.profile.full_name(),  # type: ignore[attr-defined]
-                            "requester_name": transaction.party2.profile.full_name(),  # type: ignore[attr-defined]
-                            "item_name": transaction.item.name,  # type: ignore[attr-defined]
+                            "item_owner_name": transaction.party1.profile.full_name(),
+                            "requester_name": transaction.party2.profile.full_name(),
+                            "item_name": transaction.item.name,
+                        }
+                    )
+                case TransactionStatus.RETURN_REQUESTED:
+                    context.update(
+                        {
+                            "borrower_name": transaction.party2.profile.full_name(),
+                            "item_name": transaction.item.name,
+                            "inventory_url": settings.BASE_URL
+                            + reverse("profile-inventory"),
+                        }
+                    )
+                case TransactionStatus.DISPUTED:
+                    context.update(
+                        {
+                            "recipient_name": notification.recipient.profile.full_name(),
+                            "item_name": transaction.item.name,
                         }
                     )
         elif isinstance(notification.target, BorrowdGroup):
@@ -195,8 +217,8 @@ class NotificationType(models.TextChoices):
                 context.update(
                     {
                         "group_member_name": notification.recipient.profile.full_name(),
-                        "new_member_name": membership.user.profile.full_name(),  # type: ignore[attr-defined]
-                        "group_name": membership.group.name,  # type: ignore[attr-defined]
+                        "new_member_name": membership.user.profile.full_name(),
+                        "group_name": membership.group.name,
                     }
                 )
         elif isinstance(notification.target, AvailabilitySubscription):
@@ -205,19 +227,19 @@ class NotificationType(models.TextChoices):
             if notification.verb == NotificationType.ITEM_SUBSCRIPTION.value:
                 context.update(
                     {
-                        "subscriber_name": subscription.user.profile.full_name(),  # type: ignore[attr-defined]
-                        "item_name": subscription.item.name,  # type: ignore[attr-defined]
+                        "subscriber_name": subscription.user.profile.full_name(),
+                        "item_name": subscription.item.name,
                         "item_url": base_url
-                        + reverse("item-detail", args=[subscription.item.pk]),  # type: ignore[attr-defined]
+                        + reverse("item-detail", args=[subscription.item.pk]),
                     }
                 )
             elif notification.verb == NotificationType.ITEM_NOTIFY_WHEN_AVAILABLE.value:
                 context.update(
                     {
-                        "subscriber_name": subscription.user.profile.full_name(),  # type: ignore[attr-defined]
-                        "item_name": subscription.item.name,  # type: ignore[attr-defined]
+                        "subscriber_name": subscription.user.profile.full_name(),
+                        "item_name": subscription.item.name,
                         "item_url": base_url
-                        + reverse("item-detail", args=[subscription.item.pk]),  # type: ignore[attr-defined]
+                        + reverse("item-detail", args=[subscription.item.pk]),
                     }
                 )
         return context

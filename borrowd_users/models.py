@@ -8,6 +8,7 @@ from django.db.models import DO_NOTHING, SET_NULL, DateTimeField, ForeignKey, Qu
 from guardian.mixins import GuardianUserMixin
 from imagekit.models import ProcessedImageField
 from imagekit.processors import ResizeToFit
+from notifications.models import Notification
 
 from borrowd_groups.mixins import BorrowdGroupPermissionMixin
 
@@ -77,6 +78,7 @@ class BorrowdUser(AbstractUser, BorrowdGroupPermissionMixin, GuardianUserMixin):
     # will be deleted in future PR.
     profile: "Profile"
     borrowd_groups: "QuerySet[BorrowdGroup]"
+    notifications: "QuerySet[Notification]"
 
 
 class Profile(models.Model):

@@ -2,7 +2,7 @@ import logging
 from datetime import timedelta
 from typing import Any, Type
 
-import sentry_sdk  # type: ignore[import-not-found]
+import sentry_sdk
 from django.utils import timezone
 from notifications.models import Notification
 

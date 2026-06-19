@@ -1,6 +1,6 @@
 from dataclasses import dataclass
-from datetime import datetime
-from typing import Never, Optional, cast
+from datetime import datetime, timedelta
+from typing import Never, Optional
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -1028,13 +1028,13 @@ class Transaction(Model):
 
     def counter_party(self, user: BorrowdUser) -> BorrowdUser:
         if user == self.party1:
-            return cast(BorrowdUser, self.party2)
+            return self.party2
 
         if user == self.party2:
-            return cast(BorrowdUser, self.party1)
+            return self.party1
 
         raise ValueError("User is not a party to this transaction.")
-        
+
     def dispute_wait_has_elapsed(self) -> bool:
         """
         Whether the lender has waited long enough since requesting a return
