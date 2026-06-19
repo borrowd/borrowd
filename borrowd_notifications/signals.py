@@ -99,7 +99,7 @@ def send_transaction_notifications(
                 verb=NotificationType.ITEM_REQUESTED.value,
                 action_object=instance.item,
                 target=instance,
-                description=f"Someone's hoping to borrow your {instance.item.name}",  # type: ignore[attr-defined]
+                description=f"Someone's hoping to borrow your {instance.item.name}",
             )
         case TransactionStatus.ACCEPTED:
             notify.send(
@@ -108,7 +108,7 @@ def send_transaction_notifications(
                 verb=NotificationType.ITEM_REQUEST_ACCEPTED.value,
                 action_object=instance.item,
                 target=instance,
-                description=f"Your request to borrow {instance.item.name} was approved",  # type: ignore[attr-defined]
+                description=f"Your request to borrow {instance.item.name} was approved",
             )
         case TransactionStatus.REJECTED:
             notify.send(
@@ -126,7 +126,7 @@ def send_transaction_notifications(
                 verb=NotificationType.COLLECTION_ASSERTED.value,
                 action_object=instance.item,
                 target=instance,
-                description=f"{instance.updated_by} says they've collected {instance.item.name}. Please confirm.",  # type: ignore[attr-defined]
+                description=f"{instance.updated_by} says they've collected {instance.item.name}. Please confirm.",  
             )
         case TransactionStatus.COLLECTED:
             notify.send(
@@ -135,7 +135,7 @@ def send_transaction_notifications(
                 verb=NotificationType.COLLECTION_CONFIRMED.value,
                 action_object=instance.item,
                 target=instance,
-                description=f"The collection of {instance.item.name} has been confirmed!",  # type: ignore[attr-defined]
+                description=f"The collection of {instance.item.name} has been confirmed!",  
             )
         case TransactionStatus.RETURN_ASSERTED:
             notify.send(
@@ -144,7 +144,7 @@ def send_transaction_notifications(
                 verb=NotificationType.RETURN_ASSERTED.value,
                 action_object=instance.item,
                 target=instance,
-                description=f"{instance.updated_by} says {instance.item.name} has been returned. Please confirm.",  # type: ignore[attr-defined]
+                description=f"{instance.updated_by} says {instance.item.name} has been returned. Please confirm.",  
             )
         case TransactionStatus.RETURNED:
             notify.send(
@@ -155,6 +155,27 @@ def send_transaction_notifications(
                 target=instance,
                 description="{instance.item.name} return confirmed. Thanks for borrowing!",
             )
+        case TransactionStatus.RETURN_REQUESTED:
+            notify.send(
+                instance.party1,
+                recipient=[instance.party2],
+                verb=NotificationType.ITEM_RETURN_REQUESTED.value,
+                action_object=instance.item,
+                target=instance,
+                description="Return requested",
+            )
+        case TransactionStatus.DISPUTED:
+            # The party who raised the dispute notifies the other one.
+            if instance.dispute_raised_by is None:
+                return
+            notify.send(
+                instance.dispute_raised_by,
+                recipient=[counterparty],
+                verb=NotificationType.ITEM_DISPUTED.value,
+                action_object=instance.item,
+                target=instance,
+                description="A dispute has been raised",
+            )            
 
 
 @receiver(pre_save, sender=Membership)
@@ -164,13 +185,13 @@ def capture_membership_previous_status(
     """Store the pre-save status on the instance so post_save can detect transitions."""
     if instance.pk:
         try:
-            instance._previous_status = Membership.objects.values_list(  # type: ignore[attr-defined]
+            instance._previous_status = Membership.objects.values_list( 
                 "status", flat=True
             ).get(pk=instance.pk)
         except Membership.DoesNotExist:
-            instance._previous_status = None  # type: ignore[attr-defined]
+            instance._previous_status = None 
     else:
-        instance._previous_status = None  # type: ignore[attr-defined]
+        instance._previous_status = None  
 
 
 @receiver(post_save, sender=Membership)
@@ -195,16 +216,16 @@ def send_membership_notifications(
                     verb=NotificationType.MEMBERSHIP_PENDING.value,
                     action_object=instance,
                     target=instance.group,
-                    description=f"{instance.user.first_name} wants to join {instance.group.name}. Review their request.",  # type: ignore[attr-defined]
+                    description=f"{instance.user.first_name} wants to join {instance.group.name}. Review their request.", 
                 )
         elif instance.status == MembershipStatus.ACTIVE:
             notify.send(
                 instance.user,
-                recipient=instance.group.users.exclude(id=instance.user.id),  # type: ignore[attr-defined]
+                recipient=instance.group.users.exclude(id=instance.user.id),
                 verb=NotificationType.GROUP_MEMBER_JOINED.value,
                 action_object=instance,
                 target=instance.group,
-                description=f"{instance.user.first_name} just joined {instance.group.name}",  # type: ignore[attr-defined]
+                description=f"{instance.user.first_name} just joined {instance.group.name}",
             )
     else:
         previous_status = getattr(instance, "_previous_status", None)
@@ -218,15 +239,15 @@ def send_membership_notifications(
                 verb=NotificationType.MEMBERSHIP_APPROVED.value,
                 action_object=instance,
                 target=instance.group,
-                description=f"You've been approved to join {instance.group.name}!",  # type: ignore[attr-defined]
+                description=f"You've been approved to join {instance.group.name}!",
             )
             notify.send(
                 instance.user,
-                recipient=instance.group.users.exclude(id=instance.user.id),  # type: ignore[attr-defined]
+                recipient=instance.group.users.exclude(id=instance.user.id),
                 verb=NotificationType.GROUP_MEMBER_JOINED.value,
                 action_object=instance,
                 target=instance.group,
-                description=f"{instance.user.first_name} just joined {instance.group.name}",  # type: ignore[attr-defined]
+                description=f"{instance.user.first_name} just joined {instance.group.name}", 
             )
 
 
@@ -235,7 +256,7 @@ def send_item_available_notification(
     sender: type[Transaction],
     instance: Transaction,
     created: bool,
-    **kwargs: Any,
+    **kwargs: str,
 ) -> None:
     """
     Send notifications when an item subscribed to becomes available.
@@ -259,7 +280,7 @@ def send_item_available_notification_on_subscription(
     sender: type[AvailabilitySubscription],
     instance: AvailabilitySubscription,
     created: bool,
-    **kwargs: Any,
+    **kwargs: str,
 ) -> None:
     """
     Send notifications when an availability subscription is created for an item that is already available.
@@ -278,5 +299,5 @@ def send_item_available_notification_on_subscription(
             verb=NotificationType.ITEM_SUBSCRIPTION.value,
             action_object=item,
             target=instance,
-            description=f"You'll be notified when {item.name} becomes available",
+            description=f"You have subscribed to be notified when {item.name} becomes available. We will let you know when it does!",
         )

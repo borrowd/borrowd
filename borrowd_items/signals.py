@@ -17,7 +17,7 @@ def assign_item_permissions(
     When a new Item is created or updated, assign all relevant Item permissions
     to the owner and relevant Groups.
     """
-    owner_borrowd_groups = instance.owner.borrowd_groups.filter(  # type: ignore[attr-defined]
+    owner_borrowd_groups = instance.owner.borrowd_groups.filter(
         membership__user=instance.owner,  # looks redundant, but fails without it
         membership__status=MembershipStatus.ACTIVE,
     )

@@ -7,11 +7,24 @@ Covers:
 - build_item_card_context: Full context building
 """
 
+from datetime import datetime
+
 from django.test import TestCase
+from django.utils import timezone
 
 from borrowd.models import TrustLevel
-from borrowd_items.card_helpers import build_card_ids, build_item_card_context
-from borrowd_items.models import Item, ItemCategory
+from borrowd_items.card_helpers import (
+    build_card_ids,
+    build_item_card_context,
+    get_banner_info_for_item,
+)
+from borrowd_items.models import (
+    Item,
+    ItemCategory,
+    ItemStatus,
+    Transaction,
+    TransactionStatus,
+)
 from borrowd_users.models import BorrowdUser
 
 
@@ -202,3 +215,120 @@ class BuildItemCardContextTests(TestCase):
         )
 
         self.assertEqual(ctx["action_context"], action_context)
+
+
+class ReturnFlowBannerTests(TestCase):
+    """Tests for return-request and dispute banner info."""
+
+    lender: BorrowdUser
+    borrower: BorrowdUser
+    other_user: BorrowdUser
+
+    @classmethod
+    def setUpTestData(cls) -> None:
+        """Create a lender, borrower, and an uninvolved viewer."""
+        cls.lender = BorrowdUser.objects.create(
+            username="banner_lender",
+            email="banner_lender@example.com",
+            first_name="lena",
+            last_name="lender",
+        )
+        cls.borrower = BorrowdUser.objects.create(
+            username="banner_borrower",
+            email="banner_borrower@example.com",
+            first_name="bo",
+            last_name="borrower",
+        )
+        cls.other_user = BorrowdUser.objects.create(
+            username="banner_other",
+            email="banner_other@example.com",
+        )
+
+    def setUp(self) -> None:
+        """Create a borrowed item owned by the lender."""
+        self.item = Item.objects.create(
+            name="Banner Item",
+            description="Test description",
+            owner=self.lender,
+            created_by=self.lender,
+            updated_by=self.lender,
+            status=ItemStatus.BORROWED,
+        )
+
+    def _create_transaction(
+        self,
+        status: TransactionStatus,
+        return_requested_at: datetime | None = None,
+        dispute_raised_by: BorrowdUser | None = None,
+    ) -> Transaction:
+        return Transaction.objects.create(
+            item=self.item,
+            party1=self.lender,
+            party2=self.borrower,
+            status=status,
+            return_requested_at=return_requested_at,
+            dispute_raised_by=dispute_raised_by,
+            created_by=self.borrower,
+            updated_by=self.lender,
+        )
+
+    def test_return_requested_owner_sees_you(self) -> None:
+        """Owner sees the return-requested banner attributed to themselves."""
+        self._create_transaction(
+            TransactionStatus.RETURN_REQUESTED, return_requested_at=timezone.now()
+        )
+        info = get_banner_info_for_item(self.item, self.lender)
+        self.assertEqual(
+            info, {"banner_type": "return_requested", "person_name": "you"}
+        )
+
+    def test_return_requested_borrower_sees_lender_name(self) -> None:
+        """Borrower sees the return-requested banner with the lender's name."""
+        self._create_transaction(
+            TransactionStatus.RETURN_REQUESTED, return_requested_at=timezone.now()
+        )
+        info = get_banner_info_for_item(self.item, self.borrower)
+        self.assertEqual(
+            info, {"banner_type": "return_requested", "person_name": "Lena"}
+        )
+
+    def test_return_requested_other_user_sees_borrowed(self) -> None:
+        """Uninvolved viewers get the generic borrowed banner."""
+        self._create_transaction(
+            TransactionStatus.RETURN_REQUESTED, return_requested_at=timezone.now()
+        )
+        info = get_banner_info_for_item(self.item, self.other_user)
+        self.assertEqual(info, {"banner_type": "borrowed"})
+
+    def test_return_asserted_after_request_keeps_banner(self) -> None:
+        """Banner stays up while the borrower's assertion awaits the lender."""
+        self._create_transaction(
+            TransactionStatus.RETURN_ASSERTED, return_requested_at=timezone.now()
+        )
+        info = get_banner_info_for_item(self.item, self.lender)
+        self.assertEqual(
+            info, {"banner_type": "return_requested", "person_name": "you"}
+        )
+
+    def test_return_asserted_without_request_shows_borrowed(self) -> None:
+        """The legacy no-request return flow keeps the borrowed banner."""
+        self._create_transaction(TransactionStatus.RETURN_ASSERTED)
+        info = get_banner_info_for_item(self.item, self.lender)
+        self.assertEqual(info["banner_type"], "borrowed")
+
+    def test_disputed_parties_see_disputed(self) -> None:
+        """Both parties see the disputed banner."""
+        self._create_transaction(
+            TransactionStatus.DISPUTED, dispute_raised_by=self.borrower
+        )
+        for viewer in (self.lender, self.borrower):
+            info = get_banner_info_for_item(self.item, viewer)
+            self.assertEqual(info, {"banner_type": "disputed"})
+
+    def test_disputed_other_user_sees_borrowed(self) -> None:
+        """Uninvolved viewers don't learn about the dispute."""
+        self._create_transaction(
+            TransactionStatus.DISPUTED, dispute_raised_by=self.borrower
+        )
+        info = get_banner_info_for_item(self.item, self.other_user)
+        self.assertEqual(info, {"banner_type": "borrowed"})

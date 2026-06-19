@@ -14,6 +14,7 @@ from django_filters.views import FilterView
 from guardian.mixins import LoginRequiredMixin
 
 from borrowd.util import BorrowdTemplateFinderMixin, resolve_back_url
+from borrowd_groups.models import Membership, MembershipStatus
 from borrowd_permissions.mixins import (
     LoginOr403PermissionMixin,
     LoginOr404PermissionMixin,
@@ -61,6 +62,11 @@ def _build_item_action_success_message(item_name: str, action: ItemAction) -> st
         ItemAction.NOTIFY_WHEN_AVAILABLE: "notification requested",
         ItemAction.CANCEL_NOTIFICATION_REQUEST: "notification request canceled",
         ItemAction.RESOLVE_TRANSACTION: "transaction closed out",
+        ItemAction.REQUEST_RETURN: "return requested",
+        ItemAction.FLAG_CANNOT_RETURN: "flagged as cannot be returned",
+        ItemAction.RAISE_DISPUTE: "dispute raised",
+        ItemAction.RESOLVE_DISPUTE_RETURNED: "dispute resolved, item returned",
+        ItemAction.RESOLVE_DISPUTE_NOT_RETURNED: "dispute resolved, item removed",
     }
     return f"{item_name} {action_to_result[action]}."
 
@@ -173,7 +179,7 @@ def borrow_item(request: HttpRequest, pk: int) -> HttpResponse:
 
 
 class ItemCreateView(
-    LoginRequiredMixin,  # type: ignore[misc]
+    LoginRequiredMixin,
     BorrowdTemplateFinderMixin,
     CreateView[Item, ItemCreateWithPhotoForm],
 ):
@@ -244,7 +250,7 @@ class ItemDetailView(
 
     def get_context_data(self, **kwargs: str) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
-        user: BorrowdUser = self.request.user  # type: ignore[assignment]
+        user: BorrowdUser = self.request.user
 
         action_context = self.object.get_action_context_for(user=user)
 
@@ -280,7 +286,7 @@ class ItemDetailView(
 
 # No typing for django_filter, so mypy doesn't like us subclassing.
 class ItemListView(
-    LoginRequiredMixin,  # type: ignore[misc]
+    LoginRequiredMixin,
     BorrowdTemplateFinderMixin,
     FilterView,  # type: ignore[misc]
 ):
@@ -325,6 +331,10 @@ class ItemListView(
         context["user_has_items"] = Item.objects.filter(
             owner=user,
         ).exists
+        context["user_has_groups"] = Membership.objects.filter(
+            user=user,
+            status=MembershipStatus.ACTIVE,
+        ).exists()
 
         return context
 
@@ -345,7 +355,7 @@ class ItemUpdateView(
         return context
 
     def form_valid(self, form: ItemForm) -> HttpResponse:
-        form.instance.updated_by = self.request.user  # type: ignore[assignment]
+        form.instance.updated_by = self.request.user
         response = super().form_valid(form)
         self._process_uploaded_photos()
         _add_message_safe(self.request, messages.SUCCESS, "Changes saved.")
@@ -425,8 +435,8 @@ class ItemPhotoCreateView(
     def form_valid(self, form: ItemPhotoForm) -> HttpResponse:
         context = self.get_context_data()
         form.instance.item_id = context["item_pk"]
-        form.instance.created_by = self.request.user  # type: ignore[assignment]
-        form.instance.updated_by = self.request.user  # type: ignore[assignment]
+        form.instance.created_by = self.request.user
+        form.instance.updated_by = self.request.user
         return super().form_valid(form)
 
     def get_success_url(self) -> str:
@@ -435,7 +445,7 @@ class ItemPhotoCreateView(
             return reverse("item-list")
 
         # Check if a 'next' parameter was provided
-        next_url = self.request.GET.get("next")
+        next_url: str | None = self.request.GET.get("next")
         if next_url:
             return next_url
 

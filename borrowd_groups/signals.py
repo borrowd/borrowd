@@ -1,4 +1,4 @@
-from typing import Any, cast
+from typing import Any
 
 from django.contrib.auth.models import Group
 from django.db.models.query import QuerySet
@@ -36,7 +36,7 @@ def maintain_perms_group_on_borrowd_group_change(
     if created:
         creator = instance.created_by
         perms_group = Group.objects.create(
-            name=compute_per_group_unique_name(instance.name, creator.pk)  # type: ignore[attr-defined]
+            name=compute_per_group_unique_name(instance.name, creator.pk)
         )
         instance.perms_group = perms_group
         instance.save()
@@ -47,7 +47,7 @@ def maintain_perms_group_on_borrowd_group_change(
         creator = instance.created_by
         perms_group_name = compute_per_group_unique_name(
             instance.name,
-            creator.pk,  # type: ignore[attr-defined]
+            creator.pk,
         )
         if perms_group.name != perms_group_name:
             perms_group.name = perms_group_name
@@ -90,7 +90,7 @@ def set_moderator_on_group_creation(
 
     group: BorrowdGroup = instance
     # mypy error: Incompatible types in assignment (expression has type "_ST", variable has type "BorrowdUser")  [assignment]
-    creator: BorrowdUser = group.created_by  # type: ignore[assignment]
+    creator: BorrowdUser = group.created_by
     # By default, assume High trust for a Group which a user has
     # created themselves.
     trust_level: TrustLevel = (
@@ -153,8 +153,8 @@ def refresh_permissions_on_membership_update(
     #
     membership = instance
     # error: "_ST" has no attribute "perms_group" / "groups"
-    user = cast(BorrowdUser, instance.user)
-    borrowd_group = cast(BorrowdGroup, instance.group)
+    user = instance.user
+    borrowd_group = instance.group
     group = borrowd_group.perms_group
     if group is None:
         # This should never happen, but just in case...
@@ -189,7 +189,10 @@ def refresh_permissions_on_membership_update(
 
         for item_perm in [ItemOLP.VIEW]:  # will have more later
             remove_perm(item_perm, group, items_requiring_higher_trust)
-            assign_perm(item_perm, group, items_requiring_lower_trust)
+            # assign_perm accepts QuerySets for bulk assignment, but guardian just under-types it
+            # therefore, ignore the issue.
+            # See https://django-guardian.readthedocs.io/en/stable/userguide/remove/#for-multiple-objects
+            assign_perm(item_perm, group, items_requiring_lower_trust)  # type: ignore[arg-type]
 
         member_perms = [BorrowdGroupOLP.VIEW]
         if membership.is_moderator:
@@ -218,8 +221,8 @@ def pre_membership_delete(
     when their membership is deleted.
     """
     membership = instance
-    user = cast(BorrowdUser, membership.user)
-    borrowd_group = cast(BorrowdGroup, membership.group)
+    user = membership.user
+    borrowd_group = membership.group
     group = borrowd_group.perms_group
     if group is None:
         # This should never happen, but keep failure mode explicit.
@@ -270,8 +273,8 @@ def pre_membership_save(
     If not, raise a ModeratorRequiredException.
     """
     membership = instance
-    user = cast(BorrowdUser, membership.user)
-    group = cast(BorrowdGroup, membership.group)
+    user = membership.user
+    group = membership.group
 
     # Check if the user is being added as a moderator
     if not membership.is_moderator:
@@ -293,7 +296,7 @@ def flag_group_if_last_moderator_leaves(
     if not getattr(instance, "_bypass_last_moderator_check", False):
         return
 
-    group = cast(BorrowdGroup, instance.group)
+    group = instance.group
 
     has_moderator = Membership.objects.filter(
         group=group,

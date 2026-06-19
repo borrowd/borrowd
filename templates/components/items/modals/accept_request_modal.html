@@ -17,6 +17,6 @@ borrowd_items/card_helpers.py #}
         {% csrf_token %}
         <input type="hidden" name="action" value="ACCEPT_REQUEST">
     </form>
-    {% include "components/modal.html" with modal_id=modal_id modal_title="Accept Request" button_layout="equal" confirm_button_text="Agree" cancel_button_text="Decline" cancel_button_class="btn btn-soft btn-error font-semibold" confirm_button_class="btn btn-soft btn-success font-semibold" confirm_submit_form_id=form_id modal_content_template="components/items/_accept_request_modal_content.html" %}
+    {% include "components/modal.html" with modal_id=modal_id modal_title="Accept Request" button_layout="equal" confirm_button_text="Agree" cancel_button_text="Decline" cancel_button_class="btn btn-soft btn-error font-semibold" confirm_button_class="btn btn-soft btn-success font-semibold" confirm_submit_form_id=form_id modal_content_template="components/items/modals/_accept_request_modal_content.html" %}
 
 {% endwith %}

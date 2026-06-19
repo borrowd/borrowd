@@ -2,7 +2,7 @@
 Item Card Header Sub-component
 
 Parameters:
-- banner_type: 'requested' | 'available' | 'reserved' | 'borrowed' | 'pending' (required)
+- banner_type: 'requested' | 'available' | 'reserved' | 'borrowed' | 'pending' | 'return_requested' | 'disputed' (required)
 - banner_bg: Background color classes
 - banner_text: Text color classes
 - banner_icon: SVG icon markup
@@ -50,6 +50,13 @@ Parameters:
                 {% endif %}
             {% elif banner_type == 'pending' %}
                 Pending
+            {% elif banner_type == 'return_requested' %}
+                Return requested
+                {% if person_name %}
+                    by {{ person_name }}
+                {% endif %}
+            {% elif banner_type == 'disputed' %}
+                This item is being disputed
             {% elif banner_type == 'waitlisted' %}
                 Waitlisted
             {% elif banner_type == 'removed' %}
