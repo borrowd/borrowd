@@ -13,7 +13,6 @@ from borrowd_users.models import BorrowdUser
 
 from .models import (
     ChannelType,
-    NotificationData,
     NotificationPreference,
     NotificationType,
 )
@@ -327,12 +326,12 @@ def delete_app_notification(notification: Notification) -> None:
     )
 
     if ChannelType.APP in dispatched_channels:
-        data_payload: NotificationData = NotificationData(notification.data)
-        data_payload.channels.pop(ChannelType.APP)
-
-        setattr(notification, "data", data_payload.to_dict())
-        setattr(notification, "unread", False)
-
+        data: dict[str, Any] = dict(notification.data)
+        channels: dict[str, Any] = dict(data.get("channels", {}))
+        channels.pop(ChannelType.APP.value, None)
+        data["channels"] = channels
+        notification.data = data
+        notification.unread = False
         notification.save(update_fields=["data", "unread"])
 
 
@@ -350,6 +349,6 @@ def remove_app_notification(request: HttpRequest, pk: int) -> HttpResponse:
 def remove_all_app_notifications(request: HttpRequest) -> HttpResponse:
     user: BorrowdUser = request.user  # type: ignore[assignment]
     notifications: QuerySet[Notification] = user.notifications
-    for notification in notifications:
+    for notification in notifications.iterator():
         delete_app_notification(notification)
     return redirect("notification-inbox")

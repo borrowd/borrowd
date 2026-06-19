@@ -1227,3 +1227,213 @@ class ReturnFlowNotificationTests(TestCase):
 
         self.assertEqual(Notification.objects.count(), 0)
         self.assertEqual(len(mail.outbox), 0)
+
+
+class NewUserPreferenceInitTests(TestCase):
+    """Creating a new user auto-populates NotificationPreference rows via init_new_user_preferences."""
+
+    def _make_user(self) -> BorrowdUser:
+        return BorrowdUser.objects.create_user(
+            username="fresh", email="fresh@example.com", password="password"
+        )
+
+    def test_creates_rows_for_all_notification_types(self) -> None:
+        """Every NotificationType value gets a preference row on signup."""
+        user = self._make_user()
+        pref_types = set(
+            NotificationPreference.objects.filter(user=user).values_list(
+                "notification_type", flat=True
+            )
+        )
+        self.assertEqual(pref_types, set(NotificationType.values))
+
+    def test_mandatory_types_are_enabled_by_default(self) -> None:
+        """Mandatory types start with in_app and email enabled."""
+        user = self._make_user()
+        for ntype in NotificationType.mandatory_types():
+            pref = NotificationPreference.objects.get(
+                user=user, notification_type=ntype.value
+            )
+            self.assertTrue(pref.in_app_enabled, f"{ntype} in_app should be enabled")
+            self.assertTrue(pref.email_enabled, f"{ntype} email should be enabled")
+
+    def test_optional_types_are_disabled_by_default(self) -> None:
+        """Optional types start with in_app and email disabled."""
+        user = self._make_user()
+        mandatory = NotificationType.mandatory_types()
+        for ntype in NotificationType:
+            if ntype in mandatory:
+                continue
+            pref = NotificationPreference.objects.get(
+                user=user, notification_type=ntype.value
+            )
+            self.assertFalse(pref.in_app_enabled, f"{ntype} in_app should be disabled")
+            self.assertFalse(pref.email_enabled, f"{ntype} email should be disabled")
+
+    def test_push_disabled_for_all_types(self) -> None:
+        """Push is off for every type at signup."""
+        user = self._make_user()
+        self.assertFalse(
+            NotificationPreference.objects.filter(user=user, push_enabled=True).exists()
+        )
+
+
+class BulkToggleCreatesRowsTests(TestCase):
+    """bulk_toggle_preferences creates preference rows when they don't already exist."""
+
+    def setUp(self) -> None:
+        self.user = BorrowdUser.objects.create_user(
+            username="user", email="user@example.com", password="password"
+        )
+        self.client.force_login(self.user)
+
+    def test_bulk_enable_creates_rows_for_deleted_types(self) -> None:
+        """Bulk-enabling a category creates rows for types that had been deleted."""
+        optional_lending = [
+            NotificationType.ITEM_REQUEST_ACCEPTED.value,
+            NotificationType.ITEM_REQUEST_DENIED.value,
+        ]
+        NotificationPreference.objects.filter(
+            user=self.user, notification_type__in=optional_lending
+        ).delete()
+
+        response = self.client.post(
+            "/settings/notifications/bulk-toggle/",
+            {"scope": "lending", "channel": "EMAIL", "enabled": "true"},
+        )
+        self.assertEqual(response.status_code, 204)
+
+        for ntype_value in optional_lending:
+            pref = NotificationPreference.objects.get(
+                user=self.user, notification_type=ntype_value
+            )
+            self.assertTrue(
+                pref.email_enabled, f"{ntype_value} email should be enabled"
+            )
+
+
+class NotificationInboxViewTests(TestCase):
+    """Tests for the notification inbox view and unread count."""
+
+    def setUp(self) -> None:
+        self.user = BorrowdUser.objects.create_user(
+            username="user", email="user@example.com", password="password"
+        )
+        self.client.force_login(self.user)
+
+    def _make_notification(self, *, with_app_channel: bool) -> Notification:
+        from notifications.signals import notify
+
+        notify.send(
+            self.user,
+            recipient=[self.user],
+            verb=NotificationType.ITEM_REQUESTED.value,
+            description="test",
+        )
+        n = Notification.objects.filter(recipient=self.user).latest("timestamp")
+        if with_app_channel:
+            n.data = {
+                "context": {},
+                "icon": None,
+                "channels": {"APP": {"status": "SUCCESS", "error": None}},
+            }
+            n.unread = True
+        else:
+            n.data = {
+                "context": {},
+                "icon": None,
+                "channels": {"EMAIL": {"status": "SUCCESS", "error": None}},
+            }
+            n.unread = True
+        n.save()
+        return n
+
+    def test_unread_count_only_includes_app_channel_notifications(self) -> None:
+        """Notifications without APP channel don't inflate the unread badge count."""
+        self._make_notification(with_app_channel=False)
+        response = self.client.get("/notifications/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["unread_count"], 0)
+
+    def test_unread_count_includes_app_channel_notifications(self) -> None:
+        """Notifications with APP channel are counted in the unread badge."""
+        self._make_notification(with_app_channel=True)
+        response = self.client.get("/notifications/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["unread_count"], 1)
+
+    def test_inbox_excludes_non_app_channel_notifications(self) -> None:
+        """Notifications routed only to EMAIL don't appear in the inbox list."""
+        self._make_notification(with_app_channel=False)
+        response = self.client.get("/notifications/")
+        self.assertEqual(response.context["page_obj"].paginator.count, 0)
+
+    def test_inbox_includes_app_channel_notifications(self) -> None:
+        """Notifications routed to APP appear in the inbox list."""
+        self._make_notification(with_app_channel=True)
+        response = self.client.get("/notifications/")
+        self.assertEqual(response.context["page_obj"].paginator.count, 1)
+
+
+class NotificationDeleteTests(TestCase):
+    """Tests for remove_app_notification and remove_all_app_notifications."""
+
+    def setUp(self) -> None:
+        self.user = BorrowdUser.objects.create_user(
+            username="user", email="user@example.com", password="password"
+        )
+        self.client.force_login(self.user)
+
+    def _make_app_notification(self) -> Notification:
+        from notifications.signals import notify
+
+        notify.send(
+            self.user,
+            recipient=[self.user],
+            verb=NotificationType.ITEM_REQUESTED.value,
+            description="test",
+        )
+        n = Notification.objects.filter(recipient=self.user).latest("timestamp")
+        n.data = {
+            "context": {},
+            "icon": None,
+            "channels": {"APP": {"status": "SUCCESS", "error": None}},
+        }
+        n.unread = True
+        n.save()
+        return n
+
+    def test_remove_notification_strips_app_channel(self) -> None:
+        """Deleting a notification removes the APP channel from its data."""
+        n = self._make_app_notification()
+        response = self.client.post(f"/notifications/{n.pk}/delete/")
+        self.assertEqual(response.status_code, 302)
+        n.refresh_from_db()
+        self.assertNotIn("APP", (n.data or {}).get("channels", {}))
+        self.assertFalse(n.unread)
+
+    def test_remove_notification_disappears_from_inbox(self) -> None:
+        """After deletion, the notification no longer appears in the inbox list."""
+        n = self._make_app_notification()
+        self.client.post(f"/notifications/{n.pk}/delete/")
+        response = self.client.get("/notifications/")
+        self.assertEqual(response.context["page_obj"].paginator.count, 0)
+
+    def test_remove_all_notifications_clears_inbox(self) -> None:
+        """Delete-all removes every APP notification from the inbox."""
+        self._make_app_notification()
+        self._make_app_notification()
+        response = self.client.post("/notifications/delete-all/")
+        self.assertEqual(response.status_code, 302)
+        inbox_response = self.client.get("/notifications/")
+        self.assertEqual(inbox_response.context["page_obj"].paginator.count, 0)
+
+    def test_remove_notification_from_other_user_returns_404(self) -> None:
+        """Cannot delete another user's notification."""
+        other = BorrowdUser.objects.create_user(
+            username="other", email="other@example.com", password="password"
+        )
+        n = self._make_app_notification()
+        self.client.force_login(other)
+        response = self.client.post(f"/notifications/{n.pk}/delete/")
+        self.assertEqual(response.status_code, 404)
