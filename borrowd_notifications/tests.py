@@ -22,7 +22,7 @@ from borrowd_notifications.channels import (
 from borrowd_notifications.services import NotificationService
 from borrowd_users.models import BorrowdUser
 
-from .models import NotificationPreference, NotificationType
+from .models import NotificationMetadata, NotificationPreference, NotificationType
 
 
 class GroupMemberJoinedNotificationTests(TestCase):
@@ -704,6 +704,7 @@ class NotificationPreferenceRoutingTests(TransactionTestCase):
         """Without a preference row, an optional notification is not dispatched to any channel."""
         n = self._trigger_accepted()
         self.assertEqual(NotificationService._dispatched_channels(n), set())
+        self.assertFalse(n.borrowd_metadata.visible_in_app)
 
     def test_in_app_only_dispatches_app_channel(self) -> None:
         """With in_app_enabled=True and email_enabled=False, only APP channel is dispatched."""
@@ -717,6 +718,7 @@ class NotificationPreferenceRoutingTests(TransactionTestCase):
         channels = NotificationService._dispatched_channels(n)
         self.assertIn("APP", channels)
         self.assertNotIn("EMAIL", channels)
+        self.assertTrue(n.borrowd_metadata.visible_in_app)
 
     def test_email_only_dispatches_email_channel(self) -> None:
         """With in_app_enabled=False and email_enabled=True, only EMAIL channel is dispatched."""
@@ -730,6 +732,7 @@ class NotificationPreferenceRoutingTests(TransactionTestCase):
         channels = NotificationService._dispatched_channels(n)
         self.assertNotIn("APP", channels)
         self.assertIn("EMAIL", channels)
+        self.assertFalse(n.borrowd_metadata.visible_in_app)
 
     def test_both_disabled_suppresses_optional_notification(self) -> None:
         """With both channels disabled, an optional notification is not dispatched."""
@@ -741,6 +744,7 @@ class NotificationPreferenceRoutingTests(TransactionTestCase):
         )
         n = self._trigger_accepted()
         self.assertEqual(NotificationService._dispatched_channels(n), set())
+        self.assertFalse(n.borrowd_metadata.visible_in_app)
 
     def test_both_enabled_dispatches_all_channels(self) -> None:
         """With both channels enabled, APP and EMAIL are both dispatched."""
@@ -754,6 +758,7 @@ class NotificationPreferenceRoutingTests(TransactionTestCase):
         channels = NotificationService._dispatched_channels(n)
         self.assertIn("APP", channels)
         self.assertIn("EMAIL", channels)
+        self.assertTrue(n.borrowd_metadata.visible_in_app)
 
     def test_mandatory_type_bypasses_disabled_preferences(self) -> None:
         """A mandatory notification dispatches to APP+EMAIL even when both are disabled in preferences."""
@@ -767,6 +772,7 @@ class NotificationPreferenceRoutingTests(TransactionTestCase):
         channels = NotificationService._dispatched_channels(n)
         self.assertIn("APP", channels)
         self.assertIn("EMAIL", channels)
+        self.assertTrue(n.borrowd_metadata.visible_in_app)
 
 
 @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
@@ -826,6 +832,7 @@ class NotificationChannelErrorTests(TransactionTestCase):
         self.assertEqual(results.get("APP", {}).get("status"), "SUCCESS")
         self.assertEqual(results.get("EMAIL", {}).get("status"), "ERROR")
         self.assertIn("SMTP unavailable", results.get("EMAIL", {}).get("error", ""))
+        self.assertTrue(n.borrowd_metadata.visible_in_app)
 
     def test_app_failure_recorded_and_email_still_succeeds(self) -> None:
         """When APP raises, the error is recorded and EMAIL is still dispatched successfully."""
@@ -838,6 +845,7 @@ class NotificationChannelErrorTests(TransactionTestCase):
 
         results = NotificationService._channel_results(n)
         self.assertEqual(results.get("APP", {}).get("status"), "ERROR")
+        self.assertFalse(n.borrowd_metadata.visible_in_app)
         self.assertIn("Push service down", results.get("APP", {}).get("error", ""))
         self.assertEqual(results.get("EMAIL", {}).get("status"), "SUCCESS")
 
@@ -1238,7 +1246,7 @@ class ReturnFlowNotificationTests(TestCase):
         email = mail.outbox[0]
         self.assertEqual(email.subject, "A dispute has been raised")
         self.assertEqual(email.to, [self.lender.email])
-        self.assertIn("Hi Lena Lender", email.body)
+        self.assertIn("Hi Lena", email.body)
         self.assertIn("Test Drill", email.body)
         self.assertIn(
             "good faith effort to resolve this directly with the other person",
@@ -1264,7 +1272,7 @@ class ReturnFlowNotificationTests(TestCase):
         email = mail.outbox[0]
         self.assertEqual(email.subject, "A dispute has been raised")
         self.assertEqual(email.to, [self.borrower.email])
-        self.assertIn("Hi Bo Borrower", email.body)
+        self.assertIn("Hi Bo", email.body)
         self.assertIn(
             "good faith effort to resolve this directly with the other person",
             email.body,
@@ -1398,6 +1406,10 @@ class NotificationInboxViewTests(TestCase):
             }
             n.unread = True
         n.save()
+        NotificationMetadata.objects.update_or_create(
+            notification=n,
+            defaults={"visible_in_app": with_app_channel},
+        )
         return n
 
     def test_unread_count_only_includes_app_channel_notifications(self) -> None:
@@ -1426,6 +1438,27 @@ class NotificationInboxViewTests(TestCase):
         response = self.client.get("/notifications/")
         self.assertEqual(response.context["page_obj"].paginator.count, 1)
 
+    def test_mark_notification_read_rejects_hidden_notification(self) -> None:
+        """A notification outside the inbox cannot be changed via its read endpoint."""
+        notification = self._make_notification(with_app_channel=False)
+
+        response = self.client.post(f"/notifications/{notification.pk}/read/")
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_mark_all_read_only_updates_visible_notifications(self) -> None:
+        """Mark-all leaves non-app notification state untouched."""
+        visible = self._make_notification(with_app_channel=True)
+        hidden = self._make_notification(with_app_channel=False)
+
+        response = self.client.post("/notifications/read-all/")
+
+        self.assertEqual(response.status_code, 302)
+        visible.refresh_from_db()
+        hidden.refresh_from_db()
+        self.assertFalse(visible.unread)
+        self.assertTrue(hidden.unread)
+
 
 class NotificationDeleteTests(TestCase):
     """Tests for remove_app_notification and remove_all_app_notifications."""
@@ -1453,15 +1486,21 @@ class NotificationDeleteTests(TestCase):
         }
         n.unread = True
         n.save()
+        NotificationMetadata.objects.update_or_create(
+            notification=n,
+            defaults={"visible_in_app": True},
+        )
         return n
 
-    def test_remove_notification_strips_app_channel(self) -> None:
-        """Deleting a notification removes the APP channel from its data."""
+    def test_remove_notification_hides_app_metadata(self) -> None:
+        """Deleting a notification hides it without changing dispatch data."""
         n = self._make_app_notification()
         response = self.client.post(f"/notifications/{n.pk}/delete/")
         self.assertEqual(response.status_code, 302)
         n.refresh_from_db()
-        self.assertNotIn("APP", (n.data or {}).get("channels", {}))
+        n.borrowd_metadata.refresh_from_db()
+        self.assertFalse(n.borrowd_metadata.visible_in_app)
+        self.assertIn("APP", (n.data or {}).get("channels", {}))
         self.assertFalse(n.unread)
 
     def test_remove_notification_disappears_from_inbox(self) -> None:
@@ -1488,4 +1527,15 @@ class NotificationDeleteTests(TestCase):
         n = self._make_app_notification()
         self.client.force_login(other)
         response = self.client.post(f"/notifications/{n.pk}/delete/")
+        self.assertEqual(response.status_code, 404)
+
+    def test_remove_hidden_notification_returns_404(self) -> None:
+        """A notification already hidden from the inbox cannot be removed again."""
+        notification = self._make_app_notification()
+        NotificationMetadata.objects.filter(notification=notification).update(
+            visible_in_app=False
+        )
+
+        response = self.client.post(f"/notifications/{notification.pk}/delete/")
+
         self.assertEqual(response.status_code, 404)

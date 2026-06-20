@@ -31,11 +31,11 @@ class NotificationType(models.TextChoices):
     )
     ITEM_REQUEST_ACCEPTED = (
         "Item request accepted",
-        "Your request for {item_name} was accepted by {item_owner_name}",
+        "{item_owner_name} accepted your request for {item_name}",
     )
     ITEM_REQUEST_DENIED = (
         "Item request denied",
-        "Your request for {item_name} was declined",
+        "{item_owner_name} declined your request for {item_name}",
     )
     COLLECTION_ASSERTED = (
         "Collection asserted",
@@ -43,42 +43,51 @@ class NotificationType(models.TextChoices):
     )
     COLLECTION_CONFIRMED = (
         "Collection confirmed",
-        "Collection of {item_name} has been confirmed",
+        "{item_owner_name} confirmed collection of {item_name}",
     )
     RETURN_ASSERTED = (
         "Return asserted",
         "{requester_name} says they have returned {item_name}",
     )
-    RETURN_CONFIRMED = "Return confirmed", "Return of {item_name} has been confirmed"
+    RETURN_CONFIRMED = (
+        "Return confirmed",
+        "{item_owner_name} confirmed the return of {item_name}",
+    )
 
     # Item availability
     ITEM_NOTIFY_WHEN_AVAILABLE = (
         "Item notify when available",
-        "{item_name} is now available to borrow",
+        "{owner_name} has {item_name} available to borrow",
     )
     ITEM_SUBSCRIPTION = (
         "Item subscription",
-        "You have subscribed to be notified when {item_name} becomes available.",
+        "{subscriber_name} subscribed to be notified when {item_name} becomes available",
     )
     ITEM_RETURN_REQUESTED = (
         "Item return requested",
-        "{owner_name} has requested {item_name} for return. Please coordinate with them.",
+        "{owner_name} requested the return of {item_name}",
     )
-    ITEM_DISPUTED = ("Item disputed", "This item has escalated to a dispute!")
+    ITEM_DISPUTED = (
+        "Item disputed",
+        "{dispute_raiser_name} raised a dispute over {item_name}",
+    )
 
     # Group & membership
     GROUP_MEMBER_JOINED = (
         "A member joined a group you're part of",
         "{new_member_name} joined {group_name}",
     )
-    GROUP_NEEDS_MODERATOR = "Group needs moderator", "{group_name} needs a moderator"
+    GROUP_NEEDS_MODERATOR = (
+        "Group needs moderator",
+        "{actor_name} left {group_name} — the group needs a moderator",
+    )
     MEMBERSHIP_PENDING = (
         "Membership pending",
         "{new_member_name} has requested to join {group_name}",
     )
     MEMBERSHIP_APPROVED = (
         "Membership approved",
-        "Your membership to {group_name} was approved",
+        "{group_name} approved your membership",
     )
 
     # Community wishlist
@@ -93,15 +102,15 @@ class NotificationType(models.TextChoices):
 
     REQUEST_CANCELLED_BORROWER_LEFT = (
         "Request cancelled - borrower left",
-        "Your borrow request for {item_name} was cancelled",
+        "{actor_name}'s borrow request for {item_name} was cancelled",
     )
     REQUEST_CANCELLED_OWNER_LEFT = (
         "Request cancelled - owner left",
-        "Your request for {item_name} was cancelled because the owner left",
+        "{actor_name} left — your request for {item_name} was cancelled",
     )
     LOAN_ENDED_OWNER_LEFT = (
         "Loan ended - owner left",
-        "Your loan of {item_name} has ended because the owner left",
+        "{actor_name} left — your loan of {item_name} has ended",
     )
 
     @classmethod
@@ -134,8 +143,9 @@ class NotificationType(models.TextChoices):
             NotificationType.LOAN_ENDED_OWNER_LEFT.value,
         ) and isinstance(notification.target, Transaction):
             return {
-                "recipient_name": notification.recipient.profile.full_name(),
+                "recipient_name": notification.recipient.first_name,
                 "item_name": notification.target.item.name,
+                "actor_name": notification.actor.first_name,
             }
         if isinstance(notification.target, Transaction):
             transaction: Transaction = notification.target
@@ -143,9 +153,9 @@ class NotificationType(models.TextChoices):
                 case TransactionStatus.REQUESTED:
                     context.update(
                         {
-                            "requester_name": transaction.party2.profile.full_name(),
+                            "requester_name": transaction.party2.first_name,
                             "item_name": transaction.item.name,
-                            "item_owner_name": transaction.party1.profile.full_name(),
+                            "item_owner_name": transaction.party1.first_name,
                             "respond_url": settings.BASE_URL
                             + reverse("item-detail", args=[transaction.item.pk]),
                         }
@@ -153,17 +163,18 @@ class NotificationType(models.TextChoices):
                 case TransactionStatus.ACCEPTED:
                     context.update(
                         {
-                            "requester_name": transaction.party2.profile.full_name(),
+                            "requester_name": transaction.party2.first_name,
                             "item_name": transaction.item.name,
-                            "item_owner_name": transaction.party1.profile.full_name(),
+                            "item_owner_name": transaction.party1.first_name,
                             "item_owner_email": transaction.party1.email,
                         }
                     )
                 case TransactionStatus.REJECTED:
                     context.update(
                         {
-                            "requester_name": transaction.party2.profile.full_name(),
+                            "requester_name": transaction.party2.first_name,
                             "item_name": transaction.item.name,
+                            "item_owner_name": transaction.party1.first_name,
                         }
                     )
                 case (
@@ -172,32 +183,32 @@ class NotificationType(models.TextChoices):
                 ):
                     context.update(
                         {
-                            "requester_name": notification.actor.profile.full_name(),
+                            "requester_name": notification.actor.first_name,
                             "item_name": transaction.item.name,
-                            "item_owner_name": notification.recipient.profile.full_name(),
+                            "item_owner_name": notification.recipient.first_name,
                         }
                     )
                 case TransactionStatus.COLLECTED:
                     context.update(
                         {
-                            "requester_name": notification.recipient.profile.full_name(),
+                            "requester_name": notification.recipient.first_name,
                             "item_name": transaction.item.name,
-                            "item_owner_name": notification.actor.profile.full_name(),
+                            "item_owner_name": notification.actor.first_name,
                         }
                     )
                 case TransactionStatus.RETURNED:
                     context.update(
                         {
-                            "requester_name": notification.recipient.profile.full_name(),
+                            "requester_name": notification.recipient.first_name,
                             "item_name": transaction.item.name,
-                            "item_owner_name": notification.actor.profile.full_name(),
+                            "item_owner_name": notification.actor.first_name,
                         }
                     )
                 case TransactionStatus.RETURN_REQUESTED:
                     context.update(
                         {
-                            "borrower_name": transaction.party2.profile.full_name(),
-                            "owner_name": transaction.party1.profile.full_name(),
+                            "borrower_name": transaction.party2.first_name,
+                            "owner_name": transaction.party1.first_name,
                             "item_name": transaction.item.name,
                             "inventory_url": settings.BASE_URL
                             + reverse("profile-inventory"),
@@ -206,16 +217,18 @@ class NotificationType(models.TextChoices):
                 case TransactionStatus.DISPUTED:
                     context.update(
                         {
-                            "recipient_name": notification.recipient.profile.full_name(),
+                            "recipient_name": notification.recipient.first_name,
                             "item_name": transaction.item.name,
+                            "dispute_raiser_name": notification.actor.first_name,
                         }
                     )
         elif isinstance(notification.target, BorrowdGroup):
             if notification.verb == NotificationType.GROUP_NEEDS_MODERATOR.value:
                 context.update(
                     {
-                        "group_member_name": notification.recipient.profile.full_name(),
+                        "group_member_name": notification.recipient.first_name,
                         "group_name": notification.target.name,
+                        "actor_name": notification.actor.first_name,
                         "group_url": settings.BASE_URL
                         + reverse(
                             "borrowd_groups:group-detail", args=[notification.target.pk]
@@ -226,8 +239,8 @@ class NotificationType(models.TextChoices):
                 membership: Membership = notification.action_object
                 context.update(
                     {
-                        "group_member_name": notification.recipient.profile.full_name(),
-                        "new_member_name": membership.user.profile.full_name(),
+                        "group_member_name": notification.recipient.first_name,
+                        "new_member_name": membership.user.first_name,
                         "group_name": membership.group.name,
                     }
                 )
@@ -237,7 +250,7 @@ class NotificationType(models.TextChoices):
             if notification.verb == NotificationType.ITEM_SUBSCRIPTION.value:
                 context.update(
                     {
-                        "subscriber_name": subscription.user.profile.full_name(),
+                        "subscriber_name": subscription.user.first_name,
                         "item_name": subscription.item.name,
                         "item_url": base_url
                         + reverse("item-detail", args=[subscription.item.pk]),
@@ -246,8 +259,9 @@ class NotificationType(models.TextChoices):
             elif notification.verb == NotificationType.ITEM_NOTIFY_WHEN_AVAILABLE.value:
                 context.update(
                     {
-                        "subscriber_name": subscription.user.profile.full_name(),
+                        "subscriber_name": subscription.user.first_name,
                         "item_name": subscription.item.name,
+                        "owner_name": subscription.item.owner.first_name,
                         "item_url": base_url
                         + reverse("item-detail", args=[subscription.item.pk]),
                     }
@@ -313,6 +327,20 @@ class NotificationPreference(Model):
                 name="unique_notification_preference",
             )
         ]
+
+
+class NotificationMetadata(Model):
+    """Borrow'd-specific state for a third-party notification."""
+
+    notification: models.OneToOneField[Notification] = models.OneToOneField(
+        Notification,
+        on_delete=CASCADE,
+        related_name="borrowd_metadata",
+    )
+    visible_in_app: models.BooleanField[bool, bool] = models.BooleanField(
+        default=False,
+        db_index=True,
+    )
 
 
 class NotificationState(TextChoices):

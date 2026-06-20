@@ -33,7 +33,7 @@ from borrowd_items.models import (
 )
 from borrowd_users.models import BorrowdUser
 
-from .models import NotificationType
+from .models import NotificationMetadata, NotificationType
 from .services import NotificationService
 
 
@@ -76,6 +76,7 @@ def send_notification(
     if not created:
         return
 
+    NotificationMetadata.objects.create(notification=instance)
     Notification.objects.filter(pk=instance.pk).update(public=False)
     transaction.on_commit(lambda: NotificationService.send_notification(instance))
 

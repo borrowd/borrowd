@@ -15,6 +15,7 @@ from borrowd_notifications.channels import (
 )
 from borrowd_notifications.models import (
     ChannelType,
+    NotificationMetadata,
     NotificationPreference,
     NotificationState,
     NotificationType,
@@ -178,3 +179,12 @@ class NotificationService:
         ):
             update_kwargs["emailed"] = True
         Notification.objects.filter(pk=notification.pk).update(**update_kwargs)
+
+        app_result = payload.data.channels.get(ChannelType.APP)
+        NotificationMetadata.objects.update_or_create(
+            notification=notification,
+            defaults={
+                "visible_in_app": app_result is not None
+                and app_result.status == NotificationState.SUCCESS
+            },
+        )

@@ -2,19 +2,17 @@ from typing import Any
 
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
-from django.db import connection
-from django.db.models import Func, QuerySet, TextField, Value
-from django.db.models.expressions import RawSQL
+from django.db.models import QuerySet
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 from notifications.models import Notification
 
-from borrowd_notifications.services import NotificationService
 from borrowd_users.models import BorrowdUser
 
 from .models import (
     ChannelType,
+    NotificationMetadata,
     NotificationPreference,
     NotificationType,
 )
@@ -260,28 +258,8 @@ _INBOX_PAGE_SIZE = 25
 
 
 def _app_channel_qs(qs: QuerySet[Notification]) -> QuerySet[Notification]:
-    """Filter to notifications that were dispatched via the APP channel.
-
-    The `data` field from django-notifications-hq is stored as plain text (not
-    native jsonb), so we must branch on the DB vendor: SQLite supports
-    JSON_TYPE(); PostgreSQL requires an explicit ::jsonb cast plus the -> operator.
-    """
-    if connection.vendor == "postgresql":
-        return qs.annotate(
-            app_channel=RawSQL(
-                "(data::jsonb) -> 'channels' -> 'APP'",
-                [],
-                output_field=TextField(),
-            )
-        ).filter(app_channel__isnull=False)
-    return qs.annotate(
-        app_channel=Func(
-            "data",
-            Value("$.channels.APP"),
-            function="JSON_TYPE",
-            output_field=TextField(),
-        )
-    ).filter(app_channel__isnull=False)
+    """Filter to notifications currently visible in the in-app inbox."""
+    return qs.filter(borrowd_metadata__visible_in_app=True)
 
 
 def _format_notification(notification: Notification) -> str:
@@ -323,7 +301,12 @@ def notification_inbox_view(request: HttpRequest) -> HttpResponse:
 @login_required
 @require_POST
 def mark_notification_read(request: HttpRequest, pk: int) -> HttpResponse:
-    notification = get_object_or_404(Notification, pk=pk, recipient=request.user)
+    notification = get_object_or_404(
+        Notification,
+        pk=pk,
+        recipient=request.user,
+        borrowd_metadata__visible_in_app=True,
+    )
     notification.mark_as_read()
     return redirect("notification-inbox")
 
@@ -332,29 +315,28 @@ def mark_notification_read(request: HttpRequest, pk: int) -> HttpResponse:
 @require_POST
 def mark_all_notifications_read(request: HttpRequest) -> HttpResponse:
     user: BorrowdUser = request.user  # type: ignore[assignment]
-    user.notifications.mark_all_as_read()  # type: ignore[attr-defined]
+    _app_channel_qs(user.notifications.all()).update(unread=False)
     return redirect("notification-inbox")
 
 
 def delete_app_notification(notification: Notification) -> None:
-    dispatched_channels = NotificationService._dispatched_channels(
-        notification=notification
-    )
-
-    if ChannelType.APP in dispatched_channels:
-        data: dict[str, Any] = dict(notification.data)
-        channels: dict[str, Any] = dict(data.get("channels", {}))
-        channels.pop(ChannelType.APP.value, None)
-        data["channels"] = channels
-        notification.data = data
+    if NotificationMetadata.objects.filter(
+        notification=notification,
+        visible_in_app=True,
+    ).update(visible_in_app=False):
         notification.unread = False
-        notification.save(update_fields=["data", "unread"])
+        notification.save(update_fields=["unread"])
 
 
 @login_required
 @require_POST
 def remove_app_notification(request: HttpRequest, pk: int) -> HttpResponse:
-    notification = get_object_or_404(Notification, pk=pk, recipient=request.user)
+    notification = get_object_or_404(
+        Notification,
+        pk=pk,
+        recipient=request.user,
+        borrowd_metadata__visible_in_app=True,
+    )
 
     delete_app_notification(notification=notification)
     return redirect("notification-inbox")
@@ -364,6 +346,10 @@ def remove_app_notification(request: HttpRequest, pk: int) -> HttpResponse:
 @require_POST
 def remove_all_app_notifications(request: HttpRequest) -> HttpResponse:
     user: BorrowdUser = request.user  # type: ignore[assignment]
-    for notification in _app_channel_qs(user.notifications.all()).iterator():
-        delete_app_notification(notification)
+    visible_notifications = _app_channel_qs(user.notifications.all())
+    visible_notifications.update(unread=False)
+    NotificationMetadata.objects.filter(
+        notification__recipient=user,
+        visible_in_app=True,
+    ).update(visible_in_app=False)
     return redirect("notification-inbox")
