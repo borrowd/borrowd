@@ -160,4 +160,11 @@ class NotificationService:
         if summary_digest is not None:
             data["summary_digest"] = summary_digest
 
-        Notification.objects.filter(pk=notification.pk).update(data=data)
+        update_kwargs: dict[str, Any] = {"data": data}
+        email_result = payload.data.channels.get(ChannelType.EMAIL)
+        if (
+            email_result is not None
+            and email_result.status == NotificationState.SUCCESS
+        ):
+            update_kwargs["emailed"] = True
+        Notification.objects.filter(pk=notification.pk).update(**update_kwargs)

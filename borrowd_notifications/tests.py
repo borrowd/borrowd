@@ -970,6 +970,58 @@ class NotificationEmailThrottleTests(TransactionTestCase):
         self.assertNotIn("EMAIL", channels)
         self.assertIn("summary_digest", n.data)
 
+    @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
+    def test_emailed_is_persisted_after_successful_send(self) -> None:
+        """A successful email dispatch writes emailed=True to the DB row."""
+        n = self._trigger_accepted()
+        self.assertTrue(n.emailed)
+
+    @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
+    def test_email_throttle_engages_after_ten_real_rows(self) -> None:
+        """_is_email_throttled counts real DB rows; the cap fires when 10 exist."""
+        from django.contrib.contenttypes.models import ContentType
+
+        ct = ContentType.objects.get_for_model(self.owner)
+        Notification.objects.bulk_create(
+            [
+                Notification(
+                    actor_content_type=ct,
+                    actor_object_id=str(self.owner.pk),
+                    recipient=self.borrower,
+                    verb=NotificationType.ITEM_REQUEST_ACCEPTED.value,
+                    emailed=True,
+                )
+                for _ in range(10)
+            ]
+        )
+
+        max_seeded_pk = (
+            Notification.objects.order_by("-pk").values_list("pk", flat=True).first()
+        )
+        Transaction.objects.create(
+            item=self.item,
+            party1=self.owner,
+            party2=self.borrower,
+            status=TransactionStatus.ACCEPTED,
+            created_by=self.borrower,
+            updated_by=self.owner,
+        )
+        n = Notification.objects.filter(
+            recipient=self.borrower,
+            verb=NotificationType.ITEM_REQUEST_ACCEPTED.value,
+            pk__gt=max_seeded_pk,
+        ).get()
+        n.refresh_from_db()
+
+        self.assertFalse(n.emailed)
+        channels = (
+            set(n.data.get("channels", {}).keys())
+            if isinstance(n.data, dict)
+            else set()
+        )
+        self.assertNotIn("EMAIL", channels)
+        self.assertIn("APP", channels)
+
 
 class NotificationPreferenceToggleViewTests(TestCase):
     """Tests for the toggle_preference and bulk_toggle_preferences endpoints."""
