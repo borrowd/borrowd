@@ -31,6 +31,7 @@ from borrowd_items.models import (
     Transaction,
     TransactionStatus,
 )
+from borrowd_users.models import BorrowdUser
 
 from .models import NotificationType
 from .services import NotificationService
@@ -240,9 +241,13 @@ def send_membership_notifications(
                     description=f"{instance.user.first_name} wants to join {instance.group.name}. Review their request.",
                 )
         elif instance.status == MembershipStatus.ACTIVE:
+            active_members = BorrowdUser.objects.filter(
+                membership__group=instance.group,
+                membership__status=MembershipStatus.ACTIVE,
+            ).exclude(pk=instance.user.pk)
             notify.send(
                 instance.user,
-                recipient=instance.group.users.exclude(id=instance.user.pk),
+                recipient=active_members,
                 verb=NotificationType.GROUP_MEMBER_JOINED.value,
                 action_object=instance,
                 target=instance.group,
@@ -262,9 +267,13 @@ def send_membership_notifications(
                 target=instance.group,
                 description=f"You've been approved to join {instance.group.name}!",
             )
+            active_members = BorrowdUser.objects.filter(
+                membership__group=instance.group,
+                membership__status=MembershipStatus.ACTIVE,
+            ).exclude(pk=instance.user.pk)
             notify.send(
                 instance.user,
-                recipient=instance.group.users.exclude(id=instance.user.pk),
+                recipient=active_members,
                 verb=NotificationType.GROUP_MEMBER_JOINED.value,
                 action_object=instance,
                 target=instance.group,
