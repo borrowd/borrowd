@@ -308,14 +308,12 @@ class NotificationPreference(Model):
         """When a new user is created, the preferences must be initialised."""
 
         for notification_type in NotificationType.values:
-            mandatory = notification_type in NotificationType.mandatory_types()
-
             NotificationPreference.objects.update_or_create(
                 user=user,
                 notification_type=notification_type,
                 defaults={
-                    "in_app_enabled": mandatory,
-                    "email_enabled": mandatory,
+                    "in_app_enabled": True,
+                    "email_enabled": True,
                     "push_enabled": False,
                 },
             )

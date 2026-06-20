@@ -1,3 +1,4 @@
+from datetime import timedelta
 from typing import Any
 
 from django.contrib.auth.decorators import login_required
@@ -5,6 +6,7 @@ from django.core.paginator import Paginator
 from django.db.models import QuerySet
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 from django.views.decorators.http import require_POST
 from notifications.models import Notification
 
@@ -255,6 +257,7 @@ def bulk_toggle_preferences(request: HttpRequest) -> HttpResponse:
 # ── Inbox ──────────────────────────────────────────────────────────────────
 
 _INBOX_PAGE_SIZE = 25
+_RELATIVE_TIMESTAMP_MAX_AGE = timedelta(days=7)
 
 
 def _app_channel_qs(qs: QuerySet[Notification]) -> QuerySet[Notification]:
@@ -285,8 +288,12 @@ def notification_inbox_view(request: HttpRequest) -> HttpResponse:
     paginator = Paginator(qs, _INBOX_PAGE_SIZE)
     page_obj = paginator.get_page(request.GET.get("page", 1))
 
+    relative_timestamp_cutoff = timezone.now() - _RELATIVE_TIMESTAMP_MAX_AGE
     for notification in page_obj:
         notification.formatted_message = _format_notification(notification)
+        notification.show_absolute_timestamp = (
+            notification.timestamp <= relative_timestamp_cutoff
+        )
 
     return render(
         request,

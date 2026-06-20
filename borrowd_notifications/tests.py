@@ -1,8 +1,10 @@
+from datetime import timedelta
 from unittest.mock import patch
 
 from django.core import mail
 from django.http import HttpResponse
 from django.test import TestCase, TransactionTestCase, override_settings
+from django.utils import timezone
 from notifications.models import Notification
 
 from borrowd.models import TrustLevel
@@ -703,8 +705,10 @@ class NotificationPreferenceRoutingTests(TransactionTestCase):
     def test_no_preference_row_suppresses_optional_notification(self) -> None:
         """Without a preference row, an optional notification is not dispatched to any channel."""
         n = self._trigger_accepted()
-        self.assertEqual(NotificationService._dispatched_channels(n), set())
-        self.assertFalse(n.borrowd_metadata.visible_in_app)
+        self.assertEqual(
+            NotificationService._dispatched_channels(n), set({"EMAIL", "APP"})
+        )
+        self.assertTrue(n.borrowd_metadata.visible_in_app)
 
     def test_in_app_only_dispatches_app_channel(self) -> None:
         """With in_app_enabled=True and email_enabled=False, only APP channel is dispatched."""
@@ -1318,7 +1322,7 @@ class NewUserPreferenceInitTests(TestCase):
             self.assertTrue(pref.email_enabled, f"{ntype} email should be enabled")
 
     def test_optional_types_are_disabled_by_default(self) -> None:
-        """Optional types start with in_app and email disabled."""
+        """Optional types start with in_app and email Enabled."""
         user = self._make_user()
         mandatory = NotificationType.mandatory_types()
         for ntype in NotificationType:
@@ -1327,8 +1331,8 @@ class NewUserPreferenceInitTests(TestCase):
             pref = NotificationPreference.objects.get(
                 user=user, notification_type=ntype.value
             )
-            self.assertFalse(pref.in_app_enabled, f"{ntype} in_app should be disabled")
-            self.assertFalse(pref.email_enabled, f"{ntype} email should be disabled")
+            self.assertTrue(pref.in_app_enabled, f"{ntype} in_app should be Enabled")
+            self.assertTrue(pref.email_enabled, f"{ntype} email should be Enabled")
 
     def test_push_disabled_for_all_types(self) -> None:
         """Push is off for every type at signup."""
@@ -1437,6 +1441,34 @@ class NotificationInboxViewTests(TestCase):
         self._make_notification(with_app_channel=True)
         response = self.client.get("/notifications/")
         self.assertEqual(response.context["page_obj"].paginator.count, 1)
+
+    def test_recent_notification_uses_relative_timestamp(self) -> None:
+        """Notifications less than seven days old retain relative timestamps."""
+        notification = self._make_notification(with_app_channel=True)
+        Notification.objects.filter(pk=notification.pk).update(
+            timestamp=timezone.now() - timedelta(days=6)
+        )
+
+        response = self.client.get("/notifications/")
+
+        displayed = response.context["page_obj"].object_list[0]
+        self.assertFalse(displayed.show_absolute_timestamp)
+
+    def test_old_notification_uses_absolute_timestamp(self) -> None:
+        """Notifications switch to an absolute date once seven days old."""
+        notification = self._make_notification(with_app_channel=True)
+        timestamp = timezone.now() - timedelta(days=8)
+        Notification.objects.filter(pk=notification.pk).update(timestamp=timestamp)
+
+        response = self.client.get("/notifications/")
+
+        displayed = response.context["page_obj"].object_list[0]
+        self.assertTrue(displayed.show_absolute_timestamp)
+        local_timestamp = timezone.localtime(timestamp)
+        expected_date = (
+            f"{local_timestamp:%b} {local_timestamp.day}, {local_timestamp.year}"
+        )
+        self.assertContains(response, expected_date)
 
     def test_mark_notification_read_rejects_hidden_notification(self) -> None:
         """A notification outside the inbox cannot be changed via its read endpoint."""

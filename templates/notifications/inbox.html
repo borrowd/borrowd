@@ -56,7 +56,11 @@
                                 {{ notification.formatted_message }}
                             </p>
                             <p class="text-xs text-base-content/50 mt-0.5">
-                                {{ notification.timestamp|naturaltime }}
+                                {% if notification.show_absolute_timestamp %}
+                                    {{ notification.timestamp|date:"M j, Y" }}
+                                {% else %}
+                                    {{ notification.timestamp|naturaltime }}
+                                {% endif %}
                             </p>
                         </div>
 
