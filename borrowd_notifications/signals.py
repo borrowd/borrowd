@@ -142,7 +142,7 @@ def send_transaction_notifications(
                 verb=NotificationType.COLLECTION_ASSERTED.value,
                 action_object=instance.item,
                 target=instance,
-                description=f"{instance.updated_by} says they've collected {instance.item.name}. Please confirm.",
+                description=f"{instance.updated_by.first_name} says they've collected {instance.item.name}. Please confirm.",
             )
         case TransactionStatus.COLLECTED:
             notify.send(
@@ -160,7 +160,7 @@ def send_transaction_notifications(
                 verb=NotificationType.RETURN_ASSERTED.value,
                 action_object=instance.item,
                 target=instance,
-                description=f"{instance.updated_by} says {instance.item.name} has been returned. Please confirm.",
+                description=f"{instance.updated_by.first_name} says {instance.item.name} has been returned. Please confirm.",
             )
         case TransactionStatus.RETURNED:
             notify.send(
