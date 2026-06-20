@@ -30,6 +30,7 @@
                 <div class="flex items-center gap-6">
                     <span class="text-xs text-base-content/50 font-medium">{% trans "In-app" %}</span>
                     <span class="text-xs text-base-content/50 font-medium">{% trans "Email" %}</span>
+                    <span class="text-xs text-base-content/50 font-medium">{% trans "Push" %}</span>
                 </div>
             </div>
             <div class="flex items-center justify-between">
@@ -44,6 +45,10 @@
                     <input type="checkbox"
                            :checked="masterEnabled('email')"
                            @change="bulkToggle('master', 'EMAIL', 'email', $event.target.checked)"
+                           class="toggle toggle-primary toggle-sm">
+                    <input type="checkbox"
+                           :checked="masterEnabled('push')"
+                           @change="bulkToggle('master', 'PUSH', 'push', $event.target.checked)"
                            class="toggle toggle-primary toggle-sm">
                 </div>
             </div>
@@ -64,6 +69,10 @@
                         <input type="checkbox"
                                :checked="categoryEnabled('{{ category.slug }}', 'email')"
                                @change="bulkToggle('{{ category.slug }}', 'EMAIL', 'email', $event.target.checked)"
+                               class="toggle toggle-primary toggle-xs">
+                        <input type="checkbox"
+                               :checked="categoryEnabled('{{ category.slug }}', 'push')"
+                               @change="bulkToggle('{{ category.slug }}', 'PUSH', 'push', $event.target.checked)"
                                class="toggle toggle-primary toggle-xs">
                     </div>
                 </div>
@@ -99,6 +108,10 @@
                                            @change="toggle('{{ type.type_value|escapejs }}', 'EMAIL', 'email', $event.target.checked)"
                                            class="toggle toggle-primary toggle-sm">
                                 {% endif %}
+                                <input type="checkbox"
+                                       :checked="prefs['{{ type.type_value|escapejs }}'].push"
+                                       @change="toggle('{{ type.type_value|escapejs }}', 'PUSH', 'push', $event.target.checked)"
+                                       class="toggle toggle-primary toggle-sm">
                             </div>
                         </div>
                     {% endfor %}
