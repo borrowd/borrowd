@@ -167,22 +167,29 @@ class NotificationType(models.TextChoices):
                     )
                 case (
                     TransactionStatus.COLLECTION_ASSERTED
-                    | TransactionStatus.COLLECTED
                     | TransactionStatus.RETURN_ASSERTED
                 ):
                     context.update(
                         {
-                            "requester_name": transaction.party2.profile.full_name(),
+                            "requester_name": notification.actor.profile.full_name(),
                             "item_name": transaction.item.name,
-                            "item_owner_name": transaction.party1.profile.full_name(),
+                            "item_owner_name": notification.recipient.profile.full_name(),
+                        }
+                    )
+                case TransactionStatus.COLLECTED:
+                    context.update(
+                        {
+                            "requester_name": notification.recipient.profile.full_name(),
+                            "item_name": transaction.item.name,
+                            "item_owner_name": notification.actor.profile.full_name(),
                         }
                     )
                 case TransactionStatus.RETURNED:
                     context.update(
                         {
-                            "item_owner_name": transaction.party1.profile.full_name(),
-                            "requester_name": transaction.party2.profile.full_name(),
+                            "requester_name": notification.recipient.profile.full_name(),
                             "item_name": transaction.item.name,
+                            "item_owner_name": notification.actor.profile.full_name(),
                         }
                     )
                 case TransactionStatus.RETURN_REQUESTED:
