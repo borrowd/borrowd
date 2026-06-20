@@ -62,7 +62,7 @@ class EmailNotificationStrategy(NotificationStrategy):
         except Exception as e:
             payload.notification.emailed = False
             payload.data._error(channel=ChannelType.EMAIL, error=str(e))
-        return
+            raise
 
     def _send_email(self, to_email: str, subject: str, text: str, html: str) -> None:
         if "@" not in to_email:
@@ -86,6 +86,7 @@ class AppNotificationStrategy(NotificationStrategy):
             payload.data._success(channel=ChannelType.APP)
         except Exception as e:
             payload.data._error(channel=ChannelType.APP, error=str(e))
+            raise
 
 
 class PUSHNotificationStrategy(NotificationStrategy):
