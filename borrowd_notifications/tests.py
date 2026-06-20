@@ -989,6 +989,66 @@ class NotificationEmailThrottleTests(TransactionTestCase):
         self.assertTrue(n.emailed)
 
     @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
+    def test_throttle_to_digest_to_send_full_flow(self) -> None:
+        """End-to-end: throttled notification schedules a digest; the command sends it."""
+        from io import StringIO
+
+        from django.contrib.contenttypes.models import ContentType
+        from django.core.management import call_command
+
+        ct = ContentType.objects.get_for_model(self.owner)
+
+        # Hit the hourly email cap so the next notification is throttled.
+        Notification.objects.bulk_create(
+            [
+                Notification(
+                    actor_content_type=ct,
+                    actor_object_id=str(self.owner.pk),
+                    recipient=self.borrower,
+                    verb=NotificationType.ITEM_REQUEST_ACCEPTED.value,
+                    emailed=True,
+                )
+                for _ in range(10)
+            ]
+        )
+
+        max_seeded_pk = (
+            Notification.objects.order_by("-pk").values_list("pk", flat=True).first()
+        )
+
+        # Trigger a real notification — email is throttled, digest is scheduled.
+        Transaction.objects.create(
+            item=self.item,
+            party1=self.owner,
+            party2=self.borrower,
+            status=TransactionStatus.ACCEPTED,
+            created_by=self.borrower,
+            updated_by=self.owner,
+        )
+        n = Notification.objects.filter(
+            recipient=self.borrower,
+            verb=NotificationType.ITEM_REQUEST_ACCEPTED.value,
+            pk__gt=max_seeded_pk,
+        ).get()
+        n.refresh_from_db()
+        self.assertIsInstance(n.data, dict)
+        self.assertEqual(n.data["summary_digest"]["status"], "PENDING")
+
+        # Move scheduled_for into the past so the command considers it due.
+        past = (timezone.now() - timedelta(minutes=5)).isoformat()
+        data = dict(n.data)
+        data["summary_digest"]["scheduled_for"] = past
+        Notification.objects.filter(pk=n.pk).update(data=data)
+
+        mail.outbox = []
+        call_command("send_summary_digests", stdout=StringIO())
+
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, [self.borrower.email])
+        n.refresh_from_db()
+        self.assertEqual(n.data["summary_digest"]["status"], "SUCCESS")
+
+    @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
     def test_email_throttle_engages_after_ten_real_rows(self) -> None:
         """_is_email_throttled counts real DB rows; the cap fires when 10 exist."""
         from django.contrib.contenttypes.models import ContentType
