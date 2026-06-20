@@ -311,7 +311,7 @@ def send_item_available_notification_on_subscription(
     **kwargs: str,
 ) -> None:
     """
-    Send notifications when an availability subscription is created for an item that is already available.
+    Send notifications when an availability subscription is created for an item that is not available.
     """
 
     item = cast(Item | None, instance.item)

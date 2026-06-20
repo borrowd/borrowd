@@ -57,7 +57,7 @@ class NotificationType(models.TextChoices):
     )
     ITEM_SUBSCRIPTION = (
         "Item subscription",
-        "{subscriber_name} wants to be notified when {item_name} is available",
+        "You have subscribed to be notified when {item.name} becomes available. We will let you know when it does!",
     )
     ITEM_RETURN_REQUESTED = (
         "Item return requested",

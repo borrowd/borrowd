@@ -78,6 +78,7 @@ NOTIFICATION_CATEGORIES: list[dict[str, Any]] = [
         "slug": "availability",
         "types": [
             (NotificationType.ITEM_NOTIFY_WHEN_AVAILABLE, "Item now available"),
+            (NotificationType.ITEM_SUBSCRIPTION, "Item subscription"),
         ],
     },
 ]
