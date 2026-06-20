@@ -1571,3 +1571,181 @@ class NotificationDeleteTests(TestCase):
         response = self.client.post(f"/notifications/{notification.pk}/delete/")
 
         self.assertEqual(response.status_code, 404)
+
+
+@override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
+class SummaryDigestTests(TestCase):
+    """Tests for NotificationService.send_pending_digests() and the management command."""
+
+    def setUp(self) -> None:
+        mail.outbox = []
+        self.sender = BorrowdUser.objects.create_user(
+            username="sender",
+            email="sender@example.com",
+            password="password",
+            first_name="Alice",
+        )
+        self.recipient = BorrowdUser.objects.create_user(
+            username="recipient",
+            email="recipient@example.com",
+            password="password",
+            first_name="Bob",
+        )
+
+    def _make_pending_digest_notification(
+        self,
+        recipient: BorrowdUser | None = None,
+        scheduled_for_delta: timedelta = timedelta(minutes=-5),
+        status: str = "PENDING",
+    ) -> Notification:
+        """Insert a notification row carrying a summary_digest entry."""
+        if recipient is None:
+            recipient = self.recipient
+        from django.contrib.contenttypes.models import ContentType
+
+        ct = ContentType.objects.get_for_model(self.sender)
+        n = Notification.objects.create(
+            actor_content_type=ct,
+            actor_object_id=str(self.sender.pk),
+            recipient=recipient,
+            verb=NotificationType.ITEM_REQUEST_ACCEPTED.value,
+            description="Item request accepted",
+        )
+        Notification.objects.filter(pk=n.pk).update(
+            data={
+                "summary_digest": {
+                    "recipient_id": recipient.pk,
+                    "scheduled_for": (timezone.now() + scheduled_for_delta).isoformat(),
+                    "status": status,
+                }
+            }
+        )
+        n.refresh_from_db()
+        return n
+
+    def test_returns_zero_with_no_pending_digests(self) -> None:
+        """Returns 0 and sends no email when there are no pending digests."""
+        sent = NotificationService.send_pending_digests()
+        self.assertEqual(sent, 0)
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_sends_email_for_due_pending_digest(self) -> None:
+        """A pending digest past its scheduled_for time is emailed to the recipient."""
+        self._make_pending_digest_notification()
+        sent = NotificationService.send_pending_digests()
+        self.assertEqual(sent, 1)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, [self.recipient.email])
+
+    def test_marks_notification_success_after_send(self) -> None:
+        """After a successful send the summary_digest.status on the row is SUCCESS."""
+        n = self._make_pending_digest_notification()
+        NotificationService.send_pending_digests()
+        n.refresh_from_db()
+        self.assertEqual(n.data["summary_digest"]["status"], "SUCCESS")
+
+    def test_email_addresses_recipient_by_first_name(self) -> None:
+        """The digest email body includes the recipient's first name."""
+        self._make_pending_digest_notification()
+        NotificationService.send_pending_digests()
+        self.assertIn("Bob", mail.outbox[0].body)
+
+    def test_skips_digest_not_yet_due(self) -> None:
+        """A pending digest whose scheduled_for is still in the future is not sent."""
+        self._make_pending_digest_notification(scheduled_for_delta=timedelta(hours=1))
+        sent = NotificationService.send_pending_digests()
+        self.assertEqual(sent, 0)
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_skips_already_succeeded_digest(self) -> None:
+        """A digest already marked SUCCESS is not re-sent."""
+        self._make_pending_digest_notification(status="SUCCESS")
+        sent = NotificationService.send_pending_digests()
+        self.assertEqual(sent, 0)
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_batches_multiple_notifications_per_recipient_into_one_email(self) -> None:
+        """Multiple due digests for the same recipient are sent as a single email."""
+        for _ in range(3):
+            self._make_pending_digest_notification()
+        sent = NotificationService.send_pending_digests()
+        self.assertEqual(sent, 1)
+        self.assertEqual(len(mail.outbox), 1)
+
+    def test_sends_separate_email_per_recipient(self) -> None:
+        """Each recipient with due digests gets their own email."""
+        other = BorrowdUser.objects.create_user(
+            username="other",
+            email="other@example.com",
+            password="p",
+            first_name="Carol",
+        )
+        self._make_pending_digest_notification(recipient=self.recipient)
+        self._make_pending_digest_notification(recipient=other)
+        sent = NotificationService.send_pending_digests()
+        self.assertEqual(sent, 2)
+        self.assertEqual(len(mail.outbox), 2)
+        sent_to = {m.to[0] for m in mail.outbox}
+        self.assertEqual(sent_to, {self.recipient.email, other.email})
+
+    def test_marks_notification_error_when_send_fails(self) -> None:
+        """When send_mail raises, the row's summary_digest.status is set to ERROR."""
+        n = self._make_pending_digest_notification()
+        with patch(
+            "borrowd_notifications.services.send_mail",
+            side_effect=Exception("SMTP down"),
+        ):
+            NotificationService.send_pending_digests()
+        n.refresh_from_db()
+        self.assertEqual(n.data["summary_digest"]["status"], "ERROR")
+
+    def test_failure_for_one_recipient_does_not_block_others(self) -> None:
+        """A send failure for one recipient does not prevent digests for others."""
+        other = BorrowdUser.objects.create_user(
+            username="other2",
+            email="other2@example.com",
+            password="p",
+            first_name="Dave",
+        )
+        n1 = self._make_pending_digest_notification(recipient=self.recipient)
+        n2 = self._make_pending_digest_notification(recipient=other)
+
+        call_count = 0
+
+        def fail_first(*args, **kwargs):  # type: ignore[no-untyped-def]
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                raise Exception("SMTP down")
+
+        with patch("borrowd_notifications.services.send_mail", side_effect=fail_first):
+            NotificationService.send_pending_digests()
+
+        n1.refresh_from_db()
+        n2.refresh_from_db()
+        statuses = {
+            n1.data["summary_digest"]["status"],
+            n2.data["summary_digest"]["status"],
+        }
+        self.assertIn("ERROR", statuses)
+        self.assertIn("SUCCESS", statuses)
+
+    def test_notification_description_used_as_fallback_when_context_unavailable(
+        self,
+    ) -> None:
+        """Falls back to notification.description when the template context can't be built."""
+        self._make_pending_digest_notification()
+        NotificationService.send_pending_digests()
+        # No target set on the notification so context is empty; description is the fallback.
+        self.assertIn("Item request accepted", mail.outbox[0].body)
+
+    def test_management_command_outputs_sent_count(self) -> None:
+        """The management command prints the number of digests sent."""
+        from io import StringIO
+
+        from django.core.management import call_command
+
+        self._make_pending_digest_notification()
+        out = StringIO()
+        call_command("send_summary_digests", stdout=out)
+        self.assertIn("1", out.getvalue())

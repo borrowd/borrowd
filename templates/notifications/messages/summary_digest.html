@@ -1,0 +1,26 @@
+{% extends "notifications/messages/layout.html" %}
+
+{% block title %}
+    Notifications you missed
+{% endblock %}
+
+{% block content %}
+    <h2>
+        Hi {{ recipient_name }},
+    </h2>
+    <p>
+        Here are the notifications you missed while we paused email delivery to avoid
+        overloading your inbox:
+    </p>
+    <ul style="padding-left: 20px; margin: 16px 0;">
+        {% for message in notification_messages %}
+            <li style="margin-bottom: 8px;">
+                {{ message }}
+            </li>
+        {% endfor %}
+    </ul>
+    <a href="{{ inbox_url }}" class="button">View all notifications</a>
+    <p class="text-muted" style="font-size: 13px; margin-top: 20px;">
+        We batched these to keep your inbox tidy.
+    </p>
+{% endblock %}
