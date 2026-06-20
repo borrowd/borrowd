@@ -209,7 +209,11 @@ def toggle_preference(request: HttpRequest) -> HttpResponse:
     obj, _ = NotificationPreference.objects.get_or_create(
         user=user,
         notification_type=type_value,
-        defaults={"in_app_enabled": True, "email_enabled": True, "push_enabled": False},
+        defaults={
+            "in_app_enabled": False,
+            "email_enabled": False,
+            "push_enabled": False,
+        },
     )
     setattr(obj, field_name, enabled)
     obj.save(update_fields=[field_name])
