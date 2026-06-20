@@ -31,7 +31,6 @@ from borrowd_items.models import (
     Transaction,
     TransactionStatus,
 )
-from borrowd_users.models import BorrowdUser
 
 from .models import NotificationType
 from .services import NotificationService
@@ -88,7 +87,6 @@ def send_transaction_notifications(
 ) -> None:
     """Send notifications when transaction status changes."""
 
-    counterparty: BorrowdUser = instance.counter_party(instance.updated_by)
     match instance.status:
         case TransactionStatus.REQUESTED:
             notify.send(
@@ -120,7 +118,7 @@ def send_transaction_notifications(
         case TransactionStatus.COLLECTION_ASSERTED:
             notify.send(
                 instance.updated_by,
-                recipient=[counterparty],
+                recipient=[instance.counter_party(instance.updated_by)],
                 verb=NotificationType.COLLECTION_ASSERTED.value,
                 action_object=instance.item,
                 target=instance,
@@ -129,7 +127,7 @@ def send_transaction_notifications(
         case TransactionStatus.COLLECTED:
             notify.send(
                 instance.updated_by,
-                recipient=[counterparty],
+                recipient=[instance.counter_party(instance.updated_by)],
                 verb=NotificationType.COLLECTION_CONFIRMED.value,
                 action_object=instance.item,
                 target=instance,
@@ -138,7 +136,7 @@ def send_transaction_notifications(
         case TransactionStatus.RETURN_ASSERTED:
             notify.send(
                 instance.updated_by,
-                recipient=[counterparty],
+                recipient=[instance.counter_party(instance.updated_by)],
                 verb=NotificationType.RETURN_ASSERTED.value,
                 action_object=instance.item,
                 target=instance,
@@ -147,11 +145,11 @@ def send_transaction_notifications(
         case TransactionStatus.RETURNED:
             notify.send(
                 instance.updated_by,
-                recipient=[counterparty],
+                recipient=[instance.counter_party(instance.updated_by)],
                 verb=NotificationType.RETURN_CONFIRMED.value,
                 action_object=instance.item,
                 target=instance,
-                description="{instance.item.name} return confirmed. Thanks for borrowing!",
+                description=f"{instance.item.name} return confirmed. Thanks for borrowing!",
             )
         case TransactionStatus.RETURN_REQUESTED:
             notify.send(
