@@ -350,7 +350,6 @@ def delete_app_notification(notification: Notification) -> None:
         channels.pop(ChannelType.APP.value, None)
         data["channels"] = channels
         notification.data = data
-        notification.delete = True
         notification.unread = False
         notification.save(update_fields=["data", "unread"])
 

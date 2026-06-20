@@ -81,11 +81,31 @@ def send_notification(
     transaction.on_commit(lambda: NotificationService.send_notification(instance))
 
 
+@receiver(pre_save, sender=Transaction)
+def capture_transaction_previous_status(
+    sender: type[Transaction], instance: Transaction, **kwargs: Any
+) -> None:
+    """Store the pre-save status on the instance so post_save can detect transitions."""
+    if instance.pk:
+        try:
+            instance._previous_status = Transaction.objects.values_list(  # type: ignore[attr-defined]
+                "status", flat=True
+            ).get(pk=instance.pk)
+        except Transaction.DoesNotExist:
+            instance._previous_status = None  # type: ignore[attr-defined]
+    else:
+        instance._previous_status = None  # type: ignore[attr-defined]
+
+
 @receiver(post_save, sender=Transaction)
 def send_transaction_notifications(
     sender: type[Transaction], instance: Transaction, created: bool, **kwargs: Any
 ) -> None:
     """Send notifications when transaction status changes."""
+
+    previous_status = getattr(instance, "_previous_status", None)
+    if not created and instance.status == previous_status:
+        return
 
     match instance.status:
         case TransactionStatus.REQUESTED:
