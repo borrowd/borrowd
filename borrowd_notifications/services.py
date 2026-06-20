@@ -3,6 +3,7 @@ from datetime import timedelta
 from typing import Any, Type
 
 import sentry_sdk
+from django.db.models import Q
 from django.utils import timezone
 from notifications.models import Notification
 
@@ -94,7 +95,7 @@ class NotificationService:
 
     @staticmethod
     def _is_duplicate(notification: Notification) -> bool:
-        return bool(
+        duplicate_exists: bool = (
             Notification.objects.filter(
                 actor_content_type=notification.actor_content_type,
                 actor_object_id=notification.actor_object_id,
@@ -102,11 +103,16 @@ class NotificationService:
                 verb=notification.verb,
                 target_content_type=notification.target_content_type,
                 target_object_id=notification.target_object_id,
-                timestamp__gte=timezone.now() - _DEDUP_WINDOW,
+                timestamp__gte=notification.timestamp - _DEDUP_WINDOW,
             )
-            .exclude(pk=notification.pk)
+            .filter(
+                Q(timestamp__lt=notification.timestamp)
+                | Q(timestamp=notification.timestamp, pk__lt=notification.pk)
+            )
             .exists()
         )
+
+        return duplicate_exists
 
     @staticmethod
     def _is_email_throttled(recipient: BorrowdUser) -> bool:
