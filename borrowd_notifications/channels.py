@@ -119,7 +119,7 @@ class PUSHNotificationStrategy(NotificationStrategy):
         try:
             body = payload.notification_type.message_template.format(**context)
         except KeyError:
-            body = payload.notification_type.label
+            body = payload.notification_type
 
         base_url = settings.BASE_URL.rstrip("/")
         push_data = json.dumps(
