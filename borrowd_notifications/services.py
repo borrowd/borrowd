@@ -62,17 +62,27 @@ class NotificationService:
     def _get_enabled_channels(
         user: BorrowdUser, notification_type: NotificationType
     ) -> set[ChannelType]:
+        channels: set[ChannelType] = set()
+
         if notification_type in NotificationType.mandatory_types():
-            return {ChannelType.APP, ChannelType.EMAIL}
+            channels.update({ChannelType.APP, ChannelType.EMAIL})
 
         try:
             pref = NotificationPreference.objects.get(
                 user=user, notification_type=notification_type.value
             )
         except NotificationPreference.DoesNotExist:
-            return set()
+            NotificationPreference.objects.create(
+                user=user,
+                notification_type=notification_type.value,
+                defaults={
+                    "in_app_enabled": True,
+                    "email_enabled": True,
+                    "push_enabled": False,
+                },
+            )
+            return {ChannelType.APP, ChannelType.EMAIL}
 
-        channels: set[ChannelType] = set()
         if pref.in_app_enabled:
             channels.add(ChannelType.APP)
         if pref.email_enabled:

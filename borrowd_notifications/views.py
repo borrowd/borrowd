@@ -298,13 +298,6 @@ def _format_notification(notification: Notification) -> str:
         return str(notification.verb)
 
 
-def _notification_target_url(notification: Notification) -> str | None:
-    if not isinstance(notification.data, dict):
-        return None
-    ctx = notification.data.get("context", {})
-    return ctx.get("respond_url") or ctx.get("item_url") or ctx.get("group_url") or None
-
-
 @login_required
 def notification_inbox_view(request: HttpRequest) -> HttpResponse:
     user: BorrowdUser = request.user  # type: ignore[assignment]
@@ -316,7 +309,6 @@ def notification_inbox_view(request: HttpRequest) -> HttpResponse:
 
     for notification in page_obj:
         notification.formatted_message = _format_notification(notification)
-        notification.target_url = _notification_target_url(notification)
 
     return render(
         request,

@@ -1,8 +1,6 @@
 from dataclasses import dataclass
 from typing import Any, Dict
 
-# from .base.models import AbstractNotification
-import notifications
 from django.conf import settings
 from django.db import models
 from django.db.models import (
@@ -12,6 +10,9 @@ from django.db.models import (
     TextChoices,
 )
 from django.urls import reverse
+
+# from .base.models import AbstractNotification
+from notifications.models import Notification
 
 from borrowd_groups.models import BorrowdGroup, Membership
 from borrowd_items.models import (
@@ -57,11 +58,11 @@ class NotificationType(models.TextChoices):
     )
     ITEM_SUBSCRIPTION = (
         "Item subscription",
-        "You have subscribed to be notified when {item.name} becomes available. We will let you know when it does!",
+        "You have subscribed to be notified when {item_name} becomes available.",
     )
     ITEM_RETURN_REQUESTED = (
         "Item return requested",
-        "The owner of {item_name} has requested to get it back. Please coordinate with them the return of this item.",
+        "{owner_name} has requested {item_name} for return. Please coordinate with them.",
     )
     ITEM_DISPUTED = ("Item disputed", "This item has escalated to a dispute!")
 
@@ -124,7 +125,7 @@ class NotificationType(models.TextChoices):
 
     # TODO simplify the logic to make it cleaner.
     @staticmethod
-    def _get_template_context_for(notification: notifications) -> Dict[str, Any]:
+    def _get_template_context_for(notification: Notification) -> Dict[str, Any]:
         """Extract context from the notification's action_object."""
         context = {}
         if notification.verb in (
@@ -196,6 +197,7 @@ class NotificationType(models.TextChoices):
                     context.update(
                         {
                             "borrower_name": transaction.party2.profile.full_name(),
+                            "owner_name": transaction.party1.profile.full_name(),
                             "item_name": transaction.item.name,
                             "inventory_url": settings.BASE_URL
                             + reverse("profile-inventory"),
@@ -292,18 +294,16 @@ class NotificationPreference(Model):
         """When a new user is created, the preferences must be initialised."""
 
         for notification_type in NotificationType.values:
-            mandatory = (
-                True
-                if notification_type in NotificationType.mandatory_types()
-                else False
-            )
+            mandatory = notification_type in NotificationType.mandatory_types()
 
-            NotificationPreference.objects.create(
+            NotificationPreference.objects.update_or_create(
                 user=user,
                 notification_type=notification_type,
-                in_app_enabled=mandatory | False,
-                email_enabled=mandatory | False,
-                push_enabled=False,
+                defaults={
+                    "in_app_enabled": mandatory,
+                    "email_enabled": mandatory,
+                    "push_enabled": False,
+                },
             )
 
     class Meta:

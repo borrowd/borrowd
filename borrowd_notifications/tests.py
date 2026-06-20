@@ -1219,7 +1219,7 @@ class ReturnFlowNotificationTests(TestCase):
         self.assertEqual(email.subject, "Return requested")
         self.assertEqual(email.to, [self.borrower.email])
         self.assertIn("Test Drill", email.body)
-        self.assertIn("requested its return", email.body)
+        self.assertIn("requested", email.body)
         self.assertIn("/inventory/", email.body)
 
     def test_borrower_raised_dispute_emails_lender(self) -> None:
