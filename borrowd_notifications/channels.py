@@ -90,17 +90,7 @@ class AppNotificationStrategy(NotificationStrategy):
 
 class PUSHNotificationStrategy(NotificationStrategy):
     def send(self, payload: NotificationPayload) -> None:
-        try:
-            # text_message = render_to_string(
-            #     f"notifications/{payload.template_name}.txt", payload.data.context
-            # )
-            # self._send_push(device_id=None,message=text_message)
-            payload.data._success(channel=ChannelType.PUSH)
-        except Exception as e:
-            payload.data._error(channel=ChannelType.PUSH, error=str(e))
-        return
-
-    def _send_push(self, device_id: str, message: str) -> None:
-        print(f"Sending PUSH notification to {device_id}: {message}")
-        if not device_id.isdigit():
-            raise ValueError("Invalid device Id")
+        # Push delivery is not yet implemented; intentionally a no-op so the
+        # audit trail on the notification row never shows a false SUCCESS.
+        # Will be implemented in a different PR
+        pass
