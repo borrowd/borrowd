@@ -17,7 +17,12 @@
                     {% trans "Notifications" %}
                 </h1>
                 {% if unread_count %}
-                    <span class="badge badge-primary badge-sm">{{ unread_count }}</span>
+                    <span id="unread-count"
+                          class="badge badge-primary badge-sm"
+                          hx-get="{% url 'notification-inbox' %}"
+                          hx-trigger="every 30s"
+                          hx-select="#unread-count"
+                          hx-swap="outerHTML">{{ unread_count }}</span>
                 {% endif %}
             </div>
             {% if unread_count %}
