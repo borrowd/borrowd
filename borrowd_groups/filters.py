@@ -51,7 +51,7 @@ class GroupFilter(FilterSet):  # type: ignore[misc]
                 user=self.request.user,
             )
             qs = qs.annotate(
-                active_member_count=Count(
+                active_members_count=Count(
                     "group__membership",
                     filter=Q(group__membership__status=MembershipStatus.ACTIVE),
                     distinct=True,
