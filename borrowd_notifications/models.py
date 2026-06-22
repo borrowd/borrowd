@@ -22,6 +22,34 @@ from borrowd_items.models import (
 )
 from borrowd_users.models import BorrowdUser
 
+"""
+    To add a new notification type:
+        1. Add a stable database key to NotificationType. Changing a key later
+           requires a data migration for notifications and preferences.
+        2. Add its in-app message template to _MESSAGE_TEMPLATES and add the
+           required values to NotificationType._get_template_context_for().
+        3. Emit it with notify.send(). The description passed there is the email
+           subject line. Emitters currently live in borrowd_notifications/signals.py,
+           borrowd_groups/signals.py, and borrowd_users/services.py.
+        4. Add matching email body templates at
+           templates/notifications/messages/<notification_type>.html and .txt.
+           The filename is the lowercase NotificationType member name.
+        5. Add the type and its preference-page label to NOTIFICATION_CATEGORIES
+           in borrowd_notifications/views.py.
+        6. If users must not disable the notification, add it to
+           NotificationType.mandatory_types().
+        7. Create a migration that adds the field choice and seeds a preference
+           row for existing users.
+        8. Add tests for the emitter, in-app copy, email subject and body, and
+           preference behavior.
+
+    User-facing notification copy lives in:
+        - In-app messages: _MESSAGE_TEMPLATES in this module.
+        - Email subjects: notify.send(description=...) at the emitter.
+        - Email bodies: templates/notifications/messages/*.html and *.txt.
+        - Preference labels: NOTIFICATION_CATEGORIES in views.py.
+"""
+
 
 class NotificationType(models.TextChoices):
     """Notification types emitted by the application.
