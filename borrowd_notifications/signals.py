@@ -78,7 +78,9 @@ def send_notification(
 
     NotificationMetadata.objects.create(notification=instance)
     Notification.objects.filter(pk=instance.pk).update(public=False)
-    transaction.on_commit(lambda: NotificationService.send_notification(instance))
+    transaction.on_commit(
+        lambda: NotificationService.send_notification(instance), robust=True
+    )
 
 
 @receiver(pre_save, sender=Transaction)

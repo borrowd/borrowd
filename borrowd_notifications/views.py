@@ -60,20 +60,6 @@ NOTIFICATION_CATEGORIES: list[dict[str, Any]] = [
         ],
     },
     {
-        "name": "Wishlist & Community",
-        "slug": "wishlist",
-        "types": [
-            (
-                NotificationType.COMMUNITY_REQUEST_POSTED,
-                "Community item request posted",
-            ),
-            (
-                NotificationType.COMMUNITY_REQUEST_FULFILLED,
-                "Community request fulfilled",
-            ),
-        ],
-    },
-    {
         "name": "Item Availability",
         "slug": "availability",
         "types": [
@@ -202,7 +188,7 @@ def toggle_preference(request: HttpRequest) -> HttpResponse:
 
     if (
         ntype in NotificationType.mandatory_types()
-        and channel_value != ChannelType.PUSH
+        and ChannelType(channel_value) != ChannelType.PUSH
     ):
         return HttpResponse(status=403)
 
