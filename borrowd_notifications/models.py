@@ -24,94 +24,40 @@ from borrowd_users.models import BorrowdUser
 
 
 class NotificationType(models.TextChoices):
+    """Notification types emitted by the application.
+
+    Enum values are persisted as database keys. Renaming a value requires a data
+    migration for notifications and notification preferences.
+    """
+
     # Lending lifecycle
-    ITEM_REQUESTED = (
-        "Item requested",
-        "{requester_name} wants to borrow your {item_name}",
-    )
-    ITEM_REQUEST_ACCEPTED = (
-        "Item request accepted",
-        "{item_owner_name} accepted your request for {item_name}",
-    )
-    ITEM_REQUEST_DENIED = (
-        "Item request denied",
-        "{item_owner_name} declined your request for {item_name}",
-    )
-    COLLECTION_ASSERTED = (
-        "Collection asserted",
-        "{requester_name} says they have collected {item_name}",
-    )
-    COLLECTION_CONFIRMED = (
-        "Collection confirmed",
-        "{item_owner_name} confirmed collection of {item_name}",
-    )
-    RETURN_ASSERTED = (
-        "Return asserted",
-        "{requester_name} says they have returned {item_name}",
-    )
-    RETURN_CONFIRMED = (
-        "Return confirmed",
-        "{item_owner_name} confirmed the return of {item_name}",
-    )
+    ITEM_REQUESTED = "ITEM_REQUESTED"
+    ITEM_REQUEST_ACCEPTED = "ITEM_REQUEST_ACCEPTED"
+    ITEM_REQUEST_DENIED = "ITEM_REQUEST_DENIED"
+    COLLECTION_ASSERTED = "COLLECTION_ASSERTED"
+    COLLECTION_CONFIRMED = "COLLECTION_CONFIRMED"
+    RETURN_ASSERTED = "RETURN_ASSERTED"
+    RETURN_CONFIRMED = "RETURN_CONFIRMED"
 
     # Item availability
-    ITEM_NOTIFY_WHEN_AVAILABLE = (
-        "Item notify when available",
-        "{owner_name} has {item_name} available to borrow",
-    )
-    ITEM_SUBSCRIPTION = (
-        "Item subscription",
-        "{subscriber_name} subscribed to be notified when {item_name} becomes available",
-    )
-    ITEM_RETURN_REQUESTED = (
-        "Item return requested",
-        "{owner_name} requested the return of {item_name}",
-    )
-    ITEM_DISPUTED = (
-        "Item disputed",
-        "{dispute_raiser_name} raised a dispute over {item_name}",
-    )
+    ITEM_NOTIFY_WHEN_AVAILABLE = "ITEM_NOTIFY_WHEN_AVAILABLE"
+    ITEM_SUBSCRIPTION = "ITEM_SUBSCRIPTION"
+    ITEM_RETURN_REQUESTED = "ITEM_RETURN_REQUESTED"
+    ITEM_DISPUTED = "ITEM_DISPUTED"
 
     # Group & membership
-    GROUP_MEMBER_JOINED = (
-        "A member joined a group you're part of",
-        "{new_member_name} joined {group_name}",
-    )
-    GROUP_NEEDS_MODERATOR = (
-        "Group needs moderator",
-        "{actor_name} left {group_name} — the group needs a moderator",
-    )
-    MEMBERSHIP_PENDING = (
-        "Membership pending",
-        "{new_member_name} has requested to join {group_name}",
-    )
-    MEMBERSHIP_APPROVED = (
-        "Membership approved",
-        "{group_name} approved your membership",
-    )
+    GROUP_MEMBER_JOINED = "GROUP_MEMBER_JOINED"
+    GROUP_NEEDS_MODERATOR = "GROUP_NEEDS_MODERATOR"
+    MEMBERSHIP_PENDING = "MEMBERSHIP_PENDING"
+    MEMBERSHIP_APPROVED = "MEMBERSHIP_APPROVED"
 
     # Community wishlist
-    COMMUNITY_REQUEST_POSTED = (
-        "Community request posted",
-        "A new community request was posted in {group_name}",
-    )
-    COMMUNITY_REQUEST_FULFILLED = (
-        "Community request fulfilled",
-        "A community request in {group_name} was fulfilled",
-    )
+    COMMUNITY_REQUEST_POSTED = "COMMUNITY_REQUEST_POSTED"
+    COMMUNITY_REQUEST_FULFILLED = "COMMUNITY_REQUEST_FULFILLED"
 
-    REQUEST_CANCELLED_BORROWER_LEFT = (
-        "Request cancelled - borrower left",
-        "{actor_name}'s borrow request for {item_name} was cancelled",
-    )
-    REQUEST_CANCELLED_OWNER_LEFT = (
-        "Request cancelled - owner left",
-        "{actor_name} left — your request for {item_name} was cancelled",
-    )
-    LOAN_ENDED_OWNER_LEFT = (
-        "Loan ended - owner left",
-        "{actor_name} left — your loan of {item_name} has ended",
-    )
+    REQUEST_CANCELLED_BORROWER_LEFT = "REQUEST_CANCELLED_BORROWER_LEFT"
+    REQUEST_CANCELLED_OWNER_LEFT = "REQUEST_CANCELLED_OWNER_LEFT"
+    LOAN_ENDED_OWNER_LEFT = "LOAN_ENDED_OWNER_LEFT"
 
     @classmethod
     def mandatory_types(cls) -> "frozenset[NotificationType]":
@@ -130,7 +76,7 @@ class NotificationType(models.TextChoices):
 
     @property
     def message_template(self) -> str:
-        return str(self.label)
+        return _MESSAGE_TEMPLATES[self]
 
     # TODO simplify the logic to make it cleaner.
     @staticmethod
@@ -267,6 +213,30 @@ class NotificationType(models.TextChoices):
                     }
                 )
         return context
+
+
+_MESSAGE_TEMPLATES: dict[NotificationType, str] = {
+    NotificationType.ITEM_REQUESTED: "{requester_name} wants to borrow your {item_name}",
+    NotificationType.ITEM_REQUEST_ACCEPTED: "{item_owner_name} accepted your request for {item_name}",
+    NotificationType.ITEM_REQUEST_DENIED: "{item_owner_name} declined your request for {item_name}",
+    NotificationType.COLLECTION_ASSERTED: "{requester_name} says they have collected {item_name}",
+    NotificationType.COLLECTION_CONFIRMED: "{item_owner_name} confirmed collection of {item_name}",
+    NotificationType.RETURN_ASSERTED: "{requester_name} says they have returned {item_name}",
+    NotificationType.RETURN_CONFIRMED: "{item_owner_name} confirmed the return of {item_name}",
+    NotificationType.ITEM_NOTIFY_WHEN_AVAILABLE: "{owner_name} has {item_name} available to borrow",
+    NotificationType.ITEM_SUBSCRIPTION: "{subscriber_name} subscribed to be notified when {item_name} becomes available",
+    NotificationType.ITEM_RETURN_REQUESTED: "{owner_name} requested the return of {item_name}",
+    NotificationType.ITEM_DISPUTED: "{dispute_raiser_name} raised a dispute over {item_name}",
+    NotificationType.GROUP_MEMBER_JOINED: "{new_member_name} joined {group_name}",
+    NotificationType.GROUP_NEEDS_MODERATOR: "{actor_name} left {group_name} — the group needs a moderator",
+    NotificationType.MEMBERSHIP_PENDING: "{new_member_name} has requested to join {group_name}",
+    NotificationType.MEMBERSHIP_APPROVED: "{group_name} approved your membership",
+    NotificationType.COMMUNITY_REQUEST_POSTED: "A new community request was posted in {group_name}",
+    NotificationType.COMMUNITY_REQUEST_FULFILLED: "A community request in {group_name} was fulfilled",
+    NotificationType.REQUEST_CANCELLED_BORROWER_LEFT: "{actor_name}'s borrow request for {item_name} was cancelled",
+    NotificationType.REQUEST_CANCELLED_OWNER_LEFT: "{actor_name} left — your request for {item_name} was cancelled",
+    NotificationType.LOAN_ENDED_OWNER_LEFT: "{actor_name} left — your loan of {item_name} has ended",
+}
 
 
 class ChannelType(TextChoices):

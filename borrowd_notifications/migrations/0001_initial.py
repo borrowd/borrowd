@@ -31,86 +31,41 @@ class Migration(migrations.Migration):
                     "notification_type",
                     models.CharField(
                         choices=[
+                            ("ITEM_REQUESTED", "Item Requested"),
+                            ("ITEM_REQUEST_ACCEPTED", "Item Request Accepted"),
+                            ("ITEM_REQUEST_DENIED", "Item Request Denied"),
+                            ("COLLECTION_ASSERTED", "Collection Asserted"),
+                            ("COLLECTION_CONFIRMED", "Collection Confirmed"),
+                            ("RETURN_ASSERTED", "Return Asserted"),
+                            ("RETURN_CONFIRMED", "Return Confirmed"),
                             (
-                                "Item requested",
-                                "{requester_name} wants to borrow your {item_name}",
+                                "ITEM_NOTIFY_WHEN_AVAILABLE",
+                                "Item Notify When Available",
+                            ),
+                            ("ITEM_SUBSCRIPTION", "Item Subscription"),
+                            ("ITEM_RETURN_REQUESTED", "Item Return Requested"),
+                            ("ITEM_DISPUTED", "Item Disputed"),
+                            ("GROUP_MEMBER_JOINED", "Group Member Joined"),
+                            ("GROUP_NEEDS_MODERATOR", "Group Needs Moderator"),
+                            ("MEMBERSHIP_PENDING", "Membership Pending"),
+                            ("MEMBERSHIP_APPROVED", "Membership Approved"),
+                            (
+                                "COMMUNITY_REQUEST_POSTED",
+                                "Community Request Posted",
                             ),
                             (
-                                "Item request accepted",
-                                "{item_owner_name} accepted your request for {item_name}",
+                                "COMMUNITY_REQUEST_FULFILLED",
+                                "Community Request Fulfilled",
                             ),
                             (
-                                "Item request denied",
-                                "{item_owner_name} declined your request for {item_name}",
+                                "REQUEST_CANCELLED_BORROWER_LEFT",
+                                "Request Cancelled Borrower Left",
                             ),
                             (
-                                "Collection asserted",
-                                "{requester_name} says they have collected {item_name}",
+                                "REQUEST_CANCELLED_OWNER_LEFT",
+                                "Request Cancelled Owner Left",
                             ),
-                            (
-                                "Collection confirmed",
-                                "{item_owner_name} confirmed collection of {item_name}",
-                            ),
-                            (
-                                "Return asserted",
-                                "{requester_name} says they have returned {item_name}",
-                            ),
-                            (
-                                "Return confirmed",
-                                "{item_owner_name} confirmed the return of {item_name}",
-                            ),
-                            (
-                                "Item notify when available",
-                                "{owner_name} has {item_name} available to borrow",
-                            ),
-                            (
-                                "Item subscription",
-                                "{subscriber_name} subscribed to be notified when {item_name} becomes available",
-                            ),
-                            (
-                                "Item return requested",
-                                "{owner_name} requested the return of {item_name}",
-                            ),
-                            (
-                                "Item disputed",
-                                "{dispute_raiser_name} raised a dispute over {item_name}",
-                            ),
-                            (
-                                "A member joined a group you're part of",
-                                "{new_member_name} joined {group_name}",
-                            ),
-                            (
-                                "Group needs moderator",
-                                "{actor_name} left {group_name} — the group needs a moderator",
-                            ),
-                            (
-                                "Membership pending",
-                                "{new_member_name} has requested to join {group_name}",
-                            ),
-                            (
-                                "Membership approved",
-                                "{group_name} approved your membership",
-                            ),
-                            (
-                                "Community request posted",
-                                "A new community request was posted in {group_name}",
-                            ),
-                            (
-                                "Community request fulfilled",
-                                "A community request in {group_name} was fulfilled",
-                            ),
-                            (
-                                "Request cancelled - borrower left",
-                                "{actor_name}'s borrow request for {item_name} was cancelled",
-                            ),
-                            (
-                                "Request cancelled - owner left",
-                                "{actor_name} left — your request for {item_name} was cancelled",
-                            ),
-                            (
-                                "Loan ended - owner left",
-                                "{actor_name} left — your loan of {item_name} has ended",
-                            ),
+                            ("LOAN_ENDED_OWNER_LEFT", "Loan Ended Owner Left"),
                         ],
                         max_length=100,
                     ),

@@ -1353,6 +1353,16 @@ class ReturnFlowNotificationTests(TestCase):
         self.assertEqual(len(mail.outbox), 0)
 
 
+class NotificationTypeTests(TestCase):
+    def test_values_are_stable_database_keys(self) -> None:
+        for notification_type in NotificationType:
+            self.assertEqual(notification_type.value, notification_type.name)
+
+    def test_every_type_has_a_message_template(self) -> None:
+        for notification_type in NotificationType:
+            self.assertTrue(notification_type.message_template)
+
+
 class NewUserPreferenceInitTests(TestCase):
     """Creating a new user auto-populates NotificationPreference rows via init_new_user_preferences."""
 
