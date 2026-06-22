@@ -243,6 +243,8 @@ class BorrowdGroup(Model):
 
         membership.save()
 
+        # TODO: Gracefuly soft delete when the last user quits.
+
     class Meta:
         permissions = (
             (BorrowdGroupOLP.VIEW, "Can view this Group"),

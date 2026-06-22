@@ -8,7 +8,6 @@ from django.core.exceptions import PermissionDenied
 from django.core.signing import SignatureExpired, TimestampSigner
 from django.db import transaction
 from django.db.models import Q, QuerySet
-from django.forms import ModelForm
 from django.http import (
     HttpRequest,
     HttpResponse,
@@ -17,8 +16,8 @@ from django.http import (
     HttpResponseRedirect,
 )
 from django.shortcuts import get_object_or_404, redirect, render
-from django.urls import reverse, reverse_lazy
-from django.views.generic import CreateView, DeleteView, DetailView, UpdateView, View
+from django.urls import reverse
+from django.views.generic import CreateView, DetailView, UpdateView, View
 from django_filters.views import FilterView
 from guardian.mixins import LoginRequiredMixin
 from notifications.models import Notification
@@ -248,17 +247,7 @@ class GroupCreateView(
         return reverse("borrowd_groups:group-detail", args=[self.object.pk])
 
 
-class GroupDeleteView(
-    LoginOr404PermissionMixin,
-    BorrowdTemplateFinderMixin,
-    DeleteView[BorrowdGroup, ModelForm[BorrowdGroup]],
-):
-    model = BorrowdGroup
-    permission_required = BorrowdGroupOLP.DELETE
-    success_url = reverse_lazy("borrowd_groups:group-list")
-    http_method_names = ["post"]
-
-
+# No typing for django_guardian, so mypy doesn't like us subclassing.
 class GroupDetailView(
     LoginOr403PermissionMixin,
     BorrowdTemplateFinderMixin,
