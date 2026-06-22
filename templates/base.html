@@ -19,6 +19,9 @@
                 src="https://plausible.io/js/script.js"></script>
         {% vite_hmr_client %}
         {% vite_asset 'static/js/main.js' %}
+        {% if debug %}
+            <style id="fouc-guard">body{visibility:hidden}</style><script>document.addEventListener('DOMContentLoaded',function(){var s=document.getElementById('fouc-guard');if(s)s.remove()})</script>
+        {% endif %}
     </head>
     <body x-data
           class="flex flex-col justify-center min-h-screen bg-base-200"
