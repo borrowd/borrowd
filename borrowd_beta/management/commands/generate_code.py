@@ -22,8 +22,6 @@ class Command(BaseCommand):
 
         try:
             code = BetaCode.generate_code()
-            # BetaCode has no email field; email is only echoed back to the
-            # operator below.
             system_user = get_system_user()
             BetaCode.objects.create(
                 name=name,
