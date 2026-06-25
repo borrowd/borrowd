@@ -448,6 +448,7 @@ class Item(Model):
         if current_tx.status in (
             TransactionStatus.COLLECTION_ASSERTED,
             TransactionStatus.COLLECTED,
+            TransactionStatus.GIVEAWAY_OFFERED,
             TransactionStatus.RETURN_REQUESTED,
             TransactionStatus.RETURN_ASSERTED,
             TransactionStatus.DISPUTED,
@@ -488,11 +489,23 @@ class Item(Model):
                 # Otherwise, nothing to do but wait...
                 return tuple()
         elif current_tx.status == TransactionStatus.COLLECTED:
-            # Either borrower or lender can assert return
-            # The lender can also request the item back.
+            # Either borrower or lender can assert return.
+            # The lender can also request the item back, or give it away.
+            # Once a return is requested the status moves on, so "give away"
+            # naturally disappears and can't conflict with an in-flight return.
             if self.owner == user:
-                return (ItemAction.MARK_RETURNED, ItemAction.REQUEST_RETURN)
+                return (
+                    ItemAction.MARK_RETURNED,
+                    ItemAction.REQUEST_RETURN,
+                    ItemAction.OFFER_GIVEAWAY,
+                )
             return (ItemAction.MARK_RETURNED,)
+        elif current_tx.status == TransactionStatus.GIVEAWAY_OFFERED:
+            # The borrower decides whether to accept the gift.
+            # The lender waits on that decision.
+            if self.owner == user:
+                return tuple()
+            return (ItemAction.ACCEPT_GIVEAWAY, ItemAction.DECLINE_GIVEAWAY)
         elif current_tx.status == TransactionStatus.RETURN_REQUESTED:
             if self.owner == user:
                 # The lender can escalate to a dispute only if the wait window has passed
@@ -563,6 +576,7 @@ class Item(Model):
                         TransactionStatus.ACCEPTED,
                         TransactionStatus.COLLECTION_ASSERTED,
                         TransactionStatus.COLLECTED,
+                        TransactionStatus.GIVEAWAY_OFFERED,
                         TransactionStatus.RETURN_REQUESTED,
                         TransactionStatus.RETURN_ASSERTED,
                         TransactionStatus.DISPUTED,
@@ -584,6 +598,7 @@ class Item(Model):
                             TransactionStatus.ACCEPTED,
                             TransactionStatus.COLLECTION_ASSERTED,
                             TransactionStatus.COLLECTED,
+                            TransactionStatus.GIVEAWAY_OFFERED,
                             TransactionStatus.RETURN_REQUESTED,
                             TransactionStatus.RETURN_ASSERTED,
                             TransactionStatus.DISPUTED,
@@ -615,6 +630,7 @@ class Item(Model):
                         TransactionStatus.REJECTED,
                         TransactionStatus.CANCELLED,
                         TransactionStatus.RESOLVED,
+                        TransactionStatus.OWNERSHIP_TRANSFERRED,
                     ]
                 )
             )
@@ -769,6 +785,23 @@ class Item(Model):
                         resolved_by=user,
                         reason=ResolutionReason.DISPUTE_ITEM_NOT_RETURNED,
                     )
+                case ItemAction.OFFER_GIVEAWAY:
+                    # The lender offers to give the item to the borrower for keeps.
+                    # Item stays BORROWED until the borrower accepts.
+                    current_tx.status = TransactionStatus.GIVEAWAY_OFFERED
+                    current_tx.updated_by = user
+                    current_tx.save()
+                case ItemAction.DECLINE_GIVEAWAY:
+                    # The borrower turns down the gift; the loan continues.
+                    current_tx.status = TransactionStatus.COLLECTED
+                    current_tx.updated_by = user
+                    current_tx.save()
+                case ItemAction.ACCEPT_GIVEAWAY:
+                    # The borrower accepts; ownership transfers for good.
+                    current_tx.status = TransactionStatus.OWNERSHIP_TRANSFERRED
+                    current_tx.updated_by = user
+                    current_tx.save()
+                    self._transfer_ownership(new_owner=user, by=user)
                 case ItemAction.CANCEL_REQUEST:
                     # The requestor cancels the Request.
                     self.status = ItemStatus.AVAILABLE
@@ -1164,6 +1197,7 @@ class Transaction(Model):
                     TransactionStatus.REJECTED,
                     TransactionStatus.CANCELLED,
                     TransactionStatus.RESOLVED,
+                    TransactionStatus.OWNERSHIP_TRANSFERRED,
                 ]
             )
         )
@@ -1187,6 +1221,7 @@ class Transaction(Model):
                     TransactionStatus.REJECTED,
                     TransactionStatus.CANCELLED,
                     TransactionStatus.RESOLVED,
+                    TransactionStatus.OWNERSHIP_TRANSFERRED,
                 ]
             )
         )
