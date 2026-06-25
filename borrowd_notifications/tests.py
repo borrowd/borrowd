@@ -627,6 +627,93 @@ class TransactionNotificationTests(TestCase):
         self.assertEqual(Notification.objects.filter(recipient=updated_by).count(), 0)
 
 
+class GiveawayNotificationTests(TestCase):
+    """Tests for giveaway notifications fired by the Transaction post_save signal."""
+
+    def setUp(self) -> None:
+        self.owner = BorrowdUser.objects.create_user(
+            username="owner",
+            email="owner@example.com",
+            password="password",
+            first_name="Priya",
+        )
+        self.borrower = BorrowdUser.objects.create_user(
+            username="borrower",
+            email="borrower@example.com",
+            password="password",
+            first_name="Marcus",
+        )
+        self.item = Item.objects.create(
+            name="Test Item",
+            description="A test item",
+            owner=self.owner,
+            created_by=self.owner,
+            updated_by=self.owner,
+        )
+
+    def _create_transaction(self, status: TransactionStatus) -> Transaction:
+        return Transaction.objects.create(
+            item=self.item,
+            party1=self.owner,
+            party2=self.borrower,
+            status=status,
+            created_by=self.borrower,
+            updated_by=self.owner,
+        )
+
+    def test_offer_notifies_borrower(self) -> None:
+        """Borrower receives GIVEAWAY_OFFER_SENT from the owner."""
+        self._create_transaction(TransactionStatus.GIVEAWAY_OFFERED)
+
+        notifications = Notification.objects.filter(
+            recipient=self.borrower, verb=NotificationType.GIVEAWAY_OFFER_SENT.value
+        )
+        self.assertEqual(notifications.count(), 1)
+        self.assertEqual(notifications.first().actor, self.owner)
+        self.assertEqual(Notification.objects.filter(recipient=self.owner).count(), 0)
+
+    def test_accept_notifies_owner(self) -> None:
+        """Owner receives GIVEAWAY_ACCEPTED from the borrower."""
+        self._create_transaction(TransactionStatus.OWNERSHIP_TRANSFERRED)
+
+        notifications = Notification.objects.filter(
+            recipient=self.owner, verb=NotificationType.GIVEAWAY_ACCEPTED.value
+        )
+        self.assertEqual(notifications.count(), 1)
+        self.assertEqual(notifications.first().actor, self.borrower)
+
+    def test_decline_notifies_owner(self) -> None:
+        """A declined offer (reverting to COLLECTED) notifies the owner, not a
+        spurious collection-confirmed."""
+        tx = self._create_transaction(TransactionStatus.GIVEAWAY_OFFERED)
+        tx.status = TransactionStatus.COLLECTED
+        tx.save()
+
+        declined = Notification.objects.filter(
+            recipient=self.owner, verb=NotificationType.GIVEAWAY_DECLINED.value
+        )
+        self.assertEqual(declined.count(), 1)
+        self.assertEqual(declined.first().actor, self.borrower)
+        self.assertEqual(
+            Notification.objects.filter(
+                verb=NotificationType.COLLECTION_CONFIRMED.value
+            ).count(),
+            0,
+        )
+
+    def test_offer_in_app_copy(self) -> None:
+        """The in-app message renders with the giveaway context."""
+        self._create_transaction(TransactionStatus.GIVEAWAY_OFFERED)
+        notification = Notification.objects.get(
+            verb=NotificationType.GIVEAWAY_OFFER_SENT.value
+        )
+        ntype = NotificationType(notification.verb)
+        context = NotificationType._get_template_context_for(notification)
+        message = ntype.message_template.format(**context)
+        self.assertIn(self.owner.first_name, message)
+        self.assertIn(self.item.name, message)
+
+
 @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
 class NotificationPreferenceRoutingTests(TransactionTestCase):
     """Tests that NotificationService dispatches to channels according to user preferences."""
