@@ -1,12 +1,17 @@
 import os
 import pathlib
+import re
 import tempfile
 
 import allure
 import pytest
 from dotenv import load_dotenv
 from pages.auth_flow import AuthFlow
+from pages.inventory_page import InventoryPage
+from pages.item_details_page import ItemDetails
+from pages.item_edit_page import ItemEditPage
 from playwright.sync_api import Browser, Page
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
 load_dotenv()
 
@@ -195,3 +200,40 @@ def pytest_runtest_makereport(item, call):
     rep = outcome.get_result()
     if rep.when == "call":
         item.rep_call = rep
+
+
+def _delete_e2e_items(page: Page, base_url: str) -> None:
+    """Delete generated 'E2E ... <timestamp>' items via the UI so the
+    environment's inventory doesn't grow without bound across runs.
+    """
+    inventory = InventoryPage(page)
+    details = ItemDetails(page)
+    edit = ItemEditPage(page)
+    name_pattern = re.compile(r"^E2E\b.*\d{6}$")
+
+    for _ in range(100):
+        page.goto(f"{base_url}/profile/inventory/", wait_until="domcontentloaded")
+        leftover = page.get_by_role("heading", name=name_pattern).first
+        try:
+            leftover.wait_for(timeout=5000)
+        except PlaywrightTimeoutError:
+            return
+        leftover.click()
+        details.click_edit()
+        edit.click_delete_item()
+        edit.expect_delete_modal_opened()
+        edit.confirm_delete()
+        inventory.expect_opened()
+
+
+@pytest.fixture(scope="session", autouse=True)
+def cleanup_e2e_items(browser: Browser, base_url, user_auth_state):
+    yield
+    context = browser.new_context(storage_state=user_auth_state)
+    page = context.new_page()
+    try:
+        _delete_e2e_items(page, base_url)
+    except Exception as exc:  # best-effort: never fail the run on cleanup
+        print(f"E2E item cleanup skipped: {exc}")
+    finally:
+        context.close()

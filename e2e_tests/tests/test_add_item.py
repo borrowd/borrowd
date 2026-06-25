@@ -19,7 +19,7 @@ def test_create_item(user_page, base_url):
     item_name = f"E2E {fake.word()[:20]} {datetime.now().strftime('%H%M%S')}"
     description = fake.text(max_nb_chars=200)
 
-    user_page.goto(f"{base_url}/profile/inventory/")
+    user_page.goto(f"{base_url}/profile/inventory/", wait_until="domcontentloaded")
 
     inventory = InventoryPage(user_page)
     inventory.expect_opened()

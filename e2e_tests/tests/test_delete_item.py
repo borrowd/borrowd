@@ -19,7 +19,7 @@ def test_delete_item(user_page, base_url):
     item_name = f"E2E {fake.word()[:20]} {datetime.now().strftime('%H%M%S')}"
 
     with allure.step("Create a new item"):
-        user_page.goto(f"{base_url}/profile/inventory/")
+        user_page.goto(f"{base_url}/profile/inventory/", wait_until="domcontentloaded")
         inventory = InventoryPage(user_page)
         inventory.expect_opened()
         inventory.click_add_item_button()
