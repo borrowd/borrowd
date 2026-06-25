@@ -299,6 +299,8 @@ class Item(Model):
 
         if tx_status == TransactionStatus.DISPUTED:
             return f"This item is being disputed. Use 'resolve dispute' once you've settled it with {borrower_name}."
+        elif tx_status == TransactionStatus.GIVEAWAY_OFFERED:
+            return f"Giveaway offered to {borrower_name} - awaiting acceptance."
         elif tx_status == TransactionStatus.RETURN_REQUESTED:
             return f"You requested this item back from {borrower_name}. Confirm once you receive it."
         elif ItemAction.ACCEPT_REQUEST in actions:
@@ -335,6 +337,8 @@ class Item(Model):
 
         if tx_status == TransactionStatus.DISPUTED:
             return "This item is being disputed. Please coordinate with the owner to make it right."
+        elif tx_status == TransactionStatus.GIVEAWAY_OFFERED:
+            return f"{owner_name} is offering you this item! Accept the gift to make it yours."
         elif tx_status == TransactionStatus.RETURN_REQUESTED:
             return f"{owner_name} has requested this item back. Please coordinate its return."
         elif ItemAction.CANCEL_REQUEST in actions:
