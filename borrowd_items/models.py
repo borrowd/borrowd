@@ -80,6 +80,9 @@ class ItemAction(TextChoices):
         "RESOLVE_DISPUTE_NOT_RETURNED",
         "Resolve Dispute: Item Not Returned",
     )
+    OFFER_GIVEAWAY = "OFFER_GIVEAWAY", "Give Away"
+    ACCEPT_GIVEAWAY = "ACCEPT_GIVEAWAY", "Accept Gift"
+    DECLINE_GIVEAWAY = "DECLINE_GIVEAWAY", "Decline Gift"
 
 
 @dataclass
@@ -899,12 +902,14 @@ class TransactionStatus(IntegerChoices):
     ACCEPTED = 30, "Accepted"
     COLLECTION_ASSERTED = 40, "Collection Asserted"
     COLLECTED = 50, "Collected"
+    GIVEAWAY_OFFERED = 52, "Giveaway Offered"
     RETURN_REQUESTED = 55, "Return Requested"
     RETURN_ASSERTED = 60, "Return Asserted"
     DISPUTED = 65, "Disputed"
     RETURNED = 70, "Returned"
     CANCELLED = 80, "Cancelled"
     RESOLVED = 90, "Resolved"  # any force-resolved transaction, regardless of reason
+    OWNERSHIP_TRANSFERRED = 95, "Ownership Transferred"
 
 
 class ResolutionReason(TextChoices):
