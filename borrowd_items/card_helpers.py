@@ -32,6 +32,7 @@ BANNER_ICONS = {
     "return_requested": '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="size-5"><path fill-rule="evenodd" d="M7.793 2.232a.75.75 0 0 1-.025 1.06L3.622 7.25h10.003a5.375 5.375 0 0 1 0 10.75H10.75a.75.75 0 0 1 0-1.5h2.875a3.875 3.875 0 0 0 0-7.75H3.622l4.146 3.957a.75.75 0 0 1-1.036 1.085l-5.5-5.25a.75.75 0 0 1 0-1.085l5.5-5.25a.75.75 0 0 1 1.06.025Z" clip-rule="evenodd" /></svg>',
     "disputed": '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="size-5"><path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495ZM10 5a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5A.75.75 0 0 1 10 5Zm0 9a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" clip-rule="evenodd" /></svg>',
     "removed": '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="size-5"><path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495ZM10 5a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5A.75.75 0 0 1 10 5Zm0 9a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" clip-rule="evenodd" /></svg>',
+    "giveaway_offered": '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="size-5"><path d="M9.25 3.5a2.25 2.25 0 1 0-3.182 3.182H4.25A1.75 1.75 0 0 0 2.5 8.432V9.75c0 .414.336.75.75.75h6V6.682A2.25 2.25 0 0 0 9.25 3.5Zm-1.06 1.06a.75.75 0 1 1-1.061 1.061.75.75 0 0 1 1.06-1.06Z" /><path d="M10.75 10.5v-4h6c.966 0 1.75.784 1.75 1.75v.5c0 .966-.784 1.75-1.75 1.75h-6Zm0 1.5h6.25v4.75A1.75 1.75 0 0 1 15.25 18.5h-4.5V12Zm-1.5 0v6.5h-4.5A1.75 1.75 0 0 1 3 16.75V12h6.25Z" /></svg>',
 }
 
 BANNER_STYLES = {
@@ -50,6 +51,9 @@ BANNER_STYLES = {
     "removed": {"bg": "bg-warning/15", "text": "text-[#8E6900]"},
     "return_requested": {"bg": "bg-primary/15", "text": "text-primary"},
     "disputed": {"bg": "bg-warning/15", "text": "text-[#8E6900]"},
+    # purple, distinct from the plum "pending"/secondary banners, to flag the
+    # one-way giveaway offer (no themed name for this purple)
+    "giveaway_offered": {"bg": "bg-[#7C3AED]/15", "text": "text-[#7C3AED]"},
 }
 
 
@@ -144,6 +148,7 @@ def get_banner_info_for_item(
                 TransactionStatus.ACCEPTED,
                 TransactionStatus.COLLECTION_ASSERTED,
                 TransactionStatus.COLLECTED,
+                TransactionStatus.GIVEAWAY_OFFERED,
                 TransactionStatus.RETURN_REQUESTED,
                 TransactionStatus.RETURN_ASSERTED,
                 TransactionStatus.DISPUTED,
@@ -164,11 +169,23 @@ def get_banner_info_for_item(
     ):
         return {"banner_type": "waitlisted"}
 
-    # Return-request and dispute banners only concern the two parties;
-    # everyone else sees the generic borrowed label.
+    # Return-request, giveaway, and dispute banners only concern the two
+    # parties; everyone else sees the generic borrowed label.
     if current_transaction.status == TransactionStatus.DISPUTED:
         if item.owner == viewing_user or current_borrower == viewing_user:
             return {"banner_type": "disputed"}
+        return {"banner_type": "borrowed"}
+
+    # Purple giveaway banner: owner sees "awaiting acceptance" (no name), the
+    # borrower sees the offer with the lender's name.
+    if current_transaction.status == TransactionStatus.GIVEAWAY_OFFERED:
+        if item.owner == viewing_user:
+            return {"banner_type": "giveaway_offered"}
+        if current_borrower == viewing_user:
+            return {
+                "banner_type": "giveaway_offered",
+                "person_name": item.owner.first_name.capitalize(),
+            }
         return {"banner_type": "borrowed"}
 
     # The return-request banner stays up while the borrower's return
