@@ -108,6 +108,22 @@ def send_transaction_notifications(
     if not created and instance.status == previous_status:
         return
 
+    # A declined giveaway reverts to COLLECTED, which would otherwise fire the
+    # collection-confirmed notification. Catch that transition first.
+    if (
+        previous_status == TransactionStatus.GIVEAWAY_OFFERED
+        and instance.status == TransactionStatus.COLLECTED
+    ):
+        notify.send(
+            instance.party2,
+            recipient=[instance.party1],
+            verb=NotificationType.GIVEAWAY_DECLINED.value,
+            action_object=instance.item,
+            target=instance,
+            description=f"{instance.party2.first_name} declined your giveaway offer for {instance.item.name}",
+        )
+        return
+
     match instance.status:
         case TransactionStatus.REQUESTED:
             notify.send(
@@ -153,6 +169,24 @@ def send_transaction_notifications(
                 action_object=instance.item,
                 target=instance,
                 description=f"The collection of {instance.item.name} has been confirmed!",
+            )
+        case TransactionStatus.GIVEAWAY_OFFERED:
+            notify.send(
+                instance.party1,
+                recipient=[instance.party2],
+                verb=NotificationType.GIVEAWAY_OFFER_SENT.value,
+                action_object=instance.item,
+                target=instance,
+                description=f"{instance.party1.first_name} wants to give you {instance.item.name}!",
+            )
+        case TransactionStatus.OWNERSHIP_TRANSFERRED:
+            notify.send(
+                instance.party2,
+                recipient=[instance.party1],
+                verb=NotificationType.GIVEAWAY_ACCEPTED.value,
+                action_object=instance.item,
+                target=instance,
+                description=f"{instance.party2.first_name} accepted your gift of {instance.item.name}",
             )
         case TransactionStatus.RETURN_ASSERTED:
             notify.send(
