@@ -800,6 +800,56 @@ class Item(Model):
                         f"Unexpected action '{action}' for Item '{self}' and User '{user}'"
                     )
 
+    def _transfer_ownership(self, new_owner: BorrowdUser, by: BorrowdUser) -> None:
+        """
+        Permanently hand this Item to new_owner.
+
+        Reassigns ownership in place: the same Item record (and its photos,
+        description, categories) shows up in the new owner's inventory and
+        leaves the old owner's. Call this inside process_action's atomic block
+        so a failure rolls the whole transfer back.
+        """
+        from django.contrib.auth.models import Group
+        from guardian.shortcuts import assign_perm, remove_perm
+
+        from borrowd_groups.models import MembershipStatus
+
+        old_owner = self.owner
+
+        # Drop the old owner's group-based visibility before reassigning.
+        # The post_save signal only recomputes group perms for the *new*
+        # owner, so it would otherwise leave the old owner's groups able to
+        # see an item they no longer own.
+        old_owner_group_ids = (
+            old_owner.borrowd_groups.filter(
+                membership__user=old_owner,
+                membership__status=MembershipStatus.ACTIVE,
+            )
+            .exclude(perms_group=None)
+            .values_list("perms_group", flat=True)
+        )
+        for group in Group.objects.filter(pk__in=old_owner_group_ids):
+            remove_perm(ItemOLP.VIEW, group, self)
+
+        # Reassign and save. The save fires assign_item_permissions, which
+        # grants VIEW to the new owner's eligible groups.
+        self.owner = new_owner
+        self.status = ItemStatus.AVAILABLE
+        self.updated_by = by
+        self.save()
+
+        # The signal grants personal perms only on create and never revokes
+        # the previous owner's, so hand those off explicitly.
+        for perm in [ItemOLP.VIEW, ItemOLP.EDIT, ItemOLP.DELETE]:
+            remove_perm(perm, old_owner, self)
+            assign_perm(perm, new_owner, self)
+
+        # Outstanding "notify me when available" subs are moot now.
+        for subscription in AvailabilitySubscription.get_active_subscriptions_for_item(
+            self
+        ):
+            subscription.cancel_subscription()
+
     class Meta:
         # Permissions using the naming conventon `*_this_*` are used
         # for object-/record-level permissions: whereas the permission
