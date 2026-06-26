@@ -1,5 +1,7 @@
 import re
+import time
 
+from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import Page, expect
 
 
@@ -18,7 +20,22 @@ class AuthFlow:
         self.logout_button = page.get_by_role("button", name="Logout")
 
     def open_base(self, base_url):
-        self.page.goto(base_url)
+        #  for when there's a connection issue due to cold starts or something else
+        delays = (5, 10, 15)
+        for attempt, delay in enumerate(delays):
+            try:
+                self.page.goto(base_url)
+                return
+            except PlaywrightError as error:
+                message = str(error)
+                transient = (
+                    "ERR_CONNECTION" in message or "ERR_EMPTY_RESPONSE" in message
+                )
+                if not transient:
+                    raise
+                time.sleep(delay)
+                if attempt == len(delays) - 1:
+                    raise
 
     def pass_beta(self, beta_code):
         expect(self.beta_code_input).to_be_visible()
