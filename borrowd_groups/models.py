@@ -39,9 +39,9 @@ class BorrowdGroupManager(Manager["BorrowdGroup"]):
         Create a BorrowdGroup, passing trust_level through to the
         Membership created for the group's creator.
 
-        trust_level is not a BorrowdGroup field (which is why this is
-        not an override of the standard create()); it is smuggled to
-        the post_save signal that creates the creator's Membership.
+        `trust_level` is not a `BorrowdGroup` field (which is why this is
+        not an override of the standard `create()`); it is smuggled to
+        the `post_save` signal that creates the creator's `Membership`.
         """
         group: BorrowdGroup = BorrowdGroup(**kwargs)
 
