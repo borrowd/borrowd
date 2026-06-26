@@ -297,27 +297,4 @@
 
     {% include "components/modal.html" with modal_id="trust-level-info-modal" modal_title="Trust levels" modal_size="full" modal_content_template="items/_trust_level_info_content.html" cancel_button_text="Got it" %}
 
-    <style>
-        @keyframes photo-upload-shimmer {
-            from {
-                transform: translateY(110%);
-            }
-            to {
-                transform: translateY(-110%);
-            }
-        }
-
-        .photo-upload-shimmer {
-            background: linear-gradient(to top, transparent 20%, rgb(255 255 255 / 65%) 50%, transparent 80%);
-            animation: photo-upload-shimmer 1.6s ease-in-out infinite;
-        }
-
-        @media (prefers-reduced-motion: reduce) {
-            .photo-upload-shimmer {
-                animation: none;
-                display: none;
-            }
-        }
-    </style>
-
 {% endblock %}

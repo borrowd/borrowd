@@ -372,7 +372,9 @@ class ItemUpdateView(
         skipped = 0
 
         for upload in uploaded_files[:remaining_slots]:
-            photo_files = MultiValueDict[str, UploadedFile]({"image": [upload]})
+            photo_files: MultiValueDict[str, UploadedFile] = MultiValueDict(
+                {"image": [upload]}
+            )
             photo_form = ItemPhotoForm(files=photo_files)
             if not photo_form.is_valid():
                 skipped += 1
