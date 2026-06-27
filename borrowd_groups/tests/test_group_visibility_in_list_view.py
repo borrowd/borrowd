@@ -29,7 +29,7 @@ class GroupListViewVisibilityTests(TestCase):
         owner = self.owner
 
         ## Create Group
-        BorrowdGroup.objects.create(
+        BorrowdGroup.objects.create_group(
             name="Test Group",
             created_by=owner,
             updated_by=owner,
@@ -69,7 +69,7 @@ class GroupListViewVisibilityTests(TestCase):
         member = self.member
 
         ## Create Group
-        group = BorrowdGroup.objects.create(
+        group = BorrowdGroup.objects.create_group(
             name="Test Group",
             created_by=owner,
             updated_by=owner,
@@ -110,7 +110,7 @@ class GroupListViewVisibilityTests(TestCase):
         member = self.member
 
         ## Create Group
-        BorrowdGroup.objects.create(
+        BorrowdGroup.objects.create_group(
             name="Test Group",
             created_by=owner,
             updated_by=owner,
@@ -146,7 +146,7 @@ class GroupListViewVisibilityTests(TestCase):
         member = self.member
 
         ## Create Group
-        group = BorrowdGroup.objects.create(
+        group = BorrowdGroup.objects.create_group(
             name="Test Group",
             created_by=owner,
             updated_by=owner,

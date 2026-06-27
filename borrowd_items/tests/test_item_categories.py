@@ -393,7 +393,7 @@ class ItemFilterCategoryTests(ItemCategoryTestBase):
         )
 
         # Create group so member can see owner's items
-        group = BorrowdGroup.objects.create(
+        group = BorrowdGroup.objects.create_group(
             name="Filter Test Group",
             created_by=cls.owner,
             updated_by=cls.owner,

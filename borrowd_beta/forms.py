@@ -22,6 +22,6 @@ class BetaSignupForm(forms.Form):
             beta_code = BetaCode.objects.get(code=code_str)
         except BetaCode.DoesNotExist:
             raise forms.ValidationError("Invalid beta code.")
-        if beta_code.signups.count() >= beta_code.num_uses:  # type: ignore[attr-defined]
+        if beta_code.signups.count() >= beta_code.num_uses:
             raise forms.ValidationError("Beta code usage limit reached.")
         return beta_code
