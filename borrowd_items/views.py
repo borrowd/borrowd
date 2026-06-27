@@ -21,6 +21,7 @@ from borrowd_permissions.mixins import (
 )
 from borrowd_permissions.models import ItemOLP
 from borrowd_users.models import BorrowdUser, SearchTarget, SearchTerm
+from borrowd_users.request import get_authenticated_user
 
 from .card_helpers import (
     build_item_card_context,
@@ -195,17 +196,18 @@ class ItemCreateView(
         return context
 
     def form_valid(self, form: ItemCreateWithPhotoForm) -> HttpResponse:
-        form.instance.owner = self.request.user  # type: ignore[assignment]
-        form.instance.created_by = self.request.user  # type: ignore[assignment]
-        form.instance.updated_by = self.request.user  # type: ignore[assignment]
+        user = get_authenticated_user(self.request)
+        form.instance.owner = user
+        form.instance.created_by = user
+        form.instance.updated_by = user
         response = super().form_valid(form)
         image = form.cleaned_data.get("image")
         if image:
             ItemPhoto.objects.create(
-                item=self.object,
+                item=form.instance,
                 image=image,
-                created_by=self.request.user,
-                updated_by=self.request.user,
+                created_by=user,
+                updated_by=user,
             )
         return response
 

@@ -44,7 +44,7 @@ class SearchTermsExportViewTests(TestCase):
         self.client.force_login(self.admin)
         response = self.client.get(
             "/profile/search-terms/export/",
-            {"target": "items", "user_id": self.user.pk},
+            {"target": "items", "user_id": str(self.user.pk)},
         )
 
         self.assertEqual(response.status_code, 200)

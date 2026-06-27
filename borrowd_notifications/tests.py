@@ -50,7 +50,7 @@ class GroupMemberJoinedNotificationTests(TestCase):
 
     def test_group_creator_does_not_receive_self_notification(self) -> None:
         """Test that group creator does not receive notification about their own join."""
-        group = BorrowdGroup.objects.create(
+        group = BorrowdGroup.objects.create_group(
             name="Test Group",
             created_by=self.user1,
             updated_by=self.user1,
@@ -64,12 +64,12 @@ class GroupMemberJoinedNotificationTests(TestCase):
         self.assertEqual(
             creator_notifications.count(),
             0,
-            f"Group creator should not receive notification about their own join (user_id={self.user1.id}, membership_id={membership.id})",  # type: ignore[attr-defined]
+            f"Group creator should not receive notification about their own join (user_id={self.user1.id}, membership_id={membership.id})",
         )
 
     def test_new_member_does_not_receive_self_notification(self) -> None:
         """Test that a user joining a group does not receive notification about their own join."""
-        group = BorrowdGroup.objects.create(
+        group = BorrowdGroup.objects.create_group(
             name="Test Group",
             created_by=self.user1,
             updated_by=self.user1,
@@ -88,14 +88,14 @@ class GroupMemberJoinedNotificationTests(TestCase):
         self.assertEqual(
             user2_notifications.count(),
             0,
-            f"New member should not receive notification about their own join (user_id={self.user2.id}, membership_id={membership.id})",  # type: ignore[attr-defined]
+            f"New member should not receive notification about their own join (user_id={self.user2.id}, membership_id={membership.id})",
         )
 
     def test_group_creator_receives_notification_when_first_member_joins(
         self,
     ) -> None:
         """Test that creator receives notification when the first member joins."""
-        group = BorrowdGroup.objects.create(
+        group = BorrowdGroup.objects.create_group(
             name="Test Group",
             created_by=self.user1,
             updated_by=self.user1,
@@ -125,7 +125,7 @@ class GroupMemberJoinedNotificationTests(TestCase):
         self,
     ) -> None:
         """Test that creator receives notification when multiple new members join."""
-        group = BorrowdGroup.objects.create(
+        group = BorrowdGroup.objects.create_group(
             name="Test Group",
             created_by=self.user1,
             updated_by=self.user1,
@@ -170,7 +170,7 @@ class GroupMemberJoinedNotificationTests(TestCase):
 
     def test_only_moderators_receive_membership_pending_notification(self) -> None:
         """Test that only moderators receive notification when a new member requests to join."""
-        group = BorrowdGroup.objects.create(
+        group = BorrowdGroup.objects.create_group(
             name="Test Group",
             created_by=self.user1,
             updated_by=self.user1,

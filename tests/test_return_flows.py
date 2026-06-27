@@ -45,7 +45,7 @@ class ReturnFlowTestBase(SimpleTestCase):
         cls.borrower = BorrowdUser.objects.create(
             username=f"{prefix}_borrower", email=f"{prefix}_borrower@example.com"
         )
-        cls.group = BorrowdGroup.objects.create(
+        cls.group = BorrowdGroup.objects.create_group(
             name=f"{prefix} Test Group",
             created_by=cls.lender,
             updated_by=cls.lender,

@@ -42,11 +42,13 @@ Parameters:
                 {% if is_removed %}
                     <img src="{{ image|default:'/static/items/categories/logo-tools.png' }}"
                          alt="{{ name|default:'Item image' }}"
+                         loading="lazy"
                          class="w-full aspect-square object-cover rounded-md" />
                 {% else %}
                     <a href="{% url 'item-detail' pk %}">
                         <img src="{{ image|default:'/static/items/categories/logo-tools.png' }}"
                              alt="{{ name|default:'Item image' }}"
+                             loading="lazy"
                              class="w-full aspect-square object-cover rounded-md" />
                     </a>
                 {% endif %}

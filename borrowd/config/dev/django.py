@@ -12,6 +12,7 @@ else:
     ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
 
 STATIC_ROOT = BASE_DIR / "staticfiles"  # noqa: F405
+INTERNAL_IPS = ["127.0.0.1"]
 DJANGO_VITE = {
     "default": {
         "dev_mode": DEBUG,

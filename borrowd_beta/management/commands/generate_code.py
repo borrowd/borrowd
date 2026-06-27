@@ -4,6 +4,7 @@ from django.core.exceptions import ValidationError
 from django.core.management.base import BaseCommand, CommandParser
 
 from borrowd_beta.models import BetaCode
+from borrowd_users.system import get_system_user
 
 
 class Command(BaseCommand):
@@ -21,7 +22,13 @@ class Command(BaseCommand):
 
         try:
             code = BetaCode.generate_code()
-            BetaCode.objects.create(name=name, email=email, code=code)
+            system_user = get_system_user()
+            BetaCode.objects.create(
+                name=name,
+                code=code,
+                created_by=system_user,
+                updated_by=system_user,
+            )
             self.stdout.write(
                 self.style.SUCCESS(
                     f"Successfully generated code: {code} for {name} ({email})"

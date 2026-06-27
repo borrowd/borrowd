@@ -35,7 +35,7 @@ class ItemListPaginationTests(TestCase):
         )
         self.category = ItemCategory.objects.create(name="Test Category")
 
-        self.group = BorrowdGroup.objects.create(
+        self.group = BorrowdGroup.objects.create_group(
             name="Test Group",
             description="Test group",
             created_by=self.owner,
