@@ -51,8 +51,6 @@ BANNER_STYLES = {
     "removed": {"bg": "bg-warning/15", "text": "text-[#8E6900]"},
     "return_requested": {"bg": "bg-primary/15", "text": "text-primary"},
     "disputed": {"bg": "bg-warning/15", "text": "text-[#8E6900]"},
-    # purple, distinct from the plum "pending"/secondary banners, to flag the
-    # one-way giveaway offer (no themed name for this purple)
     "giveaway_offered": {"bg": "bg-[#7C3AED]/15", "text": "text-[#7C3AED]"},
 }
 
@@ -176,7 +174,7 @@ def get_banner_info_for_item(
             return {"banner_type": "disputed"}
         return {"banner_type": "borrowed"}
 
-    # Purple giveaway banner: owner sees "awaiting acceptance" (no name), the
+    # giveaway banner: owner sees "awaiting acceptance",
     # borrower sees the offer with the lender's name.
     if current_transaction.status == TransactionStatus.GIVEAWAY_OFFERED:
         if item.owner == viewing_user:

@@ -486,8 +486,6 @@ class Item(Model):
         elif current_tx.status == TransactionStatus.COLLECTED:
             # Either borrower or lender can assert return.
             # The lender can also request the item back, or give it away.
-            # Once a return is requested the status moves on, so "give away"
-            # naturally disappears and can't conflict with an in-flight return.
             if self.owner == user:
                 return (
                     ItemAction.MARK_RETURNED,
@@ -834,8 +832,7 @@ class Item(Model):
 
         Reassigns ownership in place: the same Item record (and its photos,
         description, categories) shows up in the new owner's inventory and
-        leaves the old owner's. Call this inside process_action's atomic block
-        so a failure rolls the whole transfer back.
+        leaves the old owner's.
         """
         from django.contrib.auth.models import Group
         from guardian.shortcuts import assign_perm, remove_perm
@@ -845,9 +842,9 @@ class Item(Model):
         old_owner = self.owner
 
         # Drop the old owner's group-based visibility before reassigning.
-        # The post_save signal only recomputes group perms for the *new*
-        # owner, so it would otherwise leave the old owner's groups able to
-        # see an item they no longer own.
+        # The post_save signal only recomputes group perms for the new owner,
+        # so it would otherwise leave the old owner's groups able to
+        # see an item they no longer should be able to.
         old_owner_group_ids = (
             old_owner.borrowd_groups.filter(
                 membership__user=old_owner,
@@ -859,15 +856,15 @@ class Item(Model):
         for group in Group.objects.filter(pk__in=old_owner_group_ids):
             remove_perm(ItemOLP.VIEW, group, self)
 
-        # Reassign and save. The save fires assign_item_permissions, which
-        # grants VIEW to the new owner's eligible groups.
+        # Reassign and save. The save fires `assign_item_permissions`
+        # See signals.py
         self.owner = new_owner
         self.status = ItemStatus.AVAILABLE
         self.updated_by = by
         self.save()
 
-        # The signal grants personal perms only on create and never revokes
-        # the previous owner's, so hand those off explicitly.
+        # `assign_item_permissions` grants personal perms only on create
+        # so we have to hand pervious owner's perms to new owner explicitly.
         for perm in [ItemOLP.VIEW, ItemOLP.EDIT, ItemOLP.DELETE]:
             remove_perm(perm, old_owner, self)
             assign_perm(perm, new_owner, self)
