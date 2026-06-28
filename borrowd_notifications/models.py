@@ -142,7 +142,6 @@ class NotificationType(models.TextChoices):
                 "item_name": giveaway.item.name,
                 "item_url": settings.BASE_URL
                 + reverse("item-detail", args=[giveaway.item.pk]),
-                "inventory_url": settings.BASE_URL + reverse("profile-inventory"),
             }
         if isinstance(notification.target, Transaction):
             transaction: Transaction = notification.target
