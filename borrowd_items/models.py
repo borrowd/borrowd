@@ -1170,9 +1170,9 @@ class Transaction(Model):
         Returns Transactions where the given User is the active borrower (party 2)
 
         "Active" is defined by exclusion: every state except the closed ones
-        (RETURNED, REJECTED, CANCELLED, RESOLVED) and the not-yet-accepted
-        REQUESTED. In-flight states like COLLECTION_ASSERTED, RETURN_REQUESTED,
-        and DISPUTED all count as active borrows.
+        (RETURNED, REJECTED, CANCELLED, RESOLVED, OWNERSHIP_TRANSFERRED) and the
+        not-yet-accepted REQUESTED. In-flight states like COLLECTION_ASSERTED,
+        RETURN_REQUESTED, and DISPUTED all count as active borrows.
         """
         return Transaction.objects.filter(
             Q(party2=user)
@@ -1198,9 +1198,9 @@ class Transaction(Model):
         Returns Transactions where the given User is the active lender (party 1)
 
         "Active" is defined by exclusion: every state except the closed ones
-        (RETURNED, REJECTED, CANCELLED, RESOLVED) and the not-yet-accepted
-        REQUESTED. In-flight states like COLLECTION_ASSERTED, RETURN_REQUESTED,
-        and DISPUTED all count as active lends.
+        (RETURNED, REJECTED, CANCELLED, RESOLVED, OWNERSHIP_TRANSFERRED) and the
+        not-yet-accepted REQUESTED. In-flight states like COLLECTION_ASSERTED,
+        RETURN_REQUESTED, and DISPUTED all count as active lends.
         """
         return Transaction.objects.filter(
             Q(party1=user)
