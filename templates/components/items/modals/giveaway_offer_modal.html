@@ -10,6 +10,6 @@
         {% csrf_token %}
         <input type="hidden" name="action" value="OFFER_GIVEAWAY">
     </form>
-    {% include "components/modal.html" with modal_id=modal_id modal_title="Give away this item" button_layout="equal" confirm_button_text="Offer item" cancel_button_text="Cancel" confirm_button_class="btn btn-soft font-semibold text-[#7C3AED]" confirm_submit_form_id=form_id modal_content_template="components/items/modals/_giveaway_offer_modal_content.html" %}
+    {% include "components/modal.html" with modal_id=modal_id modal_title="Give away this item" button_layout="equal" confirm_button_text="Offer item" cancel_button_text="Cancel" confirm_button_class="btn btn-soft font-semibold" confirm_submit_form_id=form_id modal_content_template="components/items/modals/_giveaway_offer_modal_content.html" %}
 
 {% endwith %}

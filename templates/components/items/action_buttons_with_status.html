@@ -99,7 +99,7 @@ For variant='card', also accepts:
                     <div class="flex-1">
                         <button type="button"
                                 onclick="showModal('giveaway-offer-modal{{ modal_suffix }}')"
-                                class="btn btn-link text-[#7C3AED] btn-sm md:btn-md w-full">
+                                class="btn btn-warning btn-sm md:btn-md w-full">
                             Give away
                         </button>
                     </div>
@@ -107,7 +107,7 @@ For variant='card', also accepts:
                     <div class="flex-1">
                         <button type="button"
                                 onclick="showModal('accept-giveaway-modal{{ modal_suffix }}')"
-                                class="btn btn-success btn-sm md:btn-md w-full">
+                                class="btn btn-soft btn-success btn-sm md:btn-md w-full">
                             Accept gift
                         </button>
                     </div>
@@ -115,8 +115,7 @@ For variant='card', also accepts:
                     <form method="POST" action="{% url 'item-borrow' item.pk %}" class="flex-1">
                         {% csrf_token %}
                         <input type="hidden" name="action" value="DECLINE_GIVEAWAY">
-                        <button type="submit"
-                                class="btn btn-outline btn-error btn-sm md:btn-md w-full">
+                        <button type="submit" class="btn btn-soft btn-error btn-sm md:btn-md w-full">
                             Decline
                         </button>
                     </form>
