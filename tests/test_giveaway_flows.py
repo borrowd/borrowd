@@ -267,11 +267,8 @@ class GiveawayOwnerCannotAcceptTest(GiveawayFlowTestBase):
 
 class GiveawayClearsNonSharedGroupTest(GiveawayFlowTestBase):
     """
-    On transfer, a group the lender shared with but the borrower is NOT in must
-    lose VIEW. recompute_group_visibility clears from current state rather than
-    the new owner's groups only, so the old owner's other groups can't keep
-    seeing an item that is no longer theirs. Pins the behavior so #507's policy
-    swap can't silently reintroduce the leak.
+    On transfer of ownership, a group the lender is part of, but the borrower
+    is NOT in must lose VIEW access to the item.
     """
 
     lender_only_group: BorrowdGroup
