@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -33,6 +33,9 @@ from borrowd_users.models import BorrowdUser
 
 from .exceptions import InvalidItemAction, ItemAlreadyRequested
 from .processors import AutoOrientProcessor
+
+if TYPE_CHECKING:
+    from borrowd_groups.models import BorrowdGroup
 
 
 class ActiveItemQuerySet(QuerySet["Item"]):
@@ -826,45 +829,62 @@ class Item(Model):
                         f"Unexpected action '{action}' for Item '{self}' and User '{user}'"
                     )
 
+    def _groups_allowed_to_view(self) -> "QuerySet[BorrowdGroup]":
+        """
+        The current owner's active groups that may see this item.
+        TODO: expand this per issue #507
+        see https://github.com/borrowd/borrowd/issues/507
+        """
+        from borrowd_groups.models import MembershipStatus
+
+        # all Groups of which the owner is a member and has an equal or greater
+        # Trust Level than the level required by this Item.
+        return self.owner.borrowd_groups.filter(
+            membership__user=self.owner,  # looks redundant, but fails without it
+            membership__status=MembershipStatus.ACTIVE,
+            membership__trust_level__gte=self.trust_level_required,
+        ).exclude(perms_group=None)
+
+    def recompute_group_visibility(self) -> None:
+        """
+        Re-derive this item's group-level VIEW permissions for the current owner.
+
+        revokes VIEW perms for the item from every group that currently can has the perm,
+        then grants VIEW perms to the owner's allowed groups.
+        """
+        from django.contrib.auth.models import Group
+        from guardian.shortcuts import assign_perm, get_groups_with_perms, remove_perm
+
+        # guardian typing issue. will be fixed in a follow-up.
+        groups_that_can_view_item: QuerySet[Group] = get_groups_with_perms(self)  # type: ignore[assignment]
+        for group in groups_that_can_view_item:
+            remove_perm(ItemOLP.VIEW, group, self)
+
+        allowed_groups = Group.objects.filter(
+            pk__in=self._groups_allowed_to_view().values_list("perms_group", flat=True)
+        )
+        assign_perm(ItemOLP.VIEW, allowed_groups, self)
+
     def _transfer_ownership(self, new_owner: BorrowdUser, by: BorrowdUser) -> None:
         """
         Permanently hand this Item to new_owner.
 
         Reassigns ownership in place: the same Item record (and its photos,
-        description, categories) shows up in the new owner's inventory and
-        leaves the old owner's.
+        description, categories) shows up in the new owner's inventory and leaves the old owner's.
         """
-        from django.contrib.auth.models import Group
         from guardian.shortcuts import assign_perm, remove_perm
-
-        from borrowd_groups.models import MembershipStatus
 
         old_owner = self.owner
 
-        # Drop the old owner's group-based visibility before reassigning.
-        # The post_save signal only recomputes group perms for the new owner,
-        # so it would otherwise leave the old owner's groups able to
-        # see an item they no longer should be able to.
-        old_owner_group_ids = (
-            old_owner.borrowd_groups.filter(
-                membership__user=old_owner,
-                membership__status=MembershipStatus.ACTIVE,
-            )
-            .exclude(perms_group=None)
-            .values_list("perms_group", flat=True)
-        )
-        for group in Group.objects.filter(pk__in=old_owner_group_ids):
-            remove_perm(ItemOLP.VIEW, group, self)
-
-        # Reassign and save. The save fires `assign_item_permissions`
-        # See signals.py
+        # Reassign and save. The post_save signal recomputes group VIEW for the new owner
+        # see signals.py
         self.owner = new_owner
         self.status = ItemStatus.AVAILABLE
         self.updated_by = by
         self.save()
 
-        # `assign_item_permissions` grants personal perms only on create
-        # so we have to hand pervious owner's perms to new owner explicitly.
+        # Group VIEW is handled by the signal. Personal perms are granted only on create
+        # so hand the old owner's personal perms to the new owner.
         for perm in [ItemOLP.VIEW, ItemOLP.EDIT, ItemOLP.DELETE]:
             remove_perm(perm, old_owner, self)
             assign_perm(perm, new_owner, self)

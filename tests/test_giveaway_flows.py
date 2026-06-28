@@ -263,3 +263,59 @@ class GiveawayOwnerCannotAcceptTest(GiveawayFlowTestBase):
             self.item.process_action(
                 user=self.lender, action=ItemAction.ACCEPT_GIVEAWAY
             )
+
+
+class GiveawayClearsNonSharedGroupTest(GiveawayFlowTestBase):
+    """
+    On transfer, a group the lender shared with but the borrower is NOT in must
+    lose VIEW. recompute_group_visibility clears from current state rather than
+    the new owner's groups only, so the old owner's other groups can't keep
+    seeing an item that is no longer theirs. Pins the behavior so #507's policy
+    swap can't silently reintroduce the leak.
+    """
+
+    lender_only_group: BorrowdGroup
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
+        cls.create_loan_fixtures("give_noshare")
+        # A second group the lender belongs to but the borrower does not.
+        cls.lender_only_group = BorrowdGroup.objects.create_group(
+            name="give_noshare Lender Only",
+            created_by=cls.lender,
+            updated_by=cls.lender,
+            trust_level=TrustLevel.HIGH,
+            membership_requires_approval=False,
+        )
+        # Re-derive perms now that the lender-only group exists so it can see
+        # the item before the transfer.
+        cls.item.save()
+        cls.advance_to_collected()
+        cls.item.process_action(user=cls.lender, action=ItemAction.OFFER_GIVEAWAY)
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        cls.lender_only_group.delete()
+        super().tearDownClass()
+
+    def test_010_lender_only_group_sees_item_before_transfer(self) -> None:
+        self.assertIn(
+            ItemOLP.VIEW,
+            get_perms(self.lender_only_group.perms_group, self.item),
+        )
+
+    def test_020_transfer_clears_non_shared_group(self) -> None:
+        self.post_action(self.borrower, ItemAction.ACCEPT_GIVEAWAY)
+        self.item.refresh_from_db()
+        self.assertEqual(self.item.owner, self.borrower)
+        # Borrower is not in the lender-only group, so it loses VIEW.
+        self.assertNotIn(
+            ItemOLP.VIEW,
+            get_perms(self.lender_only_group.perms_group, self.item),
+        )
+        # The shared group (borrower is a member) keeps VIEW.
+        self.assertIn(
+            ItemOLP.VIEW,
+            get_perms(self.group.perms_group, self.item),
+        )
