@@ -17,7 +17,7 @@ class GetMembershipsWithPendingActionsTests(TestCase):
         self.requester = BorrowdUser.objects.create(
             username="requester", email="requester@example.com"
         )
-        self.group = BorrowdGroup.objects.create(
+        self.group = BorrowdGroup.objects.create_group(
             name="Test Group",
             created_by=self.moderator,
             updated_by=self.moderator,
@@ -113,7 +113,7 @@ class GetMembershipsWithPendingActionsTests(TestCase):
         other_moderator = BorrowdUser.objects.create(
             username="other_mod", email="other_mod@example.com"
         )
-        other_group = BorrowdGroup.objects.create(
+        other_group = BorrowdGroup.objects.create_group(
             name="Other Group",
             created_by=other_moderator,
             updated_by=other_moderator,

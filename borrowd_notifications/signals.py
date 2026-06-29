@@ -7,9 +7,8 @@ send_notification() will catch Notification objects post-save, send emails based
 and fill in the reserved "emailed" field.
 
 To add a new Notification:
-    - add/update a signal handler for the object triggering the notification and call notify.send()
-    - add a corresponding NotificationType and context in NotificationType._get_template_context_for
-    - add text and html templates in templates/notifications
+    - follow the notification-type checklist in model.py
+    - add/update the appropriate signal and call notify.send()
 
 django-notifications repo: https://github.com/django-notifications/django-notifications
 """
@@ -78,7 +77,9 @@ def send_notification(
 
     NotificationMetadata.objects.create(notification=instance)
     Notification.objects.filter(pk=instance.pk).update(public=False)
-    transaction.on_commit(lambda: NotificationService.send_notification(instance))
+    transaction.on_commit(
+        lambda: NotificationService.send_notification(instance), robust=True
+    )
 
 
 @receiver(pre_save, sender=Transaction)

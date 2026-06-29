@@ -26,6 +26,7 @@ dependencies = [
     "django-ipware>=7.0.1",
     "heroicons[django]>=2.14.0",
     "pywebpush>=2.3.0",
+    "django-stubs-ext>=6.0.5",
 ]
 
 [dependency-groups]

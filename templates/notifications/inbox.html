@@ -17,7 +17,9 @@
                     {% trans "Notifications" %}
                 </h1>
                 {% if unread_count %}
-                    <span class="badge badge-primary badge-sm">{{ unread_count }}</span>
+                    <span id="unread-count"
+                          class="badge badge-primary badge-sm"
+                          {% if not page_obj.number or page_obj.number == 1 %} hx-get="{% url 'notification-inbox' %}" hx-trigger="every 30s" hx-select="#unread-count" hx-swap="outerHTML" {% endif %}>{{ unread_count }}</span>
                 {% endif %}
             </div>
             {% if unread_count %}
@@ -41,10 +43,7 @@
 
         {% if page_obj.object_list %}
             <div id="notification-list"
-                 hx-get="{% url 'notification-inbox' %}"
-                 hx-trigger="every 30s"
-                 hx-select="#notification-list"
-                 hx-swap="outerHTML"
+                 {% if not page_obj.number or page_obj.number == 1 %} hx-get="{% url 'notification-inbox' %}" hx-trigger="every 30s" hx-select="#notification-list" hx-swap="outerHTML" {% endif %}
                  class="card bg-primary-content rounded-md border border-gray-200 shadow-sm divide-y divide-gray-100">
                 {% for notification in page_obj %}
                     <div class="flex items-start gap-3 px-4 py-3 {% if notification.unread %}bg-blue-50/60{% endif %}">

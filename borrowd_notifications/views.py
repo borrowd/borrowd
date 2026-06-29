@@ -60,20 +60,6 @@ NOTIFICATION_CATEGORIES: list[dict[str, Any]] = [
         ],
     },
     {
-        "name": "Wishlist & Community",
-        "slug": "wishlist",
-        "types": [
-            (
-                NotificationType.COMMUNITY_REQUEST_POSTED,
-                "Community item request posted",
-            ),
-            (
-                NotificationType.COMMUNITY_REQUEST_FULFILLED,
-                "Community request fulfilled",
-            ),
-        ],
-    },
-    {
         "name": "Item Availability",
         "slug": "availability",
         "types": [
@@ -205,7 +191,7 @@ def toggle_preference(request: HttpRequest) -> HttpResponse:
 
     if (
         ntype in NotificationType.mandatory_types()
-        and channel_value != ChannelType.PUSH
+        and ChannelType(channel_value) != ChannelType.PUSH
     ):
         return HttpResponse(status=403)
 
@@ -287,7 +273,7 @@ def notification_inbox_view(request: HttpRequest) -> HttpResponse:
     user: BorrowdUser = request.user  # type: ignore[assignment]
 
     # only show the notifications that where sent through the in-app channel
-    qs: QuerySet[Notification] = _app_channel_qs(user.notifications.all())
+    qs: QuerySet[Notification] = _app_channel_qs(user.notifications.all())  # type: ignore[attr-defined]
     paginator = Paginator(qs, _INBOX_PAGE_SIZE)
     page_obj = paginator.get_page(request.GET.get("page", 1))
 
@@ -325,7 +311,7 @@ def mark_notification_read(request: HttpRequest, pk: int) -> HttpResponse:
 @require_POST
 def mark_all_notifications_read(request: HttpRequest) -> HttpResponse:
     user: BorrowdUser = request.user  # type: ignore[assignment]
-    _app_channel_qs(user.notifications.all()).update(unread=False)
+    _app_channel_qs(user.notifications.all()).update(unread=False)  # type: ignore[attr-defined]
     return redirect("notification-inbox")
 
 
@@ -356,7 +342,7 @@ def remove_app_notification(request: HttpRequest, pk: int) -> HttpResponse:
 @require_POST
 def remove_all_app_notifications(request: HttpRequest) -> HttpResponse:
     user: BorrowdUser = request.user  # type: ignore[assignment]
-    visible_notifications = _app_channel_qs(user.notifications.all())
+    visible_notifications = _app_channel_qs(user.notifications.all())  # type: ignore[attr-defined]
     visible_notifications.update(unread=False)
     NotificationMetadata.objects.filter(
         notification__recipient=user,

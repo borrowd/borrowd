@@ -38,7 +38,7 @@ class ModeratorHandoffTests(TestCase):
             password="password",
         )
 
-        self.group = BorrowdGroup.objects.create(
+        self.group = BorrowdGroup.objects.create_group(
             name="Test Group",
             created_by=self.owner,
             updated_by=self.owner,

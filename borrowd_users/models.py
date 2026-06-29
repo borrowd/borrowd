@@ -1,25 +1,14 @@
-from datetime import datetime
-from typing import TYPE_CHECKING, Never, Self
 from urllib.parse import quote
 
 from django.contrib.auth.models import AbstractUser
 from django.db import models
-from django.db.models import DO_NOTHING, SET_NULL, DateTimeField, ForeignKey, QuerySet
+from django.db.models import DO_NOTHING, SET_NULL, DateTimeField, ForeignKey
 from guardian.mixins import GuardianUserMixin
 from imagekit.models import ProcessedImageField
 from imagekit.processors import ResizeToFit
-from notifications.models import Notification
-
-from borrowd_groups.mixins import BorrowdGroupPermissionMixin
-
-# will be deleted in future pr
-if TYPE_CHECKING:
-    from borrowd_groups.models import BorrowdGroup
 
 
-# AbstractUser and BorrowdGroupPermissionMixin both define Meta, which mypy
-# flags as incompatible bases.
-class BorrowdUser(AbstractUser, BorrowdGroupPermissionMixin, GuardianUserMixin):  # type: ignore[misc]
+class BorrowdUser(AbstractUser, GuardianUserMixin):
     """
     Borrow'd's custom user model, extending Django's AbstractUser.
 
@@ -32,9 +21,9 @@ class BorrowdUser(AbstractUser, BorrowdGroupPermissionMixin, GuardianUserMixin):
     """
 
     # Override the inherited fields to make them required
-    first_name: models.CharField[str, str] = models.CharField(max_length=150)
-    last_name: models.CharField[str, str] = models.CharField(max_length=150)
-    created_by: ForeignKey[Self] = ForeignKey(
+    first_name = models.CharField(max_length=150)
+    last_name = models.CharField(max_length=150)
+    created_by = ForeignKey(
         "self",
         related_name="+",  # No reverse relation needed
         null=True,
@@ -42,11 +31,11 @@ class BorrowdUser(AbstractUser, BorrowdGroupPermissionMixin, GuardianUserMixin):
         help_text="The user who created the user.",
         on_delete=DO_NOTHING,
     )
-    created_at: DateTimeField[Never, Never] = DateTimeField(
+    created_at = DateTimeField(
         auto_now_add=True,
         help_text="The date and time at which the user was created.",
     )
-    updated_by: ForeignKey[Self] = ForeignKey(
+    updated_by = ForeignKey(
         "self",
         related_name="+",  # No reverse relation needed
         null=True,
@@ -54,17 +43,17 @@ class BorrowdUser(AbstractUser, BorrowdGroupPermissionMixin, GuardianUserMixin):
         help_text="The last user who updated the user.",
         on_delete=DO_NOTHING,
     )
-    updated_at: DateTimeField[Never, Never] = DateTimeField(
+    updated_at = DateTimeField(
         auto_now=True,
         help_text="The date and time at which the user was last updated.",
     )
-    deleted_at: DateTimeField[datetime | None, datetime | None] = DateTimeField(
+    deleted_at = DateTimeField(
         null=True,
         blank=True,
         default=None,
         help_text="Set when the record is soft-deleted. NULL means active.",
     )
-    deleted_by: ForeignKey[Self] = ForeignKey(
+    deleted_by = ForeignKey(
         "self",
         null=True,
         blank=True,
@@ -74,17 +63,9 @@ class BorrowdUser(AbstractUser, BorrowdGroupPermissionMixin, GuardianUserMixin):
         help_text="Who performed the soft-delete. NULL means active or unknown.",
     )
 
-    # Hints for mypy (actual fields created from reverse relations)
-    # will be deleted in future PR.
-    profile: "Profile"
-    borrowd_groups: "QuerySet[BorrowdGroup]"
-    notifications: "QuerySet[Notification]"
-
 
 class Profile(models.Model):
-    user: models.OneToOneField[BorrowdUser] = models.OneToOneField(
-        BorrowdUser, on_delete=models.CASCADE
-    )
+    user = models.OneToOneField(BorrowdUser, on_delete=models.CASCADE)
     image = ProcessedImageField(
         upload_to="profile_pics/",
         processors=[ResizeToFit(1600, 1600)],
@@ -93,10 +74,8 @@ class Profile(models.Model):
         null=True,
         blank=True,
     )
-    bio: models.CharField[str, str] = models.CharField(
-        max_length=200, blank=True, default=""
-    )
-    created_by: ForeignKey[BorrowdUser] = ForeignKey(
+    bio = models.CharField(max_length=200, blank=True, default="")
+    created_by = ForeignKey(
         BorrowdUser,
         related_name="+",  # No reverse relation needed
         null=False,
@@ -104,11 +83,11 @@ class Profile(models.Model):
         help_text="The user who created the profile.",
         on_delete=DO_NOTHING,
     )
-    created_at: DateTimeField[Never, Never] = DateTimeField(
+    created_at = DateTimeField(
         auto_now_add=True,
         help_text="The date and time at which the profile was created.",
     )
-    updated_by: ForeignKey[BorrowdUser] = ForeignKey(
+    updated_by = ForeignKey(
         BorrowdUser,
         related_name="+",  # No reverse relation needed
         null=False,
@@ -116,17 +95,17 @@ class Profile(models.Model):
         help_text="The last user who updated the profile.",
         on_delete=DO_NOTHING,
     )
-    updated_at: DateTimeField[Never, Never] = DateTimeField(
+    updated_at = DateTimeField(
         auto_now=True,
         help_text="The date and time at which the profile was last updated.",
     )
-    deleted_at: DateTimeField[Never, Never] = DateTimeField(
+    deleted_at = DateTimeField(
         null=True,
         blank=True,
         default=None,
         help_text="Set when the record is soft-deleted. NULL means active.",
     )
-    deleted_by: ForeignKey[BorrowdUser] = ForeignKey(
+    deleted_by = ForeignKey(
         BorrowdUser,
         null=True,
         blank=True,
@@ -165,21 +144,21 @@ class SearchTerm(models.Model):
     - Each search creates a row so we preserve full search history.
     """
 
-    user: models.ForeignKey[BorrowdUser] = models.ForeignKey(
+    user = models.ForeignKey(
         "borrowd_users.BorrowdUser",
         on_delete=models.CASCADE,
         related_name="search_terms",
     )
-    target: models.CharField[SearchTarget, str] = models.CharField(
+    target = models.CharField(
         max_length=10,
         choices=SearchTarget.choices,
     )
     # Stored for UX (case/spacing as normalized by `record_search`).
-    term_raw: models.CharField[str, str] = models.CharField(max_length=200)
+    term_raw = models.CharField(max_length=200)
     # Lowercased + whitespace collapsed for analytics queries.
-    term_normalized: models.CharField[str, str] = models.CharField(max_length=200)
+    term_normalized = models.CharField(max_length=200)
 
-    created_at: models.DateTimeField[Never, Never] = models.DateTimeField(
+    created_at = models.DateTimeField(
         auto_now_add=True,
     )
 

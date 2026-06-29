@@ -73,27 +73,15 @@ class NotificationService:
         if notification_type in NotificationType.mandatory_types():
             channels.update({ChannelType.APP, ChannelType.EMAIL})
 
-        try:
-            pref = NotificationPreference.objects.get(
-                user=user, notification_type=notification_type.value
-            )
-            if notification_type in NotificationType.mandatory_types():
-                return (
-                    {ChannelType.APP, ChannelType.EMAIL, ChannelType.PUSH}
-                    if pref.push_enabled
-                    else {ChannelType.APP, ChannelType.EMAIL}
-                )
-        except NotificationPreference.DoesNotExist:
-            NotificationPreference.objects.create(
-                user=user,
-                notification_type=notification_type.value,
-                defaults={
-                    "in_app_enabled": True,
-                    "email_enabled": True,
-                    "push_enabled": False,
-                },
-            )
-            return {ChannelType.APP, ChannelType.EMAIL}
+        pref, _ = NotificationPreference.objects.get_or_create(
+            user=user,
+            notification_type=notification_type.value,
+            defaults={
+                "in_app_enabled": True,
+                "email_enabled": True,
+                "push_enabled": False,
+            },
+        )
 
         if pref.in_app_enabled:
             channels.add(ChannelType.APP)
@@ -145,6 +133,14 @@ class NotificationService:
 
     @classmethod
     def send_notification(cls, notification: Notification) -> None:
+        try:
+            cls._dispatch(notification)
+        except Exception as exc:
+            sentry_sdk.capture_exception(exc)
+            logger.exception("Notification dispatch failed (pk=%s)", notification.pk)
+
+    @classmethod
+    def _dispatch(cls, notification: Notification) -> None:
         if notification.actor == notification.recipient:
             return
 
