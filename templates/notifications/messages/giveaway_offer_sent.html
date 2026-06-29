@@ -1,0 +1,32 @@
+{% extends "notifications/messages/layout.html" %}
+
+{% block title %}
+    A gift is waiting - Borrow'd
+{% endblock %}
+
+{% block content %}
+    <h2>
+        Hi {{ recipient_name }},
+    </h2>
+
+    <p>
+        Great news! {{ gifter_name }} has decided to permanently give you
+        <strong>{{ item_name }}</strong>.
+    </p>
+
+    <p>
+        Head to your inventory to accept the gift:
+    </p>
+
+    <div class="text-center">
+        <a href="{{ item_url }}" class="button">View offer</a>
+    </div>
+
+    <p>
+        Thanks for being part of a community that shares more and wastes less.
+    </p>
+
+    <p>
+        The Borrow'd team
+    </p>
+{% endblock %}

@@ -118,10 +118,14 @@ class ReturnRequestedHappyFlowTest(ReturnFlowTestBase):
         cls.advance_to_collected()
 
     def test_010_actions_at_collected(self) -> None:
-        """Lender can request return; borrower can only assert return."""
+        """Lender can request return or give away; borrower can only assert return."""
         self.assertTupleEqual(
             self.item.get_actions_for(self.lender),
-            (ItemAction.MARK_RETURNED, ItemAction.REQUEST_RETURN),
+            (
+                ItemAction.MARK_RETURNED,
+                ItemAction.REQUEST_RETURN,
+                ItemAction.OFFER_GIVEAWAY,
+            ),
         )
         self.assertTupleEqual(
             self.item.get_actions_for(self.borrower),

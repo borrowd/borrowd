@@ -67,6 +67,15 @@ NOTIFICATION_CATEGORIES: list[dict[str, Any]] = [
             (NotificationType.ITEM_SUBSCRIPTION, "Item subscription"),
         ],
     },
+    {
+        "name": "Ownership Transfer",
+        "slug": "giveaway",
+        "types": [
+            (NotificationType.GIVEAWAY_OFFER_SENT, "Giveaway offer received"),
+            (NotificationType.GIVEAWAY_ACCEPTED, "Giveaway accepted"),
+            (NotificationType.GIVEAWAY_DECLINED, "Giveaway declined"),
+        ],
+    },
 ]
 
 

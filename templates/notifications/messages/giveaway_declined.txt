@@ -1,0 +1,8 @@
+Hi {{ recipient_name }},
+
+{{ receiver_name }} has declined your giveaway offer for {{ item_name }}. The item remains on loan.
+
+You can request its return or offer it again from your inventory:
+{{ item_url }}
+
+The Borrow'd team

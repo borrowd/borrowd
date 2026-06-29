@@ -68,6 +68,9 @@ def _build_item_action_success_message(item_name: str, action: ItemAction) -> st
         ItemAction.RAISE_DISPUTE: "dispute raised",
         ItemAction.RESOLVE_DISPUTE_RETURNED: "dispute resolved, item returned",
         ItemAction.RESOLVE_DISPUTE_NOT_RETURNED: "dispute resolved, item removed",
+        ItemAction.OFFER_GIVEAWAY: "offered as a giveaway",
+        ItemAction.ACCEPT_GIVEAWAY: "is now yours",
+        ItemAction.DECLINE_GIVEAWAY: "giveaway declined",
     }
     return f"{item_name} {action_to_result[action]}."
 
