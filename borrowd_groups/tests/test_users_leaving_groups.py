@@ -36,7 +36,7 @@ class UsersLeavingGroupsTests(TestCase):
 
         # Create a group where the owner is the default moderator and
         # the member is a standard member.
-        self.group: BorrowdGroup = BorrowdGroup.objects.create(
+        self.group: BorrowdGroup = BorrowdGroup.objects.create_group(
             name="Test Group",
             created_by=self.owner,
             updated_by=self.owner,
@@ -104,7 +104,7 @@ class UsersLeavingGroupsTests(TestCase):
             username="solo_owner",
             password="password",
         )
-        solo_group: BorrowdGroup = BorrowdGroup.objects.create(
+        solo_group: BorrowdGroup = BorrowdGroup.objects.create_group(
             name="Solo Group",
             created_by=solo_owner,
             updated_by=solo_owner,
@@ -215,7 +215,7 @@ class UsersLeavingGroupsTests(TestCase):
         # The member and owner already share self.group.
         # Add a second active shared group so they remain connected
         # even after the member leaves the first group.
-        other_shared_group: BorrowdGroup = BorrowdGroup.objects.create(
+        other_shared_group: BorrowdGroup = BorrowdGroup.objects.create_group(
             name="Second Shared Group",
             created_by=self.owner,
             updated_by=self.owner,
@@ -316,7 +316,7 @@ class UsersLeavingGroupsTests(TestCase):
         # Create a second group that includes the member and other_user.
         # The active transaction belongs to that shared group context,
         # not to the original group the member is trying to leave.
-        other_group = BorrowdGroup.objects.create(
+        other_group = BorrowdGroup.objects.create_group(
             name="Other Group",
             created_by=self.other_user,
             updated_by=self.other_user,

@@ -30,7 +30,7 @@ class ItemListViewVisibilityTests(TestCase):
         owner = self.owner
 
         ## Create Group and add member (owner is in by default)
-        BorrowdGroup.objects.create(
+        BorrowdGroup.objects.create_group(
             name="Test Group",
             created_by=owner,
             updated_by=owner,
@@ -77,7 +77,7 @@ class ItemListViewVisibilityTests(TestCase):
         )
 
         ## Create Group and add member (owner is in by default)
-        group = BorrowdGroup.objects.create(
+        group = BorrowdGroup.objects.create_group(
             name="Test Group",
             created_by=owner,
             updated_by=owner,
@@ -135,7 +135,7 @@ class ItemListViewVisibilityTests(TestCase):
         )
 
         ## Create Group and add member (owner is in by default)
-        group = BorrowdGroup.objects.create(
+        group = BorrowdGroup.objects.create_group(
             name="Test Group",
             created_by=owner,
             updated_by=owner,
@@ -208,7 +208,7 @@ class ItemListViewVisibilityTests(TestCase):
         )
 
         ## Create Group and add member (owner is in by default)
-        group = BorrowdGroup.objects.create(
+        group = BorrowdGroup.objects.create_group(
             name="Test Group",
             created_by=owner,
             updated_by=owner,
@@ -253,7 +253,7 @@ class ItemListViewVisibilityTests(TestCase):
             trust_level_required=TrustLevel.STANDARD,
         )
 
-        group = BorrowdGroup.objects.create(
+        group = BorrowdGroup.objects.create_group(
             name="Test Group",
             created_by=owner,
             updated_by=owner,
@@ -296,7 +296,7 @@ class ItemListViewVisibilityTests(TestCase):
             trust_level_required=TrustLevel.STANDARD,
         )
 
-        group = BorrowdGroup.objects.create(
+        group = BorrowdGroup.objects.create_group(
             name="Test Group 2",
             created_by=owner,
             updated_by=owner,
@@ -338,7 +338,7 @@ class ItemListViewVisibilityTests(TestCase):
             trust_level_required=TrustLevel.STANDARD,
         )
 
-        group = BorrowdGroup.objects.create(
+        group = BorrowdGroup.objects.create_group(
             name="Approval Required Group",
             created_by=owner,
             updated_by=owner,
@@ -366,7 +366,7 @@ class ItemListViewVisibilityTests(TestCase):
         active_member = self.owner
         pending_member = self.member
 
-        group = BorrowdGroup.objects.create(
+        group = BorrowdGroup.objects.create_group(
             name="Pending Owner Group",
             created_by=active_member,
             updated_by=active_member,
@@ -402,7 +402,7 @@ class ItemListViewVisibilityTests(TestCase):
         creator = self.owner
         member = self.member
 
-        group = BorrowdGroup.objects.create(
+        group = BorrowdGroup.objects.create_group(
             name="Join First Group",
             created_by=creator,
             updated_by=creator,
@@ -437,7 +437,7 @@ class ItemListViewVisibilityTests(TestCase):
             username="member_c", email="member_c@example.com"
         )
 
-        group = BorrowdGroup.objects.create(
+        group = BorrowdGroup.objects.create_group(
             name="Three Member Group",
             created_by=creator,
             updated_by=creator,
@@ -485,7 +485,7 @@ class ItemListViewVisibilityTests(TestCase):
         creator = self.owner
         member = self.member
 
-        group = BorrowdGroup.objects.create(
+        group = BorrowdGroup.objects.create_group(
             name="Detail Visibility Group",
             created_by=creator,
             updated_by=creator,
@@ -523,7 +523,7 @@ class ItemListViewVisibilityTests(TestCase):
         creator = self.owner
         member = self.member
 
-        group = BorrowdGroup.objects.create(
+        group = BorrowdGroup.objects.create_group(
             name="Trust Raise Group",
             created_by=creator,
             updated_by=creator,
@@ -565,7 +565,7 @@ class ItemListViewVisibilityTests(TestCase):
         creator = self.owner
         member = self.member
 
-        group = BorrowdGroup.objects.create(
+        group = BorrowdGroup.objects.create_group(
             name="Trust Lower Group",
             created_by=creator,
             updated_by=creator,
@@ -605,7 +605,7 @@ class ItemListViewVisibilityTests(TestCase):
         owner = self.owner
         member = self.member
 
-        group = BorrowdGroup.objects.create(
+        group = BorrowdGroup.objects.create_group(
             name="Leave Detail Group",
             created_by=owner,
             updated_by=owner,
@@ -639,7 +639,7 @@ class ItemListViewVisibilityTests(TestCase):
         owner = self.owner
         member = self.member
 
-        group_one = BorrowdGroup.objects.create(
+        group_one = BorrowdGroup.objects.create_group(
             name="Primary Shared Group",
             created_by=owner,
             updated_by=owner,
@@ -648,7 +648,7 @@ class ItemListViewVisibilityTests(TestCase):
         )
         group_one.add_user(member, trust_level=TrustLevel.STANDARD)
 
-        group_two = BorrowdGroup.objects.create(
+        group_two = BorrowdGroup.objects.create_group(
             name="Secondary Shared Group",
             created_by=owner,
             updated_by=owner,

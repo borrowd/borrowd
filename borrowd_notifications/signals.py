@@ -168,7 +168,7 @@ def send_group_member_joined_notifications(
     ):
         notify.send(
             instance.user,
-            recipient=instance.group.users.exclude(id=instance.user.id),  # type: ignore[attr-defined]
+            recipient=instance.group.users.exclude(id=instance.user.id),
             verb=NotificationType.GROUP_MEMBER_JOINED.value,
             action_object=instance,
             target=instance.group,

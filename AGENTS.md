@@ -43,7 +43,7 @@ uvx pre-commit run --all-files  # Run all pre-commit hooks
 
 Pre-commit hooks (see `.pre-commit-config.yaml`):
 - `uv-lock` / `uv-export` — keep lockfile and `requirements.txt` in sync
-- `mypy --strict` with `django-stubs` (Python 3.13)
+- `mypy --strict` — local hook running `uv run mypy .` from the project venv, with the django-stubs plugin enabled (config in `mypy.ini`; the plugin imports `borrowd.config.dev.django`, so a `DJANGO_SECRET_KEY` must be available)
 - `ruff` linter, import sort (`I`), and formatter
 - `djlint` for templates under `templates/**/*.html`
 - Standard hygiene: trailing whitespace, end-of-file fixer, JSON/YAML/TOML checks, etc.
@@ -83,7 +83,7 @@ Repo-local `PostToolUse` hooks (configured in `.claude/settings.json`, scripts i
 
 **AvailabilitySubscription**: when an item is `BORROWED`/`RESERVED`, non-owners can subscribe via `NOTIFY_WHEN_AVAILABLE` to be notified when it's available again. A `UniqueConstraint` enforces one active subscription per (user, item).
 
-**Membership lifecycle** (`borrowd_groups/models.py`): `MembershipStatus` is `PENDING`, `ACTIVE`, `SUSPENDED`, `BANNED`, `ENDED`. Groups with `membership_requires_approval=True` create new memberships in `PENDING` until a moderator approves. `BorrowdGroup.objects.create()` is overridden to smuggle a `trust_level` kwarg through to the post-save signal that creates the creator's `Membership`.
+**Membership lifecycle** (`borrowd_groups/models.py`): `MembershipStatus` is `PENDING`, `ACTIVE`, `SUSPENDED`, `BANNED`, `ENDED`. Groups with `membership_requires_approval=True` create new memberships in `PENDING` until a moderator approves. `BorrowdGroup.objects.create_group()` creates a group while passing a `trust_level` kwarg (not a model field) through to the post-save signal that creates the creator's `Membership`; plain `create()` keeps stock Django semantics.
 
 **Object-Level Permissions**: uses `django-guardian`. OLP enum values live in `borrowd_permissions/models.py` (`ItemOLP.VIEW = "view_this_item"`, etc.). The `*_this_*` naming convention distinguishes object-level perms (`view_this_item`) from model-level perms (`view_item`). Apply `LoginOr403PermissionMixin` / `LoginOr404PermissionMixin` (from `borrowd_permissions.mixins`) to class-based views — anonymous users get redirected to login, authenticated users without permission get 403/404 respectively. `AnonymousUser` is disabled (`ANONYMOUS_USER_NAME = None`).
 
@@ -133,7 +133,12 @@ Uses **django-allauth** with email-based login. Login methods include passwordle
 ## Coding Standards
 
 ### Type Annotations
-All public functions are type-hinted; pre-commit runs `mypy --strict` with `django-stubs`. Use the `Self`, `Never`, `QuerySet["X"]`, and `ForeignKey[X]` patterns already established throughout the codebase.
+All public functions are type-hinted; pre-commit runs `mypy --strict` with the django-stubs plugin.
+
+- **Don't annotate model fields or managers** (`name = CharField(...)`, `objects = ActiveItemManager()`). The plugin infers precise types from the model definitions, including FK reads, nullability, reverse accessors (`user.profile`), and `<fk>_id` attributes. An explicit annotation like `ForeignKey[X]` *overrides* plugin inference and breaks it.
+- Generic Django classes (`QuerySet["Item"]`, `DetailView[BorrowdGroup]`, `ModelForm[Item]`) are fine in signatures and base classes; `django_stubs_ext.monkeypatch()` in `borrowd/config/base.py` makes them subscriptable at runtime.
+- For `request.user` in login-protected views, use `borrowd_users.request.get_authenticated_user(request)` — it narrows the type and raises `PermissionDenied` if the view ever loses its login protection. Don't `cast` or ignore.
+- `# type: ignore` needs an error code (`ignore-without-code` is enforced) and a one-line comment justifying it; the only acceptable reasons are upstream typing gaps.
 
 ### Comments
 Evergreen comments only — describe current state, not evolution. Don't reference past PRs, removed code, or "added for X" context.

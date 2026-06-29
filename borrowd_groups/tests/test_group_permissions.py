@@ -30,7 +30,7 @@ class GroupPermissionTests(TestCase):
         owner = self.owner
 
         # Act
-        group: BorrowdGroup = BorrowdGroup.objects.create(
+        group: BorrowdGroup = BorrowdGroup.objects.create_group(
             name="Group 1",
             created_by=owner,
             updated_by=owner,
@@ -49,7 +49,7 @@ class GroupPermissionTests(TestCase):
         member = self.member
 
         # Act
-        group: BorrowdGroup = BorrowdGroup.objects.create(
+        group: BorrowdGroup = BorrowdGroup.objects.create_group(
             name="Group 1",
             created_by=owner,
             updated_by=owner,
@@ -74,7 +74,7 @@ class GroupPermissionTests(TestCase):
 
         # Act
         ## Note the `is_moderator` settings
-        group: BorrowdGroup = BorrowdGroup.objects.create(
+        group: BorrowdGroup = BorrowdGroup.objects.create_group(
             name="Group 1",
             created_by=owner,
             updated_by=owner,
@@ -102,7 +102,7 @@ class GroupPermissionTests(TestCase):
         owner = self.owner
         moderator = self.member
 
-        group: BorrowdGroup = BorrowdGroup.objects.create(
+        group: BorrowdGroup = BorrowdGroup.objects.create_group(
             name="Group 1",
             created_by=owner,
             updated_by=owner,
@@ -127,7 +127,7 @@ class GroupPermissionTests(TestCase):
         owner = self.owner
         member = self.member
 
-        group: BorrowdGroup = BorrowdGroup.objects.create(
+        group: BorrowdGroup = BorrowdGroup.objects.create_group(
             name="Group 1",
             created_by=owner,
             updated_by=owner,
