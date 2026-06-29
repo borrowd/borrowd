@@ -5,6 +5,8 @@ from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.views.decorators.http import require_POST
 
+from borrowd_users.models import BorrowdUser
+
 from .models import PushSubscription
 
 
@@ -27,12 +29,18 @@ def subscribe_push(request: HttpRequest) -> HttpResponse:
         endpoint: str = data["endpoint"]
         p256dh: str = data["keys"]["p256dh"]
         auth: str = data["keys"]["auth"]
+
+        # mypy complains that `request.user` is a AbstractBaseUser or
+        # AnonymousUser, but when I follow the code it looks like it's
+        # AbstractUser or AnonymousUser, which we *would* comply with
+        # here (BorrowdUser subclasses AbstractUser).
+        user: BorrowdUser = request.user  # type: ignore[assignment]
     except (json.JSONDecodeError, KeyError, TypeError):
         return HttpResponse(status=400)
 
     PushSubscription.objects.update_or_create(
         endpoint=endpoint,
-        defaults={"user": request.user, "p256dh": p256dh, "auth": auth},
+        defaults={"user": user, "p256dh": p256dh, "auth": auth},
     )
     return HttpResponse(status=201)
 
@@ -43,8 +51,9 @@ def unsubscribe_push(request: HttpRequest) -> HttpResponse:
     try:
         data = json.loads(request.body)
         endpoint: str = data["endpoint"]
+        user: BorrowdUser = request.user  # type: ignore[assignment]
     except (json.JSONDecodeError, KeyError, TypeError):
         return HttpResponse(status=400)
 
-    PushSubscription.objects.filter(user=request.user, endpoint=endpoint).delete()
+    PushSubscription.objects.filter(user=user, endpoint=endpoint).delete()
     return HttpResponse(status=204)

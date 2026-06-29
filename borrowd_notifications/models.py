@@ -1,5 +1,6 @@
 from dataclasses import dataclass
-from typing import Any, Dict, Never
+from datetime import datetime
+from typing import Any, Dict
 
 from django.conf import settings
 from django.db import models
@@ -434,6 +435,6 @@ class PushSubscription(Model):
     endpoint: models.TextField[str, str] = models.TextField(unique=True)
     p256dh: models.TextField[str, str] = models.TextField()
     auth: models.TextField[str, str] = models.TextField()
-    created_at: models.DateTimeField[Never, Never] = models.DateTimeField(
+    created_at: models.DateTimeField[datetime, datetime] = models.DateTimeField(
         auto_now_add=True
     )
