@@ -1,6 +1,6 @@
 Hi {{ borrower_name }},
 
-The owner of {{ item_name }} has requested its return.
+{{owner_name}} has requested for their {{ item_name }} to be returned.
 
 Please coordinate a return as soon as you can. Borrow'd works best when our community feels confident sharing.
 

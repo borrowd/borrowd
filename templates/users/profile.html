@@ -114,6 +114,15 @@
             {% endif %}
         </section>
 
+        {# ── Notifications ─────────────────────────────────────────────── #}
+        <section class="flex flex-col gap-2">
+            <p class="text-xs font-semibold text-base-content px-1">
+                {% trans "Notifications" %}
+            </p>
+            <c-profile.nav-row href="{% url 'notification-preferences' %}"
+                               label="Notification settings" />
+        </section>
+
         {# ── Account ───────────────────────────────────────────────────── #}
         <section class="flex flex-col gap-2">
             <p class="text-xs font-semibold text-base-content px-1">

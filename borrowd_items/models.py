@@ -1015,6 +1015,15 @@ class Transaction(Model):
         help_text="Who performed the soft-delete. NULL means active or unknown.",
     )
 
+    def counter_party(self, user: BorrowdUser) -> BorrowdUser:
+        if user == self.party1:
+            return self.party2
+
+        if user == self.party2:
+            return self.party1
+
+        raise ValueError("User is not a party to this transaction.")
+
     def dispute_wait_has_elapsed(self) -> bool:
         """
         Whether the lender has waited long enough since requesting a return

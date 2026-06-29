@@ -11,7 +11,7 @@ from borrowd.models import TrustLevel
 from borrowd_groups.exceptions import ModeratorRequiredException
 from borrowd_groups.models import BorrowdGroup, Membership, MembershipStatus
 from borrowd_items.models import Item
-from borrowd_notifications.services import NotificationType
+from borrowd_notifications.models import NotificationType
 from borrowd_permissions.models import BorrowdGroupOLP, ItemOLP
 from borrowd_users.models import BorrowdUser
 

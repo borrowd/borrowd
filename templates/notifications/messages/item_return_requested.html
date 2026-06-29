@@ -1,4 +1,4 @@
-{% extends "notifications/layout.html" %}
+{% extends "notifications/messages/layout.html" %}
 
 {% block title %}
     Return Requested - Borrow'd
@@ -10,7 +10,7 @@
     </h2>
 
     <p>
-        The owner of <strong>{{ item_name }}</strong> has requested its return.
+        <strong>{{ owner_name }}</strong> has requested for their <strong>{{ item_name }}</strong> to be returned.
     </p>
 
     <p>

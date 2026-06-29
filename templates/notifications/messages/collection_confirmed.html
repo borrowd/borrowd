@@ -1,0 +1,23 @@
+{% extends "notifications/messages/layout.html" %}
+
+{% block title %}
+    Collection Confirmed - Borrow'd
+{% endblock %}
+
+{% block content %}
+    <h2>
+        Hi {{ requester_name }},
+    </h2>
+
+    <div class="success">
+        <strong>{{ item_owner_name }} has confirmed that you collected {{ item_name }}. Enjoy!</strong>
+    </div>
+
+    <p>
+        When you're done, remember to mark it as returned on Borrow'd so {{ item_owner_name }} can confirm it's back.
+    </p>
+
+    <p>
+        The Borrow'd team
+    </p>
+{% endblock %}

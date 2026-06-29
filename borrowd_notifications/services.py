@@ -1,176 +1,299 @@
-from enum import Enum
-from typing import Any, Dict
+import logging
+from datetime import datetime, timedelta
+from typing import Any, Type
 
+import sentry_sdk
 from django.conf import settings
 from django.core.mail import send_mail
+from django.db.models import Q
 from django.template.loader import render_to_string
 from django.urls import reverse
+from django.utils import timezone
 from notifications.models import Notification
 
-from borrowd_groups.models import BorrowdGroup, Membership
-from borrowd_items.models import (
-    AvailabilitySubscription,
-    Transaction,
-    TransactionStatus,
+from borrowd_notifications.channels import (
+    AppNotificationStrategy,
+    EmailNotificationStrategy,
+    NotificationPayload,
+    NotificationStrategy,
+    PUSHNotificationStrategy,
 )
+from borrowd_notifications.models import (
+    ChannelType,
+    NotificationMetadata,
+    NotificationPreference,
+    NotificationState,
+    NotificationType,
+)
+from borrowd_users.models import BorrowdUser
 
+logger = logging.getLogger(__name__)
 
-class NotificationType(Enum):
-    ITEM_REQUESTED = "Item requested"
-    ITEM_REQUEST_ACCEPTED = "Item request accepted"
-    ITEM_REQUEST_DENIED = "Item request denied"
-    ITEM_NOTIFY_WHEN_AVAILABLE = (
-        "Item notify when available"  # When the item becomes available
-    )
-    ITEM_SUBSCRIPTION = (
-        "Item subscription"  # When a user subscribes to notifications for an item
-    )
-    ITEM_RETURNED = "Item returned"
-    ITEM_RETURN_REQUESTED = "Item return requested"
-    ITEM_DISPUTED = "Item disputed"
-    GROUP_MEMBER_JOINED = "Change to group membership"
-    GROUP_NEEDS_MODERATOR = "Group needs moderator"  # When moderator leaves group
-    REQUEST_CANCELLED_BORROWER_LEFT = "Request cancelled - borrower left"  # When borrower closes account with an open request
-    REQUEST_CANCELLED_OWNER_LEFT = "Request cancelled - owner left"  # When owner closes account with an open request
-    LOAN_ENDED_OWNER_LEFT = (
-        "Loan ended - owner left"  # When owner closes account with an active loan
-    )
-
-    @property
-    def template_name(self) -> str:
-        return self.name.lower()
+_DEDUP_WINDOW = timedelta(minutes=10)
+_EMAIL_HOURLY_LIMIT = 10
+_SUMMARY_DIGEST_DELAY = timedelta(hours=1)
 
 
 class NotificationService:
-    """Service for sending notifications."""
+    _backends: dict[ChannelType, Type[NotificationStrategy]] = {
+        ChannelType.APP: AppNotificationStrategy,
+        ChannelType.EMAIL: EmailNotificationStrategy,
+        ChannelType.PUSH: PUSHNotificationStrategy,
+    }
+
+    @classmethod
+    def _get_backend(cls, channel: ChannelType) -> NotificationStrategy:
+        try:
+            backend_cls = cls._backends[channel]
+        except KeyError:
+            raise ValueError(f"Unknown notification backend: {channel}")
+        return backend_cls()
 
     @staticmethod
-    def send_email_notification(
-        notification: Notification,
-    ) -> None:
-        """Send an email notification."""
-        template_name = NotificationType(notification.verb).template_name
-        context = NotificationService._get_template_context_for(notification)
-        html_message = render_to_string(f"notifications/{template_name}.html", context)
-        text_message = render_to_string(f"notifications/{template_name}.txt", context)
+    def _dispatched_channels(notification: Notification) -> set[str]:
+        """Channels through witch this notification was sent."""
+        if not isinstance(notification.data, dict):
+            return set()
+        return set(notification.data.get("channels", {}).keys())
 
-        send_mail(
-            subject=notification.description,
-            message=text_message,
-            html_message=html_message,
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[notification.recipient.email],
-            fail_silently=False,
+    @staticmethod
+    def _channel_results(notification: Notification) -> dict[str, Any]:
+        """Channels and status for this notification."""
+        if not isinstance(notification.data, dict):
+            return {}
+        result: dict[str, Any] = notification.data.get("channels", {})
+        return result
+
+    @staticmethod
+    def _get_enabled_channels(
+        user: BorrowdUser, notification_type: NotificationType
+    ) -> set[ChannelType]:
+        channels: set[ChannelType] = set()
+
+        if notification_type in NotificationType.mandatory_types():
+            channels.update({ChannelType.APP, ChannelType.EMAIL})
+
+        pref, _ = NotificationPreference.objects.get_or_create(
+            user=user,
+            notification_type=notification_type.value,
+            defaults={
+                "in_app_enabled": True,
+                "email_enabled": True,
+                "push_enabled": False,
+            },
+        )
+
+        if pref.in_app_enabled:
+            channels.add(ChannelType.APP)
+        if pref.email_enabled:
+            channels.add(ChannelType.EMAIL)
+        if pref.push_enabled:
+            channels.add(ChannelType.PUSH)
+        return channels
+
+    @staticmethod
+    def _is_duplicate(notification: Notification) -> bool:
+        duplicate_exists: bool = (
+            Notification.objects.filter(
+                actor_content_type=notification.actor_content_type,
+                actor_object_id=notification.actor_object_id,
+                recipient=notification.recipient,
+                verb=notification.verb,
+                target_content_type=notification.target_content_type,
+                target_object_id=notification.target_object_id,
+                timestamp__gte=notification.timestamp - _DEDUP_WINDOW,
+            )
+            .filter(
+                Q(timestamp__lt=notification.timestamp)
+                | Q(timestamp=notification.timestamp, pk__lt=notification.pk)
+            )
+            .exists()
+        )
+
+        return duplicate_exists
+
+    @staticmethod
+    def _is_email_throttled(recipient: BorrowdUser) -> bool:
+        return bool(
+            Notification.objects.filter(
+                recipient=recipient,
+                emailed=True,
+                timestamp__gte=timezone.now() - timedelta(hours=1),
+            ).count()
+            >= _EMAIL_HOURLY_LIMIT
         )
 
     @staticmethod
-    def _get_template_context_for(notification: Notification) -> Dict[str, Any]:
-        """Extract context from the notification's action_object."""
-        # attr-defined ignores: ForeignKey[X] annotations hide related-model attrs from mypy
-        # TODO: adopt two-arg ForeignKey[X, X] annotations repo-wide and drop these ignores
-        context = {}
-        if notification.verb in (
-            NotificationType.REQUEST_CANCELLED_BORROWER_LEFT.value,
-            NotificationType.REQUEST_CANCELLED_OWNER_LEFT.value,
-            NotificationType.LOAN_ENDED_OWNER_LEFT.value,
-        ) and isinstance(notification.target, Transaction):
-            return {
-                "recipient_name": notification.recipient.profile.full_name(),
-                "item_name": notification.target.item.name,
-            }
-        if isinstance(notification.target, Transaction):
-            transaction: Transaction = notification.target
-            match transaction.status:
-                case TransactionStatus.REQUESTED:
-                    context.update(
-                        {
-                            "requester_name": transaction.party2.profile.full_name(),
-                            "item_name": transaction.item.name,
-                            "item_owner_name": transaction.party1.profile.full_name(),
-                            "respond_url": settings.BASE_URL
-                            + reverse("item-detail", args=[transaction.item.pk]),
-                        }
-                    )
-                case TransactionStatus.ACCEPTED:
-                    context.update(
-                        {
-                            "requester_name": transaction.party2.profile.full_name(),
-                            "item_name": transaction.item.name,
-                            "item_owner_name": transaction.party1.profile.full_name(),
-                            "item_owner_email": transaction.party1.email,
-                        }
-                    )
-                case TransactionStatus.REJECTED:
-                    context.update(
-                        {
-                            "requester_name": transaction.party2.profile.full_name(),
-                            "item_name": transaction.item.name,
-                        }
-                    )
-                case TransactionStatus.RETURNED:
-                    context.update(
-                        {
-                            "item_owner_name": transaction.party1.profile.full_name(),
-                            "requester_name": transaction.party2.profile.full_name(),
-                            "item_name": transaction.item.name,
-                        }
-                    )
-                case TransactionStatus.RETURN_REQUESTED:
-                    context.update(
-                        {
-                            "borrower_name": transaction.party2.profile.full_name(),
-                            "item_name": transaction.item.name,
-                            "inventory_url": settings.BASE_URL
-                            + reverse("profile-inventory"),
-                        }
-                    )
-                case TransactionStatus.DISPUTED:
-                    context.update(
-                        {
-                            "recipient_name": notification.recipient.profile.full_name(),
-                            "item_name": transaction.item.name,
-                        }
-                    )
-        elif isinstance(notification.target, BorrowdGroup):
-            if notification.verb == NotificationType.GROUP_NEEDS_MODERATOR.value:
-                context.update(
-                    {
-                        "group_member_name": notification.recipient.profile.full_name(),
-                        "group_name": notification.target.name,
-                        "group_url": settings.BASE_URL
-                        + reverse(
-                            "borrowd_groups:group-detail", args=[notification.target.pk]
-                        ),
-                    }
-                )
-            else:
-                membership: Membership = notification.action_object
-                context.update(
-                    {
-                        "group_member_name": notification.recipient.profile.full_name(),
-                        "new_member_name": membership.user.profile.full_name(),
-                        "group_name": membership.group.name,
-                    }
-                )
-        elif isinstance(notification.target, AvailabilitySubscription):
-            subscription: AvailabilitySubscription = notification.target
+    def _schedule_summary_digest(recipient: BorrowdUser) -> dict[str, object]:
+        return {
+            "recipient_id": recipient.pk,
+            "scheduled_for": (timezone.now() + _SUMMARY_DIGEST_DELAY).isoformat(),
+            "status": NotificationState.PENDING.value,
+        }
 
-            if notification.verb == NotificationType.ITEM_SUBSCRIPTION.value:
-                context.update(
-                    {
-                        "subscriber_name": subscription.user.profile.full_name(),
-                        "item_name": subscription.item.name,
-                        "item_url": settings.BASE_URL
-                        + reverse("item-detail", args=[subscription.item.pk]),
-                    }
+    @classmethod
+    def send_notification(cls, notification: Notification) -> None:
+        try:
+            cls._dispatch(notification)
+        except Exception as exc:
+            sentry_sdk.capture_exception(exc)
+            logger.exception("Notification dispatch failed (pk=%s)", notification.pk)
+
+    @classmethod
+    def _dispatch(cls, notification: Notification) -> None:
+        if notification.actor == notification.recipient:
+            return
+
+        if cls._is_duplicate(notification):
+            return
+
+        try:
+            notification_type = NotificationType(notification.verb)
+        except ValueError:
+            logger.warning("Unknown notification verb: %s", notification.verb)
+            return
+
+        channels = cls._get_enabled_channels(notification.recipient, notification_type)
+        summary_digest: dict[str, object] | None = None
+
+        if ChannelType.EMAIL in channels and cls._is_email_throttled(
+            notification.recipient
+        ):
+            channels.discard(ChannelType.EMAIL)
+            summary_digest = cls._schedule_summary_digest(notification.recipient)
+
+        if not channels:
+            if summary_digest is not None:
+                Notification.objects.filter(pk=notification.pk).update(
+                    data={"summary_digest": summary_digest}
                 )
-            elif notification.verb == NotificationType.ITEM_NOTIFY_WHEN_AVAILABLE.value:
-                context.update(
-                    {
-                        "subscriber_name": subscription.user.profile.full_name(),
-                        "item_name": subscription.item.name,
-                        "item_url": settings.BASE_URL
-                        + reverse("item-detail", args=[subscription.item.pk]),
-                    }
-                )
-        return context
+            return
+
+        payload = NotificationPayload.from_notification(notification, channels)
+
+        for channel in channels:
+            try:
+                backend = cls._get_backend(channel)
+                backend.send(payload)
+            except Exception as exc:
+                sentry_sdk.capture_exception(exc)
+                payload.data._error(channel, str(exc))
+
+        data = payload.data.to_dict()
+        if summary_digest is not None:
+            data["summary_digest"] = summary_digest
+
+        update_kwargs: dict[str, Any] = {"data": data}
+        email_result = payload.data.channels.get(ChannelType.EMAIL)
+        if (
+            email_result is not None
+            and email_result.status == NotificationState.SUCCESS
+        ):
+            update_kwargs["emailed"] = True
+        Notification.objects.filter(pk=notification.pk).update(**update_kwargs)
+
+        app_result = payload.data.channels.get(ChannelType.APP)
+        NotificationMetadata.objects.update_or_create(
+            notification=notification,
+            defaults={
+                "visible_in_app": app_result is not None
+                and app_result.status == NotificationState.SUCCESS
+            },
+        )
+
+    @classmethod
+    def send_pending_digests(cls) -> int:
+        """Send summary digest emails for all due pending digests. Returns count sent."""
+        now = timezone.now()
+
+        # Notification.data is stored as serialised text (jsonfield library), so
+        # nested ORM key lookups are not supported. Pre-filter by a known substring
+        # then do precise Python-side checks for status and scheduled_for.
+        pending = list(
+            Notification.objects.filter(data__contains="summary_digest").select_related(
+                "recipient"
+            )
+        )
+
+        by_recipient: dict[int, tuple[BorrowdUser, list[Notification]]] = {}
+        for notification in pending:
+            if not isinstance(notification.data, dict):
+                continue
+            digest = notification.data.get("summary_digest", {})
+            if digest.get("status") != NotificationState.PENDING.value:
+                continue
+            scheduled_for_str = digest.get("scheduled_for", "")
+            if not scheduled_for_str:
+                continue
+            try:
+                scheduled_for = datetime.fromisoformat(scheduled_for_str)
+            except ValueError:
+                continue
+            if scheduled_for > now:
+                continue
+            recipient = notification.recipient
+            if recipient.pk not in by_recipient:
+                by_recipient[recipient.pk] = (recipient, [])
+            by_recipient[recipient.pk][1].append(notification)
+
+        for recipient, notifications in by_recipient.values():
+            cls._send_digest_for_recipient(recipient, notifications)
+        return len(by_recipient)
+
+    @classmethod
+    def _send_digest_for_recipient(
+        cls, recipient: BorrowdUser, notifications: list[Notification]
+    ) -> None:
+        """Render and send a single summary digest email, then update statuses."""
+        messages = []
+        for notification in notifications:
+            try:
+                notification_type = NotificationType(notification.verb)
+                context = NotificationType._get_template_context_for(notification)
+                messages.append(notification_type.message_template.format(**context))
+            except (ValueError, KeyError):
+                messages.append(notification.description or str(notification.verb))
+
+        email_context = {
+            "recipient_name": recipient.first_name,
+            "notification_messages": messages,
+            "inbox_url": settings.BASE_URL + reverse("notification-inbox"),
+        }
+
+        try:
+            text_body = render_to_string(
+                "notifications/messages/summary_digest.txt", email_context
+            )
+            html_body = render_to_string(
+                "notifications/messages/summary_digest.html", email_context
+            )
+            send_mail(
+                subject="Notifications you missed on Borrow'd",
+                message=text_body,
+                html_message=html_body,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[recipient.email],
+                fail_silently=False,
+            )
+            new_status = NotificationState.SUCCESS.value
+            logger.info(
+                "Sent summary digest to %s (%d notifications)",
+                recipient.email,
+                len(notifications),
+            )
+        except Exception as exc:
+            sentry_sdk.capture_exception(exc)
+            logger.error(
+                "Failed to send summary digest to %s: %s", recipient.email, exc
+            )
+            new_status = NotificationState.ERROR.value
+
+        for notification in notifications:
+            data = (
+                dict(notification.data) if isinstance(notification.data, dict) else {}
+            )
+            data["summary_digest"] = {
+                **data.get("summary_digest", {}),
+                "status": new_status,
+            }
+            Notification.objects.filter(pk=notification.pk).update(data=data)
