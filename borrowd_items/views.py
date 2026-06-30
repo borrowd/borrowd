@@ -1,4 +1,4 @@
-from typing import Any, cast
+from typing import Any
 from urllib.parse import urlencode
 
 from django.contrib import messages
@@ -20,7 +20,7 @@ from borrowd_permissions.mixins import (
     LoginOr404PermissionMixin,
 )
 from borrowd_permissions.models import ItemOLP
-from borrowd_users.models import BorrowdUser, SearchTarget, SearchTerm
+from borrowd_users.models import SearchTarget, SearchTerm
 from borrowd_users.request import get_authenticated_user
 
 from .card_helpers import (
@@ -234,7 +234,7 @@ class ItemDeleteView(
             )
             return redirect("item-detail", pk=item.pk)
 
-        user = cast(BorrowdUser, self.request.user)
+        user = get_authenticated_user(self.request)
 
         item.soft_delete(user)
         _add_message_safe(self.request, messages.SUCCESS, "Item deleted.")
@@ -251,7 +251,7 @@ class ItemDetailView(
 
     def get_context_data(self, **kwargs: str) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
-        user: BorrowdUser = self.request.user
+        user = get_authenticated_user(self.request)
 
         action_context = self.object.get_action_context_for(user=user)
 
@@ -323,7 +323,7 @@ class ItemListView(
 
     def get_context_data(self, **kwargs: str) -> dict[str, Any]:
         context: dict[str, Any] = super().get_context_data(**kwargs)
-        user: BorrowdUser = self.request.user
+        user = get_authenticated_user(self.request)
 
         # Build card contexts for all items
         items = list(context["object_list"])
@@ -355,7 +355,7 @@ class ItemUpdateView(
         return context
 
     def form_valid(self, form: ItemForm) -> HttpResponse:
-        form.instance.updated_by = self.request.user
+        form.instance.updated_by = get_authenticated_user(self.request)
         response = super().form_valid(form)
         self._process_uploaded_photos()
         _add_message_safe(self.request, messages.SUCCESS, "Changes saved.")
@@ -368,6 +368,7 @@ class ItemUpdateView(
             return
 
         item: Item = self.object
+        user = get_authenticated_user(self.request)
         remaining_slots = 5 - item.photos.count()
 
         ext_validator = FileExtensionValidator(
@@ -385,8 +386,8 @@ class ItemUpdateView(
             ItemPhoto.objects.create(
                 item=item,
                 image=upload,
-                created_by=self.request.user,
-                updated_by=self.request.user,
+                created_by=user,
+                updated_by=user,
             )
 
         if skipped:
@@ -434,9 +435,10 @@ class ItemPhotoCreateView(
 
     def form_valid(self, form: ItemPhotoForm) -> HttpResponse:
         context = self.get_context_data()
+        user = get_authenticated_user(self.request)
         form.instance.item_id = context["item_pk"]
-        form.instance.created_by = self.request.user
-        form.instance.updated_by = self.request.user
+        form.instance.created_by = user
+        form.instance.updated_by = user
         return super().form_valid(form)
 
     def get_success_url(self) -> str:
