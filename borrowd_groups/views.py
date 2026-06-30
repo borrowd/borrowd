@@ -219,7 +219,7 @@ class GroupCreateView(
 
     def get_form_kwargs(self) -> dict[str, Any]:
         kwargs = super().get_form_kwargs()
-        kwargs["user"] = self.request.user
+        kwargs["user"] = get_authenticated_user(self.request)
         return kwargs
 
     def form_valid(self, form: GroupCreateForm) -> HttpResponse:
@@ -527,7 +527,7 @@ class GroupListView(LoginRequiredMixin, FilterView):  # type: ignore[misc]
 
         context["object_list"] = memberships
         context["has_groups"] = Membership.objects.filter(
-            user=self.request.user
+            user=get_authenticated_user(self.request)
         ).exists()
         return context
 
@@ -543,7 +543,7 @@ class GroupUpdateView(
 
     def get_form_kwargs(self) -> dict[str, Any]:
         kwargs = super().get_form_kwargs()
-        kwargs["user"] = self.request.user
+        kwargs["user"] = get_authenticated_user(self.request)
         return kwargs
 
     def form_valid(self, form: GroupUpdateForm) -> HttpResponse:
