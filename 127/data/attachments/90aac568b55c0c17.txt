@@ -1,0 +1,7 @@
+E2E item cleanup skipped: Locator expected to be visible
+Actual value: None
+Error: element(s) not found 
+Call log:
+  - Expect "to_be_visible" with timeout 5000ms
+  - waiting for get_by_role("heading", name="Inventory")
+
