@@ -3,6 +3,8 @@ from typing import Any
 from django.db.models import Count, Q, QuerySet
 from django_filters import BooleanFilter, CharFilter, FilterSet
 
+from borrowd_users.request import get_authenticated_user
+
 from .models import Membership, MembershipStatus
 
 
@@ -48,7 +50,7 @@ class GroupFilter(FilterSet):  # type: ignore[misc]
             qs: QuerySet[Membership] = Membership.objects.select_related(
                 "group"
             ).filter(
-                user=self.request.user,
+                user=get_authenticated_user(self.request),
             )
             qs = qs.annotate(
                 active_members_count=Count(
