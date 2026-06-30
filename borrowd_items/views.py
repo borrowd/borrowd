@@ -4,6 +4,7 @@ from urllib.parse import urlencode
 from django.contrib import messages
 from django.contrib.messages.api import MessageFailure
 from django.core.validators import FileExtensionValidator
+from django.db.models import QuerySet
 from django.forms import ModelForm
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect
@@ -285,7 +286,8 @@ class ItemDetailView(
         return context
 
 
-# No typing for django_filter, so mypy doesn't like us subclassing.
+# django-filter is untyped (see the django_filters note in mypy.ini), so
+# subclassing FilterView trips strict mode's "subclass of Any" check.
 class ItemListView(
     LoginRequiredMixin,
     BorrowdTemplateFinderMixin,
@@ -315,10 +317,13 @@ class ItemListView(
                 target=SearchTarget.ITEMS,
                 term=term,
             )
-        return super().get(request, *args, **kwargs)  # type: ignore[no-any-return]
+        # super() is FilterView.get, which is Any (see the django_filters note
+        # in mypy.ini); annotating pins it to the real return type.
+        response: HttpResponse = super().get(request, *args, **kwargs)
+        return response
 
-    def get_queryset(self):  # type: ignore[no-untyped-def]
-        queryset = super().get_queryset()
+    def get_queryset(self) -> QuerySet[Item]:
+        queryset: QuerySet[Item] = super().get_queryset()
         return queryset.prefetch_related("photos")
 
     def get_context_data(self, **kwargs: str) -> dict[str, Any]:
@@ -423,7 +428,7 @@ class ItemPhotoCreateView(
     permission_required = ItemOLP.EDIT
     form_class = ItemPhotoForm
 
-    def get_permission_object(self):  # type: ignore[no-untyped-def]
+    def get_permission_object(self) -> Item:
         return get_object_or_404(Item, pk=self.kwargs["item_pk"])
 
     def get_context_data(self, **kwargs: str) -> dict[str, Any]:
@@ -442,7 +447,7 @@ class ItemPhotoCreateView(
         return super().form_valid(form)
 
     def get_success_url(self) -> str:
-        instance: ItemPhoto = self.object  # type: ignore[assignment]
+        instance: ItemPhoto | None = self.object
         if instance is None:
             return reverse("item-list")
 
@@ -464,7 +469,7 @@ class ItemPhotoDeleteView(
     permission_required = ItemOLP.EDIT
     http_method_names = ["post"]
 
-    def get_permission_object(self):  # type: ignore[no-untyped-def]
+    def get_permission_object(self) -> Item:
         return self.get_object().item
 
     def form_valid(self, form: ModelForm[ItemPhoto]) -> HttpResponse:

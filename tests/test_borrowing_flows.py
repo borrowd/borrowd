@@ -189,7 +189,7 @@ class RejectedFlowTest(SimpleTestCase):
         self.assertEqual(self.item.status, ItemStatus.REQUESTED)
         ## Redirects to item detail page after processing action
         self.assertEqual(
-            response.url,  # type: ignore[attr-defined]
+            response["Location"],
             reverse("item-detail", kwargs={"pk": self.item.pk}),
         )
 

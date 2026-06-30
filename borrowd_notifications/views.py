@@ -280,6 +280,7 @@ def notification_inbox_view(request: HttpRequest) -> HttpResponse:
     user = get_authenticated_user(request)
 
     # only show the notifications that where sent through the in-app channel
+    # notifications is untyped (see mypy.ini): user.notifications is invisible to mypy.
     qs: QuerySet[Notification] = _app_channel_qs(user.notifications.all())  # type: ignore[attr-defined]
     paginator = Paginator(qs, _INBOX_PAGE_SIZE)
     page_obj = paginator.get_page(request.GET.get("page", 1))
@@ -296,6 +297,7 @@ def notification_inbox_view(request: HttpRequest) -> HttpResponse:
         "notifications/inbox.html",
         {
             "page_obj": page_obj,
+            # notifications is untyped (see mypy.ini): unread() manager method is invisible.
             "unread_count": qs.unread().count(),  # type: ignore[attr-defined]
         },
     )
@@ -318,6 +320,7 @@ def mark_notification_read(request: HttpRequest, pk: int) -> HttpResponse:
 @require_POST
 def mark_all_notifications_read(request: HttpRequest) -> HttpResponse:
     user = get_authenticated_user(request)
+    # notifications is untyped (see mypy.ini): user.notifications is invisible to mypy.
     _app_channel_qs(user.notifications.all()).update(unread=False)  # type: ignore[attr-defined]
     return redirect("notification-inbox")
 
@@ -349,6 +352,7 @@ def remove_app_notification(request: HttpRequest, pk: int) -> HttpResponse:
 @require_POST
 def remove_all_app_notifications(request: HttpRequest) -> HttpResponse:
     user = get_authenticated_user(request)
+    # notifications is untyped (see mypy.ini): user.notifications is invisible to mypy.
     visible_notifications = _app_channel_qs(user.notifications.all())  # type: ignore[attr-defined]
     visible_notifications.update(unread=False)
     NotificationMetadata.objects.filter(
