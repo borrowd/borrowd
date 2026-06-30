@@ -295,6 +295,7 @@ class Membership(Model):
         null=False,
         blank=False,
     )
+    _previous_status: str | None = None
     status_changed_at = DateTimeField(
         null=True,
         blank=False,
