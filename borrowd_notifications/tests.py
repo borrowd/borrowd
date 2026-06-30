@@ -2,7 +2,7 @@ from datetime import timedelta
 from unittest.mock import patch
 
 from django.core import mail
-from django.http import HttpResponse
+from django.http import HttpResponseBase
 from django.test import TestCase, TransactionTestCase, override_settings
 from django.utils import timezone
 from notifications.models import Notification
@@ -1193,8 +1193,8 @@ class NotificationPreferenceToggleViewTests(TestCase):
 
     def _toggle(
         self, ntype: NotificationType, channel: str, enabled: bool
-    ) -> HttpResponse:
-        return self.client.post(  # type: ignore[return-value]
+    ) -> HttpResponseBase:
+        return self.client.post(
             "/settings/notifications/toggle/",
             {
                 "notification_type": ntype.value,
@@ -1203,8 +1203,8 @@ class NotificationPreferenceToggleViewTests(TestCase):
             },
         )
 
-    def _bulk_toggle(self, scope: str, channel: str, enabled: bool) -> HttpResponse:
-        return self.client.post(  # type: ignore[return-value]
+    def _bulk_toggle(self, scope: str, channel: str, enabled: bool) -> HttpResponseBase:
+        return self.client.post(
             "/settings/notifications/bulk-toggle/",
             {"scope": scope, "channel": channel, "enabled": str(enabled).lower()},
         )
@@ -1869,7 +1869,7 @@ class SummaryDigestTests(TestCase):
 
         call_count = 0
 
-        def fail_first(*args, **kwargs):  # type: ignore[no-untyped-def]
+        def fail_first(*args: object, **kwargs: object) -> None:
             nonlocal call_count
             call_count += 1
             if call_count == 1:
