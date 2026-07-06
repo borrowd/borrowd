@@ -3,9 +3,8 @@ from urllib.parse import urlencode
 
 from django.contrib import messages
 from django.contrib.messages.api import MessageFailure
-from django.core.validators import FileExtensionValidator
-from django.db.models import QuerySet
 from django.core.files.uploadedfile import UploadedFile
+from django.db.models import QuerySet
 from django.forms import ModelForm
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect
