@@ -1,4 +1,4 @@
-from typing import Any, cast
+from typing import Any
 from urllib.parse import urlencode
 
 from django.contrib import messages
@@ -21,7 +21,7 @@ from borrowd_permissions.mixins import (
     LoginOr404PermissionMixin,
 )
 from borrowd_permissions.models import ItemOLP
-from borrowd_users.models import BorrowdUser, SearchTarget, SearchTerm
+from borrowd_users.models import SearchTarget, SearchTerm
 from borrowd_users.request import get_authenticated_user
 
 from .card_helpers import (
@@ -113,11 +113,7 @@ def borrow_item(request: HttpRequest, pk: int) -> HttpResponse:
     if req_action is None:
         return HttpResponse("No action specified.", status=400)
 
-    # mypy complains that `request.user` is a AbstractBaseUser or
-    # AnonymousUser, but when I follow the code it looks like it's
-    # AbstractUser or AnonymousUser, which we *would* comply with
-    # here (BorrowdUser subclasses AbstractUser).
-    user: BorrowdUser = request.user  # type: ignore[assignment]
+    user = get_authenticated_user(request)
     # Resolve against all items, including soft-deleted ones: an owner closing
     # their account soft-eletes their items, but the borrower may still need to
     # close out the stranded loan (RESOLVE_TRANSACTION). The guard below keeps
@@ -237,7 +233,7 @@ class ItemDeleteView(
             )
             return redirect("item-detail", pk=item.pk)
 
-        user = cast(BorrowdUser, self.request.user)
+        user = get_authenticated_user(self.request)
 
         item.soft_delete(user)
         _add_message_safe(self.request, messages.SUCCESS, "Item deleted.")
@@ -254,7 +250,7 @@ class ItemDetailView(
 
     def get_context_data(self, **kwargs: str) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
-        user: BorrowdUser = self.request.user
+        user = get_authenticated_user(self.request)
 
         action_context = self.object.get_action_context_for(user=user)
 
@@ -313,9 +309,8 @@ class ItemListView(
     def get(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
         term = request.GET.get("search")
         if term is not None:
-            user: BorrowdUser = request.user  # type: ignore[assignment]
             SearchTerm.record_search(
-                user=user,
+                user=get_authenticated_user(request),
                 target=SearchTarget.ITEMS,
                 term=term,
             )
@@ -327,7 +322,7 @@ class ItemListView(
 
     def get_context_data(self, **kwargs: str) -> dict[str, Any]:
         context: dict[str, Any] = super().get_context_data(**kwargs)
-        user: BorrowdUser = self.request.user
+        user = get_authenticated_user(self.request)
 
         # Build card contexts for all items
         items = list(context["object_list"])
@@ -359,7 +354,7 @@ class ItemUpdateView(
         return context
 
     def form_valid(self, form: ItemForm) -> HttpResponse:
-        form.instance.updated_by = self.request.user
+        form.instance.updated_by = get_authenticated_user(self.request)
         response = super().form_valid(form)
         self._process_uploaded_photos()
         _add_message_safe(self.request, messages.SUCCESS, "Changes saved.")
@@ -372,6 +367,7 @@ class ItemUpdateView(
             return
 
         item: Item = self.object
+        user = get_authenticated_user(self.request)
         remaining_slots = 5 - item.photos.count()
 
         skipped = 0
@@ -386,8 +382,8 @@ class ItemUpdateView(
                 continue
             photo = photo_form.save(commit=False)
             photo.item = item
-            photo.created_by = self.request.user
-            photo.updated_by = self.request.user
+            photo.created_by = user
+            photo.updated_by = user
             photo.save()
 
         if skipped:
@@ -435,9 +431,10 @@ class ItemPhotoCreateView(
 
     def form_valid(self, form: ItemPhotoForm) -> HttpResponse:
         context = self.get_context_data()
+        user = get_authenticated_user(self.request)
         form.instance.item_id = context["item_pk"]
-        form.instance.created_by = self.request.user
-        form.instance.updated_by = self.request.user
+        form.instance.created_by = user
+        form.instance.updated_by = user
         return super().form_valid(form)
 
     def get_success_url(self) -> str:

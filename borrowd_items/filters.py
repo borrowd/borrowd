@@ -5,6 +5,7 @@ from django_filters import CharFilter, FilterSet, ModelMultipleChoiceFilter
 from guardian.shortcuts import get_objects_for_user
 
 from borrowd_permissions.models import ItemOLP
+from borrowd_users.request import get_authenticated_user
 
 from .models import Item, ItemCategory
 
@@ -67,13 +68,13 @@ class ItemFilter(FilterSet):  # type: ignore[misc]
         if not hasattr(self, "_qs"):
             qs: QuerySet[Item] = (
                 get_objects_for_user(
-                    self.request.user,
+                    get_authenticated_user(self.request),
                     ItemOLP.VIEW,
                     klass=Item,
                     with_superuser=False,
                 )
                 .filter(deleted_at__isnull=True)
-                .exclude(owner=self.request.user)
+                .exclude(owner=get_authenticated_user(self.request))
             )
             if self.is_bound:
                 # ensure form validation before filtering

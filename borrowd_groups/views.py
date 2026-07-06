@@ -219,7 +219,7 @@ class GroupCreateView(
 
     def get_form_kwargs(self) -> dict[str, Any]:
         kwargs = super().get_form_kwargs()
-        kwargs["user"] = self.request.user
+        kwargs["user"] = get_authenticated_user(self.request)
         return kwargs
 
     def form_valid(self, form: GroupCreateForm) -> HttpResponse:
@@ -457,7 +457,7 @@ class GroupJoinView(LoginRequiredMixin, View):
 
         # Check if membership_requires_approval, set pending
         membership = group.add_user(
-            request.user,  # type: ignore[arg-type]
+            get_authenticated_user(request),
             trust_level=form.cleaned_data["trust_level"],
         )
         if membership.status == MembershipStatus.PENDING:
@@ -499,9 +499,8 @@ class GroupListView(LoginRequiredMixin, FilterView):  # type: ignore[misc]
     def get(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
         term = request.GET.get("search")
         if term is not None:
-            user: BorrowdUser = request.user  # type: ignore[assignment]
             SearchTerm.record_search(
-                user=user,
+                user=get_authenticated_user(request),
                 target=SearchTarget.GROUPS,
                 term=term,
             )
@@ -528,7 +527,7 @@ class GroupListView(LoginRequiredMixin, FilterView):  # type: ignore[misc]
 
         context["object_list"] = memberships
         context["has_groups"] = Membership.objects.filter(
-            user=self.request.user
+            user=get_authenticated_user(self.request)
         ).exists()
         return context
 
@@ -544,7 +543,7 @@ class GroupUpdateView(
 
     def get_form_kwargs(self) -> dict[str, Any]:
         kwargs = super().get_form_kwargs()
-        kwargs["user"] = self.request.user
+        kwargs["user"] = get_authenticated_user(self.request)
         return kwargs
 
     def form_valid(self, form: GroupUpdateForm) -> HttpResponse:
@@ -715,7 +714,7 @@ class LeaveGroupView(LoginRequiredMixin, View):
         self, request: HttpRequest, pk: int
     ) -> HttpResponsePermanentRedirect | HttpResponseRedirect:
         group = get_object_or_404(BorrowdGroup, pk=pk)
-        user: BorrowdUser = request.user  # type: ignore[assignment]
+        user = get_authenticated_user(request)
 
         membership = Membership.objects.filter(
             user=user,
@@ -763,7 +762,7 @@ class BecomeModeratorView(LoginRequiredMixin, View):
     def post(
         self, request: HttpRequest, pk: int
     ) -> HttpResponsePermanentRedirect | HttpResponseRedirect:
-        user: BorrowdUser = request.user  # type: ignore[assignment]
+        user = get_authenticated_user(request)
 
         with transaction.atomic():
             # Lock group row. This prevents race condition (two users clicking)

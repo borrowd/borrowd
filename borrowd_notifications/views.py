@@ -11,6 +11,7 @@ from django.views.decorators.http import require_POST
 from notifications.models import Notification
 
 from borrowd_users.models import BorrowdUser
+from borrowd_users.request import get_authenticated_user
 
 from .models import (
     ChannelType,
@@ -176,7 +177,7 @@ def _build_preferences_context(user: BorrowdUser) -> dict[str, Any]:
 
 @login_required
 def notification_preferences_view(request: HttpRequest) -> HttpResponse:
-    user: BorrowdUser = request.user  # type: ignore[assignment]
+    user = get_authenticated_user(request)
     context = _build_preferences_context(user)
     return render(request, "notifications/preferences.html", context)
 
@@ -184,7 +185,7 @@ def notification_preferences_view(request: HttpRequest) -> HttpResponse:
 @login_required
 @require_POST
 def toggle_preference(request: HttpRequest) -> HttpResponse:
-    user: BorrowdUser = request.user  # type: ignore[assignment]
+    user = get_authenticated_user(request)
     type_value = request.POST.get("notification_type", "")
     channel_value = request.POST.get("channel", "")
     enabled = request.POST.get("enabled") == "true"
@@ -220,7 +221,7 @@ def toggle_preference(request: HttpRequest) -> HttpResponse:
 @login_required
 @require_POST
 def bulk_toggle_preferences(request: HttpRequest) -> HttpResponse:
-    user: BorrowdUser = request.user  # type: ignore[assignment]
+    user = get_authenticated_user(request)
     scope = request.POST.get("scope", "")
     channel_value = request.POST.get("channel", "")
     enabled = request.POST.get("enabled") == "true"
@@ -276,7 +277,7 @@ def _format_notification(notification: Notification) -> str:
 
 @login_required
 def notification_inbox_view(request: HttpRequest) -> HttpResponse:
-    user: BorrowdUser = request.user  # type: ignore[assignment]
+    user = get_authenticated_user(request)
 
     # only show the notifications that where sent through the in-app channel
     qs: QuerySet[Notification] = _app_channel_qs(user.notifications.all())  # type: ignore[attr-defined]
@@ -316,7 +317,7 @@ def mark_notification_read(request: HttpRequest, pk: int) -> HttpResponse:
 @login_required
 @require_POST
 def mark_all_notifications_read(request: HttpRequest) -> HttpResponse:
-    user: BorrowdUser = request.user  # type: ignore[assignment]
+    user = get_authenticated_user(request)
     _app_channel_qs(user.notifications.all()).update(unread=False)  # type: ignore[attr-defined]
     return redirect("notification-inbox")
 
@@ -347,7 +348,7 @@ def remove_app_notification(request: HttpRequest, pk: int) -> HttpResponse:
 @login_required
 @require_POST
 def remove_all_app_notifications(request: HttpRequest) -> HttpResponse:
-    user: BorrowdUser = request.user  # type: ignore[assignment]
+    user = get_authenticated_user(request)
     visible_notifications = _app_channel_qs(user.notifications.all())  # type: ignore[attr-defined]
     visible_notifications.update(unread=False)
     NotificationMetadata.objects.filter(
