@@ -1,13 +1,15 @@
 from typing import Any
 from urllib.parse import urlencode
 
+from borrowd_users.request import get_authenticated_user
 from django.contrib import messages
 from django.contrib.messages.api import MessageFailure
-from django.core.validators import FileExtensionValidator
+from django.core.files.uploadedfile import UploadedFile
 from django.forms import ModelForm
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse, reverse_lazy
+from django.utils.datastructures import MultiValueDict
 from django.views.decorators.http import require_POST
 from django.views.generic import CreateView, DeleteView, DetailView, UpdateView
 from django_filters.views import FilterView
@@ -21,7 +23,6 @@ from borrowd_permissions.mixins import (
 )
 from borrowd_permissions.models import ItemOLP
 from borrowd_users.models import SearchTarget, SearchTerm
-from borrowd_users.request import get_authenticated_user
 
 from .card_helpers import (
     build_item_card_context,
@@ -31,11 +32,9 @@ from .exceptions import InvalidItemAction, ItemAlreadyRequested
 from .filters import ItemFilter
 from .forms import (
     ALLOWED_IMAGE_ACCEPT,
-    ALLOWED_IMAGE_EXTENSIONS,
     ItemCreateWithPhotoForm,
     ItemForm,
     ItemPhotoForm,
-    validate_image_size,
 )
 from .models import Item, ItemAction, ItemPhoto, ItemStatus
 
@@ -371,24 +370,21 @@ class ItemUpdateView(
         user = get_authenticated_user(self.request)
         remaining_slots = 5 - item.photos.count()
 
-        ext_validator = FileExtensionValidator(
-            allowed_extensions=ALLOWED_IMAGE_EXTENSIONS
-        )
         skipped = 0
 
         for upload in uploaded_files[:remaining_slots]:
-            try:
-                ext_validator(upload)
-                validate_image_size(upload)
-            except Exception:
+            photo_files: MultiValueDict[str, UploadedFile] = MultiValueDict(
+                {"image": [upload]}
+            )
+            photo_form = ItemPhotoForm(files=photo_files)
+            if not photo_form.is_valid():
                 skipped += 1
                 continue
-            ItemPhoto.objects.create(
-                item=item,
-                image=upload,
-                created_by=user,
-                updated_by=user,
-            )
+            photo = photo_form.save(commit=False)
+            photo.item = item
+            photo.created_by = user
+            photo.updated_by = user
+            photo.save()
 
         if skipped:
             _add_message_safe(
