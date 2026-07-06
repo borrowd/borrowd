@@ -1,7 +1,6 @@
 from typing import Any
 from urllib.parse import urlencode
 
-from borrowd_users.request import get_authenticated_user
 from django.contrib import messages
 from django.contrib.messages.api import MessageFailure
 from django.core.files.uploadedfile import UploadedFile
@@ -23,6 +22,7 @@ from borrowd_permissions.mixins import (
 )
 from borrowd_permissions.models import ItemOLP
 from borrowd_users.models import SearchTarget, SearchTerm
+from borrowd_users.request import get_authenticated_user
 
 from .card_helpers import (
     build_item_card_context,
