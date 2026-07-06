@@ -12,7 +12,7 @@ from io import BytesIO
 from typing import Any, cast
 
 from django.core.files.uploadedfile import SimpleUploadedFile, UploadedFile
-from django.test import TestCase
+from django.test import RequestFactory, TestCase
 from django.utils.datastructures import MultiValueDict
 from PIL import Image
 
@@ -25,6 +25,7 @@ from borrowd_items.forms import (
     validate_image_size,
 )
 from borrowd_items.models import Item, ItemCategory
+from borrowd_items.views import ItemUpdateView
 from borrowd_users.models import BorrowdUser
 
 
@@ -66,6 +67,40 @@ def make_files(
 def make_empty_files() -> MultiValueDict[str, UploadedFile]:
     """Create an empty files dict for form testing."""
     return cast(MultiValueDict[str, UploadedFile], {})
+
+
+class ItemUpdatePhotoProcessingTests(TestCase):
+    def test_corrupt_pending_photo_is_skipped_without_raising(self) -> None:
+        owner = BorrowdUser.objects.create_user(
+            username="owner",
+            email="owner@example.com",
+            password="password",
+        )
+        item = Item.objects.create(
+            name="Test item",
+            description="Test description",
+            owner=owner,
+            created_by=owner,
+            updated_by=owner,
+            trust_level_required=TrustLevel.STANDARD,
+        )
+        corrupt_photo = SimpleUploadedFile(
+            name="corrupt.jpg",
+            content=b"not an image",
+            content_type="image/jpeg",
+        )
+        request = RequestFactory().post(
+            "/items/1/edit/",
+            data={"new_photos": corrupt_photo},
+        )
+        request.user = owner
+        view = ItemUpdateView()
+        view.request = request
+        view.object = item
+
+        view._process_uploaded_photos()
+
+        self.assertEqual(item.photos.count(), 0)
 
 
 class ValidateImageSizeFunctionTests(TestCase):
