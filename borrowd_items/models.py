@@ -86,6 +86,15 @@ class ItemAction(TextChoices):
     OFFER_GIVEAWAY = "OFFER_GIVEAWAY", "Give Away"
     ACCEPT_GIVEAWAY = "ACCEPT_GIVEAWAY", "Accept Gift"
     DECLINE_GIVEAWAY = "DECLINE_GIVEAWAY", "Decline Gift"
+    REQUEST_GIVEAWAY = "REQUEST_GIVEAWAY", "Request Gift"
+    APPROVE_GIVEAWAY_REQUEST = (
+        "APPROVE_GIVEAWAY_REQUEST",
+        "Approve Giveaway Request",
+    )
+    DECLINE_GIVEAWAY_REQUEST = (
+        "DECLINE_GIVEAWAY_REQUEST",
+        "Decline Giveaway Request",
+    )
 
 
 @dataclass
@@ -129,6 +138,16 @@ class ItemStatus(IntegerChoices):
     BORROWED = 30, "Borrowed"
 
 
+class ListingType(IntegerChoices):
+    """
+    How an Item is offered to the community: for borrowing (the
+    default) or as a giveaway a group member can request to keep.
+    """
+
+    LEND = 10, "Lend"
+    GIVEAWAY = 20, "Give away"
+
+
 class Item(Model):
     name = CharField(max_length=50, null=False, blank=False)
     description = CharField(max_length=500, null=False, blank=False)
@@ -154,6 +173,14 @@ class Item(Model):
         choices=ItemStatus.choices,
         default=ItemStatus.AVAILABLE,
         help_text="The current status of the Item.",
+    )
+    listing_type = IntegerField(
+        choices=ListingType,
+        default=ListingType.LEND,
+        help_text=(
+            "Whether this Item is offered for borrowing or as a"
+            " giveaway a group member can request to keep."
+        ),
     )
 
     created_by = ForeignKey(
@@ -297,6 +324,8 @@ class Item(Model):
             return f"Giveaway offered to {borrower_name} - awaiting acceptance."
         elif tx_status == TransactionStatus.RETURN_REQUESTED:
             return f"You requested this item back from {borrower_name}. Confirm once you receive it."
+        elif tx_status == TransactionStatus.GIVEAWAY_REQUESTED:
+            return f"{requester_name} wants your giveaway!"
         elif ItemAction.ACCEPT_REQUEST in actions:
             return f"{requester_name} has requested to borrow this item!"
         elif (
@@ -316,6 +345,8 @@ class Item(Model):
             return f"You've marked this item as lent, waiting for {borrower_name} to confirm collected."
         elif self.status == ItemStatus.BORROWED:
             return f"Waiting for {borrower_name} to confirm returned."
+        elif self.listing_type == ListingType.GIVEAWAY:
+            return "This is your item, listed as a giveaway."
         else:
             return "This is your item and it is available for borrowing."
 
@@ -360,9 +391,13 @@ class Item(Model):
         """Generate status text for users who are neither owner nor borrower."""
         if len(actions) == 1 and ItemAction.CANCEL_REQUEST in actions:
             # Intentionally obscuring owner name here for privacy to reject
+            if self.listing_type == ListingType.GIVEAWAY:
+                return "Gift requested, waiting on owner response..."
             return "Requested to borrow, waiting on owner response..."
         elif ItemAction.REQUEST_ITEM in actions:
             return "Available to request!"
+        elif ItemAction.REQUEST_GIVEAWAY in actions:
+            return "Free to keep!"
         elif (
             AvailabilitySubscription.get_active_subscription_for_user_and_item(
                 user=user, item=self
@@ -402,7 +437,10 @@ class Item(Model):
                 and self.get_requesting_user() is None
             ):
                 # THEN
-                #   the User can Request the Item.
+                #   the User can Request the Item,
+                #   or ask to keep it if it's a giveaway listing.
+                if self.listing_type == ListingType.GIVEAWAY:
+                    return (ItemAction.REQUEST_GIVEAWAY,)
                 return (ItemAction.REQUEST_ITEM,)
             elif (
                 not self.is_borrowable(user=user)
@@ -472,6 +510,15 @@ class Item(Model):
                 # No next steps until owner confirms,
                 # but may cancel.
                 return (ItemAction.CANCEL_REQUEST,)
+        elif current_tx.status == TransactionStatus.GIVEAWAY_REQUESTED:
+            if self.owner == user:
+                # The owner decides whether to hand the item over.
+                return (
+                    ItemAction.DECLINE_GIVEAWAY_REQUEST,
+                    ItemAction.APPROVE_GIVEAWAY_REQUEST,
+                )
+            # The requester waits on the owner, but may cancel.
+            return (ItemAction.CANCEL_REQUEST,)
         elif current_tx.status == TransactionStatus.ACCEPTED:
             # Either borrower or lender can assert collection.
             return (
@@ -537,12 +584,16 @@ class Item(Model):
 
     def get_requesting_user(self) -> Optional[BorrowdUser]:
         """
-        Returns the User who has requested to borrow this Item, if any.
-        This is specifically for items in REQUESTED status.
+        Returns the User with an open borrow or giveaway request on
+        this Item, if any.
         """
+        pending_statuses = [
+            TransactionStatus.REQUESTED,
+            TransactionStatus.GIVEAWAY_REQUESTED,
+        ]
         try:
             transaction = Transaction.objects.get(
-                Q(item=self) & Q(status=TransactionStatus.REQUESTED)
+                Q(item=self) & Q(status__in=pending_statuses)
             )
             # party2 is the requestor
             return transaction.party2
@@ -552,7 +603,7 @@ class Item(Model):
             # Return the most recent request (for now)
             txn: Optional["Transaction"] = (
                 Transaction.objects.filter(
-                    Q(item=self) & Q(status=TransactionStatus.REQUESTED)
+                    Q(item=self) & Q(status__in=pending_statuses)
                 )
                 .order_by("-created_at")
                 .first()
@@ -653,7 +704,10 @@ class Item(Model):
         Process the given action for this Item and User.
         """
         # Check for specific case: trying to request an item that already has a pending request
-        if action == ItemAction.REQUEST_ITEM and self.get_requesting_user() is not None:
+        if (
+            action in (ItemAction.REQUEST_ITEM, ItemAction.REQUEST_GIVEAWAY)
+            and self.get_requesting_user() is not None
+        ):
             raise ItemAlreadyRequested(
                 f"Item '{self}' already has a pending request from another user."
             )
@@ -677,6 +731,20 @@ class Item(Model):
                 updated_by=user,
                 # This is default; just being explicit
                 status=TransactionStatus.REQUESTED,
+            )
+            self.status = ItemStatus.REQUESTED
+            self.save()
+            return
+
+        if action == ItemAction.REQUEST_GIVEAWAY:
+            Transaction.objects.create(
+                item=self,
+                # By convention "party1" is the owner/lender/giver.
+                party1=self.owner,
+                party2=user,
+                created_by=user,
+                updated_by=user,
+                status=TransactionStatus.GIVEAWAY_REQUESTED,
             )
             self.status = ItemStatus.REQUESTED
             self.save()
@@ -798,6 +866,19 @@ class Item(Model):
                     current_tx.updated_by = user
                     current_tx.save()
                     self._transfer_ownership(new_owner=user, by=user)
+                case ItemAction.APPROVE_GIVEAWAY_REQUEST:
+                    # The owner hands the item over; ownership transfers for good.
+                    current_tx.status = TransactionStatus.OWNERSHIP_TRANSFERRED
+                    current_tx.updated_by = user
+                    current_tx.save()
+                    self._transfer_ownership(new_owner=current_tx.party2, by=user)
+                case ItemAction.DECLINE_GIVEAWAY_REQUEST:
+                    # The owner turns down the request; the listing reopens.
+                    current_tx.status = TransactionStatus.REJECTED
+                    current_tx.updated_by = user
+                    current_tx.save()
+                    self.status = ItemStatus.AVAILABLE
+                    self.save()
                 case ItemAction.CANCEL_REQUEST:
                     # The requestor cancels the Request.
                     self.status = ItemStatus.AVAILABLE
@@ -881,6 +962,8 @@ class Item(Model):
         # see signals.py
         self.owner = new_owner
         self.status = ItemStatus.AVAILABLE
+        # The recipient owns it as a regular item; they can relist it themselves.
+        self.listing_type = ListingType.LEND
         self.updated_by = by
         self.save()
 
@@ -994,6 +1077,7 @@ class TransactionStatus(IntegerChoices):
     # Paranoia forcing to me to use value increments of at least 10,
     # for when we later realize we need to add more in between...
     REQUESTED = 10, "Requested"
+    GIVEAWAY_REQUESTED = 15, "Giveaway Requested"
     REJECTED = 20, "Rejected"
     ACCEPTED = 30, "Accepted"
     COLLECTION_ASSERTED = 40, "Collection Asserted"
@@ -1176,14 +1260,22 @@ class Transaction(Model):
         user: BorrowdUser,
     ) -> QuerySet["Transaction"]:
         """
-        Returns Transactions which have a status of REQUESTED involving the given User.
+        Returns Transactions awaiting the owner's decision involving the given
+        User: borrow requests (REQUESTED) and giveaway requests (GIVEAWAY_REQUESTED).
         I.E., the borrower has asked, but the lender hasn't accepted or rejected yet.
 
         See get_active_borrows_for_user and get_active_lends_for_user for
         other transaction states that require user confirmation (pick ups/returns).
         """
+
         return Transaction.objects.filter(
-            Q(status=TransactionStatus.REQUESTED) & (Q(party1=user) | Q(party2=user))
+            Q(
+                status__in=[
+                    TransactionStatus.REQUESTED,
+                    TransactionStatus.GIVEAWAY_REQUESTED,
+                ]
+            )
+            & (Q(party1=user) | Q(party2=user))
         )
 
     @staticmethod
@@ -1193,8 +1285,8 @@ class Transaction(Model):
 
         "Active" is defined by exclusion: every state except the closed ones
         (RETURNED, REJECTED, CANCELLED, RESOLVED, OWNERSHIP_TRANSFERRED) and the
-        not-yet-accepted REQUESTED. In-flight states like COLLECTION_ASSERTED,
-        RETURN_REQUESTED, and DISPUTED all count as active borrows.
+        not-yet-accepted REQUESTED and GIVEAWAY_REQUESTED. In-flight states like
+        COLLECTION_ASSERTED, RETURN_REQUESTED, and DISPUTED all count as active borrows.
         """
         return Transaction.objects.filter(
             Q(party2=user)
@@ -1206,6 +1298,7 @@ class Transaction(Model):
                 status__in=[
                     TransactionStatus.RETURNED,
                     TransactionStatus.REQUESTED,
+                    TransactionStatus.GIVEAWAY_REQUESTED,
                     TransactionStatus.REJECTED,
                     TransactionStatus.CANCELLED,
                     TransactionStatus.RESOLVED,
@@ -1221,8 +1314,8 @@ class Transaction(Model):
 
         "Active" is defined by exclusion: every state except the closed ones
         (RETURNED, REJECTED, CANCELLED, RESOLVED, OWNERSHIP_TRANSFERRED) and the
-        not-yet-accepted REQUESTED. In-flight states like COLLECTION_ASSERTED,
-        RETURN_REQUESTED, and DISPUTED all count as active lends.
+        not-yet-accepted REQUESTED and GIVEAWAY_REQUESTED. In-flight states like
+        COLLECTION_ASSERTED, RETURN_REQUESTED, and DISPUTED all count as active lends.
         """
         return Transaction.objects.filter(
             Q(party1=user)
@@ -1230,6 +1323,7 @@ class Transaction(Model):
                 status__in=[
                     TransactionStatus.RETURNED,
                     TransactionStatus.REQUESTED,
+                    TransactionStatus.GIVEAWAY_REQUESTED,
                     TransactionStatus.REJECTED,
                     TransactionStatus.CANCELLED,
                     TransactionStatus.RESOLVED,
