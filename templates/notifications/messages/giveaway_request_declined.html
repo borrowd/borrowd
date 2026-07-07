@@ -1,0 +1,24 @@
+{% extends "notifications/messages/layout.html" %}
+
+{% block title %}
+    Giveaway request declined - Borrow'd
+{% endblock %}
+
+{% block content %}
+    <h2>
+        Hi {{ recipient_name }},
+    </h2>
+
+    <p>
+        {{ gifter_name }} has declined your request for
+        <strong>{{ item_name }}</strong>.
+    </p>
+
+    <p>
+        There's plenty more being shared in your groups - keep browsing!
+    </p>
+
+    <p>
+        The Borrow'd team
+    </p>
+{% endblock %}

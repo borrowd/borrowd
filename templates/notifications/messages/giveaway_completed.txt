@@ -1,0 +1,7 @@
+Hi {{ recipient_name }},
+
+You gave {{ item_name }} to {{ receiver_name }}. It now belongs to them, and it has been removed from your inventory.
+
+Thanks for your generosity - giving is what keeps the community thriving.
+
+The Borrow'd team

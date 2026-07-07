@@ -1,0 +1,24 @@
+{% extends "notifications/messages/layout.html" %}
+
+{% block title %}
+    Giveaway completed - Borrow'd
+{% endblock %}
+
+{% block content %}
+    <h2>
+        Hi {{ recipient_name }},
+    </h2>
+
+    <p>
+        You gave <strong>{{ item_name }}</strong> to {{ receiver_name }}.
+        It now belongs to them, and it has been removed from your inventory.
+    </p>
+
+    <p>
+        Thanks for your generosity - giving is what keeps the community thriving.
+    </p>
+
+    <p>
+        The Borrow'd team
+    </p>
+{% endblock %}
