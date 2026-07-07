@@ -7,7 +7,7 @@ from borrowd_users.request import get_authenticated_user
 from .models import BetaCode, BetaSignup
 
 
-class BetaCodeAdmin(admin.ModelAdmin):  # type: ignore[type-arg]
+class BetaCodeAdmin(admin.ModelAdmin[BetaCode]):
     readonly_fields = ["code", "created_by", "updated_by", "created_at", "updated_at"]
 
     def save_model(
@@ -26,7 +26,7 @@ class BetaCodeAdmin(admin.ModelAdmin):  # type: ignore[type-arg]
         obj.save()
 
 
-class BetaSignupAdmin(admin.ModelAdmin):  # type: ignore[type-arg]
+class BetaSignupAdmin(admin.ModelAdmin[BetaSignup]):
     # Make fields read-only
     readonly_fields = [field.name for field in BetaSignup._meta.fields]
 

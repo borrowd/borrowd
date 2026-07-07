@@ -89,13 +89,13 @@ def capture_transaction_previous_status(
     """Store the pre-save status on the instance so post_save can detect transitions."""
     if instance.pk:
         try:
-            instance._previous_status = Transaction.objects.values_list(  # type: ignore[attr-defined]
+            instance._previous_status = Transaction.objects.values_list(
                 "status", flat=True
             ).get(pk=instance.pk)
         except Transaction.DoesNotExist:
-            instance._previous_status = None  # type: ignore[attr-defined]
+            instance._previous_status = None
     else:
-        instance._previous_status = None  # type: ignore[attr-defined]
+        instance._previous_status = None
 
 
 @receiver(post_save, sender=Transaction)
@@ -241,13 +241,13 @@ def capture_membership_previous_status(
     """Store the pre-save status on the instance so post_save can detect transitions."""
     if instance.pk:
         try:
-            instance._previous_status = Membership.objects.values_list(  # type: ignore[attr-defined]
+            instance._previous_status = Membership.objects.values_list(
                 "status", flat=True
             ).get(pk=instance.pk)
         except Membership.DoesNotExist:
-            instance._previous_status = None  # type: ignore[attr-defined]
+            instance._previous_status = None
     else:
-        instance._previous_status = None  # type: ignore[attr-defined]
+        instance._previous_status = None
 
 
 @receiver(post_save, sender=Membership)

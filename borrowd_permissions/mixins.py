@@ -1,5 +1,6 @@
 from django.core.exceptions import PermissionDenied
-from django.http import Http404
+from django.db.models import Model
+from django.http import Http404, HttpRequest, HttpResponse
 from guardian.mixins import PermissionRequiredMixin
 
 
@@ -9,7 +10,9 @@ class LoginOr404PermissionMixin(PermissionRequiredMixin):
     Authenticated users without permission → 404
     """
 
-    def on_permission_check_fail(self, request, response, obj=None):  # type: ignore[no-untyped-def]
+    def on_permission_check_fail(
+        self, request: HttpRequest, response: HttpResponse, obj: Model | None = None
+    ) -> None:
         user = self.request.user
         if not user.is_authenticated:
             return super().on_permission_check_fail(request, response, obj)
@@ -22,7 +25,9 @@ class LoginOr403PermissionMixin(PermissionRequiredMixin):
     Authenticated users without permission → 403
     """
 
-    def on_permission_check_fail(self, request, response, obj=None):  # type: ignore[no-untyped-def]
+    def on_permission_check_fail(
+        self, request: HttpRequest, response: HttpResponse, obj: Model | None = None
+    ) -> None:
         user = self.request.user
         if not user.is_authenticated:
             return super().on_permission_check_fail(request, response, obj)

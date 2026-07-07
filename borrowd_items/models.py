@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, cast
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -855,8 +855,9 @@ class Item(Model):
         from django.contrib.auth.models import Group
         from guardian.shortcuts import assign_perm, get_groups_with_perms, remove_perm
 
-        # guardian typing issue. will be fixed in a follow-up.
-        groups_that_can_view_item: QuerySet[Group] = get_groups_with_perms(self)  # type: ignore[assignment]
+        # guardian mis-types get_groups_with_perms as `Group | dict`; for the
+        # default attach_perms=False it returns a QuerySet[Group].
+        groups_that_can_view_item = cast("QuerySet[Group]", get_groups_with_perms(self))
         for group in groups_that_can_view_item:
             remove_perm(ItemOLP.VIEW, group, self)
 
@@ -1049,6 +1050,7 @@ class Transaction(Model):
         default=TransactionStatus.REQUESTED,
         help_text="The current status of the Transaction.",
     )
+    _previous_status: int | None = None
     resolution_reason = CharField(
         max_length=32,
         choices=ResolutionReason.choices,

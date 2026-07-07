@@ -10,7 +10,8 @@ from borrowd_users.request import get_authenticated_user
 from .models import Item, ItemCategory
 
 
-# No typing for django_filter, so mypy doesn't like us subclassing.
+# django-filter is untyped (see the django_filters note in mypy.ini), so
+# subclassing it trips strict mode's "subclass of Any" check.
 class ItemFilter(FilterSet):  # type: ignore[misc]
     search = CharFilter(label="Search", method="filter_by_search")
     categories = ModelMultipleChoiceFilter(
