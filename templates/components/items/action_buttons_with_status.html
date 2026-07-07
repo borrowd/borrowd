@@ -119,6 +119,30 @@ For variant='card', also accepts:
                             Decline
                         </button>
                     </form>
+                {% elif action.name == 'REQUEST_GIVEAWAY' %}
+                    <div class="flex-1">
+                        <button type="button"
+                                onclick="showModal('request-giveaway-modal{{ modal_suffix }}')"
+                                class="btn btn-primary btn-sm md:btn-md w-full">
+                            Request gift
+                        </button>
+                    </div>
+                {% elif action.name == 'APPROVE_GIVEAWAY_REQUEST' %}
+                    <div class="flex-1">
+                        <button type="button"
+                                onclick="showModal('approve-giveaway-request-modal{{ modal_suffix }}')"
+                                class="btn btn-soft btn-success btn-sm md:btn-md w-full">
+                            Approve
+                        </button>
+                    </div>
+                {% elif action.name == 'DECLINE_GIVEAWAY_REQUEST' %}
+                    <form method="POST" action="{% url 'item-borrow' item.pk %}" class="flex-1">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="DECLINE_GIVEAWAY_REQUEST">
+                        <button type="submit" class="btn btn-soft btn-error btn-sm md:btn-md w-full">
+                            Decline
+                        </button>
+                    </form>
                 {% elif action.name == 'FLAG_CANNOT_RETURN' %}
                     <div class="flex-1">
                         <button type="button"
@@ -311,6 +335,26 @@ For variant='card', also accepts:
                                     Decline
                                 </button>
                             </form>
+                        {% elif action.name == 'REQUEST_GIVEAWAY' %}
+                            <button type="button"
+                                    onclick="showModal('request-giveaway-modal{{ modal_suffix }}')"
+                                    class="btn btn-primary flex-1">
+                                Request gift
+                            </button>
+                        {% elif action.name == 'APPROVE_GIVEAWAY_REQUEST' %}
+                            <button type="button"
+                                    onclick="showModal('approve-giveaway-request-modal{{ modal_suffix }}')"
+                                    class="btn btn-success flex-1">
+                                Approve
+                            </button>
+                        {% elif action.name == 'DECLINE_GIVEAWAY_REQUEST' %}
+                            <form method="POST" action="{% url 'item-borrow' item.pk %}" class="flex-1">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="DECLINE_GIVEAWAY_REQUEST">
+                                <button type="submit" class="btn btn-outline btn-error w-full">
+                                    Decline
+                                </button>
+                            </form>
                         {% elif action.name == 'FLAG_CANNOT_RETURN' %}
                             <button type="button"
                                     onclick="showModal('cannot-return-modal{{ modal_suffix }}')"
@@ -380,6 +424,8 @@ For variant='card', also accepts:
                 {% include "components/items/modals/dispute_resolution_modal.html" with item=item modal_id="dispute-resolution-modal"|add:modal_suffix %}
                 {% include "components/items/modals/giveaway_offer_modal.html" with item=item modal_id="giveaway-offer-modal"|add:modal_suffix %}
                 {% include "components/items/modals/accept_giveaway_modal.html" with item=item modal_id="accept-giveaway-modal"|add:modal_suffix %}
+                {% include "components/items/modals/request_giveaway_modal.html" with item=item modal_id="request-giveaway-modal"|add:modal_suffix %}
+                {% include "components/items/modals/approve_giveaway_request_modal.html" with item=item modal_id="approve-giveaway-request-modal"|add:modal_suffix %}
 
             </div>
         </div>

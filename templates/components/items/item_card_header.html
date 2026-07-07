@@ -2,7 +2,7 @@
 Item Card Header Sub-component
 
 Parameters:
-- banner_type: 'requested' | 'available' | 'reserved' | 'borrowed' | 'pending' | 'return_requested' | 'disputed' | 'giveaway_offered' (required)
+- banner_type: 'requested' | 'available' | 'reserved' | 'borrowed' | 'pending' | 'return_requested' | 'disputed' | 'giveaway_offered' | 'giveaway_listing' | 'giveaway_requested' (required)
 - banner_bg: Background color classes
 - banner_text: Text color classes
 - banner_icon: SVG icon markup
@@ -60,6 +60,19 @@ Parameters:
                     {{ person_name }} is offering you this item!
                 {% else %}
                     Giveaway offered - awaiting acceptance
+                {% endif %}
+            {% elif banner_type == 'giveaway_listing' %}
+                Free to a good home
+            {% elif banner_type == 'giveaway_requested' %}
+                {% if person_name %}
+                    {% if person_url %}
+                        <a href="{{ person_url }}" class="underline hover:no-underline">{{ person_name }}</a>
+                    {% else %}
+                        {{ person_name }}
+                    {% endif %}
+                    wants your giveaway!
+                {% else %}
+                    Gift requested - awaiting response
                 {% endif %}
             {% elif banner_type == 'disputed' %}
                 This item is being disputed

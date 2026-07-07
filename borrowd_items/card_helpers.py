@@ -54,6 +54,12 @@ BANNER_STYLES = {
     "giveaway_offered": {"bg": "bg-primary/15", "text": "text-primary"},
 }
 
+# Giveaway listings and their pending requests share the giveaway gift styling.
+BANNER_ICONS["giveaway_listing"] = BANNER_ICONS["giveaway_offered"]
+BANNER_ICONS["giveaway_requested"] = BANNER_ICONS["giveaway_offered"]
+BANNER_STYLES["giveaway_listing"] = BANNER_STYLES["giveaway_offered"]
+BANNER_STYLES["giveaway_requested"] = BANNER_STYLES["giveaway_offered"]
+
 
 def build_card_ids(context: str, pk: int) -> dict[str, str]:
     """
@@ -131,7 +137,7 @@ def get_banner_info_for_item(
     """
     from django.utils.timesince import timesince
 
-    from .models import TransactionStatus
+    from .models import ListingType, TransactionStatus
 
     # Check for active transaction to determine banner state
     current_borrower = item.get_current_borrower()
@@ -143,6 +149,7 @@ def get_banner_info_for_item(
         current_transaction = item.transactions.filter(
             status__in=[
                 TransactionStatus.REQUESTED,
+                TransactionStatus.GIVEAWAY_REQUESTED,
                 TransactionStatus.ACCEPTED,
                 TransactionStatus.COLLECTION_ASSERTED,
                 TransactionStatus.COLLECTED,
@@ -154,6 +161,9 @@ def get_banner_info_for_item(
         ).first()
 
     if not current_transaction:
+        # No active transaction; a giveaway listing advertises itself.
+        if item.listing_type == ListingType.GIVEAWAY:
+            return {"banner_type": "giveaway_listing"}
         # No active transaction or subscription, item is available by default
         return {"banner_type": "available"}
 
@@ -185,6 +195,19 @@ def get_banner_info_for_item(
                 "person_name": item.owner.first_name.capitalize(),
             }
         return {"banner_type": "borrowed"}
+
+    # giveaway-request banner: owner sees who's asking, the requester sees
+    # their request is pending, everyone else sees the generic pending label.
+    if current_transaction.status == TransactionStatus.GIVEAWAY_REQUESTED:
+        if item.owner == viewing_user:
+            return {
+                "banner_type": "giveaway_requested",
+                "person_name": current_transaction.party2.first_name.capitalize(),
+                "person_url": f"/profile/{current_transaction.party2.pk}/",
+            }
+        if requesting_user == viewing_user:
+            return {"banner_type": "giveaway_requested"}
+        return {"banner_type": "pending"}
 
     # The return-request banner stays up while the borrower's return
     # assertion awaits the lender's confirmation.
