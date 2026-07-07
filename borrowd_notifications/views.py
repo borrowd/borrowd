@@ -75,6 +75,19 @@ NOTIFICATION_CATEGORIES: list[dict[str, Any]] = [
             (NotificationType.GIVEAWAY_OFFER_SENT, "Giveaway offer received"),
             (NotificationType.GIVEAWAY_ACCEPTED, "Giveaway accepted"),
             (NotificationType.GIVEAWAY_DECLINED, "Giveaway declined"),
+            (
+                NotificationType.GIVEAWAY_REQUEST_RECEIVED,
+                "Giveaway request received",
+            ),
+            (
+                NotificationType.GIVEAWAY_REQUEST_APPROVED,
+                "Giveaway request approved",
+            ),
+            (
+                NotificationType.GIVEAWAY_REQUEST_DECLINED,
+                "Giveaway request declined",
+            ),
+            (NotificationType.GIVEAWAY_COMPLETED, "Giveaway completed"),
         ],
     },
 ]

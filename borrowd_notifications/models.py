@@ -91,6 +91,10 @@ class NotificationType(models.TextChoices):
     GIVEAWAY_OFFER_SENT = "GIVEAWAY_OFFER_SENT"
     GIVEAWAY_ACCEPTED = "GIVEAWAY_ACCEPTED"
     GIVEAWAY_DECLINED = "GIVEAWAY_DECLINED"
+    GIVEAWAY_REQUEST_RECEIVED = "GIVEAWAY_REQUEST_RECEIVED"
+    GIVEAWAY_REQUEST_APPROVED = "GIVEAWAY_REQUEST_APPROVED"
+    GIVEAWAY_REQUEST_DECLINED = "GIVEAWAY_REQUEST_DECLINED"
+    GIVEAWAY_COMPLETED = "GIVEAWAY_COMPLETED"
 
     @classmethod
     def mandatory_types(cls) -> "frozenset[NotificationType]":
@@ -102,6 +106,7 @@ class NotificationType(models.TextChoices):
                 cls.MEMBERSHIP_PENDING,
                 cls.ITEM_RETURN_REQUESTED,
                 cls.GIVEAWAY_OFFER_SENT,
+                cls.GIVEAWAY_REQUEST_RECEIVED,
             }
         )
 
@@ -133,6 +138,10 @@ class NotificationType(models.TextChoices):
             NotificationType.GIVEAWAY_OFFER_SENT.value,
             NotificationType.GIVEAWAY_ACCEPTED.value,
             NotificationType.GIVEAWAY_DECLINED.value,
+            NotificationType.GIVEAWAY_REQUEST_RECEIVED.value,
+            NotificationType.GIVEAWAY_REQUEST_APPROVED.value,
+            NotificationType.GIVEAWAY_REQUEST_DECLINED.value,
+            NotificationType.GIVEAWAY_COMPLETED.value,
         ) and isinstance(notification.target, Transaction):
             giveaway: Transaction = notification.target
             return {
@@ -289,6 +298,10 @@ _MESSAGE_TEMPLATES: dict[NotificationType, str] = {
     NotificationType.GIVEAWAY_OFFER_SENT: "{gifter_name} wants to give you {item_name}!",
     NotificationType.GIVEAWAY_ACCEPTED: "{receiver_name} accepted your gift of {item_name}",
     NotificationType.GIVEAWAY_DECLINED: "{receiver_name} declined your giveaway offer for {item_name}",
+    NotificationType.GIVEAWAY_REQUEST_RECEIVED: "{receiver_name} would like your {item_name}!",
+    NotificationType.GIVEAWAY_REQUEST_APPROVED: "{gifter_name} approved your request - {item_name} is yours!",
+    NotificationType.GIVEAWAY_REQUEST_DECLINED: "{gifter_name} declined your request for {item_name}",
+    NotificationType.GIVEAWAY_COMPLETED: "You gave {item_name} to {receiver_name}",
 }
 
 
