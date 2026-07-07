@@ -132,6 +132,18 @@
                                 {% include "components/items/modals/category_filter_modal.html" with modal_id="item-category-modal" confirm_button_text="Select categories" %}
 
                             </div>
+                        {% elif field.name == "listing_type" %}
+                            {# Lend | Give away toggle: DaisyUI radio buttons joined as a segmented control #}
+                            <div class="join w-full">
+                                {% for choice in field.field.choices %}
+                                    <input type="radio"
+                                           name="{{ field.html_name }}"
+                                           value="{{ choice.0 }}"
+                                           aria-label="{{ choice.1 }}"
+                                           class="join-item btn flex-1"
+                                           {% if field.value|stringformat:"s" == choice.0|stringformat:"s" %}checked{% endif %} />
+                                {% endfor %}
+                            </div>
                         {% else %}
                             {{ field }}
                         {% endif %}
