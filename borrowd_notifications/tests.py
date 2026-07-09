@@ -1928,8 +1928,8 @@ class PushSubscribeEndpointAllowlistTests(TestCase):
         )
         self.client.force_login(self.user)
 
-    def _subscribe(self, endpoint: str) -> HttpResponse:
-        return self.client.post(  # type: ignore[return-value]
+    def _subscribe(self, endpoint: str) -> HttpResponseBase:
+        return self.client.post(
             "/push/subscribe/",
             data=json.dumps(
                 {

@@ -7,7 +7,10 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("borrowd_notifications", "0002_populate"),
+        (
+            "borrowd_notifications",
+            "0003_alter_notificationpreference_notification_type",
+        ),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
