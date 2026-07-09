@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import Optional
+from typing import TYPE_CHECKING, Optional, cast
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -33,6 +33,9 @@ from borrowd_users.models import BorrowdUser
 
 from .exceptions import InvalidItemAction, ItemAlreadyRequested
 from .processors import AutoOrientProcessor
+
+if TYPE_CHECKING:
+    from borrowd_groups.models import BorrowdGroup
 
 
 class ActiveItemQuerySet(QuerySet["Item"]):
@@ -80,6 +83,9 @@ class ItemAction(TextChoices):
         "RESOLVE_DISPUTE_NOT_RETURNED",
         "Resolve Dispute: Item Not Returned",
     )
+    OFFER_GIVEAWAY = "OFFER_GIVEAWAY", "Give Away"
+    ACCEPT_GIVEAWAY = "ACCEPT_GIVEAWAY", "Accept Gift"
+    DECLINE_GIVEAWAY = "DECLINE_GIVEAWAY", "Decline Gift"
 
 
 @dataclass
@@ -287,6 +293,8 @@ class Item(Model):
 
         if tx_status == TransactionStatus.DISPUTED:
             return f"This item is being disputed. Use 'resolve dispute' once you've settled it with {borrower_name}."
+        elif tx_status == TransactionStatus.GIVEAWAY_OFFERED:
+            return f"Giveaway offered to {borrower_name} - awaiting acceptance."
         elif tx_status == TransactionStatus.RETURN_REQUESTED:
             return f"You requested this item back from {borrower_name}. Confirm once you receive it."
         elif ItemAction.ACCEPT_REQUEST in actions:
@@ -323,6 +331,8 @@ class Item(Model):
 
         if tx_status == TransactionStatus.DISPUTED:
             return "This item is being disputed. Please coordinate with the owner to make it right."
+        elif tx_status == TransactionStatus.GIVEAWAY_OFFERED:
+            return f"{owner_name} is offering you this item! Accept the gift to make it yours."
         elif tx_status == TransactionStatus.RETURN_REQUESTED:
             return f"{owner_name} has requested this item back. Please coordinate its return."
         elif ItemAction.CANCEL_REQUEST in actions:
@@ -436,6 +446,7 @@ class Item(Model):
         if current_tx.status in (
             TransactionStatus.COLLECTION_ASSERTED,
             TransactionStatus.COLLECTED,
+            TransactionStatus.GIVEAWAY_OFFERED,
             TransactionStatus.RETURN_REQUESTED,
             TransactionStatus.RETURN_ASSERTED,
             TransactionStatus.DISPUTED,
@@ -476,11 +487,21 @@ class Item(Model):
                 # Otherwise, nothing to do but wait...
                 return tuple()
         elif current_tx.status == TransactionStatus.COLLECTED:
-            # Either borrower or lender can assert return
-            # The lender can also request the item back.
+            # Either borrower or lender can assert return.
+            # The lender can also request the item back, or give it away.
             if self.owner == user:
-                return (ItemAction.MARK_RETURNED, ItemAction.REQUEST_RETURN)
+                return (
+                    ItemAction.MARK_RETURNED,
+                    ItemAction.REQUEST_RETURN,
+                    ItemAction.OFFER_GIVEAWAY,
+                )
             return (ItemAction.MARK_RETURNED,)
+        elif current_tx.status == TransactionStatus.GIVEAWAY_OFFERED:
+            # The borrower decides whether to accept the gift.
+            # The lender waits on that decision.
+            if self.owner == user:
+                return tuple()
+            return (ItemAction.ACCEPT_GIVEAWAY, ItemAction.DECLINE_GIVEAWAY)
         elif current_tx.status == TransactionStatus.RETURN_REQUESTED:
             if self.owner == user:
                 # The lender can escalate to a dispute only if the wait window has passed
@@ -551,6 +572,7 @@ class Item(Model):
                         TransactionStatus.ACCEPTED,
                         TransactionStatus.COLLECTION_ASSERTED,
                         TransactionStatus.COLLECTED,
+                        TransactionStatus.GIVEAWAY_OFFERED,
                         TransactionStatus.RETURN_REQUESTED,
                         TransactionStatus.RETURN_ASSERTED,
                         TransactionStatus.DISPUTED,
@@ -572,6 +594,7 @@ class Item(Model):
                             TransactionStatus.ACCEPTED,
                             TransactionStatus.COLLECTION_ASSERTED,
                             TransactionStatus.COLLECTED,
+                            TransactionStatus.GIVEAWAY_OFFERED,
                             TransactionStatus.RETURN_REQUESTED,
                             TransactionStatus.RETURN_ASSERTED,
                             TransactionStatus.DISPUTED,
@@ -603,6 +626,7 @@ class Item(Model):
                         TransactionStatus.REJECTED,
                         TransactionStatus.CANCELLED,
                         TransactionStatus.RESOLVED,
+                        TransactionStatus.OWNERSHIP_TRANSFERRED,
                     ]
                 )
             )
@@ -757,6 +781,23 @@ class Item(Model):
                         resolved_by=user,
                         reason=ResolutionReason.DISPUTE_ITEM_NOT_RETURNED,
                     )
+                case ItemAction.OFFER_GIVEAWAY:
+                    # The lender offers to give the item to the borrower for keeps.
+                    # Item stays BORROWED until the borrower accepts.
+                    current_tx.status = TransactionStatus.GIVEAWAY_OFFERED
+                    current_tx.updated_by = user
+                    current_tx.save()
+                case ItemAction.DECLINE_GIVEAWAY:
+                    # The borrower turns down the gift; the loan continues.
+                    current_tx.status = TransactionStatus.COLLECTED
+                    current_tx.updated_by = user
+                    current_tx.save()
+                case ItemAction.ACCEPT_GIVEAWAY:
+                    # The borrower accepts; ownership transfers for good.
+                    current_tx.status = TransactionStatus.OWNERSHIP_TRANSFERRED
+                    current_tx.updated_by = user
+                    current_tx.save()
+                    self._transfer_ownership(new_owner=user, by=user)
                 case ItemAction.CANCEL_REQUEST:
                     # The requestor cancels the Request.
                     self.status = ItemStatus.AVAILABLE
@@ -787,6 +828,73 @@ class Item(Model):
                     raise ValueError(
                         f"Unexpected action '{action}' for Item '{self}' and User '{user}'"
                     )
+
+    def _groups_allowed_to_view(self) -> "QuerySet[BorrowdGroup]":
+        """
+        The current owner's active groups that may see this item.
+        TODO: expand this per issue #507
+        see https://github.com/borrowd/borrowd/issues/507
+        """
+        from borrowd_groups.models import MembershipStatus
+
+        # all Groups of which the owner is a member and has an equal or greater
+        # Trust Level than the level required by this Item.
+        return self.owner.borrowd_groups.filter(
+            membership__user=self.owner,  # looks redundant, but fails without it
+            membership__status=MembershipStatus.ACTIVE,
+            membership__trust_level__gte=self.trust_level_required,
+        ).exclude(perms_group=None)
+
+    def recompute_group_visibility(self) -> None:
+        """
+        Re-derive this item's group-level VIEW permissions for the current owner.
+
+        revokes VIEW perms for the item from every group that currently can has the perm,
+        then grants VIEW perms to the owner's allowed groups.
+        """
+        from django.contrib.auth.models import Group
+        from guardian.shortcuts import assign_perm, get_groups_with_perms, remove_perm
+
+        # guardian mis-types get_groups_with_perms as `Group | dict`; for the
+        # default attach_perms=False it returns a QuerySet[Group].
+        groups_that_can_view_item = cast("QuerySet[Group]", get_groups_with_perms(self))
+        for group in groups_that_can_view_item:
+            remove_perm(ItemOLP.VIEW, group, self)
+
+        allowed_groups = Group.objects.filter(
+            pk__in=self._groups_allowed_to_view().values_list("perms_group", flat=True)
+        )
+        assign_perm(ItemOLP.VIEW, allowed_groups, self)
+
+    def _transfer_ownership(self, new_owner: BorrowdUser, by: BorrowdUser) -> None:
+        """
+        Permanently hand this Item to new_owner.
+
+        Reassigns ownership in place: the same Item record (and its photos,
+        description, categories) shows up in the new owner's inventory and leaves the old owner's.
+        """
+        from guardian.shortcuts import assign_perm, remove_perm
+
+        old_owner = self.owner
+
+        # Reassign and save. The post_save signal recomputes group VIEW for the new owner
+        # see signals.py
+        self.owner = new_owner
+        self.status = ItemStatus.AVAILABLE
+        self.updated_by = by
+        self.save()
+
+        # Group VIEW is handled by the signal. Personal perms are granted only on create
+        # so hand the old owner's personal perms to the new owner.
+        for perm in [ItemOLP.VIEW, ItemOLP.EDIT, ItemOLP.DELETE]:
+            remove_perm(perm, old_owner, self)
+            assign_perm(perm, new_owner, self)
+
+        # Outstanding "notify me when available" subs are moot now.
+        for subscription in AvailabilitySubscription.get_active_subscriptions_for_item(
+            self
+        ):
+            subscription.cancel_subscription()
 
     class Meta:
         # Permissions using the naming conventon `*_this_*` are used
@@ -890,12 +998,14 @@ class TransactionStatus(IntegerChoices):
     ACCEPTED = 30, "Accepted"
     COLLECTION_ASSERTED = 40, "Collection Asserted"
     COLLECTED = 50, "Collected"
+    GIVEAWAY_OFFERED = 52, "Giveaway Offered"
     RETURN_REQUESTED = 55, "Return Requested"
     RETURN_ASSERTED = 60, "Return Asserted"
     DISPUTED = 65, "Disputed"
     RETURNED = 70, "Returned"
     CANCELLED = 80, "Cancelled"
     RESOLVED = 90, "Resolved"  # any force-resolved transaction, regardless of reason
+    OWNERSHIP_TRANSFERRED = 95, "Ownership Transferred"
 
 
 class ResolutionReason(TextChoices):
@@ -940,6 +1050,7 @@ class Transaction(Model):
         default=TransactionStatus.REQUESTED,
         help_text="The current status of the Transaction.",
     )
+    _previous_status: int | None = None
     resolution_reason = CharField(
         max_length=32,
         choices=ResolutionReason.choices,
@@ -1081,9 +1192,9 @@ class Transaction(Model):
         Returns Transactions where the given User is the active borrower (party 2)
 
         "Active" is defined by exclusion: every state except the closed ones
-        (RETURNED, REJECTED, CANCELLED, RESOLVED) and the not-yet-accepted
-        REQUESTED. In-flight states like COLLECTION_ASSERTED, RETURN_REQUESTED,
-        and DISPUTED all count as active borrows.
+        (RETURNED, REJECTED, CANCELLED, RESOLVED, OWNERSHIP_TRANSFERRED) and the
+        not-yet-accepted REQUESTED. In-flight states like COLLECTION_ASSERTED,
+        RETURN_REQUESTED, and DISPUTED all count as active borrows.
         """
         return Transaction.objects.filter(
             Q(party2=user)
@@ -1098,6 +1209,7 @@ class Transaction(Model):
                     TransactionStatus.REJECTED,
                     TransactionStatus.CANCELLED,
                     TransactionStatus.RESOLVED,
+                    TransactionStatus.OWNERSHIP_TRANSFERRED,
                 ]
             )
         )
@@ -1108,9 +1220,9 @@ class Transaction(Model):
         Returns Transactions where the given User is the active lender (party 1)
 
         "Active" is defined by exclusion: every state except the closed ones
-        (RETURNED, REJECTED, CANCELLED, RESOLVED) and the not-yet-accepted
-        REQUESTED. In-flight states like COLLECTION_ASSERTED, RETURN_REQUESTED,
-        and DISPUTED all count as active lends.
+        (RETURNED, REJECTED, CANCELLED, RESOLVED, OWNERSHIP_TRANSFERRED) and the
+        not-yet-accepted REQUESTED. In-flight states like COLLECTION_ASSERTED,
+        RETURN_REQUESTED, and DISPUTED all count as active lends.
         """
         return Transaction.objects.filter(
             Q(party1=user)
@@ -1121,6 +1233,7 @@ class Transaction(Model):
                     TransactionStatus.REJECTED,
                     TransactionStatus.CANCELLED,
                     TransactionStatus.RESOLVED,
+                    TransactionStatus.OWNERSHIP_TRANSFERRED,
                 ]
             )
         )

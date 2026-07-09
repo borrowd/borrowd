@@ -23,7 +23,8 @@
         <form method="post"
               enctype="multipart/form-data"
               class="bg-primary-content rounded-2xl border border-base-200 shadow-sm p-6 flex flex-col gap-4"
-              onsubmit="this.querySelector('button[type=submit]').disabled = true;">
+              x-data="{ isSubmitting: false, submitForm(event) { if (this.isSubmitting) { event.preventDefault(); return; } this.isSubmitting = true; } }"
+              @submit="submitForm($event)">
             {% csrf_token %}
 
             {% for field in form %}
@@ -181,10 +182,14 @@
                             {# Pending previews — shown immediately, saved on form submit #}
                             <template x-for="(preview, index) in pendingPreviews" :key="index">
                                 <div class="border border-dashed border-base-content/30 rounded flex flex-col items-center pb-2 overflow-hidden w-full max-w-[96px] relative">
-                                    <div class="w-full aspect-square overflow-hidden rounded-t">
+                                    <div class="relative w-full aspect-square overflow-hidden rounded-t">
                                         <img :src="preview"
                                              alt="Pending upload"
                                              class="w-full h-full object-cover" />
+                                        <span x-show="isSubmitting"
+                                              x-cloak
+                                              class="photo-upload-shimmer absolute inset-0 pointer-events-none"
+                                              aria-hidden="true"></span>
                                     </div>
                                     <span class="absolute top-1 right-1 bg-base-content/70 text-base-100 text-[9px] font-semibold px-1 py-px rounded leading-none">New</span>
                                     <button type="button"
@@ -242,11 +247,11 @@
                     <c-button-nav url="{% url 'item-detail' form.instance.pk %}" class="btn">
                         Cancel
                     </c-button-nav>
-                    <c-button type="submit" class="btn btn-primary">
+                    <c-button type="submit" class="btn btn-primary" x-bind:disabled="isSubmitting">
                         Save changes
                     </c-button>
                 {% else %}
-                    <c-button type="submit" class="btn btn-primary">
+                    <c-button type="submit" class="btn btn-primary" x-bind:disabled="isSubmitting">
                         Add item
                     </c-button>
                 {% endif %}

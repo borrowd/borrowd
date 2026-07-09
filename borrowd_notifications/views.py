@@ -11,6 +11,7 @@ from django.views.decorators.http import require_POST
 from notifications.models import Notification
 
 from borrowd_users.models import BorrowdUser
+from borrowd_users.request import get_authenticated_user
 
 from .models import (
     ChannelType,
@@ -65,6 +66,15 @@ NOTIFICATION_CATEGORIES: list[dict[str, Any]] = [
         "types": [
             (NotificationType.ITEM_NOTIFY_WHEN_AVAILABLE, "Item now available"),
             (NotificationType.ITEM_SUBSCRIPTION, "Item subscription"),
+        ],
+    },
+    {
+        "name": "Ownership Transfer",
+        "slug": "giveaway",
+        "types": [
+            (NotificationType.GIVEAWAY_OFFER_SENT, "Giveaway offer received"),
+            (NotificationType.GIVEAWAY_ACCEPTED, "Giveaway accepted"),
+            (NotificationType.GIVEAWAY_DECLINED, "Giveaway declined"),
         ],
     },
 ]
@@ -169,7 +179,7 @@ def _build_preferences_context(user: BorrowdUser) -> dict[str, Any]:
 def notification_preferences_view(request: HttpRequest) -> HttpResponse:
     from django.conf import settings
 
-    user: BorrowdUser = request.user  # type: ignore[assignment]
+    user = get_authenticated_user(request)
     context = _build_preferences_context(user)
     context["vapid_public_key"] = settings.VAPID_PUBLIC_KEY
     return render(request, "notifications/preferences.html", context)
@@ -178,7 +188,7 @@ def notification_preferences_view(request: HttpRequest) -> HttpResponse:
 @login_required
 @require_POST
 def toggle_preference(request: HttpRequest) -> HttpResponse:
-    user: BorrowdUser = request.user  # type: ignore[assignment]
+    user = get_authenticated_user(request)
     type_value = request.POST.get("notification_type", "")
     channel_value = request.POST.get("channel", "")
     enabled = request.POST.get("enabled") == "true"
@@ -214,7 +224,7 @@ def toggle_preference(request: HttpRequest) -> HttpResponse:
 @login_required
 @require_POST
 def bulk_toggle_preferences(request: HttpRequest) -> HttpResponse:
-    user: BorrowdUser = request.user  # type: ignore[assignment]
+    user = get_authenticated_user(request)
     scope = request.POST.get("scope", "")
     channel_value = request.POST.get("channel", "")
     enabled = request.POST.get("enabled") == "true"
@@ -270,9 +280,10 @@ def _format_notification(notification: Notification) -> str:
 
 @login_required
 def notification_inbox_view(request: HttpRequest) -> HttpResponse:
-    user: BorrowdUser = request.user  # type: ignore[assignment]
+    user = get_authenticated_user(request)
 
     # only show the notifications that where sent through the in-app channel
+    # notifications is untyped (see mypy.ini): user.notifications is invisible to mypy.
     qs: QuerySet[Notification] = _app_channel_qs(user.notifications.all())  # type: ignore[attr-defined]
     paginator = Paginator(qs, _INBOX_PAGE_SIZE)
     page_obj = paginator.get_page(request.GET.get("page", 1))
@@ -289,6 +300,7 @@ def notification_inbox_view(request: HttpRequest) -> HttpResponse:
         "notifications/inbox.html",
         {
             "page_obj": page_obj,
+            # notifications is untyped (see mypy.ini): unread() manager method is invisible.
             "unread_count": qs.unread().count(),  # type: ignore[attr-defined]
         },
     )
@@ -310,7 +322,8 @@ def mark_notification_read(request: HttpRequest, pk: int) -> HttpResponse:
 @login_required
 @require_POST
 def mark_all_notifications_read(request: HttpRequest) -> HttpResponse:
-    user: BorrowdUser = request.user  # type: ignore[assignment]
+    user = get_authenticated_user(request)
+    # notifications is untyped (see mypy.ini): user.notifications is invisible to mypy.
     _app_channel_qs(user.notifications.all()).update(unread=False)  # type: ignore[attr-defined]
     return redirect("notification-inbox")
 
@@ -341,7 +354,8 @@ def remove_app_notification(request: HttpRequest, pk: int) -> HttpResponse:
 @login_required
 @require_POST
 def remove_all_app_notifications(request: HttpRequest) -> HttpResponse:
-    user: BorrowdUser = request.user  # type: ignore[assignment]
+    user = get_authenticated_user(request)
+    # notifications is untyped (see mypy.ini): user.notifications is invisible to mypy.
     visible_notifications = _app_channel_qs(user.notifications.all())  # type: ignore[attr-defined]
     visible_notifications.update(unread=False)
     NotificationMetadata.objects.filter(
