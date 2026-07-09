@@ -1,0 +1,28 @@
+{% extends "notifications/messages/layout.html" %}
+
+{% block title %}
+    Giveaway declined - Borrow'd
+{% endblock %}
+
+{% block content %}
+    <h2>
+        Hi {{ recipient_name }},
+    </h2>
+
+    <p>
+        {{ receiver_name }} has declined your giveaway offer for
+        <strong>{{ item_name }}</strong>. The item remains on loan.
+    </p>
+
+    <p>
+        You can request its return or offer it again from your inventory:
+    </p>
+
+    <div class="text-center">
+        <a href="{{ item_url }}" class="button">View item</a>
+    </div>
+
+    <p>
+        The Borrow'd team
+    </p>
+{% endblock %}

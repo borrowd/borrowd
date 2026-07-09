@@ -88,6 +88,11 @@ class NotificationType(models.TextChoices):
     REQUEST_CANCELLED_OWNER_LEFT = "REQUEST_CANCELLED_OWNER_LEFT"
     LOAN_ENDED_OWNER_LEFT = "LOAN_ENDED_OWNER_LEFT"
 
+    # Ownership transfer / giveaway
+    GIVEAWAY_OFFER_SENT = "GIVEAWAY_OFFER_SENT"
+    GIVEAWAY_ACCEPTED = "GIVEAWAY_ACCEPTED"
+    GIVEAWAY_DECLINED = "GIVEAWAY_DECLINED"
+
     @classmethod
     def mandatory_types(cls) -> "frozenset[NotificationType]":
         return frozenset(
@@ -97,6 +102,7 @@ class NotificationType(models.TextChoices):
                 cls.RETURN_ASSERTED,
                 cls.MEMBERSHIP_PENDING,
                 cls.ITEM_RETURN_REQUESTED,
+                cls.GIVEAWAY_OFFER_SENT,
             }
         )
 
@@ -121,6 +127,22 @@ class NotificationType(models.TextChoices):
                 "recipient_name": notification.recipient.first_name,
                 "item_name": notification.target.item.name,
                 "actor_name": notification.actor.first_name,
+            }
+        # Giveaway context is keyed off the verb because the decline transition
+        # lands back on COLLECTED, which would otherwise match that status case.
+        if notification.verb in (
+            NotificationType.GIVEAWAY_OFFER_SENT.value,
+            NotificationType.GIVEAWAY_ACCEPTED.value,
+            NotificationType.GIVEAWAY_DECLINED.value,
+        ) and isinstance(notification.target, Transaction):
+            giveaway: Transaction = notification.target
+            return {
+                "recipient_name": notification.recipient.first_name,
+                "gifter_name": giveaway.party1.first_name,
+                "receiver_name": giveaway.party2.first_name,
+                "item_name": giveaway.item.name,
+                "item_url": settings.BASE_URL
+                + reverse("item-detail", args=[giveaway.item.pk]),
             }
         if isinstance(notification.target, Transaction):
             transaction: Transaction = notification.target
@@ -265,6 +287,9 @@ _MESSAGE_TEMPLATES: dict[NotificationType, str] = {
     NotificationType.REQUEST_CANCELLED_BORROWER_LEFT: "{actor_name}'s borrow request for {item_name} was cancelled",
     NotificationType.REQUEST_CANCELLED_OWNER_LEFT: "{actor_name} left — your request for {item_name} was cancelled",
     NotificationType.LOAN_ENDED_OWNER_LEFT: "{actor_name} left — your loan of {item_name} has ended",
+    NotificationType.GIVEAWAY_OFFER_SENT: "{gifter_name} wants to give you {item_name}!",
+    NotificationType.GIVEAWAY_ACCEPTED: "{receiver_name} accepted your gift of {item_name}",
+    NotificationType.GIVEAWAY_DECLINED: "{receiver_name} declined your giveaway offer for {item_name}",
 }
 
 

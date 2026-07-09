@@ -28,6 +28,7 @@ from borrowd_items.models import Item, ItemStatus, Transaction
 from .exceptions import AccountDeletionBlocked
 from .forms import ChangePasswordForm, CustomSignupForm, ProfileUpdateForm
 from .models import BorrowdUser, SearchTarget, SearchTerm
+from .request import get_authenticated_user
 from .services import soft_delete_account
 
 
@@ -74,7 +75,7 @@ def public_profile_view(
     if subject_user == request.user:
         return redirect("profile")
 
-    viewer: BorrowdUser = request.user  # type: ignore[assignment]
+    viewer = get_authenticated_user(request)
 
     # Check if the viewer shares a group with the subject user
     viewer_shares_group_with_subject = Membership.objects.filter(
@@ -97,13 +98,13 @@ def public_profile_view(
 
 @login_required
 def profile_view(request: HttpRequest) -> HttpResponse:
-    user: BorrowdUser = request.user  # type: ignore[assignment]
+    user = get_authenticated_user(request)
     profile = user.profile
 
     if request.method == "POST":
         form = ProfileUpdateForm(request.POST, request.FILES, instance=profile)
         if form.is_valid():
-            form.instance.updated_by = request.user  # type: ignore[assignment]
+            form.instance.updated_by = user
             form.save()
             messages.success(request, "Profile updated")
             return redirect("profile")
@@ -144,13 +145,13 @@ def delete_profile_photo_view(request: HttpRequest) -> JsonResponse:
     fields to be left as-is. This is also why it returns json rather than an http
     redirect or similar.
     """
-    user: BorrowdUser = request.user  # type: ignore[assignment]
+    user = get_authenticated_user(request)
     profile = user.profile
 
     if profile.image:
         profile.image.delete(save=False)
         profile.image = None
-        profile.updated_by = request.user  # type: ignore[assignment]
+        profile.updated_by = user
         profile.save()
         # Returns json rather than http in order to allow other in-progress fields to be left as-is.
         return JsonResponse(
@@ -182,7 +183,7 @@ def inventory_view(request: HttpRequest) -> HttpResponse:
     4. borrowed_items_from_others — items user is borrowing from others
     5. owned_items_available      — user's items with no active transactions
     """
-    user: BorrowdUser = request.user  # type: ignore[assignment]
+    user = get_authenticated_user(request)
 
     # All transactions associated with the user with status == REQUESTED (awaiting approval from someone)
     requested_transactions = Transaction.get_requested_status_transactions_for_user(
@@ -281,7 +282,7 @@ def delete_account_view(request: HttpRequest) -> HttpResponse:
 
     Requires the user to retype their username to delete their account
     """
-    user: BorrowdUser = request.user  # type: ignore[assignment]
+    user = get_authenticated_user(request)
 
     if request.POST.get("confirm_username", "").strip() != user.username:
         messages.error(
@@ -348,7 +349,7 @@ class CustomSignupView(CreateView[BorrowdUser, CustomSignupForm]):
         return super().form_invalid(form)
 
 
-class CustomPasswordChangeView(PasswordChangeView):  # type: ignore[misc]
+class CustomPasswordChangeView(PasswordChangeView):
     """
     Custom password change view that displays validation errors as warning toasts.
 
@@ -373,7 +374,10 @@ class CustomPasswordChangeView(PasswordChangeView):  # type: ignore[misc]
         if error_message:
             messages.warning(self.request, error_message)
 
-        return super().form_invalid(form)  # type: ignore[no-any-return]
+        # allauth's PasswordChangeView.form_invalid is loosely typed (returns
+        # Any); pin it to the real return type.
+        response: HttpResponse = super().form_invalid(form)
+        return response
 
 
 @login_required
@@ -388,7 +392,7 @@ def search_terms_export_view(
     - target: optional, one of {"items", "groups"}
     - limit: optional, default 200, max 1000
     """
-    user: BorrowdUser = request.user  # type: ignore[assignment]
+    user = get_authenticated_user(request)
     if not user.is_staff:
         return HttpResponseForbidden("Admin access required.")
 

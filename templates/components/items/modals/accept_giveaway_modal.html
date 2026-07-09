@@ -1,0 +1,15 @@
+{# Confirmation modal shown when the borrower clicks "Accept gift" on a giveaway offer. #}
+{# Hidden form submitted by the modal confirm button via confirm_submit_form_id. #}
+
+{% url 'item-borrow' item.pk as borrow_url %}
+{% with form_id="form-"|add:modal_id %}
+    <form id="{{ form_id }}"
+          method="POST"
+          action="{{ borrow_url }}"
+          class="hidden">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="ACCEPT_GIVEAWAY">
+    </form>
+    {% include "components/modal.html" with modal_id=modal_id modal_title="Accept this gift" button_layout="equal" confirm_button_text="Accept gift" cancel_button_text="Cancel" confirm_button_class="btn btn-soft btn-success font-semibold" confirm_submit_form_id=form_id modal_content_template="components/items/modals/_accept_giveaway_modal_content.html" %}
+
+{% endwith %}

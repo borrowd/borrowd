@@ -68,6 +68,27 @@ TODO: Transfer over all to daisy */
   --color-borrowd-light-gray: #e6e6ed;
 }
 @layer utilities {
+  @keyframes photo-upload-shimmer {
+    from {
+      transform: translateY(110%);
+    }
+    to {
+      transform: translateY(-110%);
+    }
+  }
+
+  .photo-upload-shimmer {
+    background: linear-gradient(to top, transparent 20%, rgb(255 255 255 / 65%) 50%, transparent 80%);
+    animation: photo-upload-shimmer 1.6s ease-in-out infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .photo-upload-shimmer {
+      animation: none;
+      display: none;
+    }
+  }
+
   .btn-waitlisted {
     --btn-fg: #6B7280;
     --btn-bg: rgb(156 163 175 / 0.15);

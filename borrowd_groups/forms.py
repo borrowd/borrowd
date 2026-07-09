@@ -65,7 +65,7 @@ class BorrowdGroupForm(forms.ModelForm[BorrowdGroup]):
         }
 
     def clean_name(self) -> str:
-        name = self.cleaned_data.get("name")
+        name: str | None = self.cleaned_data.get("name")
 
         if not name:
             raise forms.ValidationError("Group name is required.")
@@ -82,7 +82,7 @@ class BorrowdGroupForm(forms.ModelForm[BorrowdGroup]):
         if queryset.exists():
             raise forms.ValidationError(DUPLICATE_GROUP_NAME_ERROR)
 
-        return name  # type: ignore[no-any-return]
+        return name
 
 
 class GroupCreateForm(BorrowdGroupForm):

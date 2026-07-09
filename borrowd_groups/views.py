@@ -219,7 +219,7 @@ class GroupCreateView(
 
     def get_form_kwargs(self) -> dict[str, Any]:
         kwargs = super().get_form_kwargs()
-        kwargs["user"] = self.request.user
+        kwargs["user"] = get_authenticated_user(self.request)
         return kwargs
 
     def form_valid(self, form: GroupCreateForm) -> HttpResponse:
@@ -457,7 +457,7 @@ class GroupJoinView(LoginRequiredMixin, View):
 
         # Check if membership_requires_approval, set pending
         membership = group.add_user(
-            request.user,  # type: ignore[arg-type]
+            get_authenticated_user(request),
             trust_level=form.cleaned_data["trust_level"],
         )
         if membership.status == MembershipStatus.PENDING:
@@ -490,7 +490,8 @@ def get_memberships_with_pending_actions(memberships: list[Membership]) -> set[i
     )
 
 
-# No typing for django_filter, so mypy doesn't like us subclassing.
+# django-filter is untyped (see the django_filters note in mypy.ini), so
+# subclassing FilterView trips strict mode's "subclass of Any" check.
 class GroupListView(LoginRequiredMixin, FilterView):  # type: ignore[misc]
     template_name = "groups/group_list.html"
     model = Membership
@@ -499,13 +500,15 @@ class GroupListView(LoginRequiredMixin, FilterView):  # type: ignore[misc]
     def get(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
         term = request.GET.get("search")
         if term is not None:
-            user: BorrowdUser = request.user  # type: ignore[assignment]
             SearchTerm.record_search(
-                user=user,
+                user=get_authenticated_user(request),
                 target=SearchTarget.GROUPS,
                 term=term,
             )
-        return super().get(request, *args, **kwargs)  # type: ignore[no-any-return]
+        # super() is FilterView.get, which is Any (see the django_filters note
+        # in mypy.ini); annotating pins it to the real return type.
+        response: HttpResponse = super().get(request, *args, **kwargs)
+        return response
 
     def get_template_names(self) -> list[str]:
         if self.request.headers.get("HX-Request"):
@@ -528,7 +531,7 @@ class GroupListView(LoginRequiredMixin, FilterView):  # type: ignore[misc]
 
         context["object_list"] = memberships
         context["has_groups"] = Membership.objects.filter(
-            user=self.request.user
+            user=get_authenticated_user(self.request)
         ).exists()
         return context
 
@@ -544,7 +547,7 @@ class GroupUpdateView(
 
     def get_form_kwargs(self) -> dict[str, Any]:
         kwargs = super().get_form_kwargs()
-        kwargs["user"] = self.request.user
+        kwargs["user"] = get_authenticated_user(self.request)
         return kwargs
 
     def form_valid(self, form: GroupUpdateForm) -> HttpResponse:
@@ -715,7 +718,7 @@ class LeaveGroupView(LoginRequiredMixin, View):
         self, request: HttpRequest, pk: int
     ) -> HttpResponsePermanentRedirect | HttpResponseRedirect:
         group = get_object_or_404(BorrowdGroup, pk=pk)
-        user: BorrowdUser = request.user  # type: ignore[assignment]
+        user = get_authenticated_user(request)
 
         membership = Membership.objects.filter(
             user=user,
@@ -763,7 +766,7 @@ class BecomeModeratorView(LoginRequiredMixin, View):
     def post(
         self, request: HttpRequest, pk: int
     ) -> HttpResponsePermanentRedirect | HttpResponseRedirect:
-        user: BorrowdUser = request.user  # type: ignore[assignment]
+        user = get_authenticated_user(request)
 
         with transaction.atomic():
             # Lock group row. This prevents race condition (two users clicking)

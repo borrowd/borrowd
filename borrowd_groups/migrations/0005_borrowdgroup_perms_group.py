@@ -9,7 +9,7 @@ from django.db import migrations, models
 logger = getLogger("borrowd")
 
 
-def forwards_func(apps, schema_editor):  # type: ignore[no-untyped-def]
+def forwards_func(apps, schema_editor):
     BorrowdGroup = apps.get_model("borrowd_groups", "BorrowdGroup")
     for borrowd_group in BorrowdGroup.objects.all():
         try:
@@ -25,7 +25,7 @@ def forwards_func(apps, schema_editor):  # type: ignore[no-untyped-def]
             )
 
 
-def reverse_func(apps, schema_editor):  # type: ignore[no-untyped-def]
+def reverse_func(apps, schema_editor):
     pass
 
 

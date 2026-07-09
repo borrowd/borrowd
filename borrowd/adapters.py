@@ -1,10 +1,11 @@
 from typing import Any
 
-from allauth.account.adapter import DefaultAccountAdapter, HttpRequest
+from allauth.account.adapter import DefaultAccountAdapter
+from django.http import HttpRequest
 from ipware import get_client_ip
 
 
-class IPWareAccountAdapter(DefaultAccountAdapter):  # type: ignore[misc]
+class IPWareAccountAdapter(DefaultAccountAdapter):
     def get_client_ip(self, request: HttpRequest) -> Any:
         # ipware will automatically check common headers like X-Forwarded-For
         client_ip, is_routable = get_client_ip(request)

@@ -1,0 +1,10 @@
+Hi {{ recipient_name }},
+
+Great news! {{ gifter_name }} has decided to permanently give you {{ item_name }}.
+
+Head to your inventory to accept the gift:
+{{ item_url }}
+
+Thanks for being part of a community that shares more and wastes less.
+
+The Borrow'd team
