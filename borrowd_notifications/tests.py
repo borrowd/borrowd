@@ -1,3 +1,4 @@
+import json
 from datetime import timedelta
 from unittest.mock import patch
 
@@ -24,7 +25,12 @@ from borrowd_notifications.channels import (
 from borrowd_notifications.services import NotificationService
 from borrowd_users.models import BorrowdUser
 
-from .models import NotificationMetadata, NotificationPreference, NotificationType
+from .models import (
+    NotificationMetadata,
+    NotificationPreference,
+    NotificationType,
+    PushSubscription,
+)
 
 
 class GroupMemberJoinedNotificationTests(TestCase):
@@ -1819,3 +1825,95 @@ class SummaryDigestTests(TestCase):
         out = StringIO()
         call_command("send_summary_digests", stdout=out)
         self.assertIn("1", out.getvalue())
+
+
+class PushSubscribeEndpointAllowlistTests(TestCase):
+    """Tests that subscribe_push only accepts endpoints from known push services.
+
+    Endpoints are attacker-controlled input; PUSHNotificationStrategy.send() later
+    POSTs to whatever URL is stored, so anything outside the vendor allowlist must
+    be rejected here rather than persisted (see borrowd_notifications/channels.py).
+    """
+
+    def setUp(self) -> None:
+        self.user = BorrowdUser.objects.create_user(
+            username="user", email="user@example.com", password="password"
+        )
+        self.client.force_login(self.user)
+
+    def _subscribe(self, endpoint: str) -> HttpResponse:
+        return self.client.post(  # type: ignore[return-value]
+            "/push/subscribe/",
+            data=json.dumps(
+                {
+                    "endpoint": endpoint,
+                    "keys": {"p256dh": "test-p256dh", "auth": "test-auth"},
+                }
+            ),
+            content_type="application/json",
+        )
+
+    def test_accepts_fcm_endpoint(self) -> None:
+        """A real Firebase Cloud Messaging endpoint is accepted and stored."""
+        endpoint = "https://fcm.googleapis.com/fcm/send/abc123"
+        response = self._subscribe(endpoint)
+        self.assertEqual(response.status_code, 201)
+        self.assertTrue(PushSubscription.objects.filter(endpoint=endpoint).exists())
+
+    def test_accepts_mozilla_endpoint(self) -> None:
+        """A real Mozilla autopush endpoint is accepted and stored."""
+        endpoint = "https://updates.push.services.mozilla.com/wpush/v2/abc123"
+        response = self._subscribe(endpoint)
+        self.assertEqual(response.status_code, 201)
+        self.assertTrue(PushSubscription.objects.filter(endpoint=endpoint).exists())
+
+    def test_accepts_apple_endpoint(self) -> None:
+        """A real Apple web push endpoint is accepted and stored."""
+        endpoint = "https://web.push.apple.com/abc123"
+        response = self._subscribe(endpoint)
+        self.assertEqual(response.status_code, 201)
+        self.assertTrue(PushSubscription.objects.filter(endpoint=endpoint).exists())
+
+    def test_accepts_windows_notify_subdomain(self) -> None:
+        """A WNS endpoint on any *.notify.windows.com subdomain is accepted."""
+        endpoint = "https://wns2-abc1.notify.windows.com/abc123"
+        response = self._subscribe(endpoint)
+        self.assertEqual(response.status_code, 201)
+        self.assertTrue(PushSubscription.objects.filter(endpoint=endpoint).exists())
+
+    def test_rejects_arbitrary_host(self) -> None:
+        """An endpoint on a host outside the allowlist is rejected and not stored."""
+        endpoint = "https://evil.example.com/abc123"
+        response = self._subscribe(endpoint)
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(PushSubscription.objects.filter(endpoint=endpoint).exists())
+
+    def test_rejects_internal_network_target(self) -> None:
+        """An endpoint targeting an internal/link-local address is rejected (SSRF guard)."""
+        endpoint = "https://169.254.169.254/latest/meta-data/"
+        response = self._subscribe(endpoint)
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(PushSubscription.objects.filter(endpoint=endpoint).exists())
+
+    def test_rejects_non_https_scheme(self) -> None:
+        """A plain-http endpoint is rejected even if the host would otherwise match."""
+        endpoint = "http://fcm.googleapis.com/fcm/send/abc123"
+        response = self._subscribe(endpoint)
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(PushSubscription.objects.filter(endpoint=endpoint).exists())
+
+    def test_rejects_lookalike_host_with_allowed_domain_as_path(self) -> None:
+        """A host that merely contains an allowed domain in its path is rejected."""
+        endpoint = "https://evil.example.com/fcm.googleapis.com"
+        response = self._subscribe(endpoint)
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(PushSubscription.objects.filter(endpoint=endpoint).exists())
+
+    def test_rejects_lookalike_host_with_allowed_domain_as_subdomain_prefix(
+        self,
+    ) -> None:
+        """A host with an allowed domain as a prefix of a different domain is rejected."""
+        endpoint = "https://fcm.googleapis.com.evil.example.com/abc123"
+        response = self._subscribe(endpoint)
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(PushSubscription.objects.filter(endpoint=endpoint).exists())

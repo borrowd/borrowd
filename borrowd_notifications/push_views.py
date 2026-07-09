@@ -1,4 +1,5 @@
 import json
+from urllib.parse import urlparse
 
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
@@ -8,6 +9,29 @@ from django.views.decorators.http import require_POST
 from borrowd_users.models import BorrowdUser
 
 from .models import PushSubscription
+
+# Real browsers only ever issue Web Push endpoints from this small set of
+# vendor push services. Rejecting anything else stops the server from being
+# tricked into POSTing to attacker-chosen URLs (SSRF) via webpush() in
+# channels.py.
+_ALLOWED_PUSH_ENDPOINT_HOSTS = frozenset(
+    {
+        "fcm.googleapis.com",
+        "updates.push.services.mozilla.com",
+        "web.push.apple.com",
+    }
+)
+_ALLOWED_PUSH_ENDPOINT_HOST_SUFFIXES = (".notify.windows.com",)
+
+
+def _is_allowed_push_endpoint(endpoint: str) -> bool:
+    parsed = urlparse(endpoint)
+    if parsed.scheme != "https" or not parsed.hostname:
+        return False
+    host = parsed.hostname.lower()
+    return host in _ALLOWED_PUSH_ENDPOINT_HOSTS or host.endswith(
+        _ALLOWED_PUSH_ENDPOINT_HOST_SUFFIXES
+    )
 
 
 def service_worker(request: HttpRequest) -> HttpResponse:
@@ -29,13 +53,15 @@ def subscribe_push(request: HttpRequest) -> HttpResponse:
         endpoint: str = data["endpoint"]
         p256dh: str = data["keys"]["p256dh"]
         auth: str = data["keys"]["auth"]
-
         # mypy complains that `request.user` is a AbstractBaseUser or
         # AnonymousUser, but when I follow the code it looks like it's
         # AbstractUser or AnonymousUser, which we *would* comply with
         # here (BorrowdUser subclasses AbstractUser).
         user: BorrowdUser = request.user  # type: ignore[assignment]
     except (json.JSONDecodeError, KeyError, TypeError):
+        return HttpResponse(status=400)
+
+    if not _is_allowed_push_endpoint(endpoint):
         return HttpResponse(status=400)
 
     PushSubscription.objects.update_or_create(
