@@ -1,7 +1,7 @@
 <p>
     You are about to permanently transfer ownership of
     <strong>{{ item.name }}</strong> to
-    <strong>{{ item.get_requesting_user.first_name|capfirst|default:"the requester" }}</strong>.
+    <strong>{% firstof person_name "the requester" %}</strong>.
 </p>
 <p class="mt-2 text-sm text-error">
     This cannot be undone.
