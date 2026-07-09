@@ -7,7 +7,9 @@ used throughout the application.
 
 from typing import TYPE_CHECKING, Any
 
+from django.urls import reverse
 from django.utils.html import format_html
+from django.utils.text import capfirst
 
 from .models import (
     AvailabilitySubscriptionStatus,
@@ -21,6 +23,9 @@ if TYPE_CHECKING:
     from .models import Item, Transaction
 
 
+# Giveaway listings, offers, and pending requests share the gift icon.
+_GIVEAWAY_ICON = '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6"><path stroke-linecap="round" stroke-linejoin="round" d="M21 11.25v8.25a1.5 1.5 0 0 1-1.5 1.5H5.25a1.5 1.5 0 0 1-1.5-1.5v-8.25M12 4.875A2.625 2.625 0 1 0 9.375 7.5H12m0-2.625V7.5m0-2.625A2.625 2.625 0 1 1 14.625 7.5H12m0 0V21m-8.625-9.75h18c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125h-18c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125Z" /></svg>'
+
 # Banner styling configuration
 BANNER_ICONS = {
     "available": '<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z"/></svg>',
@@ -32,7 +37,9 @@ BANNER_ICONS = {
     "return_requested": '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="size-5"><path fill-rule="evenodd" d="M7.793 2.232a.75.75 0 0 1-.025 1.06L3.622 7.25h10.003a5.375 5.375 0 0 1 0 10.75H10.75a.75.75 0 0 1 0-1.5h2.875a3.875 3.875 0 0 0 0-7.75H3.622l4.146 3.957a.75.75 0 0 1-1.036 1.085l-5.5-5.25a.75.75 0 0 1 0-1.085l5.5-5.25a.75.75 0 0 1 1.06.025Z" clip-rule="evenodd" /></svg>',
     "disputed": '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="size-5"><path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495ZM10 5a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5A.75.75 0 0 1 10 5Zm0 9a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" clip-rule="evenodd" /></svg>',
     "removed": '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="size-5"><path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495ZM10 5a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5A.75.75 0 0 1 10 5Zm0 9a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" clip-rule="evenodd" /></svg>',
-    "giveaway_offered": '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6"><path stroke-linecap="round" stroke-linejoin="round" d="M21 11.25v8.25a1.5 1.5 0 0 1-1.5 1.5H5.25a1.5 1.5 0 0 1-1.5-1.5v-8.25M12 4.875A2.625 2.625 0 1 0 9.375 7.5H12m0-2.625V7.5m0-2.625A2.625 2.625 0 1 1 14.625 7.5H12m0 0V21m-8.625-9.75h18c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125h-18c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125Z" /></svg>',
+    "giveaway_offered": _GIVEAWAY_ICON,
+    "giveaway_listing": _GIVEAWAY_ICON,
+    "giveaway_requested": _GIVEAWAY_ICON,
 }
 
 BANNER_STYLES = {
@@ -52,13 +59,9 @@ BANNER_STYLES = {
     "return_requested": {"bg": "bg-primary/15", "text": "text-primary"},
     "disputed": {"bg": "bg-warning/15", "text": "text-[#8E6900]"},
     "giveaway_offered": {"bg": "bg-primary/15", "text": "text-primary"},
+    "giveaway_listing": {"bg": "bg-primary/15", "text": "text-primary"},
+    "giveaway_requested": {"bg": "bg-primary/15", "text": "text-primary"},
 }
-
-# Giveaway listings and their pending requests share the giveaway gift styling.
-BANNER_ICONS["giveaway_listing"] = BANNER_ICONS["giveaway_offered"]
-BANNER_ICONS["giveaway_requested"] = BANNER_ICONS["giveaway_offered"]
-BANNER_STYLES["giveaway_listing"] = BANNER_STYLES["giveaway_offered"]
-BANNER_STYLES["giveaway_requested"] = BANNER_STYLES["giveaway_offered"]
 
 
 def build_card_ids(context: str, pk: int) -> dict[str, str]:
@@ -146,19 +149,23 @@ def get_banner_info_for_item(
     # Get current transaction for this item
     current_transaction = None
     if current_borrower or requesting_user:
-        current_transaction = item.transactions.filter(
-            status__in=[
-                TransactionStatus.REQUESTED,
-                TransactionStatus.GIVEAWAY_REQUESTED,
-                TransactionStatus.ACCEPTED,
-                TransactionStatus.COLLECTION_ASSERTED,
-                TransactionStatus.COLLECTED,
-                TransactionStatus.GIVEAWAY_OFFERED,
-                TransactionStatus.RETURN_REQUESTED,
-                TransactionStatus.RETURN_ASSERTED,
-                TransactionStatus.DISPUTED,
-            ]
-        ).first()
+        current_transaction = (
+            item.transactions.filter(
+                status__in=[
+                    TransactionStatus.REQUESTED,
+                    TransactionStatus.GIVEAWAY_REQUESTED,
+                    TransactionStatus.ACCEPTED,
+                    TransactionStatus.COLLECTION_ASSERTED,
+                    TransactionStatus.COLLECTED,
+                    TransactionStatus.GIVEAWAY_OFFERED,
+                    TransactionStatus.RETURN_REQUESTED,
+                    TransactionStatus.RETURN_ASSERTED,
+                    TransactionStatus.DISPUTED,
+                ]
+            )
+            .order_by("-created_at")
+            .first()
+        )
 
     if not current_transaction:
         # No active transaction; a giveaway listing advertises itself.
@@ -202,8 +209,10 @@ def get_banner_info_for_item(
         if item.owner == viewing_user:
             return {
                 "banner_type": "giveaway_requested",
-                "person_name": current_transaction.party2.first_name.capitalize(),
-                "person_url": f"/profile/{current_transaction.party2.pk}/",
+                "person_name": capfirst(current_transaction.party2.first_name),
+                "person_url": reverse(
+                    "public-profile", args=[current_transaction.party2.pk]
+                ),
             }
         if requesting_user == viewing_user:
             return {"banner_type": "giveaway_requested"}
