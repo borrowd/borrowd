@@ -54,8 +54,7 @@ class ItemForm(forms.ModelForm[Item]):
 class ItemCreateWithPhotoForm(ItemForm):
     """Form for creating Items with optional photo upload.
 
-    Also exposes the listing type (lend vs give away), which is chosen at
-    creation only; the edit form does not offer it.
+    Also exposes the listing type (lend vs give away)
     """
 
     class Meta(ItemForm.Meta):
