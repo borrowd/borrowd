@@ -4,6 +4,8 @@ from allauth.account.views import PasswordChangeView
 from django.contrib import messages
 from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
+from django.db import DatabaseError
+from django.db.models.query import QuerySet
 from django.http import (
     Http404,
     HttpRequest,
@@ -32,6 +34,13 @@ from .request import get_authenticated_user
 from .services import soft_delete_account
 
 
+def safe_count(queryset: QuerySet[Any]) -> int | None:
+    try:
+        return queryset.count()
+    except DatabaseError:
+        return None
+
+
 def build_profile_context(
     subject_user: BorrowdUser,
     viewing_user: BorrowdUser,
@@ -46,12 +55,14 @@ def build_profile_context(
         "full_name": profile.full_name(),
         "bio": profile.bio,
         "profile_image_url": profile.image.url if profile.image else "",
-        "successful_borrows": Transaction.get_successful_borrows(subject_user).count(),
-        "successful_lends": Transaction.get_successful_lends(subject_user).count(),
-        "returns_requested": Transaction.get_pending_return_requests(
-            subject_user
-        ).count(),
-        "past_disputes": Transaction.get_past_disputes(subject_user).count(),
+        "successful_borrows": safe_count(
+            Transaction.get_successful_borrows(subject_user)
+        ),
+        "successful_lends": safe_count(Transaction.get_successful_lends(subject_user)),
+        "returns_requested": safe_count(
+            Transaction.get_pending_return_requests(subject_user)
+        ),
+        "past_disputes": safe_count(Transaction.get_past_disputes(subject_user)),
     }
 
     """

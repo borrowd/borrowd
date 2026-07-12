@@ -133,7 +133,7 @@
                     <div class="flex items-start justify-between gap-3">
                         <div>
                             <p class="text-2xl font-semibold leading-none text-success">
-                                {{ successful_borrows }}
+                                {{ successful_borrows|default:"--" }}
                             </p>
                             <p class="mt-2 text-xs leading-4 text-base-content/60">
                                 {% trans "Successful borrows" %}
@@ -149,7 +149,7 @@
                     <div class="flex items-start justify-between gap-3">
                         <div>
                             <p class="text-2xl font-semibold leading-none text-success">
-                                {{ successful_lends }}
+                                {{ successful_lends|default:"--" }}
                             </p>
                             <p class="mt-2 text-xs leading-4 text-base-content/60">
                                 {% trans "Successful lends" %}
@@ -165,7 +165,7 @@
                     <div class="flex items-start justify-between gap-3">
                         <div>
                             <p class="text-2xl font-semibold leading-none text-warning">
-                                {{ returns_requested }}
+                                {{ returns_requested|default:"--" }}
                             </p>
                             <p class="mt-2 text-xs leading-4 text-base-content/60">
                                 {% trans "Item returns requested" %}
@@ -181,7 +181,7 @@
                     <div class="flex items-start justify-between gap-3">
                         <div>
                             <p class="text-2xl font-semibold leading-none text-error">
-                                {{ past_disputes }}
+                                {{ past_disputes|default:"--" }}
                             </p>
                             <p class="mt-2 text-xs leading-4 text-base-content/60">
                                 {% trans "Past disputes" %}

@@ -33,7 +33,7 @@
                         <div class="flex items-start justify-between gap-2">
                             <div>
                                 <p class="text-xl font-semibold leading-none text-success">
-                                    {{ profile_context.successful_borrows }}
+                                    {{ profile_context.successful_borrows|default:"--" }}
                                 </p>
                                 <p class="mt-2 text-xs leading-4 text-base-content/60">
                                     {% trans "Successful borrows" %}
@@ -49,7 +49,7 @@
                         <div class="flex items-start justify-between gap-2">
                             <div>
                                 <p class="text-xl font-semibold leading-none text-success">
-                                    {{ profile_context.successful_lends }}
+                                    {{ profile_context.successful_lends|default:"--" }}
                                 </p>
                                 <p class="mt-2 text-xs leading-4 text-base-content/60">
                                     {% trans "Successful lends" %}
@@ -65,7 +65,7 @@
                         <div class="flex items-start justify-between gap-2">
                             <div>
                                 <p class="text-xl font-semibold leading-none text-warning">
-                                    {{ profile_context.returns_requested }}
+                                    {{ profile_context.returns_requested|default:"--" }}
                                 </p>
                                 <p class="mt-2 text-xs leading-4 text-base-content/60">
                                     {% trans "Item returns requested" %}
@@ -81,7 +81,7 @@
                         <div class="flex items-start justify-between gap-2">
                             <div>
                                 <p class="text-xl font-semibold leading-none text-error">
-                                    {{ profile_context.past_disputes }}
+                                    {{ profile_context.past_disputes|default:"--" }}
                                 </p>
                                 <p class="mt-2 text-xs leading-4 text-base-content/60">
                                     {% trans "Past disputes" %}
