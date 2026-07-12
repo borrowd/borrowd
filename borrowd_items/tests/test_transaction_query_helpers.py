@@ -81,7 +81,7 @@ class TransactionQueryHelperTests(TestCase):
 
         self.assertQuerySetEqual(transactions, [matching_tx], ordered=False)
 
-    def test_get_successful_lends_returns_user_returned_and_transferred_lends(
+    def test_get_successful_lends_returns_user_returned_only(
         self,
     ) -> None:
         returned_tx = _transaction(
@@ -90,7 +90,7 @@ class TransactionQueryHelperTests(TestCase):
             self.borrower,
             TransactionStatus.RETURNED,
         )
-        transferred_tx = _transaction(
+        _transaction(
             _item(self.owner, "Given away saw"),
             self.owner,
             self.borrower,
@@ -119,7 +119,7 @@ class TransactionQueryHelperTests(TestCase):
 
         self.assertQuerySetEqual(
             transactions,
-            [returned_tx, transferred_tx],
+            [returned_tx],
             ordered=False,
         )
 

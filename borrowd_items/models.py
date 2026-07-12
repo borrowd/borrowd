@@ -1261,6 +1261,21 @@ class Transaction(Model):
             & Q(
                 status__in=[
                     TransactionStatus.RETURNED,
+                ]
+            )
+        )
+
+    @staticmethod
+    def get_items_given_away(user: BorrowdUser) -> QuerySet["Transaction"]:
+        """
+        Return the transactions in witch the user was a lender
+        and the item was Given away.
+        """
+
+        return Transaction.objects.filter(
+            Q(party1=user)
+            & Q(
+                status__in=[
                     TransactionStatus.OWNERSHIP_TRANSFERRED,
                 ]
             )

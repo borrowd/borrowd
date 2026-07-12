@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from typing import Any
 
 from allauth.account.views import PasswordChangeView
@@ -41,6 +42,16 @@ def safe_count(queryset: QuerySet[Any]) -> int | None:
         return None
 
 
+@dataclass(frozen=True)
+class ProfileStat:
+    value: int | None
+    description: str
+    text_class: str
+    icon: str
+    icon_class: str
+    icon_bg_class: str
+
+
 def build_profile_context(
     subject_user: BorrowdUser,
     viewing_user: BorrowdUser,
@@ -55,14 +66,49 @@ def build_profile_context(
         "full_name": profile.full_name(),
         "bio": profile.bio,
         "profile_image_url": profile.image.url if profile.image else "",
-        "successful_borrows": safe_count(
-            Transaction.get_successful_borrows(subject_user)
-        ),
-        "successful_lends": safe_count(Transaction.get_successful_lends(subject_user)),
-        "returns_requested": safe_count(
-            Transaction.get_pending_return_requests(subject_user)
-        ),
-        "past_disputes": safe_count(Transaction.get_past_disputes(subject_user)),
+        # Defined this way to make the html template less redondant
+        "profile_stats": [
+            ProfileStat(
+                value=safe_count(Transaction.get_successful_borrows(subject_user)),
+                description="Successful borrows",
+                text_class="text-success",
+                icon_bg_class="bg-success/10",
+                icon_class="w-4 h-4 text-success",
+                icon="check",
+            ),
+            ProfileStat(
+                value=safe_count(Transaction.get_successful_lends(subject_user)),
+                description="Successful lends",
+                text_class="text-success",
+                icon_bg_class="bg-success/10",
+                icon_class="w-4 h-4 text-success",
+                icon="check",
+            ),
+            ProfileStat(
+                value=safe_count(Transaction.get_items_given_away(subject_user)),
+                description="Items given away",
+                text_class="text-info",
+                icon_bg_class="bg-info/10",
+                icon_class="w-4 h-4 text-info",
+                icon="gift",
+            ),
+            ProfileStat(
+                value=safe_count(Transaction.get_pending_return_requests(subject_user)),
+                description="Item returns requested",
+                text_class="text-warning",
+                icon_bg_class="bg-warning/10",
+                icon_class="w-4 h-4 text-warning",
+                icon="arrow-path-rounded-square",
+            ),
+            ProfileStat(
+                value=safe_count(Transaction.get_past_disputes(subject_user)),
+                description="Past disputes",
+                text_class="text-error",
+                icon_bg_class="bg-error/10",
+                icon_class="w-4 h-4 text-error",
+                icon="exclamation-triangle",
+            ),
+        ],
     }
 
     """
@@ -140,13 +186,13 @@ def profile_view(request: HttpRequest) -> HttpResponse:
     else:
         form = ProfileUpdateForm(instance=profile)
 
-    profile_contex = build_profile_context(user, user)
-    profile_contex["form"] = form
+    profile_context = build_profile_context(user, user)
+    profile_context["form"] = form
 
     return render(
         request,
         "users/profile.html",
-        profile_contex,
+        profile_context,
     )
 
 
