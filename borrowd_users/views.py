@@ -35,17 +35,23 @@ from .services import soft_delete_account
 def build_profile_context(
     subject_user: BorrowdUser,
     viewing_user: BorrowdUser,
-) -> dict[str, str]:
+) -> dict[str, Any]:
     """
     Profile context to determine which fields to display based on user roles
     """
     profile = subject_user.profile
 
     # Base profile context (all profile views get this).
-    profile_context: dict[str, str] = {
+    profile_context: dict[str, Any] = {
         "full_name": profile.full_name(),
         "bio": profile.bio,
         "profile_image_url": profile.image.url if profile.image else "",
+        "successful_borrows": Transaction.get_successful_borrows(subject_user).count(),
+        "successful_lends": Transaction.get_successful_lends(subject_user).count(),
+        "returns_requested": Transaction.get_pending_return_requests(
+            subject_user
+        ).count(),
+        "past_disputes": Transaction.get_past_disputes(subject_user).count(),
     }
 
     """
@@ -60,6 +66,18 @@ def build_profile_context(
     """
     if viewing_user == subject_user:
         profile_context["email"] = subject_user.email
+        profile_context["profile"] = profile
+
+        # Drives the delete-account modal. Borrowing blocks deletion; items still
+        # out on loan nudge the user to retrieve them first; owning only idle items
+        # just warns they'll be removed; with nothing at all it's a plain confirm.
+        profile_context["is_borrowing"] = Transaction.get_active_borrows_for_user(
+            subject_user
+        ).exists()
+        profile_context["is_lending"] = Transaction.get_active_lends_for_user(
+            subject_user
+        ).exists()
+        profile_context["has_items"] = Item.objects.filter(owner=subject_user).exists()
 
     return profile_context
 
@@ -111,23 +129,13 @@ def profile_view(request: HttpRequest) -> HttpResponse:
     else:
         form = ProfileUpdateForm(instance=profile)
 
-    # Drives the delete-account modal. Borrowing blocks deletion; items still
-    # out on loan nudge the user to retrieve them first; owning only idle items
-    # just warns they'll be removed; with nothing at all it's a plain confirm.
-    is_borrowing = Transaction.get_active_borrows_for_user(user).exists()
-    is_lending = Transaction.get_active_lends_for_user(user).exists()
-    has_items = Item.objects.filter(owner=user).exists()
+    profile_contex = build_profile_context(user, user)
+    profile_contex["form"] = form
 
     return render(
         request,
         "users/profile.html",
-        {
-            "profile": profile,
-            "form": form,
-            "is_borrowing": is_borrowing,
-            "is_lending": is_lending,
-            "has_items": has_items,
-        },
+        profile_contex,
     )
 
 

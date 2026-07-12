@@ -1238,6 +1238,62 @@ class Transaction(Model):
             )
         )
 
+    @staticmethod
+    def get_successful_borrows(user: BorrowdUser) -> QuerySet["Transaction"]:
+        """
+        Return the transactions in witch the user was a borrowers
+        and the item was successfuly RETURNED.
+        """
+
+        return Transaction.objects.filter(
+            Q(party2=user) & Q(status=TransactionStatus.RETURNED)
+        )
+
+    @staticmethod
+    def get_successful_lends(user: BorrowdUser) -> QuerySet["Transaction"]:
+        """
+        Return the transactions in witch the user was a lender
+        and the item was successfuly RETURNED or has been Given away.
+        """
+
+        return Transaction.objects.filter(
+            Q(party1=user)
+            & Q(
+                status__in=[
+                    TransactionStatus.RETURNED,
+                    TransactionStatus.OWNERSHIP_TRANSFERRED,
+                ]
+            )
+        )
+
+    @staticmethod
+    def get_pending_return_requests(user: BorrowdUser) -> QuerySet["Transaction"]:
+        """
+        Returns the transactions where the user is a borrower and the return has been requested.
+        We also include transactions where the Return is asserted but not yet confirmed.
+        """
+
+        return Transaction.objects.filter(
+            Q(party2=user)
+            & Q(
+                status__in=[
+                    TransactionStatus.RETURN_REQUESTED,
+                    TransactionStatus.RETURN_ASSERTED,
+                ]
+            )
+        )
+
+    @staticmethod
+    def get_past_disputes(user: BorrowdUser) -> QuerySet["Transaction"]:
+        """
+        Returns the disputes involving the {user}, we filter on disputed_at instead if status
+        To track also disputes that will eventualy become resolved.
+        """
+
+        return Transaction.objects.filter(
+            Q(disputed_at__isnull=False) & (Q(party1=user) | Q(party2=user))
+        )
+
 
 class AvailabilitySubscriptionStatus(IntegerChoices):
     """
