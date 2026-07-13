@@ -204,7 +204,7 @@ def send_transaction_notifications(
                     description=f"{instance.party1.first_name} approved your request - {instance.item.name} is yours!",
                 )
                 notify.send(
-                    instance.party2,
+                    instance.party1,
                     recipient=[instance.party1],
                     verb=NotificationType.GIVEAWAY_COMPLETED.value,
                     action_object=instance.item,
