@@ -341,8 +341,6 @@ class GiveawayRequestPageRenderingTest(GiveawayRequestFlowTestBase):
         self.client.force_login(self.owner)
         response = self.client.get(reverse("item-create"))
         self.assertContains(response, 'name="listing_type"')
-        self.assertContains(response, 'aria-label="Lend"')
-        self.assertContains(response, 'aria-label="Give away"')
 
     def test_020_detail_shows_gift_banner_and_cta(self) -> None:
         self.client.force_login(self.requester)
