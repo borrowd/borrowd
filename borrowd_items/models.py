@@ -850,7 +850,7 @@ class Item(Model):
                         reason=ResolutionReason.DISPUTE_ITEM_NOT_RETURNED,
                     )
                 case ItemAction.OFFER_GIVEAWAY:
-                    # The lender offers to give the item to the borrower for keeps.
+                    # The lender offers to give the item to the borrower permanently.
                     # Item stays BORROWED until the borrower accepts.
                     current_tx.status = TransactionStatus.GIVEAWAY_OFFERED
                     current_tx.updated_by = user
