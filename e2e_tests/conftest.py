@@ -10,10 +10,14 @@ from pages.auth_flow import AuthFlow
 from pages.inventory_page import InventoryPage
 from pages.item_details_page import ItemDetails
 from pages.item_edit_page import ItemEditPage
-from playwright.sync_api import Browser, Page
+from playwright.sync_api import Browser, Page, expect
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
 load_dotenv()
+
+# The shared cert environment can be slow (long POSTs, late Alpine renders);
+# Hence, extra timeout
+expect.set_options(timeout=30_000)
 
 AUTH_DIR = pathlib.Path(__file__).parent / "tests" / ".auth"
 
