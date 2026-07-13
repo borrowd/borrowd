@@ -24,7 +24,7 @@ class ItemForm(forms.ModelForm[Item]):
 
     class Meta:
         model = Item
-        fields = ["name", "description", "categories", "trust_level_required"]
+        fields = ["name", "description", "categories", "share_with_all_groups"]
         labels = {
             "name": "Item name",
         }
@@ -45,8 +45,8 @@ class ItemForm(forms.ModelForm[Item]):
                     "maxlength": "250",
                 }
             ),
-            "trust_level_required": forms.Select(
-                attrs={"class": "select select-bordered w-full bg-primary-content"}
+            "share_with_all_groups": forms.CheckboxInput(
+                attrs={"class": "checkbox checkbox-primary"}
             ),
         }
 

@@ -52,14 +52,6 @@
 
                 {% else %}
                     <fieldset class="fieldset w-full gap-0">
-                        <legend class="fieldset-legend text-xs text-base-content/60 flex items-center gap-1">
-                            {{ field.label }}
-                            {% if field.name == "trust_level_required" %}
-                                <a href="javascript:void(0)"
-                                   onclick="showModal('trust-level-info-modal')"
-                                   class="text-blue-600 hover:text-blue-800 underline">What is this?</a>
-                            {% endif %}
-                        </legend>
 
                         {% if field.name == "categories" %}
                             <!--
@@ -294,7 +286,5 @@
             {% endfor %}
         {% endif %}
     </div>
-
-    {% include "components/modal.html" with modal_id="trust-level-info-modal" modal_title="Trust levels" modal_size="full" modal_content_template="items/_trust_level_info_content.html" cancel_button_text="Got it" %}
 
 {% endblock %}

@@ -22,7 +22,6 @@ from django.urls import reverse
 from imagekit.models import ProcessedImageField
 from imagekit.processors import ResizeToFit
 
-from borrowd.models import TrustLevel
 from borrowd_groups.exceptions import ExistingMemberException
 from borrowd_permissions.models import BorrowdGroupOLP
 from borrowd_users.models import BorrowdUser
@@ -31,24 +30,10 @@ from borrowd_users.models import BorrowdUser
 class BorrowdGroupManager(Manager["BorrowdGroup"]):
     def create_group(
         self,
-        *,
-        trust_level: TrustLevel | None = None,
         **kwargs: Any,
     ) -> "BorrowdGroup":
-        """
-        Create a BorrowdGroup, passing trust_level through to the
-        Membership created for the group's creator.
 
-        `trust_level` is not a `BorrowdGroup` field (which is why this is
-        not an override of the standard `create()`); it is smuggled to
-        the `post_save` signal that creates the creator's `Membership`.
-        """
         group: BorrowdGroup = BorrowdGroup(**kwargs)
-
-        # This instance property is not saved to the database, but
-        # is used in the post_save signal to set the trust level
-        # between the group and the user that created it.
-        setattr(group, "_temp_trust_level", trust_level)
 
         # And finally, this is what triggers the post_save signal,
         # and the instance that's received will have our special
@@ -170,7 +155,7 @@ class BorrowdGroup(Model):
         )
 
     def add_user(
-        self, user: BorrowdUser, trust_level: TrustLevel, is_moderator: bool = False
+        self, user: BorrowdUser, is_moderator: bool = False
     ) -> "Membership":
         """
         Add a user to the group.
@@ -225,7 +210,6 @@ class BorrowdGroup(Model):
     def update_user_membership(
         self,
         user: BorrowdUser,
-        trust_level: TrustLevel | None = None,
         is_moderator: bool | None = None,
     ) -> None:
         """
@@ -233,8 +217,6 @@ class BorrowdGroup(Model):
         """
         membership: Membership = Membership.objects.get(user=user, group=self)
 
-        if trust_level is not None:
-            membership.trust_level = trust_level
         if is_moderator is not None:
             membership.is_moderator = is_moderator
 
@@ -309,10 +291,6 @@ class Membership(Model):
             "The reason for which the status was last updated. "
             "May be useful in unfortunate cases of suspension / banning."
         ),
-    )
-    trust_level = IntegerField(
-        choices=TrustLevel,
-        help_text="The User's selected level of Trust for the given Group.",
     )
 
     class Meta:

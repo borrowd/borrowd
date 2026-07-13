@@ -1,12 +1,6 @@
 // Use DBML to define your database structure
 // Docs: https://dbml.dbdiagram.io/docs
 
-// this underpins much of the permissioning
-Enum trust_level {
-  HIGH
-  STANDARD
-}
-
 Table user {
   id int [pk]
   email_address varchar [not null]
@@ -22,7 +16,7 @@ Table user_preferences {
 }
 
 // OPEN would mean that all of your items are shared according to each item's
-// trust_level; CLOSED would mean that you need to individually assign items
+// group_sharing; CLOSED would mean that you need to individually assign items
 // to the community_group
 Enum sharing_disposition {
   OPEN
