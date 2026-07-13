@@ -21,11 +21,15 @@ from borrowd_items.models import (
 from borrowd_notifications.channels import (
     AppNotificationStrategy,
     EmailNotificationStrategy,
+    NotificationPayload,
+    PUSHNotificationStrategy,
 )
 from borrowd_notifications.services import NotificationService
 from borrowd_users.models import BorrowdUser
 
 from .models import (
+    ChannelType,
+    NotificationData,
     NotificationMetadata,
     NotificationPreference,
     NotificationType,
@@ -2004,3 +2008,88 @@ class PushSubscribeEndpointAllowlistTests(TestCase):
         response = self._subscribe(endpoint)
         self.assertEqual(response.status_code, 400)
         self.assertFalse(PushSubscription.objects.filter(endpoint=endpoint).exists())
+
+
+class PUSHNotificationStrategyTests(TransactionTestCase):
+    """Tests for PUSHNotificationStrategy.send(), the web-push delivery path."""
+
+    def setUp(self) -> None:
+        self.owner = BorrowdUser.objects.create_user(
+            username="owner", email="owner@example.com", password="password"
+        )
+        self.borrower = BorrowdUser.objects.create_user(
+            username="borrower", email="borrower@example.com", password="password"
+        )
+        self.item = Item.objects.create(
+            name="Test Item",
+            description="A test item",
+            owner=self.owner,
+            created_by=self.owner,
+            updated_by=self.owner,
+        )
+        NotificationPreference.objects.update_or_create(
+            user=self.borrower,
+            notification_type=NotificationType.ITEM_REQUEST_ACCEPTED.value,
+            defaults={
+                "in_app_enabled": False,
+                "email_enabled": False,
+                "push_enabled": True,
+            },
+        )
+        PushSubscription.objects.create(
+            user=self.borrower,
+            endpoint="https://fcm.googleapis.com/fcm/send/test-device",
+            p256dh="test-p256dh",
+            auth="test-auth",
+        )
+
+    def _trigger_accepted(self) -> Notification:
+        Transaction.objects.create(
+            item=self.item,
+            party1=self.owner,
+            party2=self.borrower,
+            status=TransactionStatus.ACCEPTED,
+            created_by=self.borrower,
+            updated_by=self.owner,
+        )
+        n = Notification.objects.get(
+            recipient=self.borrower,
+            verb=NotificationType.ITEM_REQUEST_ACCEPTED.value,
+        )
+        n.refresh_from_db()
+        return n
+
+    def test_template_keyerror_falls_back_to_description_not_raw_enum(self) -> None:
+        """If the in-app template can't be formatted, the push body falls back to the
+        notification's description rather than serializing the NotificationType member."""
+        notification = self._trigger_accepted()
+        payload = NotificationPayload(
+            notification=notification,
+            notification_type=NotificationType.ITEM_REQUEST_ACCEPTED,
+            template_name=str(NotificationType.ITEM_REQUEST_ACCEPTED),
+            data=NotificationData.create({}, {ChannelType.PUSH}),
+        )
+
+        with patch("borrowd_notifications.channels.webpush") as mock_webpush:
+            PUSHNotificationStrategy().send(payload)
+
+        sent_data = json.loads(mock_webpush.call_args.kwargs["data"])
+        self.assertEqual(sent_data["body"], notification.description)
+
+    def test_webpush_failure_is_recorded_and_reported_to_sentry(self) -> None:
+        """A webpush() failure marks the PUSH channel ERROR and reaches Sentry, matching
+        the parity every other NotificationStrategy has with NotificationService._dispatch."""
+        with (
+            patch(
+                "borrowd_notifications.channels.webpush",
+                side_effect=RuntimeError("push service unreachable"),
+            ),
+            patch(
+                "borrowd_notifications.services.sentry_sdk.capture_exception"
+            ) as mock_capture,
+        ):
+            notification = self._trigger_accepted()
+
+        results = NotificationService._channel_results(notification)
+        self.assertEqual(results.get("PUSH", {}).get("status"), "ERROR")
+        self.assertTrue(mock_capture.called)

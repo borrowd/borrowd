@@ -177,17 +177,16 @@
                 },
 
                 async _initPushPermissionState() {
-                    if (!('Notification' in window)) return;
-                    if (Notification.permission === 'denied') {
-                        await this._onPushPermissionDenied();
-                        return;
-                    }
-                    if ('permissions' in navigator) {
-                        const status = await navigator.permissions.query({ name: 'notifications' });
-                        status.onchange = () => {
-                            if (status.state === 'denied') this._onPushPermissionDenied();
-                        };
-                    }
+                    // Notification permission is per-browser, but the PUSH preference
+                    // this toggles is account-wide. Only react to a denial that happens
+                    // live in this session (via the toggle, or a change while this page
+                    // is open) — don't disable push for the whole account just because
+                    // this particular browser already had it blocked on page load.
+                    if (!('Notification' in window) || !('permissions' in navigator)) return;
+                    const status = await navigator.permissions.query({ name: 'notifications' });
+                    status.onchange = () => {
+                        if (status.state === 'denied') this._onPushPermissionDenied();
+                    };
                 },
 
                 async _onPushPermissionDenied() {

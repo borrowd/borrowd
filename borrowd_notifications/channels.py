@@ -119,7 +119,7 @@ class PUSHNotificationStrategy(NotificationStrategy):
         try:
             body = payload.notification_type.message_template.format(**context)
         except KeyError:
-            body = payload.notification_type
+            body = payload.notification.description or str(payload.notification_type)
 
         base_url = settings.BASE_URL.rstrip("/")
         push_data = json.dumps(
@@ -156,6 +156,11 @@ class PUSHNotificationStrategy(NotificationStrategy):
                 errors.append(str(exc))
 
         if errors:
-            payload.data._error(channel=ChannelType.PUSH, error="; ".join(errors))
+            error_message = "; ".join(errors)
+            payload.data._error(channel=ChannelType.PUSH, error=error_message)
+            raise RuntimeError(
+                f"Push delivery failed for {len(errors)} of {len(subscriptions)} "
+                f"subscription(s): {error_message}"
+            )
         else:
             payload.data._success(channel=ChannelType.PUSH)
