@@ -1,5 +1,6 @@
 {% extends "layouts/default.html" %}
 
+{% load i18n %}
 {% load heroicons %}
 
 {% block content %}
@@ -22,6 +23,30 @@
             <div class="text-center font-inter text-sm font-normal leading-normal tracking-[-0.5px]">
                 {{ profile_context.bio|default:"This user hasn't added a bio yet." }}
             </div>
+
+            <section class="flex flex-col w-full gap-2">
+                <p class="text-xs font-semibold text-base-content px-1">
+                    {% trans "A few Stats for trust" %}
+                </p>
+                <div class="grid w-full grid-cols-1 gap-3 pt-2 sm:grid-cols-2">
+                    {% for stat in profile_context.profile_stats %}
+                        <div class="flex items-center justify-between gap-3 border border-gray-200 bg-base-200 rounded-xl p-2">
+                            <div class="flex flex-row gap-2 items-center">
+                                <div class="w-7 h-7 flex  items-center justify-center flex-shrink-0">
+                                    {% heroicon_micro stat.icon class=stat.icon_class %}
+                                </div>
+                                <p class="text-xs text-base-content">
+                                    {% trans stat.description %}
+                                </p>
+                            </div>
+                            <p class="text-xl font-semibold leading-none {{ stat.text_class }}">
+                                {{ stat.value|default_if_none:"--" }}
+                            </p>
+                        </div>
+                    {% endfor %}
+                </div>
+
+            </section>
             {% if profile_context.email %}
                 <div class="text-[#757575]">
                     <span class="font-semibold">Email:</span> {{ profile_context.email }}
