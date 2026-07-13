@@ -18,6 +18,11 @@ from borrowd_notifications.models import (
     PushSubscription,
 )
 
+# pywebpush defaults to no timeout at all (an unresponsive push vendor would
+# block the caller indefinitely), which on a 2-worker synchronous gunicorn
+# deployment can tie up half of total request capacity for the duration.
+_WEBPUSH_TIMEOUT_SECONDS = 5
+
 
 @dataclass
 class NotificationPayload:
@@ -147,6 +152,7 @@ class PUSHNotificationStrategy(NotificationStrategy):
                     data=push_data,
                     vapid_private_key=settings.VAPID_PRIVATE_KEY,
                     vapid_claims={"sub": f"mailto:{settings.VAPID_ADMIN_EMAIL}"},
+                    timeout=_WEBPUSH_TIMEOUT_SECONDS,
                 )
             except WebPushException as exc:
                 errors.append(str(exc))

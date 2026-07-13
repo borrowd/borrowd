@@ -2093,3 +2093,25 @@ class PUSHNotificationStrategyTests(TransactionTestCase):
         results = NotificationService._channel_results(notification)
         self.assertEqual(results.get("PUSH", {}).get("status"), "ERROR")
         self.assertTrue(mock_capture.called)
+
+    def test_webpush_call_has_a_bounded_timeout(self) -> None:
+        """webpush() must never be called without a timeout — pywebpush defaults to
+        blocking forever, which would tie up a gunicorn worker indefinitely on an
+        unresponsive push vendor."""
+        notification = self._trigger_accepted()
+        payload = NotificationPayload(
+            notification=notification,
+            notification_type=NotificationType.ITEM_REQUEST_ACCEPTED,
+            template_name=str(NotificationType.ITEM_REQUEST_ACCEPTED),
+            data=NotificationData.create(
+                {"item_owner_name": "Owner", "item_name": "Test Item"},
+                {ChannelType.PUSH},
+            ),
+        )
+
+        with patch("borrowd_notifications.channels.webpush") as mock_webpush:
+            PUSHNotificationStrategy().send(payload)
+
+        timeout = mock_webpush.call_args.kwargs["timeout"]
+        self.assertIsNotNone(timeout)
+        self.assertLessEqual(timeout, 10)
