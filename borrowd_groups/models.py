@@ -128,9 +128,6 @@ class BorrowdGroup(Model):
         help_text="Who performed the soft-delete. NULL means active or unknown.",
     )
 
-    # Override default manager to have custom `create()` method,
-    # which allows us to pass the trust level to the Membership
-    # model via the post_save signal.
     # mypy error: Cannot override class variable (previously declared on base class "Group") with instance variable  [misc]
     # ... but, this is a class variable, not an instance variable, right?
     objects = BorrowdGroupManager()
@@ -174,7 +171,6 @@ class BorrowdGroup(Model):
         membership: Membership = Membership.objects.create(
             user=user,
             group=self,
-            trust_level=trust_level,
             status=default_status,
             is_moderator=is_moderator,
         )
@@ -247,8 +243,7 @@ class Membership(Model):
     """
     A membership in a :class:`Group`. This is a custom many-to-many
     relationship between :class:`borrowd_users.models.BorrowdUser`s
-    and :class:`Group`s, required because we need to track the User's
-    Trust Level with each Group.
+    and :class:`Group`s
 
     Attributes:
         user (ForeignKey[BorrowdUser]): A foreign key to the BorrowdUser model,

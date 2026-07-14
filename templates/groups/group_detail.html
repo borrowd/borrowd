@@ -5,7 +5,7 @@
     endblock %}
     {% block groups_content %}
 
-        {% if object.needs_moderator and user_trust_level and not is_moderator %}
+        {% if object.needs_moderator and not is_moderator %}
             <div class="mb-4 rounded-3xl bg-yellow-50 px-6 py-8 text-center shadow-sm">
                 <p class="text-warning font-bold text-lg leading-8">
                     This group doesn’t currently
@@ -56,12 +56,6 @@
                 <p class="justify-center text-sm font-normal leading-tight mt-1">
                     {{ object.description }}
                 </p>
-
-                {% if user_trust_level %}
-                    <div class="mt-4 flex items-center gap-2">
-                        <c-groups.trust-level-editor :trust_level="user_trust_level" :group_id="object.pk" />
-                    </div>
-                {% endif %}
 
                 <div>
                     <c-button-nav url="{% url 'borrowd_groups:group-invite' object.pk %}"
@@ -212,11 +206,4 @@
             </p>
         </c-modal>
 
-        <c-modal modal_id="trust-level-info-modal"
-                 modal_title="Group trust levels"
-                 modal_size="full"
-                 cancel_button_text="Got it">
-            {% include "groups/_trust_level_info_modal_content.html" %}
-
-        </c-modal>
     {% endblock %}

@@ -265,29 +265,6 @@ class GroupDetailView(
                 is_moderator=True,
                 status=MembershipStatus.ACTIVE,
             ).exists()
-            # Get the current user's membership to expose their trust level
-            # try:
-            #     user_membership = Membership.objects.get(
-            #         user=user, group=group, status=MembershipStatus.ACTIVE
-            #     )
-            #     context["user_trust_level"] = user_membership.trust_level
-            # except Membership.DoesNotExist:
-            #     context["user_trust_level"] = None
-
-            # Flags used to decide which leave-group modal to open.
-            # if context["user_trust_level"] is not None:
-            #     context["show_leave_group_button"] = True
-            #     context["leave_group_is_moderator"] = context["is_moderator"]
-            #     context["leave_group_has_active_borrows"] = (
-            #         user_has_active_borrows_in_group(user, group)
-            #     )
-            #     context["leave_group_has_active_lends"] = (
-            #         user_has_active_lends_in_group(user, group)
-            #     )
-            #     context["leave_group_requires_approval_to_rejoin"] = (
-            #         group.membership_requires_approval
-            #     )
-            # else:
             context["show_leave_group_button"] = False
             context["leave_group_is_moderator"] = False
             context["leave_group_has_active_borrows"] = False
