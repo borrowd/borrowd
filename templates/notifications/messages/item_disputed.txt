@@ -1,0 +1,9 @@
+Hi {{ recipient_name }},
+
+A dispute has been raised regarding {{ item_name }}.
+
+We encourage you to review the details and make a good faith effort to resolve this directly with the other person.
+
+For transparency, disputes are reflected on user profiles within Borrow'd.
+
+The Borrow'd team

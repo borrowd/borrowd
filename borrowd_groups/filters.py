@@ -3,10 +3,13 @@ from typing import Any
 from django.db.models import Count, Q, QuerySet
 from django_filters import BooleanFilter, CharFilter, FilterSet
 
+from borrowd_users.request import get_authenticated_user
+
 from .models import Membership, MembershipStatus
 
 
-# No typing for django_filter, so mypy doesn't like us subclassing.
+# django-filter is untyped (see the django_filters note in mypy.ini), so
+# subclassing it trips strict mode's "subclass of Any" check.
 class GroupFilter(FilterSet):  # type: ignore[misc]
     search = CharFilter(label="Search", method="filter_by_search")
     moderator_only = BooleanFilter(label="Moderator Only", method="filter_by_moderator")
@@ -48,10 +51,10 @@ class GroupFilter(FilterSet):  # type: ignore[misc]
             qs: QuerySet[Membership] = Membership.objects.select_related(
                 "group"
             ).filter(
-                user=self.request.user,
+                user=get_authenticated_user(self.request),
             )
             qs = qs.annotate(
-                active_member_count=Count(
+                active_members_count=Count(
                     "group__membership",
                     filter=Q(group__membership__status=MembershipStatus.ACTIVE),
                     distinct=True,

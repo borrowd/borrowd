@@ -3,7 +3,7 @@
 from django.db import migrations, models
 
 
-def forwards_func(apps, schema_editor):  # type: ignore[no-untyped-def]
+def forwards_func(apps, schema_editor):
     BorrowdUser = apps.get_model("borrowd_users", "BorrowdUser")
     for bu in BorrowdUser.objects.all():
         bu.first_name = bu.profile.first_name or "First"
@@ -11,7 +11,7 @@ def forwards_func(apps, schema_editor):  # type: ignore[no-untyped-def]
         bu.save()
 
 
-def reverse_func(apps, schema_editor):  # type: ignore[no-untyped-def]
+def reverse_func(apps, schema_editor):
     pass
 
 

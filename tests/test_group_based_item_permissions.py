@@ -137,7 +137,7 @@ class GroupBasedItemPermissionsTests(TestCase):
         )
 
         ## Create a group and add the owner to it
-        group: BorrowdGroup = BorrowdGroup.objects.create(
+        group: BorrowdGroup = BorrowdGroup.objects.create_group(
             name="Test Group",
             created_by=owner,
             updated_by=owner,
@@ -307,7 +307,7 @@ class GroupBasedItemPermissionsTests(TestCase):
         owner = self.owner
 
         ## Create a group and add the owner to it with a HIGH trust level
-        borrowd_group: BorrowdGroup = BorrowdGroup.objects.create(
+        borrowd_group: BorrowdGroup = BorrowdGroup.objects.create_group(
             name="Test Group",
             created_by=owner,
             updated_by=owner,
@@ -372,7 +372,7 @@ class GroupBasedItemPermissionsTests(TestCase):
         owner = self.owner
 
         ## Create a group and add the owner to it with a HIGH trust level
-        borrowd_group: BorrowdGroup = BorrowdGroup.objects.create(
+        borrowd_group: BorrowdGroup = BorrowdGroup.objects.create_group(
             name="Test Group",
             created_by=owner,
             updated_by=owner,

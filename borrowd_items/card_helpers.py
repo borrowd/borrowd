@@ -29,7 +29,10 @@ BANNER_ICONS = {
     "borrowed": '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M1 8C1 4.13401 4.13401 1 8 1C11.866 1 15 4.13401 15 8C15 11.866 11.866 15 8 15C4.13401 15 1 11.866 1 8ZM8.75 3.75C8.75 3.33579 8.41421 3 8 3C7.58579 3 7.25 3.33579 7.25 3.75V8C7.25 8.41421 7.58579 8.75 8 8.75H11.25C11.6642 8.75 12 8.41421 12 8C12 7.58579 11.6642 7.25 11.25 7.25H8.75V3.75Z" fill="#2C51A1"/></svg>',
     "pending": '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M1 8C1 4.13401 4.13401 1 8 1C11.866 1 15 4.13401 15 8C15 11.866 11.866 15 8 15C4.13401 15 1 11.866 1 8ZM8.75 3.75C8.75 3.33579 8.41421 3 8 3C7.58579 3 7.25 3.33579 7.25 3.75V8C7.25 8.41421 7.58579 8.75 8 8.75H11.25C11.6642 8.75 12 8.41421 12 8C12 7.58579 11.6642 7.25 11.25 7.25H8.75V3.75Z" fill="#73325b"/></svg>',
     "waitlisted": '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M8 1.75C6.20507 1.75 4.75 3.20507 4.75 5V5.76393C4.75 6.40114 4.54563 7.02157 4.16672 7.53394L3.23959 8.7877C2.6945 9.52485 3.22081 10.5625 4.13655 10.5625H11.8634C12.7792 10.5625 13.3055 9.52485 12.7604 8.7877L11.8333 7.53394C11.4544 7.02157 11.25 6.40114 11.25 5.76393V5C11.25 3.20507 9.79493 1.75 8 1.75ZM6.5 11.75C6.5 12.5784 7.17157 13.25 8 13.25C8.82843 13.25 9.5 12.5784 9.5 11.75H6.5Z" fill="#6B7280"/><path d="M12.25 4.5C13.2165 4.5 14 3.7165 14 2.75C14 1.7835 13.2165 1 12.25 1C11.2835 1 10.5 1.7835 10.5 2.75C10.5 3.7165 11.2835 4.5 12.25 4.5Z" fill="#6B7280"/></svg>',
+    "return_requested": '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="size-5"><path fill-rule="evenodd" d="M7.793 2.232a.75.75 0 0 1-.025 1.06L3.622 7.25h10.003a5.375 5.375 0 0 1 0 10.75H10.75a.75.75 0 0 1 0-1.5h2.875a3.875 3.875 0 0 0 0-7.75H3.622l4.146 3.957a.75.75 0 0 1-1.036 1.085l-5.5-5.25a.75.75 0 0 1 0-1.085l5.5-5.25a.75.75 0 0 1 1.06.025Z" clip-rule="evenodd" /></svg>',
+    "disputed": '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="size-5"><path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495ZM10 5a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5A.75.75 0 0 1 10 5Zm0 9a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" clip-rule="evenodd" /></svg>',
     "removed": '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="size-5"><path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495ZM10 5a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5A.75.75 0 0 1 10 5Zm0 9a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" clip-rule="evenodd" /></svg>',
+    "giveaway_offered": '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6"><path stroke-linecap="round" stroke-linejoin="round" d="M21 11.25v8.25a1.5 1.5 0 0 1-1.5 1.5H5.25a1.5 1.5 0 0 1-1.5-1.5v-8.25M12 4.875A2.625 2.625 0 1 0 9.375 7.5H12m0-2.625V7.5m0-2.625A2.625 2.625 0 1 1 14.625 7.5H12m0 0V21m-8.625-9.75h18c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125h-18c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125Z" /></svg>',
 }
 
 BANNER_STYLES = {
@@ -46,6 +49,9 @@ BANNER_STYLES = {
     "waitlisted": {"bg": "bg-gray-400/15", "text": "text-[#6B7280]"},
     # item has been removed from borrow'd
     "removed": {"bg": "bg-warning/15", "text": "text-[#8E6900]"},
+    "return_requested": {"bg": "bg-primary/15", "text": "text-primary"},
+    "disputed": {"bg": "bg-warning/15", "text": "text-[#8E6900]"},
+    "giveaway_offered": {"bg": "bg-primary/15", "text": "text-primary"},
 }
 
 
@@ -140,7 +146,10 @@ def get_banner_info_for_item(
                 TransactionStatus.ACCEPTED,
                 TransactionStatus.COLLECTION_ASSERTED,
                 TransactionStatus.COLLECTED,
+                TransactionStatus.GIVEAWAY_OFFERED,
+                TransactionStatus.RETURN_REQUESTED,
                 TransactionStatus.RETURN_ASSERTED,
+                TransactionStatus.DISPUTED,
             ]
         ).first()
 
@@ -157,6 +166,44 @@ def get_banner_info_for_item(
         ).exists()
     ):
         return {"banner_type": "waitlisted"}
+
+    # Return-request, giveaway, and dispute banners only concern the two
+    # parties; everyone else sees the generic borrowed label.
+    if current_transaction.status == TransactionStatus.DISPUTED:
+        if item.owner == viewing_user or current_borrower == viewing_user:
+            return {"banner_type": "disputed"}
+        return {"banner_type": "borrowed"}
+
+    # giveaway banner: owner sees "Giveaway Offered",
+    # borrower sees the offer with the lender's name.
+    if current_transaction.status == TransactionStatus.GIVEAWAY_OFFERED:
+        if item.owner == viewing_user:
+            return {"banner_type": "giveaway_offered"}
+        if current_borrower == viewing_user:
+            return {
+                "banner_type": "giveaway_offered",
+                "person_name": item.owner.first_name.capitalize(),
+            }
+        return {"banner_type": "borrowed"}
+
+    # The return-request banner stays up while the borrower's return
+    # assertion awaits the lender's confirmation.
+    return_request_open = (
+        current_transaction.status == TransactionStatus.RETURN_REQUESTED
+        or (
+            current_transaction.status == TransactionStatus.RETURN_ASSERTED
+            and current_transaction.return_requested_at is not None
+        )
+    )
+    if return_request_open:
+        if item.owner == viewing_user:
+            return {"banner_type": "return_requested", "person_name": "you"}
+        if current_borrower == viewing_user:
+            return {
+                "banner_type": "return_requested",
+                "person_name": item.owner.first_name.capitalize(),
+            }
+        return {"banner_type": "borrowed"}
 
     # Determine banner based on transaction status
     if current_transaction.status == TransactionStatus.REQUESTED:
@@ -260,6 +307,7 @@ def build_item_card_context(
                 a for a in action_context.actions if a != ItemAction.CANCEL_REQUEST
             ),
             status_text=action_context.status_text,
+            waiting_text=action_context.waiting_text,
         )
 
     first_photo = item.photos.first()
@@ -347,6 +395,6 @@ def build_item_cards_for_transactions(
         # ForeignKey type not fully resolved without django-stubs mypy plugin
         # Ref: https://forum.djangoproject.com/t/mypy-and-type-checking/15787,
         # Ref: https://github.com/typeddjango/django-stubs
-        build_item_card_context(transaction.item, user, context)  # type: ignore[arg-type]
+        build_item_card_context(transaction.item, user, context)
         for transaction in transactions
     ]

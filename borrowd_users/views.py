@@ -1,9 +1,12 @@
+from dataclasses import dataclass
 from typing import Any
 
 from allauth.account.views import PasswordChangeView
 from django.contrib import messages
 from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
+from django.db import DatabaseError
+from django.db.models.query import QuerySet
 from django.http import (
     Http404,
     HttpRequest,
@@ -28,23 +31,84 @@ from borrowd_items.models import Item, ItemStatus, Transaction
 from .exceptions import AccountDeletionBlocked
 from .forms import ChangePasswordForm, CustomSignupForm, ProfileUpdateForm
 from .models import BorrowdUser, SearchTarget, SearchTerm
+from .request import get_authenticated_user
 from .services import soft_delete_account
+
+
+def safe_count(queryset: QuerySet[Any]) -> int | None:
+    try:
+        return queryset.count()
+    except DatabaseError:
+        return None
+
+
+@dataclass(frozen=True)
+class ProfileStat:
+    value: int | None
+    description: str
+    text_class: str
+    icon: str
+    icon_class: str
+    icon_bg_class: str
 
 
 def build_profile_context(
     subject_user: BorrowdUser,
     viewing_user: BorrowdUser,
-) -> dict[str, str]:
+) -> dict[str, Any]:
     """
     Profile context to determine which fields to display based on user roles
     """
     profile = subject_user.profile
 
     # Base profile context (all profile views get this).
-    profile_context: dict[str, str] = {
+    profile_context: dict[str, Any] = {
         "full_name": profile.full_name(),
         "bio": profile.bio,
         "profile_image_url": profile.image.url if profile.image else "",
+        # Defined this way to make the html template less redondant
+        "profile_stats": [
+            ProfileStat(
+                value=safe_count(Transaction.get_successful_borrows(subject_user)),
+                description="Successful borrows",
+                text_class="text-success",
+                icon_bg_class="bg-success/10",
+                icon_class="w-4 h-4 text-success",
+                icon="check",
+            ),
+            ProfileStat(
+                value=safe_count(Transaction.get_successful_lends(subject_user)),
+                description="Successful lends",
+                text_class="text-success",
+                icon_bg_class="bg-success/10",
+                icon_class="w-4 h-4 text-success",
+                icon="check",
+            ),
+            ProfileStat(
+                value=safe_count(Transaction.get_items_given_away(subject_user)),
+                description="Items given away",
+                text_class="text-info",
+                icon_bg_class="bg-info/10",
+                icon_class="w-4 h-4 text-info",
+                icon="gift",
+            ),
+            ProfileStat(
+                value=safe_count(Transaction.get_pending_return_requests(subject_user)),
+                description="Item returns requested",
+                text_class="text-warning",
+                icon_bg_class="bg-warning/10",
+                icon_class="w-4 h-4 text-warning",
+                icon="arrow-path-rounded-square",
+            ),
+            ProfileStat(
+                value=safe_count(Transaction.get_past_disputes(subject_user)),
+                description="Past disputes",
+                text_class="text-error",
+                icon_bg_class="bg-error/10",
+                icon_class="w-4 h-4 text-error",
+                icon="exclamation-triangle",
+            ),
+        ],
     }
 
     """
@@ -59,6 +123,18 @@ def build_profile_context(
     """
     if viewing_user == subject_user:
         profile_context["email"] = subject_user.email
+        profile_context["profile"] = profile
+
+        # Drives the delete-account modal. Borrowing blocks deletion; items still
+        # out on loan nudge the user to retrieve them first; owning only idle items
+        # just warns they'll be removed; with nothing at all it's a plain confirm.
+        profile_context["is_borrowing"] = Transaction.get_active_borrows_for_user(
+            subject_user
+        ).exists()
+        profile_context["is_lending"] = Transaction.get_active_lends_for_user(
+            subject_user
+        ).exists()
+        profile_context["has_items"] = Item.objects.filter(owner=subject_user).exists()
 
     return profile_context
 
@@ -74,7 +150,7 @@ def public_profile_view(
     if subject_user == request.user:
         return redirect("profile")
 
-    viewer: BorrowdUser = request.user  # type: ignore[assignment]
+    viewer = get_authenticated_user(request)
 
     # Check if the viewer shares a group with the subject user
     viewer_shares_group_with_subject = Membership.objects.filter(
@@ -97,36 +173,26 @@ def public_profile_view(
 
 @login_required
 def profile_view(request: HttpRequest) -> HttpResponse:
-    user: BorrowdUser = request.user  # type: ignore[assignment]
+    user = get_authenticated_user(request)
     profile = user.profile
 
     if request.method == "POST":
         form = ProfileUpdateForm(request.POST, request.FILES, instance=profile)
         if form.is_valid():
-            form.instance.updated_by = request.user  # type: ignore[assignment]
+            form.instance.updated_by = user
             form.save()
             messages.success(request, "Profile updated")
             return redirect("profile")
     else:
         form = ProfileUpdateForm(instance=profile)
 
-    # Drives the delete-account modal. Borrowing blocks deletion; items still
-    # out on loan nudge the user to retrieve them first; owning only idle items
-    # just warns they'll be removed; with nothing at all it's a plain confirm.
-    is_borrowing = Transaction.get_active_borrows_for_user(user).exists()
-    is_lending = Transaction.get_active_lends_for_user(user).exists()
-    has_items = Item.objects.filter(owner=user).exists()
+    profile_context = build_profile_context(user, user)
+    profile_context["form"] = form
 
     return render(
         request,
         "users/profile.html",
-        {
-            "profile": profile,
-            "form": form,
-            "is_borrowing": is_borrowing,
-            "is_lending": is_lending,
-            "has_items": has_items,
-        },
+        profile_context,
     )
 
 
@@ -144,13 +210,13 @@ def delete_profile_photo_view(request: HttpRequest) -> JsonResponse:
     fields to be left as-is. This is also why it returns json rather than an http
     redirect or similar.
     """
-    user: BorrowdUser = request.user  # type: ignore[assignment]
+    user = get_authenticated_user(request)
     profile = user.profile
 
     if profile.image:
         profile.image.delete(save=False)
         profile.image = None
-        profile.updated_by = request.user  # type: ignore[assignment]
+        profile.updated_by = user
         profile.save()
         # Returns json rather than http in order to allow other in-progress fields to be left as-is.
         return JsonResponse(
@@ -182,7 +248,7 @@ def inventory_view(request: HttpRequest) -> HttpResponse:
     4. borrowed_items_from_others — items user is borrowing from others
     5. owned_items_available      — user's items with no active transactions
     """
-    user: BorrowdUser = request.user  # type: ignore[assignment]
+    user = get_authenticated_user(request)
 
     # All transactions associated with the user with status == REQUESTED (awaiting approval from someone)
     requested_transactions = Transaction.get_requested_status_transactions_for_user(
@@ -281,7 +347,7 @@ def delete_account_view(request: HttpRequest) -> HttpResponse:
 
     Requires the user to retype their username to delete their account
     """
-    user: BorrowdUser = request.user  # type: ignore[assignment]
+    user = get_authenticated_user(request)
 
     if request.POST.get("confirm_username", "").strip() != user.username:
         messages.error(
@@ -348,7 +414,7 @@ class CustomSignupView(CreateView[BorrowdUser, CustomSignupForm]):
         return super().form_invalid(form)
 
 
-class CustomPasswordChangeView(PasswordChangeView):  # type: ignore[misc]
+class CustomPasswordChangeView(PasswordChangeView):
     """
     Custom password change view that displays validation errors as warning toasts.
 
@@ -373,7 +439,10 @@ class CustomPasswordChangeView(PasswordChangeView):  # type: ignore[misc]
         if error_message:
             messages.warning(self.request, error_message)
 
-        return super().form_invalid(form)  # type: ignore[no-any-return]
+        # allauth's PasswordChangeView.form_invalid is loosely typed (returns
+        # Any); pin it to the real return type.
+        response: HttpResponse = super().form_invalid(form)
+        return response
 
 
 @login_required
@@ -388,7 +457,7 @@ def search_terms_export_view(
     - target: optional, one of {"items", "groups"}
     - limit: optional, default 200, max 1000
     """
-    user: BorrowdUser = request.user  # type: ignore[assignment]
+    user = get_authenticated_user(request)
     if not user.is_staff:
         return HttpResponseForbidden("Admin access required.")
 

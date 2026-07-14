@@ -1,7 +1,8 @@
 from dataclasses import dataclass
-from datetime import datetime
-from typing import Never, Optional
+from datetime import timedelta
+from typing import TYPE_CHECKING, Optional, cast
 
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
 from django.db.models import (
@@ -32,6 +33,9 @@ from borrowd_users.models import BorrowdUser
 
 from .exceptions import InvalidItemAction, ItemAlreadyRequested
 from .processors import AutoOrientProcessor
+
+if TYPE_CHECKING:
+    from borrowd_groups.models import BorrowdGroup
 
 
 class ActiveItemQuerySet(QuerySet["Item"]):
@@ -68,6 +72,20 @@ class ItemAction(TextChoices):
     CONFIRM_RETURNED = "CONFIRM_RETURNED", "Confirm Returned"
     CANCEL_REQUEST = "CANCEL_REQUEST", "Cancel Request"
     RESOLVE_TRANSACTION = "RESOLVE_TRANSACTION", "Close Out Transaction"
+    REQUEST_RETURN = "REQUEST_RETURN", "Request Return"
+    FLAG_CANNOT_RETURN = "FLAG_CANNOT_RETURN", "Cannot Return Item"
+    RAISE_DISPUTE = "RAISE_DISPUTE", "Raise Dispute"
+    RESOLVE_DISPUTE_RETURNED = (
+        "RESOLVE_DISPUTE_RETURNED",
+        "Resolve Dispute: Item Returned",
+    )
+    RESOLVE_DISPUTE_NOT_RETURNED = (
+        "RESOLVE_DISPUTE_NOT_RETURNED",
+        "Resolve Dispute: Item Not Returned",
+    )
+    OFFER_GIVEAWAY = "OFFER_GIVEAWAY", "Give Away"
+    ACCEPT_GIVEAWAY = "ACCEPT_GIVEAWAY", "Accept Gift"
+    DECLINE_GIVEAWAY = "DECLINE_GIVEAWAY", "Decline Gift"
 
 
 @dataclass
@@ -80,21 +98,20 @@ class ItemActionContext:
 
     actions: tuple[ItemAction, ...]
     status_text: str
+    # Non-interactive text to show in place of action buttons
+    waiting_text: Optional[str] = None
 
 
 class ItemCategory(Model):
-    name: CharField[str, str] = CharField(max_length=50, null=False, blank=False)
-    description: CharField[str, str] = CharField(max_length=100, null=True, blank=True)
-
-    # Hint for mypy (actual field created from reverse M2M relation)
-    items: QuerySet["Item"]
+    name = CharField(max_length=50, null=False, blank=False)
+    description = CharField(max_length=100, null=True, blank=True)
 
     def __str__(self) -> str:
         return self.name
 
     class Meta:
-        verbose_name: str = "Item Category"
-        verbose_name_plural: str = "Item Categories"
+        verbose_name = "Item Category"
+        verbose_name_plural = "Item Categories"
 
 
 class ItemStatus(IntegerChoices):
@@ -113,20 +130,18 @@ class ItemStatus(IntegerChoices):
 
 
 class Item(Model):
-    name: CharField[str, str] = CharField(max_length=50, null=False, blank=False)
-    description: CharField[str, str] = CharField(
-        max_length=500, null=False, blank=False
-    )
+    name = CharField(max_length=50, null=False, blank=False)
+    description = CharField(max_length=500, null=False, blank=False)
     # If user is deleted, delete their Items
-    owner: ForeignKey[BorrowdUser] = ForeignKey(BorrowdUser, on_delete=CASCADE)
+    owner = ForeignKey(BorrowdUser, on_delete=CASCADE)
 
-    categories: ManyToManyField[ItemCategory, ItemCategory] = ManyToManyField(
+    categories = ManyToManyField(
         ItemCategory,
         related_name="items",
         blank=False,
         help_text="Categories this item belongs to. At least one required.",
     )
-    trust_level_required: IntegerField[TrustLevel, int] = IntegerField(
+    trust_level_required = IntegerField(
         choices=TrustLevel,
         default=TrustLevel.STANDARD,
         help_text=(
@@ -135,17 +150,13 @@ class Item(Model):
             " of that Group."
         ),
     )
-    status: IntegerField[ItemStatus, int] = IntegerField(
+    status = IntegerField(
         choices=ItemStatus.choices,
         default=ItemStatus.AVAILABLE,
         help_text="The current status of the Item.",
     )
 
-    # Hints for mypy (actual fields created from reverse relations)
-    transactions: QuerySet["Transaction"]
-    subscriptions: QuerySet["AvailabilitySubscription"]
-    photos: QuerySet["ItemPhoto"]
-    created_by: ForeignKey[BorrowdUser] = ForeignKey(
+    created_by = ForeignKey(
         BorrowdUser,
         related_name="+",  # No reverse relation needed
         null=False,
@@ -153,11 +164,11 @@ class Item(Model):
         help_text="The user who created the item.",
         on_delete=DO_NOTHING,
     )
-    created_at: DateTimeField[Never, Never] = DateTimeField(
+    created_at = DateTimeField(
         auto_now_add=True,
         help_text="The date and time at which the item was created.",
     )
-    updated_by: ForeignKey[BorrowdUser] = ForeignKey(
+    updated_by = ForeignKey(
         BorrowdUser,
         related_name="+",  # No reverse relation needed
         null=False,
@@ -165,17 +176,17 @@ class Item(Model):
         help_text="The last user who updated the item.",
         on_delete=DO_NOTHING,
     )
-    updated_at: DateTimeField[Never, Never] = DateTimeField(
+    updated_at = DateTimeField(
         auto_now=True,
         help_text="The date and time at which the item was last updated.",
     )
-    deleted_at: DateTimeField[datetime | None, datetime | None] = DateTimeField(
+    deleted_at = DateTimeField(
         null=True,
         blank=True,
         default=None,
         help_text="Set when the record is soft-deleted. NULL means active.",
     )
-    deleted_by: ForeignKey[BorrowdUser] = ForeignKey(
+    deleted_by = ForeignKey(
         BorrowdUser,
         null=True,
         blank=True,
@@ -185,7 +196,7 @@ class Item(Model):
         help_text="Who performed the soft-delete. NULL means active or unknown.",
     )
     objects = ActiveItemManager()
-    all_objects: models.Manager["Item"] = models.Manager()
+    all_objects = models.Manager()
 
     def __str__(self) -> str:
         return self.name
@@ -213,6 +224,7 @@ class Item(Model):
 
         current_borrower = self.get_current_borrower()
         requesting_user = self.get_requesting_user()
+        current_tx = self.get_current_transaction_for_user(user)
         actions = self.get_actions_for(user)
 
         # Generate status text based on user role and current actions/status
@@ -221,9 +233,23 @@ class Item(Model):
             actions=actions,
             current_borrower=current_borrower,
             requesting_user=requesting_user,
+            current_tx=current_tx,
         )
 
-        return ItemActionContext(actions=actions, status_text=status_text)
+        # The borrower who asserted return of a requested item must wait for
+        # the lender to confirm the item has been returned.
+        waiting_text = None
+        if (
+            current_tx is not None
+            and current_tx.status == TransactionStatus.RETURN_ASSERTED
+            and current_tx.return_requested_at is not None
+            and current_tx.updated_by == user
+        ):
+            waiting_text = "Waiting on confirmation from lender..."
+
+        return ItemActionContext(
+            actions=actions, status_text=status_text, waiting_text=waiting_text
+        )
 
     def _get_status_text_for_user(
         self,
@@ -231,6 +257,7 @@ class Item(Model):
         actions: tuple[ItemAction, ...],
         current_borrower: Optional[BorrowdUser],
         requesting_user: Optional[BorrowdUser],
+        current_tx: Optional["Transaction"] = None,
     ) -> str:
         """Generate context-appropriate status text for the user."""
         # Determine user role
@@ -246,18 +273,31 @@ class Item(Model):
         )
 
         if is_owner:
-            return self._get_owner_status_text(actions, requester_name, borrower_name)
+            return self._get_owner_status_text(
+                actions, requester_name, borrower_name, current_tx
+            )
         elif is_borrower:
-            return self._get_borrower_status_text(actions)
+            return self._get_borrower_status_text(actions, current_tx)
         else:
             return self._get_other_user_status_text(actions, user)
 
     def _get_owner_status_text(
-        self, actions: tuple[ItemAction, ...], requester_name: str, borrower_name: str
+        self,
+        actions: tuple[ItemAction, ...],
+        requester_name: str,
+        borrower_name: str,
+        current_tx: Optional["Transaction"] = None,
     ) -> str:
         """Generate status text for item owners."""
+        tx_status = current_tx.status if current_tx else None
 
-        if ItemAction.ACCEPT_REQUEST in actions:
+        if tx_status == TransactionStatus.DISPUTED:
+            return f"This item is being disputed. Use 'resolve dispute' once you've settled it with {borrower_name}."
+        elif tx_status == TransactionStatus.GIVEAWAY_OFFERED:
+            return f"Giveaway offered to {borrower_name} - awaiting acceptance."
+        elif tx_status == TransactionStatus.RETURN_REQUESTED:
+            return f"You requested this item back from {borrower_name}. Confirm once you receive it."
+        elif ItemAction.ACCEPT_REQUEST in actions:
             return f"{requester_name} has requested to borrow this item!"
         elif (
             ItemAction.MARK_COLLECTED in actions
@@ -280,10 +320,22 @@ class Item(Model):
             return "This is your item and it is available for borrowing."
 
     # Permit borrower to see owner name in status text
-    def _get_borrower_status_text(self, actions: tuple[ItemAction, ...]) -> str:
-        owner_name = self.owner.profile.full_name()  # type: ignore[attr-defined]
+    def _get_borrower_status_text(
+        self,
+        actions: tuple[ItemAction, ...],
+        current_tx: Optional["Transaction"] = None,
+    ) -> str:
+        owner_name = self.owner.profile.full_name()
         """Generate status text for current borrowers."""
-        if ItemAction.CANCEL_REQUEST in actions:
+        tx_status = current_tx.status if current_tx else None
+
+        if tx_status == TransactionStatus.DISPUTED:
+            return "This item is being disputed. Please coordinate with the owner to make it right."
+        elif tx_status == TransactionStatus.GIVEAWAY_OFFERED:
+            return f"{owner_name} is offering you this item! Accept the gift to make it yours."
+        elif tx_status == TransactionStatus.RETURN_REQUESTED:
+            return f"{owner_name} has requested this item back. Please coordinate its return."
+        elif ItemAction.CANCEL_REQUEST in actions:
             return f"{owner_name} accepted request, mark Collected when you have received the item."
         elif ItemAction.CONFIRM_COLLECTED in actions:
             return (
@@ -394,12 +446,15 @@ class Item(Model):
         if current_tx.status in (
             TransactionStatus.COLLECTION_ASSERTED,
             TransactionStatus.COLLECTED,
+            TransactionStatus.GIVEAWAY_OFFERED,
+            TransactionStatus.RETURN_REQUESTED,
             TransactionStatus.RETURN_ASSERTED,
+            TransactionStatus.DISPUTED,
         ):
             counterparty = (
                 current_tx.party1 if current_tx.party2 == user else current_tx.party2
             )
-            if not counterparty.is_active:  # type: ignore[attr-defined]
+            if not counterparty.is_active:
                 return (ItemAction.RESOLVE_TRANSACTION,)
 
         if current_tx.status == TransactionStatus.REQUESTED:
@@ -433,15 +488,47 @@ class Item(Model):
                 return tuple()
         elif current_tx.status == TransactionStatus.COLLECTED:
             # Either borrower or lender can assert return.
+            # The lender can also request the item back, or give it away.
+            if self.owner == user:
+                return (
+                    ItemAction.MARK_RETURNED,
+                    ItemAction.REQUEST_RETURN,
+                    ItemAction.OFFER_GIVEAWAY,
+                )
             return (ItemAction.MARK_RETURNED,)
-
+        elif current_tx.status == TransactionStatus.GIVEAWAY_OFFERED:
+            # The borrower decides whether to accept the gift.
+            # The lender waits on that decision.
+            if self.owner == user:
+                return tuple()
+            return (ItemAction.ACCEPT_GIVEAWAY, ItemAction.DECLINE_GIVEAWAY)
+        elif current_tx.status == TransactionStatus.RETURN_REQUESTED:
+            if self.owner == user:
+                # The lender can escalate to a dispute only if the wait window has passed
+                if current_tx.dispute_wait_has_elapsed():
+                    return (ItemAction.RAISE_DISPUTE, ItemAction.CONFIRM_RETURNED)
+                return (ItemAction.CONFIRM_RETURNED,)
+            # The borrower confirms the return or flags that they can't return the item.
+            return (ItemAction.MARK_RETURNED, ItemAction.FLAG_CANNOT_RETURN)
         elif current_tx.status == TransactionStatus.RETURN_ASSERTED:
             # Make sure the same person doesn't confirm the assertion
             if current_tx.updated_by != user:
+                if self.owner == user:
+                    # The lender can deny the borrower's return claim.
+                    return (ItemAction.RAISE_DISPUTE, ItemAction.CONFIRM_RETURNED)
                 return (ItemAction.CONFIRM_RETURNED,)
             else:
                 # Otherwise, nothing to do but wait...
                 return tuple()
+        elif current_tx.status == TransactionStatus.DISPUTED:
+            if self.owner == user:
+                # The lender settles the dispute one way or the other.
+                return (
+                    ItemAction.RESOLVE_DISPUTE_NOT_RETURNED,
+                    ItemAction.RESOLVE_DISPUTE_RETURNED,
+                )
+            # The borrower waits on the lender. (no options for borrower)
+            return tuple()
         else:
             # We shouldn't get here...
             raise ValueError(
@@ -458,7 +545,7 @@ class Item(Model):
                 Q(item=self) & Q(status=TransactionStatus.REQUESTED)
             )
             # party2 is the requestor
-            return transaction.party2  # type: ignore[return-value]
+            return transaction.party2
         except Transaction.DoesNotExist:
             return None
         except Transaction.MultipleObjectsReturned:
@@ -470,7 +557,7 @@ class Item(Model):
                 .order_by("-created_at")
                 .first()
             )
-            return txn.party2 if txn else None  # type: ignore[return-value]
+            return txn.party2 if txn else None
 
     def get_current_borrower(self) -> Optional[BorrowdUser]:
         """
@@ -485,12 +572,15 @@ class Item(Model):
                         TransactionStatus.ACCEPTED,
                         TransactionStatus.COLLECTION_ASSERTED,
                         TransactionStatus.COLLECTED,
+                        TransactionStatus.GIVEAWAY_OFFERED,
+                        TransactionStatus.RETURN_REQUESTED,
                         TransactionStatus.RETURN_ASSERTED,
+                        TransactionStatus.DISPUTED,
                     ]
                 )
             )
             # party2 is the borrower
-            return transaction.party2  # type: ignore[return-value]
+            return transaction.party2
         except Transaction.DoesNotExist:
             return None
         except Transaction.MultipleObjectsReturned:
@@ -504,14 +594,17 @@ class Item(Model):
                             TransactionStatus.ACCEPTED,
                             TransactionStatus.COLLECTION_ASSERTED,
                             TransactionStatus.COLLECTED,
+                            TransactionStatus.GIVEAWAY_OFFERED,
+                            TransactionStatus.RETURN_REQUESTED,
                             TransactionStatus.RETURN_ASSERTED,
+                            TransactionStatus.DISPUTED,
                         ]
                     )
                 )
                 .order_by("-updated_at")
                 .first()
             )
-            return txn.party2 if txn else None  # type: ignore[return-value]
+            return txn.party2 if txn else None
 
     def get_current_transaction_for_user(
         self, user: BorrowdUser
@@ -533,6 +626,7 @@ class Item(Model):
                         TransactionStatus.REJECTED,
                         TransactionStatus.CANCELLED,
                         TransactionStatus.RESOLVED,
+                        TransactionStatus.OWNERSHIP_TRANSFERRED,
                     ]
                 )
             )
@@ -659,13 +753,51 @@ class Item(Model):
                     current_tx.status = TransactionStatus.RETURN_ASSERTED
                     current_tx.updated_by = user
                     current_tx.save()
-                case ItemAction.CONFIRM_RETURNED:
-                    # The other party confirms return.
+                case ItemAction.CONFIRM_RETURNED | ItemAction.RESOLVE_DISPUTE_RETURNED:
+                    # The other party confirms return or lender resolved dispute happily
                     self.status = ItemStatus.AVAILABLE
                     self.save()
                     current_tx.status = TransactionStatus.RETURNED
                     current_tx.updated_by = user
                     current_tx.save()
+                case ItemAction.REQUEST_RETURN:
+                    # The lender asks for the item back from the borrower
+                    current_tx.status = TransactionStatus.RETURN_REQUESTED
+                    current_tx.return_requested_at = timezone.now()
+                    current_tx.updated_by = user
+                    current_tx.save()
+                case ItemAction.FLAG_CANNOT_RETURN | ItemAction.RAISE_DISPUTE:
+                    # Either side escalates to a dispute
+                    current_tx.status = TransactionStatus.DISPUTED
+                    current_tx.disputed_at = timezone.now()
+                    current_tx.dispute_raised_by = user
+                    current_tx.updated_by = user
+                    current_tx.save()
+                case ItemAction.RESOLVE_DISPUTE_NOT_RETURNED:
+                    # Item is gone for good
+                    # soft-delete it and close out the transaction.
+                    self.soft_delete(deleted_by=user)
+                    current_tx.force_resolve(
+                        resolved_by=user,
+                        reason=ResolutionReason.DISPUTE_ITEM_NOT_RETURNED,
+                    )
+                case ItemAction.OFFER_GIVEAWAY:
+                    # The lender offers to give the item to the borrower for keeps.
+                    # Item stays BORROWED until the borrower accepts.
+                    current_tx.status = TransactionStatus.GIVEAWAY_OFFERED
+                    current_tx.updated_by = user
+                    current_tx.save()
+                case ItemAction.DECLINE_GIVEAWAY:
+                    # The borrower turns down the gift; the loan continues.
+                    current_tx.status = TransactionStatus.COLLECTED
+                    current_tx.updated_by = user
+                    current_tx.save()
+                case ItemAction.ACCEPT_GIVEAWAY:
+                    # The borrower accepts; ownership transfers for good.
+                    current_tx.status = TransactionStatus.OWNERSHIP_TRANSFERRED
+                    current_tx.updated_by = user
+                    current_tx.save()
+                    self._transfer_ownership(new_owner=user, by=user)
                 case ItemAction.CANCEL_REQUEST:
                     # The requestor cancels the Request.
                     self.status = ItemStatus.AVAILABLE
@@ -683,7 +815,7 @@ class Item(Model):
                     )
                     owner_deleted = (
                         counterparty == current_tx.party1
-                        and counterparty.deleted_at is not None  # type: ignore[attr-defined]
+                        and counterparty.deleted_at is not None
                     )
                     reason = (
                         ResolutionReason.OWNER_ACCOUNT_DELETED
@@ -696,6 +828,73 @@ class Item(Model):
                     raise ValueError(
                         f"Unexpected action '{action}' for Item '{self}' and User '{user}'"
                     )
+
+    def _groups_allowed_to_view(self) -> "QuerySet[BorrowdGroup]":
+        """
+        The current owner's active groups that may see this item.
+        TODO: expand this per issue #507
+        see https://github.com/borrowd/borrowd/issues/507
+        """
+        from borrowd_groups.models import MembershipStatus
+
+        # all Groups of which the owner is a member and has an equal or greater
+        # Trust Level than the level required by this Item.
+        return self.owner.borrowd_groups.filter(
+            membership__user=self.owner,  # looks redundant, but fails without it
+            membership__status=MembershipStatus.ACTIVE,
+            membership__trust_level__gte=self.trust_level_required,
+        ).exclude(perms_group=None)
+
+    def recompute_group_visibility(self) -> None:
+        """
+        Re-derive this item's group-level VIEW permissions for the current owner.
+
+        revokes VIEW perms for the item from every group that currently can has the perm,
+        then grants VIEW perms to the owner's allowed groups.
+        """
+        from django.contrib.auth.models import Group
+        from guardian.shortcuts import assign_perm, get_groups_with_perms, remove_perm
+
+        # guardian mis-types get_groups_with_perms as `Group | dict`; for the
+        # default attach_perms=False it returns a QuerySet[Group].
+        groups_that_can_view_item = cast("QuerySet[Group]", get_groups_with_perms(self))
+        for group in groups_that_can_view_item:
+            remove_perm(ItemOLP.VIEW, group, self)
+
+        allowed_groups = Group.objects.filter(
+            pk__in=self._groups_allowed_to_view().values_list("perms_group", flat=True)
+        )
+        assign_perm(ItemOLP.VIEW, allowed_groups, self)
+
+    def _transfer_ownership(self, new_owner: BorrowdUser, by: BorrowdUser) -> None:
+        """
+        Permanently hand this Item to new_owner.
+
+        Reassigns ownership in place: the same Item record (and its photos,
+        description, categories) shows up in the new owner's inventory and leaves the old owner's.
+        """
+        from guardian.shortcuts import assign_perm, remove_perm
+
+        old_owner = self.owner
+
+        # Reassign and save. The post_save signal recomputes group VIEW for the new owner
+        # see signals.py
+        self.owner = new_owner
+        self.status = ItemStatus.AVAILABLE
+        self.updated_by = by
+        self.save()
+
+        # Group VIEW is handled by the signal. Personal perms are granted only on create
+        # so hand the old owner's personal perms to the new owner.
+        for perm in [ItemOLP.VIEW, ItemOLP.EDIT, ItemOLP.DELETE]:
+            remove_perm(perm, old_owner, self)
+            assign_perm(perm, new_owner, self)
+
+        # Outstanding "notify me when available" subs are moot now.
+        for subscription in AvailabilitySubscription.get_active_subscriptions_for_item(
+            self
+        ):
+            subscription.cancel_subscription()
 
     class Meta:
         # Permissions using the naming conventon `*_this_*` are used
@@ -726,7 +925,7 @@ class ItemPhoto(Model):
     # Not including owner as permissions/ownership should be inherited from Item
     # Alt text could be a good additional field to support via user input
     # Height/Width might also need to be stored by parsing image metadata on save
-    item: ForeignKey[Item] = ForeignKey(Item, on_delete=CASCADE, related_name="photos")
+    item = ForeignKey(Item, on_delete=CASCADE, related_name="photos")
     item_id: int  # hint for mypy
     image = ProcessedImageField(
         upload_to="items/",
@@ -740,7 +939,7 @@ class ItemPhoto(Model):
         format="JPEG",
         options={"quality": 75},
     )
-    created_by: ForeignKey[BorrowdUser] = ForeignKey(
+    created_by = ForeignKey(
         BorrowdUser,
         related_name="+",  # No reverse relation needed
         null=False,
@@ -748,11 +947,11 @@ class ItemPhoto(Model):
         help_text="The user who created the item photo.",
         on_delete=DO_NOTHING,
     )
-    created_at: DateTimeField[Never, Never] = DateTimeField(
+    created_at = DateTimeField(
         auto_now_add=True,
         help_text="The date and time at which the item photo was created.",
     )
-    updated_by: ForeignKey[BorrowdUser] = ForeignKey(
+    updated_by = ForeignKey(
         BorrowdUser,
         related_name="+",  # No reverse relation needed
         null=False,
@@ -760,17 +959,17 @@ class ItemPhoto(Model):
         help_text="The last user who updated the item photo.",
         on_delete=DO_NOTHING,
     )
-    updated_at: DateTimeField[Never, Never] = DateTimeField(
+    updated_at = DateTimeField(
         auto_now=True,
         help_text="The date and time at which the item photo was last updated.",
     )
-    deleted_at: DateTimeField[Never, Never] = DateTimeField(
+    deleted_at = DateTimeField(
         null=True,
         blank=True,
         default=None,
         help_text="Set when the record is soft-deleted. NULL means active.",
     )
-    deleted_by: ForeignKey[BorrowdUser] = ForeignKey(
+    deleted_by = ForeignKey(
         BorrowdUser,
         null=True,
         blank=True,
@@ -782,7 +981,7 @@ class ItemPhoto(Model):
 
     def __str__(self) -> str:
         # error: "_ST" has no attribute "name"  [attr-defined]
-        return f"Photo of {self.item.name}"  # type: ignore[attr-defined]
+        return f"Photo of {self.item.name}"
 
 
 class TransactionStatus(IntegerChoices):
@@ -799,10 +998,14 @@ class TransactionStatus(IntegerChoices):
     ACCEPTED = 30, "Accepted"
     COLLECTION_ASSERTED = 40, "Collection Asserted"
     COLLECTED = 50, "Collected"
+    GIVEAWAY_OFFERED = 52, "Giveaway Offered"
+    RETURN_REQUESTED = 55, "Return Requested"
     RETURN_ASSERTED = 60, "Return Asserted"
+    DISPUTED = 65, "Disputed"
     RETURNED = 70, "Returned"
     CANCELLED = 80, "Cancelled"
     RESOLVED = 90, "Resolved"  # any force-resolved transaction, regardless of reason
+    OWNERSHIP_TRANSFERRED = 95, "Ownership Transferred"
 
 
 class ResolutionReason(TextChoices):
@@ -817,33 +1020,38 @@ class ResolutionReason(TextChoices):
         "counterparty_unresponsive",
         "Other party was unresponsive",
     )
+    DISPUTE_ITEM_NOT_RETURNED = (
+        "dispute_item_not_returned",
+        "Disputed item was not returned",
+    )
 
 
 class Transaction(Model):
-    item: ForeignKey["Item"] = ForeignKey(
+    item = ForeignKey(
         to="Item",
         on_delete=PROTECT,
         related_name="transactions",
         help_text="The Item which is the subject of the Transaction.",
     )
-    party1: ForeignKey[BorrowdUser] = ForeignKey(
+    party1 = ForeignKey(
         to=BorrowdUser,
         on_delete=PROTECT,
         related_name="+",  # No reverse relation needed
         help_text="The first party in the Transaction: 'lender', 'giver', 'owner', etc.",
     )
-    party2: ForeignKey[BorrowdUser] = ForeignKey(
+    party2 = ForeignKey(
         to=BorrowdUser,
         on_delete=PROTECT,
         related_name="+",  # No reverse relation needed
         help_text="The second party in the Transaction: 'borrower', 'receiver', etc.",
     )
-    status: IntegerField[TransactionStatus, int] = IntegerField(
+    status = IntegerField(
         choices=TransactionStatus.choices,
         default=TransactionStatus.REQUESTED,
         help_text="The current status of the Transaction.",
     )
-    resolution_reason: CharField[ResolutionReason, str] = CharField(
+    _previous_status: int | None = None
+    resolution_reason = CharField(
         max_length=32,
         choices=ResolutionReason.choices,
         null=True,
@@ -854,7 +1062,31 @@ class Transaction(Model):
             "dual-confirmation flow. NULL for normally-completed Transactions."
         ),
     )
-    created_by: ForeignKey[BorrowdUser] = ForeignKey(
+    return_requested_at = DateTimeField(
+        null=True,
+        blank=True,
+        default=None,
+        help_text=(
+            "When the lender requested the return of the item. Wait window "
+            "starts from this time. NULL means no return request was made."
+        ),
+    )
+    disputed_at = DateTimeField(
+        null=True,
+        blank=True,
+        default=None,
+        help_text=("When the Transaction entered DISPUTED. NULL means never disputed."),
+    )
+    dispute_raised_by = ForeignKey(
+        BorrowdUser,
+        null=True,
+        blank=True,
+        default=None,
+        on_delete=SET_NULL,
+        related_name="+",
+        help_text="Who raised the dispute. NULL means never disputed.",
+    )
+    created_by = ForeignKey(
         BorrowdUser,
         related_name="+",  # No reverse relation needed
         null=False,
@@ -862,11 +1094,11 @@ class Transaction(Model):
         help_text="The user who created the transaction.",
         on_delete=DO_NOTHING,
     )
-    created_at: DateTimeField[Never, Never] = DateTimeField(
+    created_at = DateTimeField(
         auto_now_add=True,
         help_text="The date and time at which the transaction was created.",
     )
-    updated_by: ForeignKey[BorrowdUser] = ForeignKey(
+    updated_by = ForeignKey(
         BorrowdUser,
         related_name="+",  # No reverse relation needed
         null=False,
@@ -874,17 +1106,17 @@ class Transaction(Model):
         help_text="The last user who updated the transaction.",
         on_delete=PROTECT,
     )
-    updated_at: DateTimeField[Never, Never] = DateTimeField(
+    updated_at = DateTimeField(
         auto_now=True,
         help_text="The date and time at which the transaction was last updated.",
     )
-    deleted_at: DateTimeField[Never, Never] = DateTimeField(
+    deleted_at = DateTimeField(
         null=True,
         blank=True,
         default=None,
         help_text="Set when the record is soft-deleted. NULL means active.",
     )
-    deleted_by: ForeignKey[BorrowdUser] = ForeignKey(
+    deleted_by = ForeignKey(
         BorrowdUser,
         null=True,
         blank=True,
@@ -893,6 +1125,26 @@ class Transaction(Model):
         related_name="+",
         help_text="Who performed the soft-delete. NULL means active or unknown.",
     )
+
+    def counter_party(self, user: BorrowdUser) -> BorrowdUser:
+        if user == self.party1:
+            return self.party2
+
+        if user == self.party2:
+            return self.party1
+
+        raise ValueError("User is not a party to this transaction.")
+
+    def dispute_wait_has_elapsed(self) -> bool:
+        """
+        Whether the lender has waited long enough since requesting a return
+        to be allowed to raise a dispute. Wait time is (RETURN_DISPUTE_WAIT_DAYS)
+        """
+
+        if self.return_requested_at is None:
+            return False
+        wait = timedelta(days=settings.RETURN_DISPUTE_WAIT_DAYS)
+        return timezone.now() - self.return_requested_at >= wait
 
     def force_resolve(
         self, *, resolved_by: BorrowdUser, reason: ResolutionReason
@@ -908,7 +1160,8 @@ class Transaction(Model):
         """
 
         with transaction.atomic():
-            item: Item = self.item  # type: ignore[assignment]
+            item: Item = self.item
+            item.refresh_from_db()
             if item.deleted_at is None:  # item not deleted
                 item.status = ItemStatus.AVAILABLE
                 item.save()
@@ -938,7 +1191,10 @@ class Transaction(Model):
         """
         Returns Transactions where the given User is the active borrower (party 2)
 
-        Includes all states from ACCEPTED through RETURN_ASSERTED.
+        "Active" is defined by exclusion: every state except the closed ones
+        (RETURNED, REJECTED, CANCELLED, RESOLVED, OWNERSHIP_TRANSFERRED) and the
+        not-yet-accepted REQUESTED. In-flight states like COLLECTION_ASSERTED,
+        RETURN_REQUESTED, and DISPUTED all count as active borrows.
         """
         return Transaction.objects.filter(
             Q(party2=user)
@@ -953,6 +1209,7 @@ class Transaction(Model):
                     TransactionStatus.REJECTED,
                     TransactionStatus.CANCELLED,
                     TransactionStatus.RESOLVED,
+                    TransactionStatus.OWNERSHIP_TRANSFERRED,
                 ]
             )
         )
@@ -962,8 +1219,10 @@ class Transaction(Model):
         """
         Returns Transactions where the given User is the active lender (party 1)
 
-        Includes all states from ACCEPTED through RETURN_ASSERTED,
-
+        "Active" is defined by exclusion: every state except the closed ones
+        (RETURNED, REJECTED, CANCELLED, RESOLVED, OWNERSHIP_TRANSFERRED) and the
+        not-yet-accepted REQUESTED. In-flight states like COLLECTION_ASSERTED,
+        RETURN_REQUESTED, and DISPUTED all count as active lends.
         """
         return Transaction.objects.filter(
             Q(party1=user)
@@ -974,8 +1233,80 @@ class Transaction(Model):
                     TransactionStatus.REJECTED,
                     TransactionStatus.CANCELLED,
                     TransactionStatus.RESOLVED,
+                    TransactionStatus.OWNERSHIP_TRANSFERRED,
                 ]
             )
+        )
+
+    @staticmethod
+    def get_successful_borrows(user: BorrowdUser) -> QuerySet["Transaction"]:
+        """
+        Return the transactions in witch the user was a borrowers
+        and the item was successfuly RETURNED.
+        """
+
+        return Transaction.objects.filter(
+            Q(party2=user) & Q(status=TransactionStatus.RETURNED)
+        )
+
+    @staticmethod
+    def get_successful_lends(user: BorrowdUser) -> QuerySet["Transaction"]:
+        """
+        Return the transactions in witch the user was a lender
+        and the item was successfuly RETURNED or has been Given away.
+        """
+
+        return Transaction.objects.filter(
+            Q(party1=user)
+            & Q(
+                status__in=[
+                    TransactionStatus.RETURNED,
+                ]
+            )
+        )
+
+    @staticmethod
+    def get_items_given_away(user: BorrowdUser) -> QuerySet["Transaction"]:
+        """
+        Return the transactions in witch the user was a lender
+        and the item was Given away.
+        """
+
+        return Transaction.objects.filter(
+            Q(party1=user)
+            & Q(
+                status__in=[
+                    TransactionStatus.OWNERSHIP_TRANSFERRED,
+                ]
+            )
+        )
+
+    @staticmethod
+    def get_pending_return_requests(user: BorrowdUser) -> QuerySet["Transaction"]:
+        """
+        Returns the transactions where the user is a borrower and the return has been requested.
+        We also include transactions where the Return is asserted but not yet confirmed.
+        """
+
+        return Transaction.objects.filter(
+            Q(party2=user)
+            & Q(
+                status__in=[
+                    TransactionStatus.RETURN_REQUESTED,
+                    TransactionStatus.RETURN_ASSERTED,
+                ]
+            )
+        )
+
+    @staticmethod
+    def get_past_disputes(user: BorrowdUser) -> QuerySet["Transaction"]:
+        """
+        Returns the disputes involving the {user}, we filter on disputed_at instead if status
+        To track also disputes that will eventualy become resolved.
+        """
+
+        return Transaction.objects.filter(
+            Q(disputed_at__isnull=False) & (Q(party1=user) | Q(party2=user))
         )
 
 
@@ -993,33 +1324,33 @@ class AvailabilitySubscriptionStatus(IntegerChoices):
 
 
 class AvailabilitySubscription(Model):
-    item: ForeignKey["Item"] = ForeignKey(
+    item = ForeignKey(
         to="Item",
         on_delete=PROTECT,
         related_name="subscriptions",
         help_text="The Item which is the subject of the Subscription.",
     )
-    user: ForeignKey[BorrowdUser] = ForeignKey(
+    user = ForeignKey(
         to=BorrowdUser,
         on_delete=PROTECT,
         related_name="+",  # No reverse relation needed
         help_text="The User who is subscribed to the Item.",
     )
-    status: IntegerField[AvailabilitySubscriptionStatus, int] = IntegerField(
+    status = IntegerField(
         choices=AvailabilitySubscriptionStatus.choices,
         default=AvailabilitySubscriptionStatus.ACTIVE,
         help_text="The current status of the Subscription.",
     )
-    created_at: DateTimeField[Never, Never] = DateTimeField(
+    created_at = DateTimeField(
         auto_now_add=True,
         help_text="When this Subscription was created.",
     )
-    notified_at: DateTimeField[Optional[str], Optional[str]] = DateTimeField(
+    notified_at = DateTimeField(
         null=True,
         blank=True,
         help_text="When the user was notified that the item became available.",
     )
-    language: CharField[str, str] = CharField(
+    language = CharField(
         max_length=10,
         null=False,
         blank=False,

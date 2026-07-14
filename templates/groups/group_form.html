@@ -163,13 +163,8 @@ block groups_content %}
                 {% endif %}
             </div>
         {% endfor %}
-        <div class="mt-6 w-full flex items-center {% if form.instance.pk %}justify-between{% else %}justify-end{% endif %}">
+        <div class="mt-6 w-full flex items-center justify-end">
             {% if form.instance.pk %}
-                <button type="button"
-                        class="btn btn-error btn-soft rounded-sm"
-                        onclick="showModal('group-delete-modal')">
-                    Delete group
-                </button>
                 <div class="flex items-center gap-4">
 
                     <c-button-nav url="{% url 'borrowd_groups:group-detail' form.instance.pk %}"
@@ -193,17 +188,6 @@ block groups_content %}
             {% endif %}
         </div>
     </form>
-
-    {% if view.object.pk %}
-        <form id="group-delete-form"
-              method="post"
-              action="{% url 'borrowd_groups:group-delete' form.instance.pk %}"
-              class="hidden">
-            {% csrf_token %}
-        </form>
-        {% include "components/modal.html" with modal_id="group-delete-modal" modal_title="Confirm Deletion" modal_content_template="groups/__group_delete_content.html" cancel_button_text="Cancel" confirm_button_text="Yes, delete group" confirm_submit_form_id="group-delete-form" confirm_button_class="btn btn-md btn-error btn-soft rounded-sm" %}
-
-    {% endif %}
 
     {% if not view.object.pk %}
         <c-modal modal_id="group-create-trust-level-info-modal"

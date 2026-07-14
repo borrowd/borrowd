@@ -91,7 +91,7 @@ class RemoveUsersFromGroupsTests(TestCase):
         # Arrange
         owner = BorrowdUser.objects.create_user(username="user1", password="password1")
 
-        group: BorrowdGroup = BorrowdGroup.objects.create(
+        group: BorrowdGroup = BorrowdGroup.objects.create_group(
             name="Group 1",
             created_by=owner,
             updated_by=owner,
@@ -110,7 +110,7 @@ class RemoveUsersFromGroupsTests(TestCase):
         # Arrange
         owner = BorrowdUser.objects.create_user(username="user1", password="password1")
 
-        group: BorrowdGroup = BorrowdGroup.objects.create(
+        group: BorrowdGroup = BorrowdGroup.objects.create_group(
             name="Group 1",
             created_by=owner,
             updated_by=owner,

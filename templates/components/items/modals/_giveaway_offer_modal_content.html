@@ -1,0 +1,8 @@
+<p>
+    You are about to permanently transfer ownership of
+    <strong>{{ item.name }}</strong> to
+    <strong>{{ item.get_current_borrower.first_name|capfirst|default:"the borrower" }}</strong>.
+</p>
+<p class="mt-2 text-sm text-error">
+    This cannot be undone.
+</p>

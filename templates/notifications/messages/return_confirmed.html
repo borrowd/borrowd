@@ -1,0 +1,23 @@
+{% extends "notifications/messages/layout.html" %}
+
+{% block title %}
+    Return Confirmed - Borrow'd
+{% endblock %}
+
+{% block content %}
+    <h2>
+        Hi {{ requester_name }},
+    </h2>
+
+    <div class="success">
+        <strong>{{ item_owner_name }} has confirmed the return of {{ item_name }}. The loan is now complete.</strong>
+    </div>
+
+    <p>
+        Thanks for borrowing responsibly and returning it on time. That's what makes this community work for everyone.
+    </p>
+
+    <p>
+        The Borrow'd team
+    </p>
+{% endblock %}

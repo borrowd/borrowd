@@ -1,14 +1,12 @@
 from __future__ import annotations
 
-from typing import cast
-
 from allauth.account.models import EmailAddress
 from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 from notifications.signals import notify
 
-from borrowd_groups.models import BorrowdGroup, Membership, MembershipStatus
+from borrowd_groups.models import Membership, MembershipStatus
 from borrowd_items.models import (
     AvailabilitySubscription,
     AvailabilitySubscriptionStatus,
@@ -17,7 +15,7 @@ from borrowd_items.models import (
     Transaction,
     TransactionStatus,
 )
-from borrowd_notifications.services import NotificationType
+from borrowd_notifications.models import NotificationType
 
 from .exceptions import AccountDeletionBlocked
 from .models import BorrowdUser
@@ -83,7 +81,7 @@ def _cancel_open_transactions(user: BorrowdUser, deleted_by: BorrowdUser) -> Non
     ).select_related("item", "item__owner", "party1", "party2")
 
     for txn in open_transactions:
-        item = cast(Item, txn.item)
+        item = txn.item
         # Free the counterparty's item back up. The leaving user's own items are
         # about to be soft-deleted, so there's no point flipping their status.
         if item.owner != user:
@@ -127,7 +125,7 @@ def _notify_counterparty_of_cancellation(
         leaving_user,
         recipient=[counterparty],
         verb=verb.value,
-        action_object=cast(Item, txn.item),
+        action_object=txn.item,
         target=txn,
         description=description,
     )
@@ -149,7 +147,7 @@ def _notify_borrowers_of_in_flight_lends(user: BorrowdUser) -> None:
             user,
             recipient=[txn.party2],
             verb=NotificationType.LOAN_ENDED_OWNER_LEFT.value,
-            action_object=cast(Item, txn.item),
+            action_object=txn.item,
             target=txn,
             description="The owner of an item you borrowed closed their account",
         )
@@ -211,7 +209,7 @@ def _remove_group_memberships(user: BorrowdUser) -> None:
     """
     memberships = list(Membership.objects.filter(user=user).select_related("group"))
     for membership in memberships:
-        group = cast(BorrowdGroup, membership.group)
+        group = membership.group
         group.remove_user(user, bypass_last_moderator_check=True)
 
         remaining_active_members = Membership.objects.filter(

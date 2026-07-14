@@ -1,0 +1,10 @@
+Hi {{ borrower_name }},
+
+{{owner_name}} has requested for their {{ item_name }} to be returned.
+
+Please coordinate a return as soon as you can. Borrow'd works best when our community feels confident sharing.
+
+Go to my inventory:
+{{ inventory_url }}
+
+The Borrow'd team

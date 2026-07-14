@@ -1,4 +1,4 @@
-from typing import Any, Never  # Unfortunately needed for more mypy shenanigans
+from typing import Any  # Unfortunately needed for more mypy shenanigans
 
 from django.contrib.auth.models import Group
 from django.db.models import (
@@ -29,21 +29,20 @@ from borrowd_users.models import BorrowdUser
 
 
 class BorrowdGroupManager(Manager["BorrowdGroup"]):
-    def create(
+    def create_group(
         self,
+        *,
+        trust_level: TrustLevel | None = None,
         **kwargs: Any,
     ) -> "BorrowdGroup":
         """
-        Custom create method in order to pass trust_level to the
-        Membership model, via signal, when creating a new group.
-        """
-        # Pop the "trust_level" out of the kwargs, if present, as the
-        # underlying model does not expect it.
-        trust_level: TrustLevel | None = kwargs.pop("trust_level", None)
+        Create a BorrowdGroup, passing trust_level through to the
+        Membership created for the group's creator.
 
-        # Manually create the BorrowdGroup object which we'll try to
-        # persist. This is the part which would fail if we passed
-        # unexpected args like "trust_level".
+        `trust_level` is not a `BorrowdGroup` field (which is why this is
+        not an override of the standard `create()`); it is smuggled to
+        the `post_save` signal that creates the creator's `Membership`.
+        """
         group: BorrowdGroup = BorrowdGroup(**kwargs)
 
         # This instance property is not saved to the database, but
@@ -69,11 +68,9 @@ class BorrowdGroup(Model):
     custom group model in Django, but this is a common way to start.
     """
 
-    name: CharField[str, str] = CharField(max_length=50)
-    description: TextField[Never, Never] = TextField(
-        max_length=500, blank=True, null=True
-    )
-    logo: ProcessedImageField = ProcessedImageField(
+    name = CharField(max_length=50)
+    description = TextField(max_length=500, blank=True, null=True)
+    logo = ProcessedImageField(
         upload_to="groups/logos/",
         processors=[ResizeToFit(1600, 1600)],
         format="JPEG",
@@ -81,7 +78,7 @@ class BorrowdGroup(Model):
         null=True,
         blank=True,
     )
-    banner: ProcessedImageField = ProcessedImageField(
+    banner = ProcessedImageField(
         upload_to="groups/banners/",
         processors=[ResizeToFit(1600, 400)],
         format="JPEG",
@@ -89,11 +86,11 @@ class BorrowdGroup(Model):
         null=True,
         blank=True,
     )
-    membership_requires_approval: BooleanField[bool, bool] = BooleanField(
+    membership_requires_approval = BooleanField(
         default=True,
         help_text="New members require Moderator approval to join the group",
     )
-    users: ManyToManyField[BorrowdUser, BorrowdUser] = ManyToManyField(
+    users = ManyToManyField(
         BorrowdUser,
         blank=True,
         help_text="The users in this group.",
@@ -101,12 +98,12 @@ class BorrowdGroup(Model):
         related_query_name="borrowd_groups",
         through="borrowd_groups.Membership",
     )
-    perms_group: OneToOneField[Group] = OneToOneField(
+    perms_group = OneToOneField(
         Group,
         null=True,
         on_delete=CASCADE,
     )
-    created_by: ForeignKey[BorrowdUser] = ForeignKey(
+    created_by = ForeignKey(
         BorrowdUser,
         related_name="+",  # No reverse relation needed
         null=False,
@@ -114,11 +111,11 @@ class BorrowdGroup(Model):
         help_text="The user who created the group.",
         on_delete=DO_NOTHING,
     )
-    created_at: DateTimeField[Never, Never] = DateTimeField(
+    created_at = DateTimeField(
         auto_now_add=True,
         help_text="The date and time at which the group was created.",
     )
-    updated_by: ForeignKey[BorrowdUser] = ForeignKey(
+    updated_by = ForeignKey(
         BorrowdUser,
         related_name="+",  # No reverse relation needed
         null=False,
@@ -126,17 +123,17 @@ class BorrowdGroup(Model):
         help_text="The last user who updated the group.",
         on_delete=DO_NOTHING,
     )
-    updated_at: DateTimeField[Never, Never] = DateTimeField(
+    updated_at = DateTimeField(
         auto_now=True,
         help_text="The date and time at which the group was last updated.",
     )
-    deleted_at: DateTimeField[Never, Never] = DateTimeField(
+    deleted_at = DateTimeField(
         null=True,
         blank=True,
         default=None,
         help_text="Set when the record is soft-deleted. NULL means active.",
     )
-    deleted_by: ForeignKey[BorrowdUser] = ForeignKey(
+    deleted_by = ForeignKey(
         BorrowdUser,
         null=True,
         blank=True,
@@ -151,7 +148,7 @@ class BorrowdGroup(Model):
     # model via the post_save signal.
     # mypy error: Cannot override class variable (previously declared on base class "Group") with instance variable  [misc]
     # ... but, this is a class variable, not an instance variable, right?
-    objects: BorrowdGroupManager = BorrowdGroupManager()  # type: ignore[misc]
+    objects = BorrowdGroupManager()
 
     def get_absolute_url(self) -> str:
         return reverse("borrowd_groups:group-detail", args=[self.pk])
@@ -243,6 +240,8 @@ class BorrowdGroup(Model):
 
         membership.save()
 
+        # TODO: Gracefuly soft delete when the last user quits.
+
     class Meta:
         permissions = (
             (BorrowdGroupOLP.VIEW, "Can view this Group"),
@@ -278,30 +277,31 @@ class Membership(Model):
             is a moderator of the group. Defaults to False.
     """
 
-    user: ForeignKey[BorrowdUser] = ForeignKey(
+    user = ForeignKey(
         BorrowdUser,
         on_delete=CASCADE,
     )
-    group: ForeignKey[BorrowdGroup] = ForeignKey(
+    group = ForeignKey(
         BorrowdGroup,
         on_delete=CASCADE,
     )
-    is_moderator: BooleanField[bool, bool] = BooleanField(default=False)
-    joined_at: DateTimeField[Never, Never] = DateTimeField(
+    is_moderator = BooleanField(default=False)
+    joined_at = DateTimeField(
         auto_now_add=True,
         help_text="The date and time at which the user joined the group.",
     )
-    status: TextField[MembershipStatus, str] = TextField(
+    status = TextField(
         choices=MembershipStatus.choices,
         null=False,
         blank=False,
     )
-    status_changed_at: DateTimeField[Never, Never] = DateTimeField(
+    _previous_status: str | None = None
+    status_changed_at = DateTimeField(
         null=True,
         blank=False,
         help_text="The date and time at which the membership status was last updated.",
     )
-    status_changed_reason: TextField[str, str] = TextField(
+    status_changed_reason = TextField(
         max_length=500,
         null=True,
         blank=False,
@@ -310,7 +310,7 @@ class Membership(Model):
             "May be useful in unfortunate cases of suspension / banning."
         ),
     )
-    trust_level: IntegerField[TrustLevel, int] = IntegerField(
+    trust_level = IntegerField(
         choices=TrustLevel,
         help_text="The User's selected level of Trust for the given Group.",
     )

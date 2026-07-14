@@ -1,4 +1,5 @@
 from datetime import timedelta
+from typing import Literal
 
 from django.conf import settings
 from django.http import HttpRequest, HttpResponse
@@ -28,7 +29,9 @@ def signup(request: HttpRequest) -> HttpResponse:
 def set_cookie_response(request: HttpRequest, beta_signup: BetaSignup) -> HttpResponse:
     secure = getattr(settings, "BETA_SECURE_COOKIE", False)
     domain = getattr(settings, "BETA_COOKIE_DOMAIN", None)
-    samesite = getattr(settings, "BETA_COOKIE_SAMESITE", "Lax")
+    samesite: Literal["Lax", "Strict", "None", False] | None = getattr(
+        settings, "BETA_COOKIE_SAMESITE", "Lax"
+    )
     response = HttpResponse("Beta signup successful. Redirecting...")
     response["HX-Redirect"] = settings.BETA_SIGNUP_REDIRECT_PATH
     response.set_cookie(
@@ -37,7 +40,7 @@ def set_cookie_response(request: HttpRequest, beta_signup: BetaSignup) -> HttpRe
         secure=secure,
         domain=domain,
         httponly=True,
-        samesite=samesite,  # type: ignore[arg-type]
+        samesite=samesite,
         max_age=timedelta(days=90),
     )
     return response

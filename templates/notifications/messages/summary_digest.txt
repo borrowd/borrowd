@@ -1,0 +1,10 @@
+Hi {{ recipient_name }},
+
+Here are the notifications you missed while we paused email delivery to avoid overloading your inbox:
+
+{% for message in notification_messages %}- {{ message }}
+{% endfor %}
+View all your notifications:
+{{ inbox_url }}
+
+The Borrow'd team

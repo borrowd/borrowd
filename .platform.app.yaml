@@ -122,3 +122,9 @@ hooks:
 
     echo "Loading item categories..."
     uv run manage.py loaddata items/item_categories
+
+crons:
+  send-summary-digests:
+    spec: '*/15 * * * *'
+    commands:
+      start: 'uv run manage.py send_summary_digests'

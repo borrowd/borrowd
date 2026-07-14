@@ -4,7 +4,7 @@ from notifications.models import Notification
 
 from borrowd.models import TrustLevel
 from borrowd_groups.models import BorrowdGroup, Membership
-from borrowd_notifications.services import NotificationType
+from borrowd_notifications.models import NotificationType
 from borrowd_users.models import BorrowdUser
 
 
@@ -38,7 +38,7 @@ class ModeratorHandoffTests(TestCase):
             password="password",
         )
 
-        self.group = BorrowdGroup.objects.create(
+        self.group = BorrowdGroup.objects.create_group(
             name="Test Group",
             created_by=self.owner,
             updated_by=self.owner,

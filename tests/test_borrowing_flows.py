@@ -53,7 +53,7 @@ class RejectedFlowTest(SimpleTestCase):
         cls.borrower = BorrowdUser.objects.create(
             username="borrower", email="borrower@example.com"
         )
-        cls.group = BorrowdGroup.objects.create(
+        cls.group = BorrowdGroup.objects.create_group(
             name="Test Group",
             created_by=cls.lender,
             updated_by=cls.lender,
@@ -189,7 +189,7 @@ class RejectedFlowTest(SimpleTestCase):
         self.assertEqual(self.item.status, ItemStatus.REQUESTED)
         ## Redirects to item detail page after processing action
         self.assertEqual(
-            response.url,  # type: ignore[attr-defined]
+            response["Location"],
             reverse("item-detail", kwargs={"pk": self.item.pk}),
         )
 
@@ -300,7 +300,7 @@ class AcceptedFlowTest(SimpleTestCase):
         cls.borrower = BorrowdUser.objects.create(
             username="accept_borrower", email="accept_borrower@example.com"
         )
-        cls.group = BorrowdGroup.objects.create(
+        cls.group = BorrowdGroup.objects.create_group(
             name="Accept Test Group",
             created_by=cls.lender,
             updated_by=cls.lender,
@@ -408,7 +408,7 @@ class CancelFromRequestedFlowTest(SimpleTestCase):
         cls.borrower = BorrowdUser.objects.create(
             username="cancel_req_borrower", email="cancel_req_borrower@example.com"
         )
-        cls.group = BorrowdGroup.objects.create(
+        cls.group = BorrowdGroup.objects.create_group(
             name="Cancel Req Test Group",
             created_by=cls.lender,
             updated_by=cls.lender,
@@ -492,7 +492,7 @@ class CancelFromAcceptedFlowTest(SimpleTestCase):
         cls.borrower = BorrowdUser.objects.create(
             username="cancel_acc_borrower", email="cancel_acc_borrower@example.com"
         )
-        cls.group = BorrowdGroup.objects.create(
+        cls.group = BorrowdGroup.objects.create_group(
             name="Cancel Acc Test Group",
             created_by=cls.lender,
             updated_by=cls.lender,

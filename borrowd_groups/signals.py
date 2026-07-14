@@ -1,4 +1,4 @@
-from typing import Any, cast
+from typing import Any
 
 from django.contrib.auth.models import Group
 from django.db.models.query import QuerySet
@@ -11,7 +11,7 @@ from borrowd.models import TrustLevel
 from borrowd_groups.exceptions import ModeratorRequiredException
 from borrowd_groups.models import BorrowdGroup, Membership, MembershipStatus
 from borrowd_items.models import Item
-from borrowd_notifications.services import NotificationType
+from borrowd_notifications.models import NotificationType
 from borrowd_permissions.models import BorrowdGroupOLP, ItemOLP
 from borrowd_users.models import BorrowdUser
 
@@ -36,22 +36,27 @@ def maintain_perms_group_on_borrowd_group_change(
     if created:
         creator = instance.created_by
         perms_group = Group.objects.create(
-            name=compute_per_group_unique_name(instance.name, creator.pk)  # type: ignore[attr-defined]
+            name=compute_per_group_unique_name(instance.name, creator.pk)
         )
         instance.perms_group = perms_group
         instance.save()
 
     # on update, make sure that the names still match
     else:
-        perms_group = instance.perms_group
+        linked_perms_group = instance.perms_group
+        if linked_perms_group is None:
+            # This should never happen, but just in case...
+            raise ValueError(
+                "This BorrowdGroup has no perms_group; cannot sync its name."
+            )
         creator = instance.created_by
         perms_group_name = compute_per_group_unique_name(
             instance.name,
-            creator.pk,  # type: ignore[attr-defined]
+            creator.pk,
         )
-        if perms_group.name != perms_group_name:
-            perms_group.name = perms_group_name
-            perms_group.save()
+        if linked_perms_group.name != perms_group_name:
+            linked_perms_group.name = perms_group_name
+            linked_perms_group.save()
 
 
 @receiver(pre_delete, sender=BorrowdGroup)
@@ -62,7 +67,12 @@ def stash_perms_group_for_cleanup(
     Keep track of the linked auth Group so it can be deleted once the
     BorrowdGroup cascade has completed.
     """
-    setattr(instance, "_perms_group_id_for_cleanup", instance.perms_group.pk)
+    perms_group = instance.perms_group
+    setattr(
+        instance,
+        "_perms_group_id_for_cleanup",
+        perms_group.pk if perms_group is not None else None,
+    )
 
 
 @receiver(post_delete, sender=BorrowdGroup)
@@ -90,7 +100,7 @@ def set_moderator_on_group_creation(
 
     group: BorrowdGroup = instance
     # mypy error: Incompatible types in assignment (expression has type "_ST", variable has type "BorrowdUser")  [assignment]
-    creator: BorrowdUser = group.created_by  # type: ignore[assignment]
+    creator: BorrowdUser = group.created_by
     # By default, assume High trust for a Group which a user has
     # created themselves.
     trust_level: TrustLevel = (
@@ -153,8 +163,8 @@ def refresh_permissions_on_membership_update(
     #
     membership = instance
     # error: "_ST" has no attribute "perms_group" / "groups"
-    user = cast(BorrowdUser, instance.user)
-    borrowd_group = cast(BorrowdGroup, instance.group)
+    user = instance.user
+    borrowd_group = instance.group
     group = borrowd_group.perms_group
     if group is None:
         # This should never happen, but just in case...
@@ -189,7 +199,10 @@ def refresh_permissions_on_membership_update(
 
         for item_perm in [ItemOLP.VIEW]:  # will have more later
             remove_perm(item_perm, group, items_requiring_higher_trust)
-            assign_perm(item_perm, group, items_requiring_lower_trust)
+            # assign_perm accepts QuerySets for bulk assignment, but guardian just under-types it
+            # therefore, ignore the issue.
+            # See https://django-guardian.readthedocs.io/en/stable/userguide/remove/#for-multiple-objects
+            assign_perm(item_perm, group, items_requiring_lower_trust)  # type: ignore[arg-type]
 
         member_perms = [BorrowdGroupOLP.VIEW]
         if membership.is_moderator:
@@ -218,8 +231,8 @@ def pre_membership_delete(
     when their membership is deleted.
     """
     membership = instance
-    user = cast(BorrowdUser, membership.user)
-    borrowd_group = cast(BorrowdGroup, membership.group)
+    user = membership.user
+    borrowd_group = membership.group
     group = borrowd_group.perms_group
     if group is None:
         # This should never happen, but keep failure mode explicit.
@@ -270,8 +283,8 @@ def pre_membership_save(
     If not, raise a ModeratorRequiredException.
     """
     membership = instance
-    user = cast(BorrowdUser, membership.user)
-    group = cast(BorrowdGroup, membership.group)
+    user = membership.user
+    group = membership.group
 
     # Check if the user is being added as a moderator
     if not membership.is_moderator:
@@ -293,7 +306,7 @@ def flag_group_if_last_moderator_leaves(
     if not getattr(instance, "_bypass_last_moderator_check", False):
         return
 
-    group = cast(BorrowdGroup, instance.group)
+    group = instance.group
 
     has_moderator = Membership.objects.filter(
         group=group,

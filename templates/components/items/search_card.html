@@ -10,7 +10,7 @@ Parameters:
 - name: Item title
 - description: Item description
 - image: Thumbnail URL
-- banner_type: 'available' | 'requested' | 'reserved' | 'borrowed' | 'pending' | 'waitlisted'
+- banner_type: 'available' | 'requested' | 'reserved' | 'borrowed' | 'pending' | 'waitlisted' | 'giveaway_offered'
 - banner_bg: Background color classes (e.g. bg-success/15)
 - banner_text: Text/icon color classes (e.g. text-success)
 - banner_icon: SVG icon markup (HTML-safe string)
@@ -47,6 +47,8 @@ Parameters:
                     Pending
                 {% elif banner_type == "waitlisted" %}
                     Waitlisted
+                {% elif banner_type == "giveaway_offered" %}
+                    {{ person_name }} is offering you this item!
                 {% else %}
                     {{ banner_type|title }}
                 {% endif %}
@@ -58,6 +60,7 @@ Parameters:
             {% static 'items/categories/logo-tools.png' as fallback_image %}
             <img src="{{ image|default:fallback_image }}"
                  alt="{{ name|default:'Item image' }}"
+                 loading="lazy"
                  class="w-full h-full object-cover" />
         </div>
         <div class="flex flex-col gap-1 min-w-0 flex-1">

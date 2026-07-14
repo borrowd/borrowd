@@ -61,7 +61,7 @@
 
             <!-- Member Count -->
             <div class="text-base font-semibold text-base-content-scale-50 text-right w-10 inline-flex items-center justify-end gap-3">
-                {{ membership.group.users.count }}
+                {{ membership.active_members_count }}
 
                 {% if membership.has_pending_actions %}
                     <span class="inline-flex items-center justify-center w-5 h-5 text-info"

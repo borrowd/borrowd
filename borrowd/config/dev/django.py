@@ -1,5 +1,4 @@
-# for some unknown reason, pre-commit cannot find sentry_sdk
-import sentry_sdk  # type: ignore[import-not-found]
+import sentry_sdk
 
 from borrowd.config.env import env
 
@@ -13,6 +12,7 @@ else:
     ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
 
 STATIC_ROOT = BASE_DIR / "staticfiles"  # noqa: F405
+INTERNAL_IPS = ["127.0.0.1"]
 DJANGO_VITE = {
     "default": {
         "dev_mode": DEBUG,

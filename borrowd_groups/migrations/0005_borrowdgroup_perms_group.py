@@ -9,7 +9,7 @@ from django.db import migrations, models
 logger = getLogger("borrowd")
 
 
-def forwards_func(apps, schema_editor):  # type: ignore[no-untyped-def]
+def forwards_func(apps, schema_editor):
     BorrowdGroup = apps.get_model("borrowd_groups", "BorrowdGroup")
     for borrowd_group in BorrowdGroup.objects.all():
         try:
@@ -17,7 +17,7 @@ def forwards_func(apps, schema_editor):  # type: ignore[no-untyped-def]
                 name=f"{borrowd_group.name}_user_{borrowd_group.created_by.pk}"
             )
             # must use ids here because django complains with an internally inconsistent error
-            borrowd_group.perms_group_id = perms_group.id  # type: ignore[attr-defined]
+            borrowd_group.perms_group_id = perms_group.id
             borrowd_group.save()
         except Group.DoesNotExist:
             logger.warning(
@@ -25,7 +25,7 @@ def forwards_func(apps, schema_editor):  # type: ignore[no-untyped-def]
             )
 
 
-def reverse_func(apps, schema_editor):  # type: ignore[no-untyped-def]
+def reverse_func(apps, schema_editor):
     pass
 
 

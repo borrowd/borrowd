@@ -25,7 +25,7 @@ from borrowd_items.models import (
     Transaction,
     TransactionStatus,
 )
-from borrowd_notifications.services import NotificationType
+from borrowd_notifications.models import NotificationType
 from borrowd_users.exceptions import AccountDeletionBlocked
 from borrowd_users.models import BorrowdUser
 from borrowd_users.services import soft_delete_account
@@ -375,7 +375,7 @@ class AccountDeletionGroupTests(TestCase):
         self.other = _make_user("groupother")
 
     def _group(self, creator: BorrowdUser, name: str) -> BorrowdGroup:
-        return BorrowdGroup.objects.create(
+        return BorrowdGroup.objects.create_group(
             name=name,
             created_by=creator,
             updated_by=creator,
@@ -498,7 +498,7 @@ class PublicProfileAfterDeletionTests(TestCase):
         self.subject = _make_user("subject")
         # Put them in a shared group so the viewer is normally allowed to see
         # the subject's public profile.
-        group = BorrowdGroup.objects.create(
+        group = BorrowdGroup.objects.create_group(
             name="Shared",
             created_by=self.viewer,
             updated_by=self.viewer,

@@ -1,25 +1,29 @@
-from typing import Any, cast
+from typing import Any
 from urllib.parse import urlencode
 
 from django.contrib import messages
 from django.contrib.messages.api import MessageFailure
-from django.core.validators import FileExtensionValidator
+from django.core.files.uploadedfile import UploadedFile
+from django.db.models import QuerySet
 from django.forms import ModelForm
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse, reverse_lazy
+from django.utils.datastructures import MultiValueDict
 from django.views.decorators.http import require_POST
 from django.views.generic import CreateView, DeleteView, DetailView, UpdateView
 from django_filters.views import FilterView
 from guardian.mixins import LoginRequiredMixin
 
 from borrowd.util import BorrowdTemplateFinderMixin, resolve_back_url
+from borrowd_groups.models import Membership, MembershipStatus
 from borrowd_permissions.mixins import (
     LoginOr403PermissionMixin,
     LoginOr404PermissionMixin,
 )
 from borrowd_permissions.models import ItemOLP
-from borrowd_users.models import BorrowdUser, SearchTarget, SearchTerm
+from borrowd_users.models import SearchTarget, SearchTerm
+from borrowd_users.request import get_authenticated_user
 
 from .card_helpers import (
     build_item_card_context,
@@ -29,11 +33,9 @@ from .exceptions import InvalidItemAction, ItemAlreadyRequested
 from .filters import ItemFilter
 from .forms import (
     ALLOWED_IMAGE_ACCEPT,
-    ALLOWED_IMAGE_EXTENSIONS,
     ItemCreateWithPhotoForm,
     ItemForm,
     ItemPhotoForm,
-    validate_image_size,
 )
 from .models import Item, ItemAction, ItemPhoto, ItemStatus
 
@@ -61,6 +63,14 @@ def _build_item_action_success_message(item_name: str, action: ItemAction) -> st
         ItemAction.NOTIFY_WHEN_AVAILABLE: "notification requested",
         ItemAction.CANCEL_NOTIFICATION_REQUEST: "notification request canceled",
         ItemAction.RESOLVE_TRANSACTION: "transaction closed out",
+        ItemAction.REQUEST_RETURN: "return requested",
+        ItemAction.FLAG_CANNOT_RETURN: "flagged as cannot be returned",
+        ItemAction.RAISE_DISPUTE: "dispute raised",
+        ItemAction.RESOLVE_DISPUTE_RETURNED: "dispute resolved, item returned",
+        ItemAction.RESOLVE_DISPUTE_NOT_RETURNED: "dispute resolved, item removed",
+        ItemAction.OFFER_GIVEAWAY: "offered as a giveaway",
+        ItemAction.ACCEPT_GIVEAWAY: "is now yours",
+        ItemAction.DECLINE_GIVEAWAY: "giveaway declined",
     }
     return f"{item_name} {action_to_result[action]}."
 
@@ -104,11 +114,7 @@ def borrow_item(request: HttpRequest, pk: int) -> HttpResponse:
     if req_action is None:
         return HttpResponse("No action specified.", status=400)
 
-    # mypy complains that `request.user` is a AbstractBaseUser or
-    # AnonymousUser, but when I follow the code it looks like it's
-    # AbstractUser or AnonymousUser, which we *would* comply with
-    # here (BorrowdUser subclasses AbstractUser).
-    user: BorrowdUser = request.user  # type: ignore[assignment]
+    user = get_authenticated_user(request)
     # Resolve against all items, including soft-deleted ones: an owner closing
     # their account soft-eletes their items, but the borrower may still need to
     # close out the stranded loan (RESOLVE_TRANSACTION). The guard below keeps
@@ -173,7 +179,7 @@ def borrow_item(request: HttpRequest, pk: int) -> HttpResponse:
 
 
 class ItemCreateView(
-    LoginRequiredMixin,  # type: ignore[misc]
+    LoginRequiredMixin,
     BorrowdTemplateFinderMixin,
     CreateView[Item, ItemCreateWithPhotoForm],
 ):
@@ -186,17 +192,18 @@ class ItemCreateView(
         return context
 
     def form_valid(self, form: ItemCreateWithPhotoForm) -> HttpResponse:
-        form.instance.owner = self.request.user  # type: ignore[assignment]
-        form.instance.created_by = self.request.user  # type: ignore[assignment]
-        form.instance.updated_by = self.request.user  # type: ignore[assignment]
+        user = get_authenticated_user(self.request)
+        form.instance.owner = user
+        form.instance.created_by = user
+        form.instance.updated_by = user
         response = super().form_valid(form)
         image = form.cleaned_data.get("image")
         if image:
             ItemPhoto.objects.create(
-                item=self.object,
+                item=form.instance,
                 image=image,
-                created_by=self.request.user,
-                updated_by=self.request.user,
+                created_by=user,
+                updated_by=user,
             )
         return response
 
@@ -227,7 +234,7 @@ class ItemDeleteView(
             )
             return redirect("item-detail", pk=item.pk)
 
-        user = cast(BorrowdUser, self.request.user)
+        user = get_authenticated_user(self.request)
 
         item.soft_delete(user)
         _add_message_safe(self.request, messages.SUCCESS, "Item deleted.")
@@ -244,7 +251,7 @@ class ItemDetailView(
 
     def get_context_data(self, **kwargs: str) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
-        user: BorrowdUser = self.request.user  # type: ignore[assignment]
+        user = get_authenticated_user(self.request)
 
         action_context = self.object.get_action_context_for(user=user)
 
@@ -278,9 +285,10 @@ class ItemDetailView(
         return context
 
 
-# No typing for django_filter, so mypy doesn't like us subclassing.
+# django-filter is untyped (see the django_filters note in mypy.ini), so
+# subclassing FilterView trips strict mode's "subclass of Any" check.
 class ItemListView(
-    LoginRequiredMixin,  # type: ignore[misc]
+    LoginRequiredMixin,
     BorrowdTemplateFinderMixin,
     FilterView,  # type: ignore[misc]
 ):
@@ -303,21 +311,23 @@ class ItemListView(
     def get(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
         term = request.GET.get("search")
         if term is not None:
-            user: BorrowdUser = request.user  # type: ignore[assignment]
             SearchTerm.record_search(
-                user=user,
+                user=get_authenticated_user(request),
                 target=SearchTarget.ITEMS,
                 term=term,
             )
-        return super().get(request, *args, **kwargs)  # type: ignore[no-any-return]
+        # super() is FilterView.get, which is Any (see the django_filters note
+        # in mypy.ini); annotating pins it to the real return type.
+        response: HttpResponse = super().get(request, *args, **kwargs)
+        return response
 
-    def get_queryset(self):  # type: ignore[no-untyped-def]
-        queryset = super().get_queryset()
+    def get_queryset(self) -> QuerySet[Item]:
+        queryset: QuerySet[Item] = super().get_queryset()
         return queryset.prefetch_related("photos")
 
     def get_context_data(self, **kwargs: str) -> dict[str, Any]:
         context: dict[str, Any] = super().get_context_data(**kwargs)
-        user: BorrowdUser = self.request.user
+        user = get_authenticated_user(self.request)
 
         # Build card contexts for all items
         items = list(context["object_list"])
@@ -325,6 +335,10 @@ class ItemListView(
         context["user_has_items"] = Item.objects.filter(
             owner=user,
         ).exists
+        context["user_has_groups"] = Membership.objects.filter(
+            user=user,
+            status=MembershipStatus.ACTIVE,
+        ).exists()
 
         return context
 
@@ -345,7 +359,7 @@ class ItemUpdateView(
         return context
 
     def form_valid(self, form: ItemForm) -> HttpResponse:
-        form.instance.updated_by = self.request.user  # type: ignore[assignment]
+        form.instance.updated_by = get_authenticated_user(self.request)
         response = super().form_valid(form)
         self._process_uploaded_photos()
         _add_message_safe(self.request, messages.SUCCESS, "Changes saved.")
@@ -358,26 +372,24 @@ class ItemUpdateView(
             return
 
         item: Item = self.object
+        user = get_authenticated_user(self.request)
         remaining_slots = 5 - item.photos.count()
 
-        ext_validator = FileExtensionValidator(
-            allowed_extensions=ALLOWED_IMAGE_EXTENSIONS
-        )
         skipped = 0
 
         for upload in uploaded_files[:remaining_slots]:
-            try:
-                ext_validator(upload)
-                validate_image_size(upload)
-            except Exception:
+            photo_files: MultiValueDict[str, UploadedFile] = MultiValueDict(
+                {"image": [upload]}
+            )
+            photo_form = ItemPhotoForm(files=photo_files)
+            if not photo_form.is_valid():
                 skipped += 1
                 continue
-            ItemPhoto.objects.create(
-                item=item,
-                image=upload,
-                created_by=self.request.user,
-                updated_by=self.request.user,
-            )
+            photo = photo_form.save(commit=False)
+            photo.item = item
+            photo.created_by = user
+            photo.updated_by = user
+            photo.save()
 
         if skipped:
             _add_message_safe(
@@ -412,7 +424,7 @@ class ItemPhotoCreateView(
     permission_required = ItemOLP.EDIT
     form_class = ItemPhotoForm
 
-    def get_permission_object(self):  # type: ignore[no-untyped-def]
+    def get_permission_object(self) -> Item:
         return get_object_or_404(Item, pk=self.kwargs["item_pk"])
 
     def get_context_data(self, **kwargs: str) -> dict[str, Any]:
@@ -424,18 +436,19 @@ class ItemPhotoCreateView(
 
     def form_valid(self, form: ItemPhotoForm) -> HttpResponse:
         context = self.get_context_data()
+        user = get_authenticated_user(self.request)
         form.instance.item_id = context["item_pk"]
-        form.instance.created_by = self.request.user  # type: ignore[assignment]
-        form.instance.updated_by = self.request.user  # type: ignore[assignment]
+        form.instance.created_by = user
+        form.instance.updated_by = user
         return super().form_valid(form)
 
     def get_success_url(self) -> str:
-        instance: ItemPhoto = self.object  # type: ignore[assignment]
+        instance: ItemPhoto | None = self.object
         if instance is None:
             return reverse("item-list")
 
         # Check if a 'next' parameter was provided
-        next_url = self.request.GET.get("next")
+        next_url: str | None = self.request.GET.get("next")
         if next_url:
             return next_url
 
@@ -452,7 +465,7 @@ class ItemPhotoDeleteView(
     permission_required = ItemOLP.EDIT
     http_method_names = ["post"]
 
-    def get_permission_object(self):  # type: ignore[no-untyped-def]
+    def get_permission_object(self) -> Item:
         return self.get_object().item
 
     def form_valid(self, form: ModelForm[ItemPhoto]) -> HttpResponse:

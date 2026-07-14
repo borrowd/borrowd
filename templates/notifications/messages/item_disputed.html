@@ -1,0 +1,28 @@
+{% extends "notifications/messages/layout.html" %}
+
+{% block title %}
+    Dispute Raised - Borrow'd
+{% endblock %}
+
+{% block content %}
+    <h2>
+        Hi {{ recipient_name }},
+    </h2>
+
+    <p>
+        A dispute has been raised regarding <strong>{{ item_name }}</strong>.
+    </p>
+
+    <p>
+        We encourage you to review the details and make a good faith effort to resolve this directly
+        with the other person.
+    </p>
+
+    <p>
+        For transparency, disputes are reflected on user profiles within Borrow'd.
+    </p>
+
+    <p>
+        The Borrow'd team
+    </p>
+{% endblock %}
