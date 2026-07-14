@@ -781,6 +781,7 @@ class GiveawayRequestNotificationTests(TestCase):
             verb=NotificationType.GIVEAWAY_COMPLETED.value,
         )
         self.assertEqual(completed.count(), 1)
+        self.assertEqual(completed.first().actor, self.owner)
         self.assertEqual(
             Notification.objects.filter(
                 verb=NotificationType.GIVEAWAY_ACCEPTED.value

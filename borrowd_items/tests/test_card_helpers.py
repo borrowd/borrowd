@@ -10,6 +10,7 @@ Covers:
 from datetime import datetime
 
 from django.test import TestCase
+from django.urls import reverse
 from django.utils import timezone
 
 from borrowd.models import TrustLevel
@@ -22,6 +23,7 @@ from borrowd_items.models import (
     Item,
     ItemCategory,
     ItemStatus,
+    ListingType,
     Transaction,
     TransactionStatus,
 )
@@ -332,3 +334,85 @@ class ReturnFlowBannerTests(TestCase):
         )
         info = get_banner_info_for_item(self.item, self.other_user)
         self.assertEqual(info, {"banner_type": "borrowed"})
+
+
+class GiveawayBannerTests(TestCase):
+    """Tests for giveaway listing and giveaway-request banner info."""
+
+    giver: BorrowdUser
+    requester: BorrowdUser
+    other_user: BorrowdUser
+
+    @classmethod
+    def setUpTestData(cls) -> None:
+        """Create a giver, requester, and an uninvolved viewer."""
+        cls.giver = BorrowdUser.objects.create(
+            username="gift_giver",
+            email="gift_giver@example.com",
+            first_name="gia",
+            last_name="giver",
+        )
+        cls.requester = BorrowdUser.objects.create(
+            username="gift_requester",
+            email="gift_requester@example.com",
+            first_name="rita",
+            last_name="requester",
+        )
+        cls.other_user = BorrowdUser.objects.create(
+            username="gift_other",
+            email="gift_other@example.com",
+        )
+
+    def setUp(self) -> None:
+        """Create an available giveaway listing owned by the giver."""
+        self.item = Item.objects.create(
+            name="Giveaway Item",
+            description="Test description",
+            owner=self.giver,
+            created_by=self.giver,
+            updated_by=self.giver,
+            listing_type=ListingType.GIVEAWAY,
+        )
+
+    def _create_giveaway_request(self) -> Transaction:
+        self.item.status = ItemStatus.REQUESTED
+        self.item.save()
+        return Transaction.objects.create(
+            item=self.item,
+            party1=self.giver,
+            party2=self.requester,
+            status=TransactionStatus.GIVEAWAY_REQUESTED,
+            created_by=self.requester,
+            updated_by=self.requester,
+        )
+
+    def test_unrequested_giveaway_advertises_itself(self) -> None:
+        """Without an active transaction, everyone sees the listing banner."""
+        for viewer in (self.giver, self.requester, self.other_user):
+            info = get_banner_info_for_item(self.item, viewer)
+            self.assertEqual(info, {"banner_type": "giveaway_listing"})
+
+    def test_requested_giveaway_owner_sees_requester(self) -> None:
+        """Owner sees who's asking, with a link to their profile."""
+        self._create_giveaway_request()
+        info = get_banner_info_for_item(self.item, self.giver)
+        self.assertEqual(
+            info,
+            {
+                "banner_type": "giveaway_requested",
+                "person_name": "Rita",
+                "person_url": reverse("public-profile", args=[self.requester.pk]),
+            },
+        )
+
+    def test_requested_giveaway_requester_sees_pending_request(self) -> None:
+        """Requester sees their request is pending, without their own name."""
+        self._create_giveaway_request()
+        info = get_banner_info_for_item(self.item, self.requester)
+        self.assertEqual(info, {"banner_type": "giveaway_requested"})
+
+    def test_requested_giveaway_other_user_sees_pending(self) -> None:
+        """Uninvolved viewers don't learn who requested the giveaway."""
+        self._create_giveaway_request()
+        info = get_banner_info_for_item(self.item, self.other_user)
+        self.assertEqual(info, {"banner_type": "pending"})
