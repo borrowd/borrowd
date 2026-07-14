@@ -150,7 +150,8 @@ def get_banner_info_for_item(
     current_transaction = None
     if current_borrower or requesting_user:
         current_transaction = (
-            item.transactions.filter(
+            item.transactions.select_related("party2")
+            .filter(
                 status__in=[
                     TransactionStatus.REQUESTED,
                     TransactionStatus.GIVEAWAY_REQUESTED,
