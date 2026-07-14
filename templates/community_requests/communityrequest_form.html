@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block head_title %}
+    {{ page_title }}
+{% endblock %}
+
+{% block layout %}
+    <main class="flex-1 w-full max-w-xs mx-auto px-4 py-4">
+        <div class="flex items-center gap-4 mb-6">
+            <a href="{% url 'item-list' %}"
+               class="btn btn-ghost btn-sm btn-square text-2xl">
+                ←
+            </a>
+            <h1 class="text-2xl font-serif text-base-content">
+                Create a request
+            </h1>
+        </div>
+
+        <form method="post" class="flex flex-col gap-5">
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+                <div class="alert alert-error text-sm">
+                    {{ form.non_field_errors }}
+                </div>
+            {% endif %}
+
+            <label class="form-control gap-2">
+                <span class="label-text text-sm text-base-content/60">Item name</span>
+                {{ form.item_name }}
+                {{ form.item_name.errors }}
+            </label>
+
+            <label class="form-control gap-2">
+                <span class="label-text text-sm text-base-content/60">Item description</span>
+                {{ form.description }}
+                {{ form.description.errors }}
+            </label>
+
+            <label class="form-control gap-2">
+                <span class="label-text text-sm text-base-content/60">Category</span>
+                {{ form.category }}
+                {{ form.category.errors }}
+            </label>
+
+            <div class="flex items-center justify-end gap-4 pt-1">
+                <a href="{% url 'item-list' %}" class="btn btn-ghost btn-sm">
+                    Cancel
+                </a>
+                <button type="submit" class="btn btn-primary btn-sm">
+                    Request item
+                </button>
+            </div>
+        </form>
+    </main>
+{% endblock %}

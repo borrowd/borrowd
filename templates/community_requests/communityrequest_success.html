@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block head_title %}
+    {{ page_title }}
+{% endblock %}
+
+{% block layout %}
+    <main class="flex-1 w-full max-w-xs mx-auto px-4 py-4">
+        <div class="flex items-center gap-4 mb-6">
+            <a href="{% url 'item-list' %}"
+               class="btn btn-ghost btn-sm btn-square text-2xl">
+                ←
+            </a>
+            <h1 class="text-2xl font-serif text-base-content">
+                Item request
+            </h1>
+        </div>
+
+        <section class="card bg-base-100 shadow-sm overflow-hidden">
+            <div class="bg-warning/10 text-warning px-4 py-3 text-sm font-medium">
+                Requested {{ community_request.created_at|timesince }} ago by you
+            </div>
+
+            <div class="card-body gap-4">
+                <div>
+                    <h2 class="font-bold text-base">
+                        {{ community_request.item_name }}
+                    </h2>
+
+                    {% if community_request.description %}
+                        <p class="text-sm text-base-content/70">
+                            {{ community_request.description }}
+                        </p>
+                    {% endif %}
+                </div>
+
+                <div class="alert alert-success text-sm">
+                    Your request has been made
+                </div>
+
+                <a href="{% url 'community-request-create' %}"
+                   class="btn btn-primary btn-sm">
+                    Request another item
+                </a>
+            </div>
+        </section>
+    </main>
+{% endblock %}
