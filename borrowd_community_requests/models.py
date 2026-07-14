@@ -1,5 +1,3 @@
-from typing import Never
-
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import (
@@ -82,8 +80,8 @@ class CommunityRequest(Model):
         blank=True,
         related_name="fulfilled_community_requests",
     )
-    created_at: DateTimeField[Never, Never] = DateTimeField(auto_now_add=True)
-    updated_at: DateTimeField[Never, Never] = DateTimeField(auto_now=True)
+    created_at = DateTimeField(auto_now_add=True)
+    updated_at = DateTimeField(auto_now=True)
 
     objects = CommunityRequestQuerySet.as_manager()
 
@@ -96,7 +94,7 @@ class CommunityRequest(Model):
     def clean(self) -> None:
         super().clean()
 
-        if self.requester_id is None:  # type: ignore[attr-defined]
+        if self.requester_id is None:
             return
 
         if not Membership.objects.filter(
@@ -126,7 +124,7 @@ class CommunityRequest(Model):
 
     def link_response_item(self, item: Item) -> bool:
         # Keep the request open so multiple lenders can respond.
-        if self.fulfilled_by_item_id is not None:  # type: ignore[attr-defined]
+        if self.fulfilled_by_item_id is not None:
             return False
 
         self.fulfilled_by_item = item
@@ -155,7 +153,7 @@ class CommunityRequestDismissal(Model):
         on_delete=CASCADE,
         related_name="community_request_dismissals",
     )
-    created_at: DateTimeField[Never, Never] = DateTimeField(auto_now_add=True)
+    created_at = DateTimeField(auto_now_add=True)
 
     def __str__(self) -> str:
         return f"{self.user} dismissed {self.request}"

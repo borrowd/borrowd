@@ -1,19 +1,21 @@
-from typing import Any
+from typing import Any, cast
 
 from django.contrib import messages
+from django.db.models import QuerySet
 from django.http import HttpResponse
 from django.urls import reverse
 from django.views.generic import CreateView, DetailView
 from guardian.mixins import LoginRequiredMixin
 
 from borrowd.util import BorrowdTemplateFinderMixin
+from borrowd_users.models import BorrowdUser
 
 from .forms import CommunityRequestForm
 from .models import CommunityRequest
 
 
 class CommunityRequestCreateView(
-    LoginRequiredMixin,  # type: ignore[misc]
+    LoginRequiredMixin,
     BorrowdTemplateFinderMixin,
     CreateView[CommunityRequest, CommunityRequestForm],
 ):
@@ -29,8 +31,15 @@ class CommunityRequestCreateView(
 
         return initial
 
+    def get_form(
+        self,
+        form_class: type[CommunityRequestForm] | None = None,
+    ) -> CommunityRequestForm:
+        form = super().get_form(form_class)
+        form.instance.requester = cast(BorrowdUser, self.request.user)
+        return form
+
     def form_valid(self, form: CommunityRequestForm) -> HttpResponse:
-        form.instance.requester = self.request.user  # type: ignore[assignment]
         messages.success(self.request, "Your request has been made")
         return super().form_valid(form)
 
@@ -40,19 +49,24 @@ class CommunityRequestCreateView(
         return context
 
     def get_success_url(self) -> str:
-        return reverse("community-request-success", kwargs={"pk": self.object.pk})
+        assert self.object is not None
+        return reverse(
+            "community-request-success",
+            kwargs={"pk": self.object.pk},
+        )
 
 
 class CommunityRequestSuccessView(
-    LoginRequiredMixin,  # type: ignore[misc]
+    LoginRequiredMixin,
     DetailView[CommunityRequest],
 ):
     model = CommunityRequest
     template_name = "community_requests/communityrequest_success.html"
     context_object_name = "community_request"
 
-    def get_queryset(self):  # type: ignore[no-untyped-def]
-        return CommunityRequest.objects.owned_by(self.request.user)  # type: ignore[arg-type]
+    def get_queryset(self) -> QuerySet[CommunityRequest]:
+        user = cast(BorrowdUser, self.request.user)
+        return CommunityRequest.objects.owned_by(user)
 
     def get_context_data(self, **kwargs: str) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
