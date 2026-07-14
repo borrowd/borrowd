@@ -1,3 +1,5 @@
+from typing import Any
+
 from django import forms
 
 from .models import CommunityRequest, CommunityRequestStatus
@@ -34,8 +36,8 @@ class CommunityRequestForm(forms.ModelForm[CommunityRequest]):
             ),
         }
 
-    def clean(self) -> dict[str, object]:
-        cleaned_data = super().clean()
+    def clean(self) -> dict[str, Any]:
+        cleaned_data = super().clean() or {}
 
         requester = self.instance.requester
         item_name = cleaned_data.get("item_name")
