@@ -1,7 +1,6 @@
 from django.test import TestCase
 from django.urls import reverse
 
-from borrowd.models import TrustLevel
 from borrowd_groups.models import BorrowdGroup
 from borrowd_users.models import BorrowdUser
 
@@ -54,7 +53,6 @@ class DuplicateGroupNameTests(TestCase):
             {
                 "name": self.group_name,
                 "description": "Duplicate group",
-                "trust_level": TrustLevel.STANDARD,
                 "membership_requires_approval": False,
             },
         )
@@ -79,7 +77,6 @@ class DuplicateGroupNameTests(TestCase):
                 {
                     "name": f"Group {i}",
                     "description": f"Test group {i}",
-                    "trust_level": TrustLevel.STANDARD,
                     "membership_requires_approval": False,
                 },
             )
@@ -103,7 +100,6 @@ class DuplicateGroupNameTests(TestCase):
             {
                 "name": self.group_name,
                 "description": "Duplicate group",
-                "trust_level": TrustLevel.STANDARD,
                 "membership_requires_approval": False,
             },
         )
@@ -181,7 +177,6 @@ class DuplicateGroupNameTests(TestCase):
             {
                 "name": "My Group",  # Different case
                 "description": "Different case test",
-                "trust_level": TrustLevel.STANDARD,
                 "membership_requires_approval": False,
             },
         )
@@ -204,7 +199,6 @@ class DuplicateGroupNameTests(TestCase):
             {
                 "name": "my group",  # Single space
                 "description": "Whitespace test",
-                "trust_level": TrustLevel.STANDARD,
                 "membership_requires_approval": False,
             },
         )

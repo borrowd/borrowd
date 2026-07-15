@@ -1,6 +1,5 @@
 from django.test import RequestFactory, TestCase
 
-from borrowd.models import TrustLevel
 from borrowd_groups.models import BorrowdGroup, Membership
 from borrowd_groups.views import GroupListView
 from borrowd_users.models import BorrowdUser
@@ -33,7 +32,6 @@ class GroupListViewVisibilityTests(TestCase):
             name="Test Group",
             created_by=owner,
             updated_by=owner,
-            trust_level=TrustLevel.HIGH,
         )
 
         ## Preare the request
@@ -73,9 +71,8 @@ class GroupListViewVisibilityTests(TestCase):
             name="Test Group",
             created_by=owner,
             updated_by=owner,
-            trust_level=TrustLevel.HIGH,
         )
-        group.add_user(member, trust_level=TrustLevel.STANDARD)
+        group.add_user(member)
 
         ## Preare the request
         request = self.factory.get("/groups/")
@@ -114,7 +111,6 @@ class GroupListViewVisibilityTests(TestCase):
             name="Test Group",
             created_by=owner,
             updated_by=owner,
-            trust_level=TrustLevel.HIGH,
         )
 
         ## Preare the request
@@ -150,9 +146,8 @@ class GroupListViewVisibilityTests(TestCase):
             name="Test Group",
             created_by=owner,
             updated_by=owner,
-            trust_level=TrustLevel.HIGH,
         )
-        group.add_user(member, trust_level=TrustLevel.STANDARD)
+        group.add_user(member)
 
         ## Preare the request
         request = self.factory.get(f"/groups/{group.pk}/")
