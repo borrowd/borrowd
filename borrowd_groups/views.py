@@ -265,11 +265,18 @@ class GroupDetailView(
                 is_moderator=True,
                 status=MembershipStatus.ACTIVE,
             ).exists()
-            context["show_leave_group_button"] = False
-            context["leave_group_is_moderator"] = False
-            context["leave_group_has_active_borrows"] = False
-            context["leave_group_has_active_lends"] = False
-            context["leave_group_requires_approval_to_rejoin"] = False
+            # Flags used to decide which leave-group modal to open.
+            context["show_leave_group_button"] = True
+            context["leave_group_is_moderator"] = context["is_moderator"]
+            context["leave_group_has_active_borrows"] = (
+                user_has_active_borrows_in_group(user, group)
+            )
+            context["leave_group_has_active_lends"] = (
+                user_has_active_lends_in_group(user, group)
+            )
+            context["leave_group_requires_approval_to_rejoin"] = (
+                group.membership_requires_approval
+            )
 
             # 255: Show pending members to moderators only
             if context["is_moderator"]:
