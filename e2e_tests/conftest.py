@@ -2,6 +2,7 @@ import os
 import pathlib
 import re
 import tempfile
+import time
 
 import allure
 import pytest
@@ -206,17 +207,25 @@ def pytest_runtest_makereport(item, call):
         item.rep_call = rep
 
 
-def _delete_e2e_items(page: Page, base_url: str) -> None:
+def _delete_e2e_items(page: Page, base_url: str, budget_seconds: float = 600) -> None:
     """Delete generated 'E2E ... <timestamp>' items via the UI so the
     environment's inventory doesn't grow without bound across runs.
+
+    Best-effort within a hard time budget: on a slow environment each failed
+    delete attempt costs the full expect timeout, so an unbounded sweep can
+    eat the whole job.
     """
     inventory = InventoryPage(page)
     details = ItemDetails(page)
     edit = ItemEditPage(page)
     name_pattern = re.compile(r"^E2E\b.*\d{6}$")
     undeletable: set[str] = set()
+    deadline = time.monotonic() + budget_seconds
 
     for _ in range(100):
+        if time.monotonic() > deadline:
+            print("E2E item cleanup stopped: time budget exhausted")
+            return
         # Generous timeout: a backlog of leftovers slows this page down.
         page.goto(
             f"{base_url}/profile/inventory/",
