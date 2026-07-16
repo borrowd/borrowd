@@ -210,30 +210,56 @@ def _delete_e2e_items(page: Page, base_url: str) -> None:
     details = ItemDetails(page)
     edit = ItemEditPage(page)
     name_pattern = re.compile(r"^E2E\b.*\d{6}$")
+    undeletable: set[str] = set()
 
     for _ in range(100):
-        page.goto(f"{base_url}/profile/inventory/", wait_until="domcontentloaded")
-        leftover = page.get_by_role("heading", name=name_pattern).first
+        # Generous timeout: a backlog of leftovers slows this page down.
+        page.goto(
+            f"{base_url}/profile/inventory/",
+            wait_until="domcontentloaded",
+            timeout=120_000,
+        )
+        headings = page.get_by_role("heading", name=name_pattern)
         try:
-            leftover.wait_for(timeout=5000)
+            headings.first.wait_for(timeout=10_000)
         except PlaywrightTimeoutError:
             return
-        leftover.click()
-        details.click_edit()
-        edit.click_delete_item()
-        edit.expect_delete_modal_opened()
-        edit.confirm_delete()
-        inventory.expect_opened()
+        leftover = None
+        leftover_name = ""
+        for heading in headings.all():
+            name = heading.inner_text().strip()
+            if name not in undeletable:
+                leftover, leftover_name = heading, name
+                break
+        if leftover is None:
+            return
+        try:
+            leftover.click()
+            details.click_edit()
+            edit.click_delete_item()
+            edit.expect_delete_modal_opened()
+            edit.confirm_delete()
+            inventory.expect_opened()
+        except Exception:
+            # Items stuck mid-transaction can't be deleted; skip them so one
+            # bad item doesn't block the rest of the sweep.
+            undeletable.add(leftover_name)
 
 
 @pytest.fixture(scope="session", autouse=True)
 def cleanup_e2e_items(browser: Browser, base_url, user_auth_state):
+    def sweep() -> None:
+        context = browser.new_context(storage_state=user_auth_state)
+        page = context.new_page()
+        try:
+            _delete_e2e_items(page, base_url)
+        except Exception as exc:  # best-effort: never fail the run on cleanup
+            print(f"E2E item cleanup skipped: {exc}")
+        finally:
+            context.close()
+
+    # Sweep before the run too: a failed run skips its own cleanup, and the
+    # leftovers slow the inventory page down for every run after it.
+    sweep()
     yield
-    context = browser.new_context(storage_state=user_auth_state)
-    page = context.new_page()
-    try:
-        _delete_e2e_items(page, base_url)
-    except Exception as exc:  # best-effort: never fail the run on cleanup
-        print(f"E2E item cleanup skipped: {exc}")
-    finally:
-        context.close()
+    sweep()
