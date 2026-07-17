@@ -3,8 +3,10 @@ from datetime import timedelta
 from typing import Any
 from unittest.mock import patch
 
+from django.conf import settings
 from django.core import mail
 from django.http import HttpResponseBase
+from django.templatetags.static import static
 from django.test import TestCase, TransactionTestCase, override_settings
 from django.utils import timezone
 from notifications.models import Notification
@@ -2203,6 +2205,25 @@ class PUSHNotificationStrategyTests(TransactionTestCase):
 
         results = NotificationService._channel_results(notification)
         self.assertEqual(results.get("PUSH", {}).get("status"), "ERROR")
+
+    def test_icon_url_is_resolved_via_static_helper(self) -> None:
+        """The icon URL must go through Django's static() resolution rather than a
+        hardcoded `/static/` path, so it stays correct if static storage config
+        changes (e.g. the S3-backed media setup already used in prod)."""
+        notification = self._trigger_accepted()
+        payload = NotificationPayload(
+            notification=notification,
+            notification_type=NotificationType.ITEM_REQUEST_ACCEPTED,
+            template_name=str(NotificationType.ITEM_REQUEST_ACCEPTED),
+            data=NotificationData.create({}, {ChannelType.PUSH}),
+        )
+
+        with patch("borrowd_notifications.channels.webpush") as mock_webpush:
+            PUSHNotificationStrategy().send(payload)
+
+        sent_data = json.loads(mock_webpush.call_args.kwargs["data"])
+        expected_icon = settings.BASE_URL.rstrip("/") + static("icon.svg")
+        self.assertEqual(sent_data["icon"], expected_icon)
 
     def test_webpush_call_has_a_bounded_timeout(self) -> None:
         """webpush() must never be called without a timeout — pywebpush defaults to

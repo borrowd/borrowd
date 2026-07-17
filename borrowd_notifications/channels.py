@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from django.conf import settings
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
+from django.templatetags.static import static
 from notifications.models import Notification
 from pywebpush import (
     WebPushException,
@@ -129,7 +130,10 @@ class PUSHNotificationStrategy(NotificationStrategy):
             {
                 "title": "Borrow'd",
                 "body": body,
-                "icon": f"{base_url}/static/icon.svg",  # safari doesnt support this.
+                # Push payloads are delivered by the vendor's push service, not the
+                # browser, so this must be absolute rather than the relative path
+                # `static()` returns on its own. Safari doesn't support this field.
+                "icon": base_url + static("icon.svg"),
                 "url": (
                     context.get("respond_url")
                     or context.get("item_url")
