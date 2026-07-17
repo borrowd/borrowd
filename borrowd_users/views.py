@@ -1,6 +1,7 @@
 from typing import Any
 
 from allauth.account.views import PasswordChangeView
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
@@ -24,6 +25,7 @@ from borrowd_items.card_helpers import (
     build_item_cards_for_transactions,
 )
 from borrowd_items.models import Item, ItemStatus, Transaction
+from borrowd_notifications.models import NotificationPreference
 
 from .exceptions import AccountDeletionBlocked
 from .forms import ChangePasswordForm, CustomSignupForm, ProfileUpdateForm
@@ -117,6 +119,9 @@ def profile_view(request: HttpRequest) -> HttpResponse:
     is_borrowing = Transaction.get_active_borrows_for_user(user).exists()
     is_lending = Transaction.get_active_lends_for_user(user).exists()
     has_items = Item.objects.filter(owner=user).exists()
+    has_push_preference_enabled = NotificationPreference.objects.filter(
+        user=user, push_enabled=True
+    ).exists()
 
     return render(
         request,
@@ -127,6 +132,8 @@ def profile_view(request: HttpRequest) -> HttpResponse:
             "is_borrowing": is_borrowing,
             "is_lending": is_lending,
             "has_items": has_items,
+            "has_push_preference_enabled": has_push_preference_enabled,
+            "vapid_public_key": settings.VAPID_PUBLIC_KEY,
         },
     )
 

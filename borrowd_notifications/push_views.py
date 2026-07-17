@@ -53,6 +53,12 @@ def subscribe_push(request: HttpRequest) -> HttpResponse:
         endpoint: str = data["endpoint"]
         p256dh: str = data["keys"]["p256dh"]
         auth: str = data["keys"]["auth"]
+        if (
+            not isinstance(endpoint, str)
+            or not isinstance(p256dh, str)
+            or not isinstance(auth, str)
+        ):
+            raise TypeError
     except (json.JSONDecodeError, KeyError, TypeError):
         return HttpResponse(status=400)
 
@@ -61,8 +67,9 @@ def subscribe_push(request: HttpRequest) -> HttpResponse:
 
     user = get_authenticated_user(request)
     PushSubscription.objects.update_or_create(
+        user=user,
         endpoint=endpoint,
-        defaults={"user": user, "p256dh": p256dh, "auth": auth},
+        defaults={"p256dh": p256dh, "auth": auth},
     )
     return HttpResponse(status=201)
 

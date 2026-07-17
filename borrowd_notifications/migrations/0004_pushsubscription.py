@@ -27,7 +27,7 @@ class Migration(migrations.Migration):
                         verbose_name="ID",
                     ),
                 ),
-                ("endpoint", models.TextField(unique=True)),
+                ("endpoint", models.TextField()),
                 ("p256dh", models.TextField()),
                 ("auth", models.TextField()),
                 ("created_at", models.DateTimeField(auto_now_add=True)),
@@ -40,5 +40,11 @@ class Migration(migrations.Migration):
                     ),
                 ),
             ],
+        ),
+        migrations.AddConstraint(
+            model_name="pushsubscription",
+            constraint=models.UniqueConstraint(
+                fields=("user", "endpoint"), name="unique_push_subscription_per_user"
+            ),
         ),
     ]

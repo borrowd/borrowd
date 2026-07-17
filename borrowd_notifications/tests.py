@@ -2009,6 +2009,56 @@ class PushSubscribeEndpointAllowlistTests(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertFalse(PushSubscription.objects.filter(endpoint=endpoint).exists())
 
+    def test_rejects_non_string_endpoint(self) -> None:
+        """A non-string endpoint (e.g. a JSON number) returns 400, not a 500."""
+        response = self.client.post(
+            "/push/subscribe/",
+            data=json.dumps(
+                {
+                    "endpoint": 12345,
+                    "keys": {"p256dh": "test-p256dh", "auth": "test-auth"},
+                }
+            ),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_second_user_subscribing_same_endpoint_keeps_first_users_row(
+        self,
+    ) -> None:
+        """Two users can share a physical endpoint (e.g. a shared browser)
+        without either one's subscription being reassigned to the other."""
+        endpoint = "https://fcm.googleapis.com/fcm/send/shared123"
+        self._subscribe(endpoint)
+        first_subscription = PushSubscription.objects.get(
+            user=self.user, endpoint=endpoint
+        )
+
+        other_user = BorrowdUser.objects.create_user(
+            username="other", email="other@example.com", password="password"
+        )
+        self.client.force_login(other_user)
+        response = self.client.post(
+            "/push/subscribe/",
+            data=json.dumps(
+                {
+                    "endpoint": endpoint,
+                    "keys": {"p256dh": "other-p256dh", "auth": "other-auth"},
+                }
+            ),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        first_subscription.refresh_from_db()
+        self.assertEqual(first_subscription.user, self.user)
+        self.assertEqual(first_subscription.p256dh, "test-p256dh")
+        self.assertTrue(
+            PushSubscription.objects.filter(
+                user=other_user, endpoint=endpoint, p256dh="other-p256dh"
+            ).exists()
+        )
+
 
 class PUSHNotificationStrategyTests(TransactionTestCase):
     """Tests for PUSHNotificationStrategy.send(), the web-push delivery path."""
@@ -2093,6 +2143,22 @@ class PUSHNotificationStrategyTests(TransactionTestCase):
         results = NotificationService._channel_results(notification)
         self.assertEqual(results.get("PUSH", {}).get("status"), "ERROR")
         self.assertTrue(mock_capture.called)
+
+    def test_no_subscription_recorded_as_not_subscribed_not_error(self) -> None:
+        """A user with the PUSH preference enabled but no completed browser
+        subscription is a normal transitional state, not a delivery failure —
+        it must not be recorded as ERROR or reach Sentry."""
+        PushSubscription.objects.filter(user=self.borrower).delete()
+
+        with patch(
+            "borrowd_notifications.services.sentry_sdk.capture_exception"
+        ) as mock_capture:
+            notification = self._trigger_accepted()
+
+        results = NotificationService._channel_results(notification)
+        self.assertEqual(results.get("PUSH", {}).get("status"), "NOT_SUBSCRIBED")
+        self.assertIsNone(results.get("PUSH", {}).get("error"))
+        self.assertFalse(mock_capture.called)
 
     def test_webpush_call_has_a_bounded_timeout(self) -> None:
         """webpush() must never be called without a timeout — pywebpush defaults to

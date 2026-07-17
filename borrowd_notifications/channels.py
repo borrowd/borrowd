@@ -115,9 +115,7 @@ class PUSHNotificationStrategy(NotificationStrategy):
             PushSubscription.objects.filter(user=payload.notification.recipient)
         )
         if not subscriptions:
-            payload.data._error(
-                channel=ChannelType.PUSH, error="No subscription for this device."
-            )
+            payload.data._not_subscribed(channel=ChannelType.PUSH)
             return
 
         context = payload.data.context

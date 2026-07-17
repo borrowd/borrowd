@@ -369,6 +369,7 @@ class NotificationState(TextChoices):
     SUCCESS = "SUCCESS"
     PENDING = "PENDING"
     ERROR = "ERROR"
+    NOT_SUBSCRIBED = "NOT_SUBSCRIBED"
 
 
 @dataclass
@@ -417,6 +418,10 @@ class NotificationData:
             return NotificationState.ERROR
         if NotificationState.PENDING in statuses:
             return NotificationState.PENDING
+        if NotificationState.SUCCESS in statuses:
+            return NotificationState.SUCCESS
+        if NotificationState.NOT_SUBSCRIBED in statuses:
+            return NotificationState.NOT_SUBSCRIBED
         return NotificationState.SUCCESS
 
     def _error(self, channel: ChannelType, error: str) -> None:
@@ -427,6 +432,12 @@ class NotificationData:
 
     def _success(self, channel: ChannelType) -> None:
         self.channels[channel] = ChannelResult(status=NotificationState.SUCCESS)
+
+    def _not_subscribed(self, channel: ChannelType) -> None:
+        """Record that the user has this channel enabled but hasn't completed
+        the device-level opt-in yet (e.g. no PushSubscription row). Distinct
+        from ERROR: nothing failed, delivery just has nowhere to go."""
+        self.channels[channel] = ChannelResult(status=NotificationState.NOT_SUBSCRIBED)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -457,9 +468,17 @@ class PushSubscription(Model):
         on_delete=CASCADE,
         related_name="push_subscriptions",
     )
-    endpoint: models.TextField[str, str] = models.TextField(unique=True)
+    endpoint: models.TextField[str, str] = models.TextField()
     p256dh: models.TextField[str, str] = models.TextField()
     auth: models.TextField[str, str] = models.TextField()
     created_at: models.DateTimeField[datetime, datetime] = models.DateTimeField(
         auto_now_add=True
     )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "endpoint"],
+                name="unique_push_subscription_per_user",
+            )
+        ]
