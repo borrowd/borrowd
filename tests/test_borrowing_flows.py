@@ -1,7 +1,6 @@
 from django.test import RequestFactory, SimpleTestCase
 from django.urls import reverse
 
-from borrowd.models import TrustLevel
 from borrowd_groups.models import BorrowdGroup
 from borrowd_items.models import Item, ItemAction, ItemStatus, TransactionStatus
 from borrowd_items.views import ItemDetailView, borrow_item
@@ -57,17 +56,15 @@ class RejectedFlowTest(SimpleTestCase):
             name="Test Group",
             created_by=cls.lender,
             updated_by=cls.lender,
-            trust_level=TrustLevel.HIGH,
             membership_requires_approval=False,
         )
-        cls.group.add_user(cls.borrower, trust_level=TrustLevel.HIGH)
+        cls.group.add_user(cls.borrower)
         cls.item = Item.objects.create(
             name="Test Item",
             description="Test Description",
             owner=cls.lender,
             created_by=cls.lender,
             updated_by=cls.lender,
-            trust_level_required=TrustLevel.STANDARD,
         )
         cls.factory = RequestFactory()
 
@@ -304,17 +301,15 @@ class AcceptedFlowTest(SimpleTestCase):
             name="Accept Test Group",
             created_by=cls.lender,
             updated_by=cls.lender,
-            trust_level=TrustLevel.HIGH,
             membership_requires_approval=False,
         )
-        cls.group.add_user(cls.borrower, trust_level=TrustLevel.HIGH)
+        cls.group.add_user(cls.borrower)
         cls.item = Item.objects.create(
             name="Accept Test Item",
             description="Test Description",
             owner=cls.lender,
             created_by=cls.lender,
             updated_by=cls.lender,
-            trust_level_required=TrustLevel.STANDARD,
         )
         cls.factory = RequestFactory()
 
@@ -412,15 +407,13 @@ class CancelFromRequestedFlowTest(SimpleTestCase):
             name="Cancel Req Test Group",
             created_by=cls.lender,
             updated_by=cls.lender,
-            trust_level=TrustLevel.HIGH,
             membership_requires_approval=False,
         )
-        cls.group.add_user(cls.borrower, trust_level=TrustLevel.HIGH)
+        cls.group.add_user(cls.borrower)
         cls.item = Item.objects.create(
             name="Cancel Req Test Item",
             description="Test Description",
             owner=cls.lender,
-            trust_level_required=TrustLevel.STANDARD,
             created_by=cls.lender,
             updated_by=cls.lender,
         )
@@ -496,15 +489,13 @@ class CancelFromAcceptedFlowTest(SimpleTestCase):
             name="Cancel Acc Test Group",
             created_by=cls.lender,
             updated_by=cls.lender,
-            trust_level=TrustLevel.HIGH,
             membership_requires_approval=False,
         )
-        cls.group.add_user(cls.borrower, trust_level=TrustLevel.HIGH)
+        cls.group.add_user(cls.borrower)
         cls.item = Item.objects.create(
             name="Cancel Acc Test Item",
             description="Test Description",
             owner=cls.lender,
-            trust_level_required=TrustLevel.STANDARD,
             created_by=cls.lender,
             updated_by=cls.lender,
         )

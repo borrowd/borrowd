@@ -32,13 +32,11 @@ def test_create_group(user_page, base_url):
     create.set_approval_checkbox(True)
     create.upload_banner("tests/assets/group_banner.png")
 
-    trust_value = create.set_random_trust_level()
     create.click_create_group_button()
 
     details = GroupDetails(user_page)
     details.expect_opened()
     details.expect_details(
-        name=group_name, description=description, trust_value=trust_value
     )
     details.expect_members_count(1)
     details.expect_you_are_moderator()

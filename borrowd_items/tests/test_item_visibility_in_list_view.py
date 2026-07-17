@@ -1,7 +1,6 @@
 from django.http import Http404
 from django.test import RequestFactory, TestCase
 
-from borrowd.models import TrustLevel
 from borrowd_groups.models import BorrowdGroup, Membership, MembershipStatus
 from borrowd_items.models import Item
 from borrowd_items.views import ItemDetailView, ItemListView
@@ -34,7 +33,6 @@ class ItemListViewVisibilityTests(TestCase):
             name="Test Group",
             created_by=owner,
             updated_by=owner,
-            trust_level=TrustLevel.HIGH,
         )
 
         ## Preare the request
@@ -73,7 +71,6 @@ class ItemListViewVisibilityTests(TestCase):
             owner=owner,
             created_by=owner,
             updated_by=owner,
-            trust_level_required=TrustLevel.STANDARD,
         )
 
         ## Create Group and add member (owner is in by default)
@@ -81,10 +78,9 @@ class ItemListViewVisibilityTests(TestCase):
             name="Test Group",
             created_by=owner,
             updated_by=owner,
-            trust_level=TrustLevel.HIGH,
             membership_requires_approval=False,
         )
-        group.add_user(member, trust_level=TrustLevel.STANDARD)
+        group.add_user(member)
 
         ## Preare the request
         request = self.factory.get("/items/")
@@ -123,7 +119,6 @@ class ItemListViewVisibilityTests(TestCase):
             owner=owner,
             created_by=owner,
             updated_by=owner,
-            trust_level_required=TrustLevel.STANDARD,
         )
         item2 = Item.objects.create(
             name="Item 1",
@@ -131,7 +126,6 @@ class ItemListViewVisibilityTests(TestCase):
             owner=member,
             created_by=member,
             updated_by=member,
-            trust_level_required=TrustLevel.STANDARD,
         )
 
         ## Create Group and add member (owner is in by default)
@@ -139,10 +133,9 @@ class ItemListViewVisibilityTests(TestCase):
             name="Test Group",
             created_by=owner,
             updated_by=owner,
-            trust_level=TrustLevel.HIGH,
             membership_requires_approval=False,
         )
-        group.add_user(member, trust_level=TrustLevel.STANDARD)
+        group.add_user(member)
 
         ## Preare the request
         request_owner = self.factory.get("/items/")
@@ -175,67 +168,6 @@ class ItemListViewVisibilityTests(TestCase):
         self.assertIn(item1, items_member)
         self.assertNotIn(item2, items_member)
 
-    def test_list_items_from_group_membership_with_different_trust_level(self) -> None:
-        """
-        `owner` has one High trust item and one Standard trust item, is in
-        a Standard trust group with `member`, therefore `member` should
-        only see the Standard trust item in the ItemListView.
-        """
-        #
-        #  Arrange
-        #
-
-        ## Get Users
-        owner = self.owner
-        member = self.member
-
-        ## Create Item
-        item_high = Item.objects.create(
-            name="Item High",
-            description="Description High",
-            owner=owner,
-            created_by=owner,
-            updated_by=owner,
-            trust_level_required=TrustLevel.HIGH,
-        )
-        item_low = Item.objects.create(
-            name="Item Low",
-            description="Description Low",
-            owner=owner,
-            created_by=owner,
-            updated_by=owner,
-            trust_level_required=TrustLevel.STANDARD,
-        )
-
-        ## Create Group and add member (owner is in by default)
-        group = BorrowdGroup.objects.create_group(
-            name="Test Group",
-            created_by=owner,
-            updated_by=owner,
-            trust_level=TrustLevel.STANDARD,
-            membership_requires_approval=False,
-        )
-        ## Member trusts the group a lot, although that doesn't matter
-        ## for the purposes of this test.
-        group.add_user(member, trust_level=TrustLevel.HIGH)
-
-        ## Preare the request
-        request = self.factory.get("/items/")
-        request.user = member
-
-        #
-        # Act
-        #
-        response = ItemListView.as_view()(request)
-        items = response.context_data["item_list"]
-
-        #
-        #  Assert
-        #
-        self.assertEqual(len(items), 1)
-        self.assertIn(item_low, items)
-        self.assertNotIn(item_high, items)
-
     def test_removed_member_loses_access_to_group_items(self) -> None:
         """
         `member` is removed from `group`, therefore `member` should no longer
@@ -250,17 +182,15 @@ class ItemListViewVisibilityTests(TestCase):
             owner=owner,
             created_by=owner,
             updated_by=owner,
-            trust_level_required=TrustLevel.STANDARD,
         )
 
         group = BorrowdGroup.objects.create_group(
             name="Test Group",
             created_by=owner,
             updated_by=owner,
-            trust_level=TrustLevel.HIGH,
             membership_requires_approval=False,
         )
-        group.add_user(member, trust_level=TrustLevel.STANDARD)
+        group.add_user(member)
 
         # Confirm access before removal
         request = self.factory.get("/items/")
@@ -293,17 +223,15 @@ class ItemListViewVisibilityTests(TestCase):
             owner=owner,
             created_by=owner,
             updated_by=owner,
-            trust_level_required=TrustLevel.STANDARD,
         )
 
         group = BorrowdGroup.objects.create_group(
             name="Test Group 2",
             created_by=owner,
             updated_by=owner,
-            trust_level=TrustLevel.HIGH,
             membership_requires_approval=False,
         )
-        group.add_user(member, trust_level=TrustLevel.STANDARD, is_moderator=True)
+        group.add_user(member, is_moderator=True)
 
         # Confirm access before removal
         request = self.factory.get("/items/")
@@ -335,20 +263,15 @@ class ItemListViewVisibilityTests(TestCase):
             owner=owner,
             created_by=owner,
             updated_by=owner,
-            trust_level_required=TrustLevel.STANDARD,
         )
 
         group = BorrowdGroup.objects.create_group(
             name="Approval Required Group",
             created_by=owner,
             updated_by=owner,
-            trust_level=TrustLevel.HIGH,
             membership_requires_approval=True,
         )
-        membership = group.add_user(
-            pending_member,
-            trust_level=TrustLevel.STANDARD,
-        )
+        membership = group.add_user(pending_member)
 
         request = self.factory.get("/items/")
         request.user = pending_member
@@ -370,20 +293,15 @@ class ItemListViewVisibilityTests(TestCase):
             name="Pending Owner Group",
             created_by=active_member,
             updated_by=active_member,
-            trust_level=TrustLevel.HIGH,
             membership_requires_approval=True,
         )
-        membership = group.add_user(
-            pending_member,
-            trust_level=TrustLevel.STANDARD,
-        )
+        membership = group.add_user(pending_member)
         pending_members_item = Item.objects.create(
             name="Pending Member Item",
             description="Should stay hidden until approval.",
             owner=pending_member,
             created_by=pending_member,
             updated_by=pending_member,
-            trust_level_required=TrustLevel.STANDARD,
         )
 
         request = self.factory.get("/items/")
@@ -406,10 +324,9 @@ class ItemListViewVisibilityTests(TestCase):
             name="Join First Group",
             created_by=creator,
             updated_by=creator,
-            trust_level=TrustLevel.HIGH,
             membership_requires_approval=False,
         )
-        group.add_user(member, trust_level=TrustLevel.STANDARD)
+        group.add_user(member)
 
         member_item = Item.objects.create(
             name="Member Item",
@@ -417,7 +334,6 @@ class ItemListViewVisibilityTests(TestCase):
             owner=member,
             created_by=member,
             updated_by=member,
-            trust_level_required=TrustLevel.STANDARD,
         )
 
         request = self.factory.get("/items/")
@@ -441,11 +357,10 @@ class ItemListViewVisibilityTests(TestCase):
             name="Three Member Group",
             created_by=creator,
             updated_by=creator,
-            trust_level=TrustLevel.HIGH,
             membership_requires_approval=False,
         )
-        group.add_user(member_b, trust_level=TrustLevel.STANDARD)
-        group.add_user(member_c, trust_level=TrustLevel.STANDARD)
+        group.add_user(member_b)
+        group.add_user(member_c)
 
         item_b = Item.objects.create(
             name="Item B",
@@ -453,7 +368,6 @@ class ItemListViewVisibilityTests(TestCase):
             owner=member_b,
             created_by=member_b,
             updated_by=member_b,
-            trust_level_required=TrustLevel.STANDARD,
         )
         item_c = Item.objects.create(
             name="Item C",
@@ -461,7 +375,6 @@ class ItemListViewVisibilityTests(TestCase):
             owner=member_c,
             created_by=member_c,
             updated_by=member_c,
-            trust_level_required=TrustLevel.STANDARD,
         )
 
         request_for_b = self.factory.get("/items/")
@@ -489,10 +402,9 @@ class ItemListViewVisibilityTests(TestCase):
             name="Detail Visibility Group",
             created_by=creator,
             updated_by=creator,
-            trust_level=TrustLevel.HIGH,
             membership_requires_approval=False,
         )
-        group.add_user(member, trust_level=TrustLevel.STANDARD)
+        group.add_user(member)
 
         member_item = Item.objects.create(
             name="Detail Member Item",
@@ -500,7 +412,6 @@ class ItemListViewVisibilityTests(TestCase):
             owner=member,
             created_by=member,
             updated_by=member,
-            trust_level_required=TrustLevel.STANDARD,
         )
 
         request = self.factory.get(f"/items/{member_item.pk}/")
@@ -512,90 +423,6 @@ class ItemListViewVisibilityTests(TestCase):
             self.fail("Group creator should be able to view member item detail page")
 
         self.assertEqual(response.status_code, 200)
-
-    def test_creator_loses_visibility_when_member_raises_item_trust_requirement(
-        self,
-    ) -> None:
-        """
-        When a member raises an item's trust requirement above their own
-        trust level for the group, active group peers should lose access.
-        """
-        creator = self.owner
-        member = self.member
-
-        group = BorrowdGroup.objects.create_group(
-            name="Trust Raise Group",
-            created_by=creator,
-            updated_by=creator,
-            trust_level=TrustLevel.HIGH,
-            membership_requires_approval=False,
-        )
-        group.add_user(member, trust_level=TrustLevel.STANDARD)
-
-        member_item = Item.objects.create(
-            name="Trust Raise Item",
-            description="Starts visible at STANDARD.",
-            owner=member,
-            created_by=member,
-            updated_by=member,
-            trust_level_required=TrustLevel.STANDARD,
-        )
-
-        request_before = self.factory.get("/items/")
-        request_before.user = creator
-        items_before = ItemListView.as_view()(request_before).context_data["item_list"]
-        self.assertIn(member_item, items_before)
-
-        member_item.trust_level_required = TrustLevel.HIGH
-        member_item.updated_by = member
-        member_item.save()
-
-        request_after = self.factory.get("/items/")
-        request_after.user = creator
-        items_after = ItemListView.as_view()(request_after).context_data["item_list"]
-        self.assertNotIn(member_item, items_after)
-
-    def test_creator_gains_visibility_when_member_lowers_item_trust_requirement(
-        self,
-    ) -> None:
-        """
-        When a member lowers an item's trust requirement to match their
-        trust level for the group, active group peers should gain access.
-        """
-        creator = self.owner
-        member = self.member
-
-        group = BorrowdGroup.objects.create_group(
-            name="Trust Lower Group",
-            created_by=creator,
-            updated_by=creator,
-            trust_level=TrustLevel.HIGH,
-            membership_requires_approval=False,
-        )
-        group.add_user(member, trust_level=TrustLevel.STANDARD)
-
-        member_item = Item.objects.create(
-            name="Trust Lower Item",
-            description="Starts hidden at HIGH.",
-            owner=member,
-            created_by=member,
-            updated_by=member,
-            trust_level_required=TrustLevel.HIGH,
-        )
-
-        request_before = self.factory.get("/items/")
-        request_before.user = creator
-        items_before = ItemListView.as_view()(request_before).context_data["item_list"]
-        self.assertNotIn(member_item, items_before)
-
-        member_item.trust_level_required = TrustLevel.STANDARD
-        member_item.updated_by = member
-        member_item.save()
-
-        request_after = self.factory.get("/items/")
-        request_after.user = creator
-        items_after = ItemListView.as_view()(request_after).context_data["item_list"]
-        self.assertIn(member_item, items_after)
 
     def test_member_cannot_open_item_detail_after_leaving_group(self) -> None:
         """
@@ -609,10 +436,9 @@ class ItemListViewVisibilityTests(TestCase):
             name="Leave Detail Group",
             created_by=owner,
             updated_by=owner,
-            trust_level=TrustLevel.HIGH,
             membership_requires_approval=False,
         )
-        group.add_user(member, trust_level=TrustLevel.STANDARD)
+        group.add_user(member)
 
         item = Item.objects.create(
             name="Leave Detail Item",
@@ -620,7 +446,6 @@ class ItemListViewVisibilityTests(TestCase):
             owner=owner,
             created_by=owner,
             updated_by=owner,
-            trust_level_required=TrustLevel.STANDARD,
         )
 
         group.remove_user(member)
@@ -643,19 +468,17 @@ class ItemListViewVisibilityTests(TestCase):
             name="Primary Shared Group",
             created_by=owner,
             updated_by=owner,
-            trust_level=TrustLevel.HIGH,
             membership_requires_approval=False,
         )
-        group_one.add_user(member, trust_level=TrustLevel.STANDARD)
+        group_one.add_user(member)
 
         group_two = BorrowdGroup.objects.create_group(
             name="Secondary Shared Group",
             created_by=owner,
             updated_by=owner,
-            trust_level=TrustLevel.HIGH,
             membership_requires_approval=False,
         )
-        group_two.add_user(member, trust_level=TrustLevel.STANDARD)
+        group_two.add_user(member)
 
         item = Item.objects.create(
             name="Still Shared Item",
@@ -663,7 +486,6 @@ class ItemListViewVisibilityTests(TestCase):
             owner=owner,
             created_by=owner,
             updated_by=owner,
-            trust_level_required=TrustLevel.STANDARD,
         )
 
         group_one.remove_user(member)

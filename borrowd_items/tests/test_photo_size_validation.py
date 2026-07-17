@@ -16,7 +16,6 @@ from django.test import RequestFactory, TestCase
 from django.utils.datastructures import MultiValueDict
 from PIL import Image
 
-from borrowd.models import TrustLevel
 from borrowd_items.forms import (
     ALLOWED_IMAGE_EXTENSIONS,
     MAX_PHOTO_SIZE_BYTES,
@@ -82,7 +81,6 @@ class ItemUpdatePhotoProcessingTests(TestCase):
             owner=owner,
             created_by=owner,
             updated_by=owner,
-            trust_level_required=TrustLevel.STANDARD,
         )
         corrupt_photo = SimpleUploadedFile(
             name="corrupt.jpg",
@@ -185,7 +183,6 @@ class ItemCreateWithPhotoFormSizeValidationTests(TestCase):
             "name": "Test Item",
             "description": "A test item description",
             "categories": [self.category.pk],
-            "trust_level_required": TrustLevel.STANDARD,
         }
 
     def test_form_valid_without_image(self) -> None:
@@ -287,7 +284,6 @@ class ItemPhotoFormSizeValidationTests(TestCase):
             owner=cls.owner,
             created_by=cls.owner,
             updated_by=cls.owner,
-            trust_level_required=TrustLevel.STANDARD,
         )
         cls.item.categories.add(cls.category)
 
@@ -391,7 +387,6 @@ class ImageEdgeCaseTests(TestCase):
             "name": "Test Item",
             "description": "A test item description",
             "categories": [self.category.pk],
-            "trust_level_required": TrustLevel.STANDARD,
         }
 
     # Zero byte / empty file tests

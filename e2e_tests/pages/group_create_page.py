@@ -1,10 +1,6 @@
-import random
 import re
 
-from faker import Faker
 from playwright.sync_api import Page, expect
-
-fake = Faker()
 
 
 class GroupCreatePage:
@@ -15,10 +11,6 @@ class GroupCreatePage:
         self.group_name_input = page.get_by_role("textbox", name="Group name")
         self.group_description_input = page.get_by_role(
             "textbox", name="Group description"
-        )
-
-        self.trust_select = page.get_by_label(
-            re.compile("what do you want your trust", re.I)
         )
 
         self.upload_banner_button = page.get_by_role(
@@ -39,7 +31,6 @@ class GroupCreatePage:
         expect(self.create_group_heading).to_be_visible()
         expect(self.group_name_input).to_be_visible()
         expect(self.group_description_input).to_be_visible()
-        expect(self.trust_select).to_be_visible()
         expect(self.approval_checkbox_description).to_be_visible()
 
     def fill_group_name(self, group_name: str):
@@ -55,15 +46,6 @@ class GroupCreatePage:
         else:
             self.approval_checkbox.uncheck()
             expect(self.approval_checkbox).not_to_be_checked()
-
-    def set_random_trust_level(self) -> str:
-        options = [
-            ("1", "Standard"),
-            ("2", "High"),
-        ]
-        value, label = random.choice(options)
-        self.trust_select.select_option(value)
-        return value
 
     def open_upload_banner(self):
         self.upload_banner_button.click()

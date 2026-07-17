@@ -5,7 +5,6 @@ Tests for item list pagination.
 from django.test import TestCase
 from django.urls import reverse
 
-from borrowd.models import TrustLevel
 from borrowd_groups.models import BorrowdGroup
 from borrowd_items.models import Item, ItemCategory
 from borrowd_items.views import (
@@ -40,10 +39,9 @@ class ItemListPaginationTests(TestCase):
             description="Test group",
             created_by=self.owner,
             updated_by=self.owner,
-            trust_level=TrustLevel.STANDARD,
             membership_requires_approval=False,
         )
-        self.group.add_user(self.viewer, trust_level=TrustLevel.STANDARD)
+        self.group.add_user(self.viewer)
 
     def create_item(self, name: str, description: str) -> Item:
         """Helper to create an item with required audit fields."""
@@ -53,7 +51,6 @@ class ItemListPaginationTests(TestCase):
             owner=self.owner,
             created_by=self.owner,
             updated_by=self.owner,
-            trust_level_required=TrustLevel.STANDARD,
         )
         item.categories.add(self.category)
         return item
