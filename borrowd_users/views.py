@@ -190,12 +190,12 @@ def profile_view(request: HttpRequest) -> HttpResponse:
 
     profile_context = build_profile_context(user, user)
     profile_context["form"] = form
-    
-    profile_context["has_push_preference_enabled"] = NotificationPreference.objects.filter(
-        user=user, push_enabled=True
-    ).exists()
+
+    profile_context["has_push_preference_enabled"] = (
+        NotificationPreference.objects.filter(user=user, push_enabled=True).exists()
+    )
     profile_context["vapid_public_key"] = settings.VAPID_PUBLIC_KEY
-    
+
     return render(
         request,
         "users/profile.html",
