@@ -1,5 +1,6 @@
 import json
 from datetime import timedelta
+from typing import Any
 from unittest.mock import patch
 
 from django.core import mail
@@ -7,6 +8,7 @@ from django.http import HttpResponseBase
 from django.test import TestCase, TransactionTestCase, override_settings
 from django.utils import timezone
 from notifications.models import Notification
+from pywebpush import WebPushException
 
 from borrowd.models import TrustLevel
 from borrowd_groups.models import BorrowdGroup, Membership
@@ -2159,6 +2161,48 @@ class PUSHNotificationStrategyTests(TransactionTestCase):
         self.assertEqual(results.get("PUSH", {}).get("status"), "NOT_SUBSCRIBED")
         self.assertIsNone(results.get("PUSH", {}).get("error"))
         self.assertFalse(mock_capture.called)
+
+    def test_one_of_several_devices_failing_still_succeeds_the_channel(self) -> None:
+        """If N of a user's devices succeed and only one fails, the channel as a
+        whole is still SUCCESS (the user was notified elsewhere) — the failure
+        is captured in partial_errors rather than dragging the channel to ERROR."""
+        PushSubscription.objects.create(
+            user=self.borrower,
+            endpoint="https://fcm.googleapis.com/fcm/send/second-device",
+            p256dh="second-p256dh",
+            auth="second-auth",
+        )
+
+        def _side_effect(*, subscription_info: dict[str, Any], **kwargs: Any) -> None:
+            if subscription_info["endpoint"].endswith("second-device"):
+                raise WebPushException("stale subscription")
+
+        with (
+            patch("borrowd_notifications.channels.webpush", side_effect=_side_effect),
+            patch(
+                "borrowd_notifications.services.sentry_sdk.capture_exception"
+            ) as mock_capture,
+        ):
+            notification = self._trigger_accepted()
+
+        results = NotificationService._channel_results(notification)
+        self.assertEqual(results.get("PUSH", {}).get("status"), "SUCCESS")
+        partial_errors = results.get("PUSH", {}).get("partial_errors")
+        self.assertEqual(len(partial_errors), 1)
+        self.assertIn("stale subscription", partial_errors[0])
+        self.assertFalse(mock_capture.called)
+
+    def test_all_devices_failing_still_marks_channel_error(self) -> None:
+        """With only one device (as in setUp), that one failure is still 100% of
+        subscriptions, so the channel is correctly marked ERROR."""
+        with patch(
+            "borrowd_notifications.channels.webpush",
+            side_effect=WebPushException("push service unreachable"),
+        ):
+            notification = self._trigger_accepted()
+
+        results = NotificationService._channel_results(notification)
+        self.assertEqual(results.get("PUSH", {}).get("status"), "ERROR")
 
     def test_webpush_call_has_a_bounded_timeout(self) -> None:
         """webpush() must never be called without a timeout — pywebpush defaults to

@@ -159,7 +159,7 @@ class PUSHNotificationStrategy(NotificationStrategy):
             except Exception as exc:
                 errors.append(str(exc))
 
-        if errors:
+        if errors and len(errors) == len(subscriptions):
             error_message = "; ".join(errors)
             payload.data._error(channel=ChannelType.PUSH, error=error_message)
             raise RuntimeError(
@@ -167,4 +167,6 @@ class PUSHNotificationStrategy(NotificationStrategy):
                 f"subscription(s): {error_message}"
             )
         else:
-            payload.data._success(channel=ChannelType.PUSH)
+            payload.data._success(
+                channel=ChannelType.PUSH, partial_errors=errors or None
+            )

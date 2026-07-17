@@ -376,6 +376,10 @@ class NotificationState(TextChoices):
 class ChannelResult:
     status: NotificationState
     error: str | None = None
+    # Populated when some, but not all, of a channel's delivery attempts failed
+    # (e.g. one of several push devices had a stale subscription) — the channel
+    # as a whole still succeeded, but these are worth surfacing for debugging.
+    partial_errors: list[str] | None = None
 
 
 @dataclass
@@ -402,6 +406,7 @@ class NotificationData:
                     else ChannelResult(
                         status=NotificationState(result["status"]),
                         error=result.get("error"),
+                        partial_errors=result.get("partial_errors"),
                     )
                 )
                 for channel, result in data.get("channels", {}).items()
@@ -430,8 +435,12 @@ class NotificationData:
             error=error,
         )
 
-    def _success(self, channel: ChannelType) -> None:
-        self.channels[channel] = ChannelResult(status=NotificationState.SUCCESS)
+    def _success(
+        self, channel: ChannelType, partial_errors: list[str] | None = None
+    ) -> None:
+        self.channels[channel] = ChannelResult(
+            status=NotificationState.SUCCESS, partial_errors=partial_errors
+        )
 
     def _not_subscribed(self, channel: ChannelType) -> None:
         """Record that the user has this channel enabled but hasn't completed
@@ -444,7 +453,11 @@ class NotificationData:
             "context": self.context,
             "icon": self.icon,
             "channels": {
-                channel.value: {"status": result.status.value, "error": result.error}
+                channel.value: {
+                    "status": result.status.value,
+                    "error": result.error,
+                    "partial_errors": result.partial_errors,
+                }
                 for channel, result in self.channels.items()
             },
         }
