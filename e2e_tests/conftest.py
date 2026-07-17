@@ -211,15 +211,25 @@ def _delete_e2e_items(page: Page, base_url: str, budget_seconds: float = 600) ->
     """Delete generated 'E2E ... <timestamp>' items via the UI so the
     environment's inventory doesn't grow without bound across runs.
 
-    Best-effort within a hard time budget: on a slow environment each failed
-    delete attempt costs the full expect timeout, so an unbounded sweep can
-    eat the whole job.
+    Only items showing the Available banner are attempted: items stuck
+    mid-transaction can't be deleted, and each doomed attempt costs the
+    full expect timeout. A hard time budget bounds the sweep either way.
     """
     inventory = InventoryPage(page)
     details = ItemDetails(page)
     edit = ItemEditPage(page)
     name_pattern = re.compile(r"^E2E\b.*\d{6}$")
-    undeletable: set[str] = set()
+    # Cards are stamped into the DOM by Alpine; wait for any card or the
+    # empty state before concluding there are no leftovers.
+    cards_rendered = page.locator("div[id^='item-card-']").or_(
+        page.get_by_text("You have no items yet.")
+    )
+    leftover_cards = (
+        page.locator("div[id^='item-card-']")
+        .filter(has=page.get_by_role("heading", name=name_pattern))
+        .filter(has=page.get_by_text("Available", exact=True))
+    )
+    skipped: set[str] = set()
     deadline = time.monotonic() + budget_seconds
 
     for _ in range(100):
@@ -232,31 +242,29 @@ def _delete_e2e_items(page: Page, base_url: str, budget_seconds: float = 600) ->
             wait_until="domcontentloaded",
             timeout=120_000,
         )
-        headings = page.get_by_role("heading", name=name_pattern)
         try:
-            headings.first.wait_for(timeout=10_000)
+            cards_rendered.first.wait_for(timeout=30_000)
         except PlaywrightTimeoutError:
             return
         leftover = None
         leftover_name = ""
-        for heading in headings.all():
-            name = heading.inner_text().strip()
-            if name not in undeletable:
-                leftover, leftover_name = heading, name
+        for card in leftover_cards.all():
+            name = card.get_by_role("heading", name=name_pattern).inner_text().strip()
+            if name not in skipped:
+                leftover, leftover_name = card, name
                 break
         if leftover is None:
             return
         try:
-            leftover.click()
+            leftover.get_by_role("heading", name=name_pattern).click()
             details.click_edit()
             edit.click_delete_item()
             edit.expect_delete_modal_opened()
             edit.confirm_delete()
             inventory.expect_opened()
         except Exception:
-            # Items stuck mid-transaction can't be deleted; skip them so one
-            # bad item doesn't block the rest of the sweep.
-            undeletable.add(leftover_name)
+            # Safety net so one bad item can't loop the sweep forever.
+            skipped.add(leftover_name)
 
 
 @pytest.fixture(scope="session", autouse=True)
