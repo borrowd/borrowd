@@ -22,7 +22,16 @@ class ProfilePage:
         expect(self.personal_info_toggle).to_be_visible()
 
     def open_personal_info(self):
-        """The personal info fields live in a drawer that starts collapsed."""
+        """The personal info fields live in a drawer that starts collapsed.
+
+        The drawer is Alpine-driven (CDN script, deferred). A click before
+        Alpine initializes toggles the native <details> without setting
+        openDrawer, leaving the two permanently out of sync until the next
+        reload. Wait for Alpine to claim the drawer before clicking.
+        """
+        self.page.wait_for_function(
+            "() => !!document.querySelector('[x-data]')?._x_dataStack"
+        )
         self.personal_info_toggle.click()
         expect(self.first_name_input).to_be_visible()
         expect(self.last_name_input).to_be_visible()
