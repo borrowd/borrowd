@@ -3,8 +3,11 @@ self.addEventListener("push", (event) => {
   event.waitUntil(
     self.registration.showNotification(data.title ?? "Borrow'd", {
       body: data.body ?? "",
-      icon: data.icon ?? "../icon.svg",
-      badge: '../icon.svg',
+      // Paths here resolve against the service worker's own scope (`/`,
+      // since sw.js is served from the root), not `/static/` — so these
+      // must be absolute, not relative, to reach the real icon location.
+      icon: data.icon ?? "/static/icon.svg",
+      badge: "/static/icon.svg",
       data: { url: data.url ?? "/notifications/" },
     })
   );
