@@ -22,6 +22,7 @@ measures the per-destination iteration and DB overhead without real network call
 
 import statistics
 import time
+from collections.abc import Callable
 from contextlib import nullcontext
 from typing import Any
 from unittest.mock import MagicMock, patch
@@ -163,8 +164,10 @@ class Command(BaseCommand):
             },
         )
 
-    def _run_with_patches(self, push: bool, fn: Any) -> list[float]:
-        """Run fn() count times inside silent-email + webpush-mock context."""
+    def _run_with_patches(
+        self, push: bool, fn: Callable[[], list[float]]
+    ) -> list[float]:
+        """Run fn() inside silent-email + webpush-mock context."""
         timings: list[float] = []
         with (
             override_settings(
@@ -222,18 +225,11 @@ class Command(BaseCommand):
         push: bool,
     ) -> None:
         self._set_prefs(recipient, app=app, email=email, push=push)
-        timings: list[float] = []
-        with (
-            override_settings(
-                EMAIL_BACKEND="django.core.mail.backends.dummy.EmailBackend"
-            ),
-            patch("builtins.print"),
-            patch("borrowd_notifications.channels.webpush", MagicMock())
-            if push
-            else nullcontext(),
-        ):
-            for _ in range(count):
-                timings.append(self._send_one(sender, recipient))
+
+        def fn() -> list[float]:
+            return [self._send_one(sender, recipient) for _ in range(count)]
+
+        timings = self._run_with_patches(push, fn)
         channels = (
             "+".join(
                 c for c, on in [("APP", app), ("EMAIL", email), ("PUSH", push)] if on
@@ -251,18 +247,10 @@ class Command(BaseCommand):
         *,
         push: bool,
     ) -> None:
-        timings: list[float] = []
-        with (
-            override_settings(
-                EMAIL_BACKEND="django.core.mail.backends.dummy.EmailBackend"
-            ),
-            patch("builtins.print"),
-            patch("borrowd_notifications.channels.webpush", MagicMock())
-            if push
-            else nullcontext(),
-        ):
-            for _ in range(count):
-                timings.append(self._send_group(sender, members))
+        def fn() -> list[float]:
+            return [self._send_group(sender, members) for _ in range(count)]
+
+        timings = self._run_with_patches(push, fn)
         ms = [t * 1000 for t in timings]
         per_recipient = [t / len(members) for t in ms]
         self._print_row(
