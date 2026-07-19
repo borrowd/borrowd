@@ -495,3 +495,282 @@ class ItemListViewVisibilityTests(TestCase):
         response = ItemDetailView.as_view()(request, pk=item.pk)
 
         self.assertEqual(response.status_code, 200)
+
+
+class PerGroupSharingVisibilityTests(TestCase):
+    def setUp(self) -> None:
+        self.owner = BorrowdUser.objects.create(
+            username="owner", email="owner@example.com"
+        )
+        self.member = BorrowdUser.objects.create(
+            username="member", email="member@example.com"
+        )
+        self.factory = RequestFactory()
+
+    def _items_for(self, user: BorrowdUser) -> list[Item]:
+        request = self.factory.get("/items/")
+        request.user = user
+        return list(ItemListView.as_view()(request).context_data["item_list"])
+
+    def test_item_not_shared_with_any_group_is_hidden_from_group_members(
+        self,
+    ) -> None:
+        """
+        An item with share_with_all_groups=False and no shared_with_groups
+        should be invisible to group members even if they share a group with
+        the owner.
+        """
+        owner = self.owner
+        member = self.member
+
+        group = BorrowdGroup.objects.create_group(
+            name="Test Group",
+            created_by=owner,
+            updated_by=owner,
+            membership_requires_approval=False,
+        )
+        group.add_user(member)
+
+        Item.objects.create(
+            name="Private Item",
+            description="Not shared with any group.",
+            owner=owner,
+            created_by=owner,
+            updated_by=owner,
+            share_with_all_groups=False,
+        )
+
+        self.assertEqual(self._items_for(member), [])
+
+    def test_item_shared_with_specific_group_visible_only_to_that_group(
+        self,
+    ) -> None:
+        """
+        An item with share_with_all_groups=False and shared_with_groups=[group_a]
+        should be visible to members of group_a but not to members of group_b.
+        """
+        owner = self.owner
+        member_in = self.member
+        member_out = BorrowdUser.objects.create(
+            username="member_out", email="member_out@example.com"
+        )
+
+        group_a = BorrowdGroup.objects.create_group(
+            name="Group A",
+            created_by=owner,
+            updated_by=owner,
+            membership_requires_approval=False,
+        )
+        group_a.add_user(member_in)
+
+        group_b = BorrowdGroup.objects.create_group(
+            name="Group B",
+            created_by=owner,
+            updated_by=owner,
+            membership_requires_approval=False,
+        )
+        group_b.add_user(member_out)
+
+        item = Item.objects.create(
+            name="Group A Only Item",
+            description="Shared only with Group A.",
+            owner=owner,
+            created_by=owner,
+            updated_by=owner,
+            share_with_all_groups=False,
+        )
+        item.shared_with_groups.add(group_a)
+
+        self.assertIn(item, self._items_for(member_in))
+        self.assertNotIn(item, self._items_for(member_out))
+
+    def test_item_shared_with_multiple_groups_visible_to_all_of_them(
+        self,
+    ) -> None:
+        """
+        An item with share_with_all_groups=False and two explicit groups should
+        be visible to active members of both groups.
+        """
+        owner = self.owner
+        member_a = self.member
+        member_b = BorrowdUser.objects.create(
+            username="member_b", email="member_b@example.com"
+        )
+
+        group_a = BorrowdGroup.objects.create_group(
+            name="Group A",
+            created_by=owner,
+            updated_by=owner,
+            membership_requires_approval=False,
+        )
+        group_a.add_user(member_a)
+
+        group_b = BorrowdGroup.objects.create_group(
+            name="Group B",
+            created_by=owner,
+            updated_by=owner,
+            membership_requires_approval=False,
+        )
+        group_b.add_user(member_b)
+
+        item = Item.objects.create(
+            name="Multi-Group Item",
+            description="Shared with Group A and Group B.",
+            owner=owner,
+            created_by=owner,
+            updated_by=owner,
+            share_with_all_groups=False,
+        )
+        item.shared_with_groups.add(group_a, group_b)
+
+        self.assertIn(item, self._items_for(member_a))
+        self.assertIn(item, self._items_for(member_b))
+
+    def test_switching_to_per_group_sharing_revokes_unselected_groups(
+        self,
+    ) -> None:
+        """
+        Changing share_with_all_groups from True to False and setting an explicit
+        shared_with_groups should immediately revoke visibility for groups not in
+        the new list.
+        """
+        owner = self.owner
+        member_a = self.member
+        member_b = BorrowdUser.objects.create(
+            username="member_b", email="member_b@example.com"
+        )
+
+        group_a = BorrowdGroup.objects.create_group(
+            name="Group A",
+            created_by=owner,
+            updated_by=owner,
+            membership_requires_approval=False,
+        )
+        group_a.add_user(member_a)
+
+        group_b = BorrowdGroup.objects.create_group(
+            name="Group B",
+            created_by=owner,
+            updated_by=owner,
+            membership_requires_approval=False,
+        )
+        group_b.add_user(member_b)
+
+        item = Item.objects.create(
+            name="Toggled Item",
+            description="Starts shared with all groups.",
+            owner=owner,
+            created_by=owner,
+            updated_by=owner,
+            share_with_all_groups=True,
+        )
+
+        # Both members can see it before the change
+        self.assertIn(item, self._items_for(member_a))
+        self.assertIn(item, self._items_for(member_b))
+
+        # Narrow sharing to group_a only
+        item.share_with_all_groups = False
+        item.save()
+        item.shared_with_groups.set([group_a])
+
+        self.assertIn(item, self._items_for(member_a))
+        self.assertNotIn(item, self._items_for(member_b))
+
+    def test_new_group_member_sees_share_all_item_when_owner_joins(
+        self,
+    ) -> None:
+        """
+        When the owner joins a new group, members of that group should gain
+        visibility of the owner's items that have share_with_all_groups=True.
+        """
+        owner = self.owner
+        new_member = self.member
+
+        item = Item.objects.create(
+            name="All Groups Item",
+            description="Shared with all groups.",
+            owner=owner,
+            created_by=owner,
+            updated_by=owner,
+            share_with_all_groups=True,
+        )
+
+        # new_member creates a group; owner then joins it
+        new_group = BorrowdGroup.objects.create_group(
+            name="New Group",
+            created_by=new_member,
+            updated_by=new_member,
+            membership_requires_approval=False,
+        )
+        new_group.add_user(owner)
+
+        self.assertIn(item, self._items_for(new_member))
+
+    def test_new_group_member_cannot_see_item_not_shared_with_their_group(
+        self,
+    ) -> None:
+        """
+        When the owner joins a new group, members of that group should NOT gain
+        visibility of items that have share_with_all_groups=False and don't
+        include the new group in shared_with_groups.
+        """
+        owner = self.owner
+        new_member = self.member
+
+        Item.objects.create(
+            name="Specific Groups Item",
+            description="Not shared with the new group.",
+            owner=owner,
+            created_by=owner,
+            updated_by=owner,
+            share_with_all_groups=False,
+        )
+
+        new_group = BorrowdGroup.objects.create_group(
+            name="New Group",
+            created_by=new_member,
+            updated_by=new_member,
+            membership_requires_approval=False,
+        )
+        new_group.add_user(owner)
+
+        self.assertEqual(self._items_for(new_member), [])
+
+    def test_item_loses_visibility_when_owner_leaves_explicitly_shared_group(
+        self,
+    ) -> None:
+        """
+        When the owner leaves a group that is listed in shared_with_groups,
+        that group's members should lose visibility — the owner's active membership
+        is required even for explicitly shared groups.
+        """
+        owner = self.owner
+        member = self.member
+
+        # member creates and moderates the group so owner can leave freely
+        group = BorrowdGroup.objects.create_group(
+            name="Shared Group",
+            created_by=member,
+            updated_by=member,
+            membership_requires_approval=False,
+        )
+        group.add_user(owner)
+
+        item = Item.objects.create(
+            name="Explicitly Shared Item",
+            description="Shared with one group that the owner later leaves.",
+            owner=owner,
+            created_by=owner,
+            updated_by=owner,
+            share_with_all_groups=False,
+        )
+        item.shared_with_groups.add(group)
+
+        # Member can see the item while the owner is active in the group
+        self.assertIn(item, self._items_for(member))
+
+        group.remove_user(owner)
+
+        # Member loses visibility once the owner leaves
+        self.assertNotIn(item, self._items_for(member))
