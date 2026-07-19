@@ -1,7 +1,6 @@
 from django.test import TestCase
 from django.utils import timezone
 
-from borrowd.models import TrustLevel
 from borrowd_items.models import Item, Transaction, TransactionStatus
 from borrowd_users.models import BorrowdUser
 
@@ -21,7 +20,6 @@ def _item(owner: BorrowdUser, name: str) -> Item:
         owner=owner,
         created_by=owner,
         updated_by=owner,
-        trust_level_required=TrustLevel.STANDARD,
     )
 
 

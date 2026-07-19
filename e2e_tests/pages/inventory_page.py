@@ -12,7 +12,7 @@ class InventoryPage:
         self.your_items_toggle = page.get_by_role("switch", name="Your items")
         self.add_item_button = page.get_by_role(
             "link", name=re.compile(r"Add an item|Create New Item|Add item", re.I)
-        )
+        ).first
 
     def expect_opened(self):
         expect(self.heading).to_be_visible()

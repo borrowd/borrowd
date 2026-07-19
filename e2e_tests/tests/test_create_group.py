@@ -36,7 +36,6 @@ def test_create_group(user_page, base_url):
 
     details = GroupDetails(user_page)
     details.expect_opened()
-    details.expect_details(
-    )
+    details.expect_details(name=group_name, description=description)
     details.expect_members_count(1)
     details.expect_you_are_moderator()

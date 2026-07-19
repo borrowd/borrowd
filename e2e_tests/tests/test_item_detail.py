@@ -40,5 +40,4 @@ def test_item_detail_loads(user_page, base_url):
     with allure.step("Verify item detail page loads"):
         details = ItemDetails(user_page)
         details.expect_opened()
-        details.expect_details(
-        )
+        details.expect_details(name=item_name, description=description)
