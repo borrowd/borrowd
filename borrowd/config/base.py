@@ -70,6 +70,7 @@ INSTALLED_APPS = [
     "borrowd_beta",
     "borrowd_items",
     "borrowd_groups",
+    "borrowd_community_requests",
     "notifications",  # Must be below apps that send notifications and above borrowd_notifications
     "borrowd_notifications",
     "django_filters",
