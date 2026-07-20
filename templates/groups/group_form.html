@@ -7,14 +7,14 @@ creating and editing. Checking `view.object.pk` is strangely the best way to
 check if we are creating or editing. {% endcomment %}
 {% block head_title %}
     {%
-    if not view.object.pk %}Create
+        if not view.object.pk %}Create
 {% else %}
     Edit
 {% endif %}
 Group
 {% endblock %}
 {%
-block groups_content %}
+    block groups_content %}
 {% load static %}
 
 <c-box>
@@ -63,13 +63,8 @@ block groups_content %}
                     {% endif %}
 
                     {% if field.name == "banner" %}
-                        <div class="border border-base-100 rounded-lg px-[10px] py-4 flex flex-col gap-4 items-center mt-1.5" x-data="{ pendingPreview: null, pendingFile: null, showExisting:
-                            {% if view.object.pk and view.object.banner %}
-                                true
-                            {% else %}
-                                false
-                            {% endif %}
-                            , handleFileSelect(event) { const file = event.target.files[0]; if (!file) return; if (this.pendingPreview) URL.revokeObjectURL(this.pendingPreview); this.pendingFile = file; this.pendingPreview = URL.createObjectURL(file); event.target.value = ''; this.syncSubmitInput(); }, removePending() { URL.revokeObjectURL(this.pendingPreview); this.pendingPreview = null; this.pendingFile = null; this.syncSubmitInput(); }, removeExisting() { this.showExisting = false; document.getElementById('banner-clear-checkbox').checked = true; }, syncSubmitInput() { const dt = new DataTransfer(); if (this.pendingFile) dt.items.add(this.pendingFile); document.getElementById('banner-submit-input').files = dt.files; } }">
+                        <div class="border border-base-100 rounded-lg px-[10px] py-4 flex flex-col gap-4 items-center mt-1.5"
+                             x-data="{ pendingPreview: null, pendingFile: null, showExisting: {% if view.object.pk and view.object.banner %} true {% else %} false {% endif %} , handleFileSelect(event) { const file = event.target.files[0]; if (!file) return; if (this.pendingPreview) URL.revokeObjectURL(this.pendingPreview); this.pendingFile = file; this.pendingPreview = URL.createObjectURL(file); event.target.value = ''; this.syncSubmitInput(); }, removePending() { URL.revokeObjectURL(this.pendingPreview); this.pendingPreview = null; this.pendingFile = null; this.syncSubmitInput(); }, removeExisting() { this.showExisting = false; document.getElementById('banner-clear-checkbox').checked = true; }, syncSubmitInput() { const dt = new DataTransfer(); if (this.pendingFile) dt.items.add(this.pendingFile); document.getElementById('banner-submit-input').files = dt.files; } }">
 
                             {# Preview grid: existing saved banner + pending preview #}
                             <div class="flex flex-wrap gap-6 justify-center w-full"

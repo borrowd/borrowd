@@ -150,9 +150,7 @@ class BorrowdGroup(Model):
             and not active_memberships.filter(is_moderator=True).exists()
         )
 
-    def add_user(
-        self, user: BorrowdUser, is_moderator: bool = False
-    ) -> "Membership":
+    def add_user(self, user: BorrowdUser, is_moderator: bool = False) -> "Membership":
         """
         Add a user to the group.
         """

@@ -4,25 +4,32 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('borrowd_groups', '0013_remove_membership_trust_level'),
-        ('borrowd_items', '0022_alter_transaction_status'),
+        ("borrowd_groups", "0013_remove_membership_trust_level"),
+        ("borrowd_items", "0022_alter_transaction_status"),
     ]
 
     operations = [
         migrations.RemoveField(
-            model_name='item',
-            name='trust_level_required',
+            model_name="item",
+            name="trust_level_required",
         ),
         migrations.AddField(
-            model_name='item',
-            name='share_with_all_groups',
-            field=models.BooleanField(default=True, help_text='When True, item is visible to all current AND future groups'),
+            model_name="item",
+            name="share_with_all_groups",
+            field=models.BooleanField(
+                default=True,
+                help_text="When True, item is visible to all current AND future groups",
+            ),
         ),
         migrations.AddField(
-            model_name='item',
-            name='shared_with_groups',
-            field=models.ManyToManyField(blank=True, help_text='The groups in which the item is shared.', related_name='shared_items', to='borrowd_groups.borrowdgroup'),
+            model_name="item",
+            name="shared_with_groups",
+            field=models.ManyToManyField(
+                blank=True,
+                help_text="The groups in which the item is shared.",
+                related_name="shared_items",
+                to="borrowd_groups.borrowdgroup",
+            ),
         ),
     ]

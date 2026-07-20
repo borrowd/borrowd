@@ -1,23 +1,7 @@
 {% load heroicons %}
 
 <!-- Item Filter Form Component -->
-<form method="get" class="flex flex-col gap-4" x-data="{ /* * Alpine UI state: which category IDs are currently selected. * Pre-populated from Django form's current value on page load. * (Empty on create, has values on edit.) */ selectedIds: [
-    {% for val in filter.form.categories.value %}
-        '{{ val }}'
-        {% if not forloop.last %}
-            ,
-        {% endif %}
-
-    {% endfor %}
-    ], categories: [
-    {% for choice in filter.form.categories.field.choices %}
-        { id: '{{ choice.0 }}', name: '{{ choice.1 }}' }
-        {% if not forloop.last %}
-            ,
-        {% endif %}
-
-    {% endfor %}
-    ],  /* Toggle a category by id: add if not selected, remove if already selected. */ toggle(id) { const idx = this.selectedIds.indexOf(id); if (idx === -1) { this.selectedIds.push(id); } else { this.selectedIds.splice(idx, 1); } },  isSelected(id) { return this.selectedIds.includes(id); },  /* * Display text for the trigger button. * No selection: 'Select an item category' * One selected: full category name * Multiple: first name truncated (12 chars) + '... + N more' *   e.g.: 'Home & Kitch... + 3 more' */ get buttonText() { if (this.selectedIds.length === 0) return 'Filter by category'; const firstName = this.categories.find(c => c.id === this.selectedIds[0])?.name || ''; if (this.selectedIds.length === 1) return firstName; const truncated = firstName.length > 12 ? firstName.slice(0, 12) + '...' : firstName; return truncated + ' + ' + (this.selectedIds.length - 1) + ' more'; },  /* * Propagate Alpine's selectedIds state to the hidden select element. * This ensures Django's FilterSet receives the correct category values * when the form is submitted via GET. */ writeSelectedIdsToHiddenSelect() { const select = this.$refs.hiddenSelect; for (const opt of select.options) { opt.selected = this.selectedIds.includes(opt.value); } },  clearFilters() { this.selectedIds = []; this.writeSelectedIdsToHiddenSelect(); closeModal('category-filter-modal'); this.$el.closest('form').submit(); },  applyFilters() { this.writeSelectedIdsToHiddenSelect(); closeModal('category-filter-modal'); this.$el.closest('form').submit(); } }">
+<form method="get" class="flex flex-col gap-4" x-data="{ /* * Alpine UI state: which category IDs are currently selected. * Pre-populated from Django form's current value on page load. * (Empty on create, has values on edit.) */ selectedIds: [ {% for val in filter.form.categories.value %} '{{ val }}' {% if not forloop.last %} , {% endif %}  {% endfor %} ], categories: [ {% for choice in filter.form.categories.field.choices %} { id: '{{ choice.0 }}', name: '{{ choice.1 }}' } {% if not forloop.last %} , {% endif %}  {% endfor %} ],  /* Toggle a category by id: add if not selected, remove if already selected. */ toggle(id) { const idx = this.selectedIds.indexOf(id); if (idx === -1) { this.selectedIds.push(id); } else { this.selectedIds.splice(idx, 1); } },  isSelected(id) { return this.selectedIds.includes(id); },  /* * Display text for the trigger button. * No selection: 'Select an item category' * One selected: full category name * Multiple: first name truncated (12 chars) + '... + N more' *   e.g.: 'Home & Kitch... + 3 more' */ get buttonText() { if (this.selectedIds.length === 0) return 'Filter by category'; const firstName = this.categories.find(c => c.id === this.selectedIds[0])?.name || ''; if (this.selectedIds.length === 1) return firstName; const truncated = firstName.length > 12 ? firstName.slice(0, 12) + '...' : firstName; return truncated + ' + ' + (this.selectedIds.length - 1) + ' more'; },  /* * Propagate Alpine's selectedIds state to the hidden select element. * This ensures Django's FilterSet receives the correct category values * when the form is submitted via GET. */ writeSelectedIdsToHiddenSelect() { const select = this.$refs.hiddenSelect; for (const opt of select.options) { opt.selected = this.selectedIds.includes(opt.value); } },  clearFilters() { this.selectedIds = []; this.writeSelectedIdsToHiddenSelect(); closeModal('category-filter-modal'); this.$el.closest('form').submit(); },  applyFilters() { this.writeSelectedIdsToHiddenSelect(); closeModal('category-filter-modal'); this.$el.closest('form').submit(); } }">
     <!-- Search bar and button -->
     <div class="flex gap-4 items-start">
         <label class="input input-bordered w-full flex items-center gap-2">

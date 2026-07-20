@@ -271,8 +271,8 @@ class GroupDetailView(
             context["leave_group_has_active_borrows"] = (
                 user_has_active_borrows_in_group(user, group)
             )
-            context["leave_group_has_active_lends"] = (
-                user_has_active_lends_in_group(user, group)
+            context["leave_group_has_active_lends"] = user_has_active_lends_in_group(
+                user, group
             )
             context["leave_group_requires_approval_to_rejoin"] = (
                 group.membership_requires_approval
