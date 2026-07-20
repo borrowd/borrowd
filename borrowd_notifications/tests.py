@@ -36,6 +36,7 @@ from .models import (
     NotificationData,
     NotificationMetadata,
     NotificationPreference,
+    NotificationState,
     NotificationType,
     PushSubscription,
 )
@@ -2064,6 +2065,9 @@ class PushSubscribeEndpointAllowlistTests(TestCase):
         )
 
 
+@override_settings(
+    VAPID_PRIVATE_KEY="test-private-key", VAPID_PUBLIC_KEY="test-public-key"
+)
 class PUSHNotificationStrategyTests(TransactionTestCase):
     """Tests for PUSHNotificationStrategy.send(), the web-push delivery path."""
 
@@ -2246,3 +2250,24 @@ class PUSHNotificationStrategyTests(TransactionTestCase):
         timeout = mock_webpush.call_args.kwargs["timeout"]
         self.assertIsNotNone(timeout)
         self.assertLessEqual(timeout, 10)
+
+    @override_settings(VAPID_PRIVATE_KEY="", VAPID_PUBLIC_KEY="")
+    def test_missing_vapid_keys_skips_delivery_without_calling_webpush(self) -> None:
+        """An unconfigured deployment must fail quietly and audibly (one ERROR,
+        one log line) rather than calling webpush() and hitting pywebpush/py_vapid
+        with an invalid key for every subscription on every send."""
+        notification = self._trigger_accepted()
+        payload = NotificationPayload(
+            notification=notification,
+            notification_type=NotificationType.ITEM_REQUEST_ACCEPTED,
+            template_name=str(NotificationType.ITEM_REQUEST_ACCEPTED),
+            data=NotificationData.create({}, {ChannelType.PUSH}),
+        )
+
+        with patch("borrowd_notifications.channels.webpush") as mock_webpush:
+            PUSHNotificationStrategy().send(payload)
+
+        mock_webpush.assert_not_called()
+        self.assertEqual(
+            payload.data.channels[ChannelType.PUSH].status, NotificationState.ERROR
+        )

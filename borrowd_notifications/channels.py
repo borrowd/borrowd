@@ -1,4 +1,5 @@
 import json
+import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
@@ -23,6 +24,8 @@ from borrowd_notifications.models import (
 # block the caller indefinitely), which on a 2-worker synchronous gunicorn
 # deployment can tie up half of total request capacity for the duration.
 _WEBPUSH_TIMEOUT_SECONDS = 5
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -112,6 +115,20 @@ class PUSHNotificationStrategy(NotificationStrategy):
         This would work for open browsers tabs and open/closed pwa.
         No native push framework required.
         """
+        if not settings.VAPID_PRIVATE_KEY or not settings.VAPID_PUBLIC_KEY:
+            # Guard required for channels needing external credentials — see the
+            # "To add a new channel" checklist on NotificationPreference above.
+            # Without this, an unconfigured deployment would hit webpush() on
+            # every send and report a cryptic ERROR (plus a Sentry event) per
+            # notification instead of failing quietly and audibly once here.
+            logger.warning(
+                "PUSH channel invoked without VAPID keys configured; skipping delivery."
+            )
+            payload.data._error(
+                channel=ChannelType.PUSH, error="VAPID keys not configured"
+            )
+            return
+
         subscriptions = list(
             PushSubscription.objects.filter(user=payload.notification.recipient)
         )
