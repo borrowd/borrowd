@@ -11,6 +11,16 @@
             {% block head_title %}
             {% endblock %}
         - Borrow'd 🐝</title>
+        <script>
+            // Registered before the deferred Alpine script below so it can never
+            // miss the event. Lets callers (e.g. e2e tests) detect "Alpine has
+            // finished walking the DOM" via a public signal instead of poking at
+            // Alpine's private internals.
+            window.__alpineInitialized = false;
+            document.addEventListener("alpine:initialized", function () {
+                window.__alpineInitialized = true;
+            });
+        </script>
         <script defer
                 src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
         <!-- Plausible Analytics -->
