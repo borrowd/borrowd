@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Borrow'd is a Django 5.2 web application (Python 3.13+) for peer-to-peer item lending within trusted groups. Users can share items with group members based on configurable trust levels.
+Borrow'd is a Django 5.2 web application (Python 3.13+) for peer-to-peer item lending within groups. Users can share items with group members based on group sharing configuration.
 
 For full setup walkthrough and deployment notes, see [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md).
 
@@ -57,7 +57,7 @@ Repo-local `PostToolUse` hooks (configured in `.claude/settings.json`, scripts i
 ### Django Project Structure
 - `borrowd/` — Django project config (settings in `config/`, URL routing, custom `manage.py` commands under `management/commands/`)
 - `borrowd_users/` — `BorrowdUser` (extends `AbstractUser`), `Profile`, `SearchTerm` (search-history logging)
-- `borrowd_groups/` — `BorrowdGroup`, `Membership` (with trust level + lifecycle status)
+- `borrowd_groups/` — `BorrowdGroup`, `Membership` (with group sharing + lifecycle status)
 - `borrowd_items/` — `Item`, `ItemCategory`, `ItemPhoto`, `Transaction`, `AvailabilitySubscription`
 - `borrowd_notifications/` — Notification services on top of `django-notifications-hq`
 - `borrowd_beta/` — Beta-access wall (middleware, signup form, allowlist)
@@ -66,7 +66,7 @@ Repo-local `PostToolUse` hooks (configured in `.claude/settings.json`, scripts i
 
 ### Key Domain Concepts
 
-**TrustLevel** (`borrowd/models.py`): `STANDARD`, `HIGH` — controls item visibility between group members. Users set their trust level per-group; items declare a `trust_level_required` for borrowing.
+**Group sharing** (`borrowd/models.py`): `share_with_all_groups` and `shared_with_groups` — controls item visibility in groups. Users set if they want to share an item with all groups or with specific groups.
 
 **Item state** (`borrowd_items/models.py`):
 - `ItemStatus`: `AVAILABLE`, `REQUESTED`, `RESERVED`, `BORROWED` (tracked on `Item.status`).
@@ -83,7 +83,7 @@ Repo-local `PostToolUse` hooks (configured in `.claude/settings.json`, scripts i
 
 **AvailabilitySubscription**: when an item is `BORROWED`/`RESERVED`, non-owners can subscribe via `NOTIFY_WHEN_AVAILABLE` to be notified when it's available again. A `UniqueConstraint` enforces one active subscription per (user, item).
 
-**Membership lifecycle** (`borrowd_groups/models.py`): `MembershipStatus` is `PENDING`, `ACTIVE`, `SUSPENDED`, `BANNED`, `ENDED`. Groups with `membership_requires_approval=True` create new memberships in `PENDING` until a moderator approves. `BorrowdGroup.objects.create_group()` creates a group while passing a `trust_level` kwarg (not a model field) through to the post-save signal that creates the creator's `Membership`; plain `create()` keeps stock Django semantics.
+**Membership lifecycle** (`borrowd_groups/models.py`): `MembershipStatus` is `PENDING`, `ACTIVE`, `SUSPENDED`, `BANNED`, `ENDED`. Groups with `membership_requires_approval=True` create new memberships in `PENDING` until a moderator approves.
 
 **Object-Level Permissions**: uses `django-guardian`. OLP enum values live in `borrowd_permissions/models.py` (`ItemOLP.VIEW = "view_this_item"`, etc.). The `*_this_*` naming convention distinguishes object-level perms (`view_this_item`) from model-level perms (`view_item`). Apply `LoginOr403PermissionMixin` / `LoginOr404PermissionMixin` (from `borrowd_permissions.mixins`) to class-based views — anonymous users get redirected to login, authenticated users without permission get 403/404 respectively. `AnonymousUser` is disabled (`ANONYMOUS_USER_NAME = None`).
 

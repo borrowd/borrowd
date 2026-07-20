@@ -2,7 +2,6 @@ from typing import Any, cast
 
 from django import forms
 
-from borrowd.models import TrustLevel
 from borrowd_groups.models import BorrowdGroup
 from borrowd_users.models import BorrowdUser
 
@@ -86,44 +85,8 @@ class BorrowdGroupForm(forms.ModelForm[BorrowdGroup]):
 
 
 class GroupCreateForm(BorrowdGroupForm):
-    trust_level = forms.ChoiceField(
-        choices=sorted(TrustLevel.choices, reverse=True),
-        required=True,
-        label="What do you want your trust relationship with this group to be?",
-        initial=TrustLevel.STANDARD,
-        widget=forms.Select(
-            attrs={
-                "class": "block py-[10.5px] pl-3 appearance-none w-full box-border",
-            }
-        ),
-    )
-
-    class Meta(BorrowdGroupForm.Meta):
-        fields = [
-            "name",
-            "description",
-            "trust_level",
-            "banner",
-            "membership_requires_approval",
-        ]
+    pass
 
 
 class GroupUpdateForm(BorrowdGroupForm):
     pass
-
-
-class GroupJoinForm(forms.Form):
-    trust_level = forms.ChoiceField(
-        choices=TrustLevel.choices,
-        required=True,
-        label="Your Trust Level with this Group",
-    )
-
-
-class UpdateTrustLevelForm(forms.Form):
-    trust_level = forms.ChoiceField(
-        choices=TrustLevel.choices,
-        required=True,
-        label="Your Trust Level with this Group",
-        help_text="Update your trust level to control what items you share with this group.",
-    )

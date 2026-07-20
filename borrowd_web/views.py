@@ -27,12 +27,7 @@ def onboarding_step2(request: HttpRequest) -> HttpResponse:
     return render(request, "onboarding/step2.html")
 
 
-@login_required
-def onboarding_step3(request: HttpRequest) -> HttpResponse:
-    return render(request, "onboarding/step3.html")
-
-
-# View to handle "complete onboading"
+# View to handle "complete onboarding"
 @login_required
 def onboarding_complete(request: HttpRequest) -> HttpResponse:
     # Get next in session and remove it from session

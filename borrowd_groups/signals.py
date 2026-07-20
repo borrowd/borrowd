@@ -7,7 +7,6 @@ from django.dispatch import receiver
 from guardian.shortcuts import assign_perm, remove_perm
 from notifications.signals import notify
 
-from borrowd.models import TrustLevel
 from borrowd_groups.exceptions import ModeratorRequiredException
 from borrowd_groups.models import BorrowdGroup, Membership, MembershipStatus
 from borrowd_items.models import Item
@@ -101,15 +100,9 @@ def set_moderator_on_group_creation(
     group: BorrowdGroup = instance
     # mypy error: Incompatible types in assignment (expression has type "_ST", variable has type "BorrowdUser")  [assignment]
     creator: BorrowdUser = group.created_by
-    # By default, assume High trust for a Group which a user has
-    # created themselves.
-    trust_level: TrustLevel = (
-        getattr(group, "_temp_trust_level", None) or TrustLevel.HIGH
-    )
 
     group.add_user(
         user=creator,
-        trust_level=trust_level,
         is_moderator=True,
     )
 
@@ -171,7 +164,6 @@ def refresh_permissions_on_membership_update(
         raise ValueError(
             "This BorrowdGroup has no perms_group; cannot sync permissions."
         )
-    new_trust_level = instance.trust_level
 
     # Handle Group permissions
     all_group_perms = [
@@ -189,20 +181,8 @@ def refresh_permissions_on_membership_update(
         # Keep auth group membership in sync with ACTIVE status.
         user.groups.add(group)
 
-        # Get all items associated with the group
-        items_requiring_higher_trust = Item.objects.filter(
-            owner=user, trust_level_required__gt=new_trust_level
-        )
-        items_requiring_lower_trust = Item.objects.filter(
-            owner=user, trust_level_required__lte=new_trust_level
-        )
-
-        for item_perm in [ItemOLP.VIEW]:  # will have more later
-            remove_perm(item_perm, group, items_requiring_higher_trust)
-            # assign_perm accepts QuerySets for bulk assignment, but guardian just under-types it
-            # therefore, ignore the issue.
-            # See https://django-guardian.readthedocs.io/en/stable/userguide/remove/#for-multiple-objects
-            assign_perm(item_perm, group, items_requiring_lower_trust)  # type: ignore[arg-type]
+        for item in items_of_user:
+            item.recompute_group_visibility()
 
         member_perms = [BorrowdGroupOLP.VIEW]
         if membership.is_moderator:

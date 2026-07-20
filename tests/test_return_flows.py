@@ -5,7 +5,6 @@ from django.test import RequestFactory, SimpleTestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
-from borrowd.models import TrustLevel
 from borrowd_groups.models import BorrowdGroup
 from borrowd_items.exceptions import InvalidItemAction
 from borrowd_items.models import (
@@ -49,17 +48,15 @@ class ReturnFlowTestBase(SimpleTestCase):
             name=f"{prefix} Test Group",
             created_by=cls.lender,
             updated_by=cls.lender,
-            trust_level=TrustLevel.HIGH,
             membership_requires_approval=False,
         )
-        cls.group.add_user(cls.borrower, trust_level=TrustLevel.HIGH)
+        cls.group.add_user(cls.borrower)
         cls.item = Item.objects.create(
             name=f"{prefix} Test Item",
             description="Test Description",
             owner=cls.lender,
             created_by=cls.lender,
             updated_by=cls.lender,
-            trust_level_required=TrustLevel.STANDARD,
         )
         cls.factory = RequestFactory()
 

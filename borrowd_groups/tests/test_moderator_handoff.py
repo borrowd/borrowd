@@ -2,7 +2,6 @@ from django.test import TestCase
 from django.urls import reverse
 from notifications.models import Notification
 
-from borrowd.models import TrustLevel
 from borrowd_groups.models import BorrowdGroup, Membership
 from borrowd_notifications.models import NotificationType
 from borrowd_users.models import BorrowdUser
@@ -42,13 +41,12 @@ class ModeratorHandoffTests(TestCase):
             name="Test Group",
             created_by=self.owner,
             updated_by=self.owner,
-            trust_level=TrustLevel.STANDARD,
             membership_requires_approval=False,
         )
 
         # Owner is moderator by default
-        self.group.add_user(self.member, trust_level=TrustLevel.STANDARD)
-        self.group.add_user(self.other_member, trust_level=TrustLevel.STANDARD)
+        self.group.add_user(self.member)
+        self.group.add_user(self.other_member)
 
         # Ensure clean notification state
         Notification.objects.all().delete()

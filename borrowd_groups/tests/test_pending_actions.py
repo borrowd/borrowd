@@ -1,6 +1,5 @@
 from django.test import TestCase
 
-from borrowd.models import TrustLevel
 from borrowd_groups.models import BorrowdGroup, Membership, MembershipStatus
 from borrowd_groups.views import get_memberships_with_pending_actions
 from borrowd_users.models import BorrowdUser
@@ -21,7 +20,6 @@ class GetMembershipsWithPendingActionsTests(TestCase):
             name="Test Group",
             created_by=self.moderator,
             updated_by=self.moderator,
-            trust_level=TrustLevel.HIGH,
         )
 
     def _moderator_memberships(self) -> list[Membership]:
@@ -35,7 +33,7 @@ class GetMembershipsWithPendingActionsTests(TestCase):
         # The requester joins — approval required, so status is PENDING
         self.group.membership_requires_approval = True
         self.group.save()
-        self.group.add_user(self.requester, trust_level=TrustLevel.STANDARD)
+        self.group.add_user(self.requester)
 
         memberships = self._moderator_memberships()
         result = get_memberships_with_pending_actions(memberships)
@@ -50,7 +48,7 @@ class GetMembershipsWithPendingActionsTests(TestCase):
         # Disable approval requirement so the new member is ACTIVE immediately
         self.group.membership_requires_approval = False
         self.group.save()
-        self.group.add_user(self.member, trust_level=TrustLevel.STANDARD)
+        self.group.add_user(self.member)
 
         memberships = self._moderator_memberships()
         result = get_memberships_with_pending_actions(memberships)
@@ -64,8 +62,8 @@ class GetMembershipsWithPendingActionsTests(TestCase):
         """
         self.group.membership_requires_approval = True
         self.group.save()
-        self.group.add_user(self.member, trust_level=TrustLevel.STANDARD)
-        self.group.add_user(self.requester, trust_level=TrustLevel.STANDARD)
+        self.group.add_user(self.member)
+        self.group.add_user(self.requester)
 
         member_memberships = list(Membership.objects.filter(user=self.member))
         result = get_memberships_with_pending_actions(member_memberships)
@@ -77,7 +75,7 @@ class GetMembershipsWithPendingActionsTests(TestCase):
         A membership with ACTIVE status should not contribute to pending action
         group IDs.
         """
-        self.group.add_user(self.requester, trust_level=TrustLevel.STANDARD)
+        self.group.add_user(self.requester)
         # Ensure the requester's membership is ACTIVE, not PENDING
         Membership.objects.filter(user=self.requester, group=self.group).update(
             status=MembershipStatus.ACTIVE
@@ -95,7 +93,7 @@ class GetMembershipsWithPendingActionsTests(TestCase):
         """
         self.group.membership_requires_approval = True
         self.group.save()
-        self.group.add_user(self.requester, trust_level=TrustLevel.STANDARD)
+        self.group.add_user(self.requester)
         Membership.objects.filter(user=self.requester, group=self.group).update(
             status=MembershipStatus.ENDED
         )
@@ -117,13 +115,12 @@ class GetMembershipsWithPendingActionsTests(TestCase):
             name="Other Group",
             created_by=other_moderator,
             updated_by=other_moderator,
-            trust_level=TrustLevel.HIGH,
             membership_requires_approval=True,
         )
         # self.moderator is a plain member in other_group
-        other_group.add_user(self.moderator, trust_level=TrustLevel.STANDARD)
+        other_group.add_user(self.moderator)
         # requester has a pending request in other_group
-        other_group.add_user(self.requester, trust_level=TrustLevel.STANDARD)
+        other_group.add_user(self.requester)
 
         # Memberships for self.moderator across both groups
         memberships = list(Membership.objects.filter(user=self.moderator))

@@ -29,7 +29,6 @@ def test_edit_group(user_page, base_url):
         create.expect_opened()
         create.fill_group_name(original_name)
         create.fill_group_description(original_description)
-        trust_value = create.set_random_trust_level()
         create.click_create_group_button()
 
         details = GroupDetails(user_page)
@@ -56,5 +55,4 @@ def test_edit_group(user_page, base_url):
         details.expect_details(
             name=new_name,
             description=new_description,
-            trust_value=trust_value,
         )

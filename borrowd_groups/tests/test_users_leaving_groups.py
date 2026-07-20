@@ -1,7 +1,6 @@
 from django.test import TestCase
 from django.urls import reverse
 
-from borrowd.models import TrustLevel
 from borrowd_groups.models import BorrowdGroup, Membership
 from borrowd_items.models import Item, ItemCategory, Transaction, TransactionStatus
 from borrowd_users.models import BorrowdUser
@@ -40,10 +39,9 @@ class UsersLeavingGroupsTests(TestCase):
             name="Test Group",
             created_by=self.owner,
             updated_by=self.owner,
-            trust_level=TrustLevel.STANDARD,
             membership_requires_approval=False,
         )
-        self.group.add_user(self.member, trust_level=TrustLevel.STANDARD)
+        self.group.add_user(self.member)
 
     def test_member_can_leave_group(self) -> None:
         # Arrange
@@ -108,7 +106,6 @@ class UsersLeavingGroupsTests(TestCase):
             name="Solo Group",
             created_by=solo_owner,
             updated_by=solo_owner,
-            trust_level=TrustLevel.STANDARD,
             membership_requires_approval=False,
         )
 
@@ -139,7 +136,6 @@ class UsersLeavingGroupsTests(TestCase):
             owner=self.owner,
             created_by=self.owner,
             updated_by=self.owner,
-            trust_level_required=TrustLevel.STANDARD,
         )
         item.categories.add(category)
 
@@ -182,7 +178,6 @@ class UsersLeavingGroupsTests(TestCase):
             owner=self.owner,
             created_by=self.owner,
             updated_by=self.owner,
-            trust_level_required=TrustLevel.STANDARD,
         )
         item.categories.add(category)
 
@@ -219,10 +214,9 @@ class UsersLeavingGroupsTests(TestCase):
             name="Second Shared Group",
             created_by=self.owner,
             updated_by=self.owner,
-            trust_level=TrustLevel.STANDARD,
             membership_requires_approval=False,
         )
-        other_shared_group.add_user(self.member, trust_level=TrustLevel.STANDARD)
+        other_shared_group.add_user(self.member)
 
         category = ItemCategory.objects.create(
             name="Shared Group Tools",
@@ -234,7 +228,6 @@ class UsersLeavingGroupsTests(TestCase):
             owner=self.owner,
             created_by=self.owner,
             updated_by=self.owner,
-            trust_level_required=TrustLevel.STANDARD,
         )
         item.categories.add(category)
 
@@ -281,7 +274,6 @@ class UsersLeavingGroupsTests(TestCase):
             owner=self.other_user,
             created_by=self.owner,
             updated_by=self.owner,
-            trust_level_required=TrustLevel.STANDARD,
         )
         item.categories.add(category)
 
@@ -320,10 +312,9 @@ class UsersLeavingGroupsTests(TestCase):
             name="Other Group",
             created_by=self.other_user,
             updated_by=self.other_user,
-            trust_level=TrustLevel.STANDARD,
             membership_requires_approval=False,
         )
-        other_group.add_user(self.member, trust_level=TrustLevel.STANDARD)
+        other_group.add_user(self.member)
 
         category = ItemCategory.objects.create(
             name="Other Group Tools",
@@ -335,7 +326,6 @@ class UsersLeavingGroupsTests(TestCase):
             owner=self.other_user,
             created_by=self.owner,
             updated_by=self.owner,
-            trust_level_required=TrustLevel.STANDARD,
         )
         item.categories.add(category)
 

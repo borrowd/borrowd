@@ -10,6 +10,7 @@ from django.db.models import (
     DO_NOTHING,
     PROTECT,
     SET_NULL,
+    BooleanField,
     CharField,
     DateTimeField,
     ForeignKey,
@@ -27,7 +28,6 @@ from django.utils import timezone
 from imagekit.models import ImageSpecField, ProcessedImageField
 from imagekit.processors import ResizeToFill, ResizeToFit
 
-from borrowd.models import TrustLevel
 from borrowd_permissions.models import ItemOLP
 from borrowd_users.models import BorrowdUser
 
@@ -141,21 +141,21 @@ class Item(Model):
         blank=False,
         help_text="Categories this item belongs to. At least one required.",
     )
-    trust_level_required = IntegerField(
-        choices=TrustLevel,
-        default=TrustLevel.STANDARD,
-        help_text=(
-            "The minimum required Group trust level required for"
-            " this Item to be visible to and borrowable by members"
-            " of that Group."
-        ),
+    share_with_all_groups = BooleanField(
+        default=True,
+        help_text="When True, item is visible to all current AND future groups",
+    )
+    shared_with_groups = ManyToManyField(
+        "borrowd_groups.BorrowdGroup",
+        blank=True,
+        help_text="The groups in which the item is shared.",
+        related_name="shared_items",
     )
     status = IntegerField(
         choices=ItemStatus.choices,
         default=ItemStatus.AVAILABLE,
         help_text="The current status of the Item.",
     )
-
     created_by = ForeignKey(
         BorrowdUser,
         related_name="+",  # No reverse relation needed
@@ -831,19 +831,23 @@ class Item(Model):
 
     def _groups_allowed_to_view(self) -> "QuerySet[BorrowdGroup]":
         """
-        The current owner's active groups that may see this item.
-        TODO: expand this per issue #507
-        see https://github.com/borrowd/borrowd/issues/507
+        The owner's active groups that may see this item.
+
+        When share_with_all_groups is True, all active groups qualify.
+        When False, only groups explicitly listed in shared_with_groups qualify.
         """
         from borrowd_groups.models import MembershipStatus
 
-        # all Groups of which the owner is a member and has an equal or greater
-        # Trust Level than the level required by this Item.
-        return self.owner.borrowd_groups.filter(
-            membership__user=self.owner,  # looks redundant, but fails without it
+        owner_active_groups = self.owner.borrowd_groups.filter(
+            membership__user=self.owner,
             membership__status=MembershipStatus.ACTIVE,
-            membership__trust_level__gte=self.trust_level_required,
         ).exclude(perms_group=None)
+
+        if self.share_with_all_groups:
+            return owner_active_groups
+        return owner_active_groups.filter(
+            pk__in=self.shared_with_groups.values_list("pk", flat=True)
+        )
 
     def recompute_group_visibility(self) -> None:
         """

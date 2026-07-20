@@ -1,0 +1,18 @@
+<div class="flex flex-col gap-2">
+    <button type="button"
+            @click="selectAll()"
+            :class="shareWithAll ? 'badge badge-neutral font-medium text-sm leading-6 cursor-pointer p-3' : 'badge badge-soft font-medium text-sm leading-6 cursor-pointer p-3'">
+        All Groups
+    </button>
+    <template x-for="group in groups" :key="group.id">
+        <button type="button"
+                @click="toggle(group.id)"
+                :class="isSelected(group.id) ? 'badge badge-neutral font-medium text-sm leading-6 cursor-pointer p-3' : 'badge badge-soft font-medium text-sm leading-6 cursor-pointer p-3'"
+                x-text="group.name">
+        </button>
+    </template>
+    <p x-show="groups.length === 0"
+       class="text-sm text-base-content/50 italic">
+        You have no groups to share with individually.
+    </p>
+</div>
