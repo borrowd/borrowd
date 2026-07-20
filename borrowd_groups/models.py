@@ -9,7 +9,6 @@ from django.db.models import (
     CharField,
     DateTimeField,
     ForeignKey,
-    IntegerField,
     Manager,
     ManyToManyField,
     Model,

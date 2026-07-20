@@ -30,8 +30,10 @@ class ItemForm(forms.ModelForm[Item]):
         self, *args: Any, user: BorrowdUser | None = None, **kwargs: Any
     ) -> None:
         super().__init__(*args, **kwargs)
+        if not self.instance.pk:
+            self.initial.setdefault("share_with_all_groups", True)
         if user is not None:
-            from borrowd_groups.models import Membership, MembershipStatus
+            from borrowd_groups.models import MembershipStatus
 
             self.fields["shared_with_groups"].queryset = user.borrowd_groups.filter(  # type: ignore[attr-defined]
                 membership__user=user,
