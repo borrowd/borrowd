@@ -64,7 +64,27 @@
                        POST data like: categories=3&categories=7
                     4. Django's ItemForm processes this (borrowd_items/forms.py)
                 -->
-                            <div x-data="{ /* * Alpine UI state: which category IDs are currently selected. * Pre-populated from Django form's current value on page load. * (Empty on create, has values on edit.) */ selectedIds: [ {% for val in field.value %}  {% if val %} '{{ val }}' {% if not forloop.last %} , {% endif %}  {% endif %}  {% endfor %} ], categories: [ {% for choice in field.field.choices %} { id: '{{ choice.0 }}', name: '{{ choice.1 }}' } {% if not forloop.last %} , {% endif %}  {% endfor %} ],  /* Toggle a category by id: add if not selected, remove if already selected. */ toggle(id) { const idx = this.selectedIds.indexOf(id); if (idx === -1) { this.selectedIds.push(id); } else { this.selectedIds.splice(idx, 1); } },  isSelected(id) { return this.selectedIds.includes(id); },  /* * Display text for the trigger button. * No selection: 'Select an item category' * One selected: full category name * Multiple: first name truncated (12 chars) + '... + N more' *   e.g.: 'Home & Kitch... + 3 more' */ get buttonText() { if (this.selectedIds.length === 0) return 'Select an item category'; const names = this.selectedIds.slice(0, 2).map(id => this.categories.find(c => c.id === id)?.name || ''); if (this.selectedIds.length <= 2) return names.join(', '); return names.join(', ') + ' + ' + (this.selectedIds.length - 2) + ' more'; },  /* Snapshot of selectedIds taken when the modal opens. The confirm button stays disabled until the user makes a change relative to this snapshot. */ initialIds: [],  openCategoryModal() { this.initialIds = [...this.selectedIds]; showModal('item-category-modal'); },  hasChangedSelection() { const a = [...this.selectedIds].sort(); const b = [...this.initialIds].sort(); return JSON.stringify(a) !== JSON.stringify(b); },  clearFilters() { this.selectedIds = []; closeModal('item-category-modal'); },  applyFilters() { closeModal('item-category-modal'); } }">
+                            <div x-data="{ /* * Alpine UI state: which category IDs are currently selected. * Pre-populated from Django form's current value on page load. * (Empty on create, has values on edit.) */ selectedIds: [
+                                {% for val in field.value %}
+
+                                    {% if val %}
+                                        '{{ val }}'
+                                        {% if not forloop.last %}
+                                            ,
+                                        {% endif %}
+
+                                    {% endif %}
+
+                                {% endfor %}
+                                ], categories: [
+                                {% for choice in field.field.choices %}
+                                    { id: '{{ choice.0 }}', name: '{{ choice.1 }}' }
+                                    {% if not forloop.last %}
+                                        ,
+                                    {% endif %}
+
+                                {% endfor %}
+                                ],  /* Toggle a category by id: add if not selected, remove if already selected. */ toggle(id) { const idx = this.selectedIds.indexOf(id); if (idx === -1) { this.selectedIds.push(id); } else { this.selectedIds.splice(idx, 1); } },  isSelected(id) { return this.selectedIds.includes(id); },  /* * Display text for the trigger button. * No selection: 'Select an item category' * One selected: full category name * Multiple: first name truncated (12 chars) + '... + N more' *   e.g.: 'Home & Kitch... + 3 more' */ get buttonText() { if (this.selectedIds.length === 0) return 'Select an item category'; const names = this.selectedIds.slice(0, 2).map(id => this.categories.find(c => c.id === id)?.name || ''); if (this.selectedIds.length <= 2) return names.join(', '); return names.join(', ') + ' + ' + (this.selectedIds.length - 2) + ' more'; },  /* Snapshot of selectedIds taken when the modal opens. The confirm button stays disabled until the user makes a change relative to this snapshot. */ initialIds: [],  openCategoryModal() { this.initialIds = [...this.selectedIds]; showModal('item-category-modal'); },  hasChangedSelection() { const a = [...this.selectedIds].sort(); const b = [...this.initialIds].sort(); return JSON.stringify(a) !== JSON.stringify(b); },  clearFilters() { this.selectedIds = []; closeModal('item-category-modal'); },  applyFilters() { closeModal('item-category-modal'); } }">
                                 <!-- Trigger button: opens the category selection modal -->
                                 <button type="button"
                                         @click="openCategoryModal()"
@@ -117,7 +137,21 @@
                        - share_with_all_groups=on when shareWithAll is true
                        - shared_with_groups=<id> for each selected group when shareWithAll is false
                 -->
-                            <div x-data="{ shareWithAll: {{ field.value|yesno:'true,false' }}, selectedGroupIds: [{% for pk in form.shared_with_groups.value %}'{{ pk }}'{% if not forloop.last %},{% endif %}{% endfor %}], groups: [{% for group in form.shared_with_groups.field.queryset %}{ id: '{{ group.pk }}', name: '{{ group.name|escapejs }}' }{% if not forloop.last %},{% endif %}{% endfor %}], toggle(id) { this.shareWithAll = false; const idx = this.selectedGroupIds.indexOf(id); if (idx === -1) { this.selectedGroupIds.push(id); } else { this.selectedGroupIds.splice(idx, 1); } }, selectAll() { this.shareWithAll = true; this.selectedGroupIds = []; }, isSelected(id) { return this.selectedGroupIds.includes(id); }, initialShareWithAll: false, initialIds: [], openGroupModal() { this.initialShareWithAll = this.shareWithAll; this.initialIds = [...this.selectedGroupIds]; showModal('item-group-sharing-modal'); }, hasChangedSelection() { if (this.shareWithAll !== this.initialShareWithAll) return true; const a = [...this.selectedGroupIds].sort(); const b = [...this.initialIds].sort(); return JSON.stringify(a) !== JSON.stringify(b); }, cancelModal() { this.shareWithAll = this.initialShareWithAll; this.selectedGroupIds = [...this.initialIds]; closeModal('item-group-sharing-modal'); }, applyFilters() { closeModal('item-group-sharing-modal'); }, get sharingButtonLabel() { if (this.shareWithAll) return 'All Groups'; if (this.selectedGroupIds.length === 0) return 'Select groups'; const names = this.selectedGroupIds.slice(0, 2).map(id => this.groups.find(g => g.id === id)?.name || ''); if (this.selectedGroupIds.length <= 2) return names.join(', '); return names.join(', ') + ' + ' + (this.selectedGroupIds.length - 2) + ' more'; } }">
+                            <div x-data="{ shareWithAll: {{ field.value|yesno:'true,false' }}, selectedGroupIds: [
+                                {% for pk in form.shared_with_groups.value %}
+                                    '{{ pk }}'
+                                    {% if not forloop.last %}
+                                        ,
+                                    {% endif %}
+                                {% endfor %}
+                                ], groups: [
+                                {% for group in form.shared_with_groups.field.queryset %}
+                                    { id: '{{ group.pk }}', name: '{{ group.name|escapejs }}' }
+                                    {% if not forloop.last %}
+                                        ,
+                                    {% endif %}
+                                {% endfor %}
+                                ], toggle(id) { this.shareWithAll = false; const idx = this.selectedGroupIds.indexOf(id); if (idx === -1) { this.selectedGroupIds.push(id); } else { this.selectedGroupIds.splice(idx, 1); } }, selectAll() { this.shareWithAll = true; this.selectedGroupIds = []; }, isSelected(id) { return this.selectedGroupIds.includes(id); }, initialShareWithAll: false, initialIds: [], openGroupModal() { this.initialShareWithAll = this.shareWithAll; this.initialIds = [...this.selectedGroupIds]; showModal('item-group-sharing-modal'); }, hasChangedSelection() { if (this.shareWithAll !== this.initialShareWithAll) return true; const a = [...this.selectedGroupIds].sort(); const b = [...this.initialIds].sort(); return JSON.stringify(a) !== JSON.stringify(b); }, cancelModal() { this.shareWithAll = this.initialShareWithAll; this.selectedGroupIds = [...this.initialIds]; closeModal('item-group-sharing-modal'); }, applyFilters() { closeModal('item-group-sharing-modal'); }, get sharingButtonLabel() { if (this.shareWithAll) return 'All Groups'; if (this.selectedGroupIds.length === 0) return 'Select groups'; const names = this.selectedGroupIds.slice(0, 2).map(id => this.groups.find(g => g.id === id)?.name || ''); if (this.selectedGroupIds.length <= 2) return names.join(', '); return names.join(', ') + ' + ' + (this.selectedGroupIds.length - 2) + ' more'; } }">
                                 <!-- Trigger button: opens the group sharing modal -->
                                 <button type="button"
                                         @click="openGroupModal()"

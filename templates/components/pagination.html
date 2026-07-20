@@ -29,7 +29,8 @@ Usage:
                     </button>
                 {% else %}
                     {# Other pages — base-200 styling #}
-                    <a href="?page={{ page_num }}{% if query_params %}{% for key, values in query_params.lists %}{% if key != 'page' %}{% for value in values %}&{{ key }}={{ value }}{% endfor %}{% endif %}{% endfor %}{% endif %}" class="join-item btn btn-sm min-w-[2.5rem] h-10 bg-base-300 border-base-300 hover:bg-base-200 shadow-sm text-base-content">
+                    <a href="?page={{ page_num }}{% if query_params %}{% for key, values in query_params.lists %}{% if key != 'page' %}{% for value in values %}&{{ key }}={{ value }}{% endfor %}{% endif %}{% endfor %}{% endif %}"
+                       class="join-item btn btn-sm min-w-[2.5rem] h-10 bg-base-300 border-base-300 hover:bg-base-200 shadow-sm text-base-content">
                         {{ page_num }}
                     </a>
                 {% endif %}

@@ -31,7 +31,6 @@ class BorrowdGroupManager(Manager["BorrowdGroup"]):
         self,
         **kwargs: Any,
     ) -> "BorrowdGroup":
-
         group: BorrowdGroup = BorrowdGroup(**kwargs)
 
         # And finally, this is what triggers the post_save signal,
