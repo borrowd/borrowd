@@ -17,6 +17,7 @@ def test_profile_loads(user_page, base_url):
     with allure.step("Verify all profile form fields are visible"):
         profile = ProfilePage(user_page)
         profile.expect_opened()
+        profile.open_personal_info()
 
 
 @pytest.mark.regression
@@ -30,6 +31,7 @@ def test_update_profile_bio(user_page, base_url):
         user_page.goto(f"{base_url}/profile/")
         profile = ProfilePage(user_page)
         profile.expect_opened()
+        profile.open_personal_info()
 
     with allure.step("Update bio and submit"):
         profile.fill_bio(new_bio)
@@ -37,4 +39,5 @@ def test_update_profile_bio(user_page, base_url):
 
     with allure.step("Verify bio was saved"):
         profile.expect_opened()
+        profile.open_personal_info()
         profile.expect_bio_value(new_bio)

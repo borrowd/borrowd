@@ -2,6 +2,7 @@ import os
 import pathlib
 import re
 import tempfile
+import time
 
 import allure
 import pytest
@@ -10,10 +11,14 @@ from pages.auth_flow import AuthFlow
 from pages.inventory_page import InventoryPage
 from pages.item_details_page import ItemDetails
 from pages.item_edit_page import ItemEditPage
-from playwright.sync_api import Browser, Page
+from playwright.sync_api import Browser, Page, expect
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
 load_dotenv()
+
+# The shared cert environment can be slow (long POSTs, late Alpine renders);
+# Hence, extra timeout
+expect.set_options(timeout=30_000)
 
 AUTH_DIR = pathlib.Path(__file__).parent / "tests" / ".auth"
 
@@ -202,38 +207,80 @@ def pytest_runtest_makereport(item, call):
         item.rep_call = rep
 
 
-def _delete_e2e_items(page: Page, base_url: str) -> None:
+def _delete_e2e_items(page: Page, base_url: str, budget_seconds: float = 600) -> None:
     """Delete generated 'E2E ... <timestamp>' items via the UI so the
     environment's inventory doesn't grow without bound across runs.
+
+    Only items showing the Available banner are attempted: items stuck
+    mid-transaction can't be deleted, and each doomed attempt costs the
+    full expect timeout. A hard time budget bounds the sweep either way.
     """
     inventory = InventoryPage(page)
     details = ItemDetails(page)
     edit = ItemEditPage(page)
     name_pattern = re.compile(r"^E2E\b.*\d{6}$")
+    # Cards are stamped into the DOM by Alpine; wait for any card or the
+    # empty state before concluding there are no leftovers.
+    cards_rendered = page.locator("div[id^='item-card-']").or_(
+        page.get_by_text("You have no items yet.")
+    )
+    leftover_cards = (
+        page.locator("div[id^='item-card-']")
+        .filter(has=page.get_by_role("heading", name=name_pattern))
+        .filter(has=page.get_by_text("Available", exact=True))
+    )
+    skipped: set[str] = set()
+    deadline = time.monotonic() + budget_seconds
 
     for _ in range(100):
-        page.goto(f"{base_url}/profile/inventory/", wait_until="domcontentloaded")
-        leftover = page.get_by_role("heading", name=name_pattern).first
+        if time.monotonic() > deadline:
+            print("E2E item cleanup stopped: time budget exhausted")
+            return
+        # Generous timeout: a backlog of leftovers slows this page down.
+        page.goto(
+            f"{base_url}/profile/inventory/",
+            wait_until="domcontentloaded",
+            timeout=120_000,
+        )
         try:
-            leftover.wait_for(timeout=5000)
+            cards_rendered.first.wait_for(timeout=30_000)
         except PlaywrightTimeoutError:
             return
-        leftover.click()
-        details.click_edit()
-        edit.click_delete_item()
-        edit.expect_delete_modal_opened()
-        edit.confirm_delete()
-        inventory.expect_opened()
+        leftover = None
+        leftover_name = ""
+        for card in leftover_cards.all():
+            name = card.get_by_role("heading", name=name_pattern).inner_text().strip()
+            if name not in skipped:
+                leftover, leftover_name = card, name
+                break
+        if leftover is None:
+            return
+        try:
+            leftover.get_by_role("heading", name=name_pattern).click()
+            details.click_edit()
+            edit.click_delete_item()
+            edit.expect_delete_modal_opened()
+            edit.confirm_delete()
+            inventory.expect_opened()
+        except Exception:
+            # Safety net so one bad item can't loop the sweep forever.
+            skipped.add(leftover_name)
 
 
 @pytest.fixture(scope="session", autouse=True)
 def cleanup_e2e_items(browser: Browser, base_url, user_auth_state):
+    def sweep() -> None:
+        context = browser.new_context(storage_state=user_auth_state)
+        page = context.new_page()
+        try:
+            _delete_e2e_items(page, base_url)
+        except Exception as exc:  # best-effort: never fail the run on cleanup
+            print(f"E2E item cleanup skipped: {exc}")
+        finally:
+            context.close()
+
+    # Sweep before the run too: a failed run skips its own cleanup, and the
+    # leftovers slow the inventory page down for every run after it.
+    sweep()
     yield
-    context = browser.new_context(storage_state=user_auth_state)
-    page = context.new_page()
-    try:
-        _delete_e2e_items(page, base_url)
-    except Exception as exc:  # best-effort: never fail the run on cleanup
-        print(f"E2E item cleanup skipped: {exc}")
-    finally:
-        context.close()
+    sweep()
