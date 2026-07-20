@@ -27,11 +27,11 @@ class ProfilePage:
         The drawer is Alpine-driven (CDN script, deferred). A click before
         Alpine initializes toggles the native <details> without setting
         openDrawer, leaving the two permanently out of sync until the next
-        reload. Wait for Alpine to claim the drawer before clicking.
+        reload. Wait for Alpine to finish initializing before clicking —
+        via the public `alpine:initialized` event (see base.html), not
+        Alpine's private `_x_dataStack` internal.
         """
-        self.page.wait_for_function(
-            "() => !!document.querySelector('[x-data]')?._x_dataStack"
-        )
+        self.page.wait_for_function("() => window.__alpineInitialized === true")
         self.personal_info_toggle.click()
         expect(self.first_name_input).to_be_visible()
         expect(self.last_name_input).to_be_visible()
