@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any, Dict
 
 from django.conf import settings
@@ -381,12 +382,17 @@ class NotificationState(TextChoices):
     SUCCESS = "SUCCESS"
     PENDING = "PENDING"
     ERROR = "ERROR"
+    NOT_SUBSCRIBED = "NOT_SUBSCRIBED"
 
 
 @dataclass
 class ChannelResult:
     status: NotificationState
     error: str | None = None
+    # Populated when some, but not all, of a channel's delivery attempts failed
+    # (e.g. one of several push devices had a stale subscription) — the channel
+    # as a whole still succeeded, but these are worth surfacing for debugging.
+    partial_errors: list[str] | None = None
 
 
 @dataclass
@@ -413,6 +419,7 @@ class NotificationData:
                     else ChannelResult(
                         status=NotificationState(result["status"]),
                         error=result.get("error"),
+                        partial_errors=result.get("partial_errors"),
                     )
                 )
                 for channel, result in data.get("channels", {}).items()
@@ -429,6 +436,10 @@ class NotificationData:
             return NotificationState.ERROR
         if NotificationState.PENDING in statuses:
             return NotificationState.PENDING
+        if NotificationState.SUCCESS in statuses:
+            return NotificationState.SUCCESS
+        if NotificationState.NOT_SUBSCRIBED in statuses:
+            return NotificationState.NOT_SUBSCRIBED
         return NotificationState.SUCCESS
 
     def _error(self, channel: ChannelType, error: str) -> None:
@@ -437,15 +448,29 @@ class NotificationData:
             error=error,
         )
 
-    def _success(self, channel: ChannelType) -> None:
-        self.channels[channel] = ChannelResult(status=NotificationState.SUCCESS)
+    def _success(
+        self, channel: ChannelType, partial_errors: list[str] | None = None
+    ) -> None:
+        self.channels[channel] = ChannelResult(
+            status=NotificationState.SUCCESS, partial_errors=partial_errors
+        )
+
+    def _not_subscribed(self, channel: ChannelType) -> None:
+        """Record that the user has this channel enabled but hasn't completed
+        the device-level opt-in yet (e.g. no PushSubscription row). Distinct
+        from ERROR: nothing failed, delivery just has nowhere to go."""
+        self.channels[channel] = ChannelResult(status=NotificationState.NOT_SUBSCRIBED)
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "context": self.context,
             "icon": self.icon,
             "channels": {
-                channel.value: {"status": result.status.value, "error": result.error}
+                channel.value: {
+                    "status": result.status.value,
+                    "error": result.error,
+                    "partial_errors": result.partial_errors,
+                }
                 for channel, result in self.channels.items()
             },
         }
@@ -461,3 +486,25 @@ class NotificationData:
                 ch: ChannelResult(status=NotificationState.PENDING) for ch in channels
             },
         )
+
+
+class PushSubscription(Model):
+    user: ForeignKey[BorrowdUser] = ForeignKey(
+        BorrowdUser,
+        on_delete=CASCADE,
+        related_name="push_subscriptions",
+    )
+    endpoint: models.TextField[str, str] = models.TextField()
+    p256dh: models.TextField[str, str] = models.TextField()
+    auth: models.TextField[str, str] = models.TextField()
+    created_at: models.DateTimeField[datetime, datetime] = models.DateTimeField(
+        auto_now_add=True
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "endpoint"],
+                name="unique_push_subscription_per_user",
+            )
+        ]

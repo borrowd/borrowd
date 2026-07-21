@@ -13,6 +13,42 @@
 
         {% include "components/page_header.html" with title=_("Profile") %}
 
+        {# ── Push notifications blocked in this browser ───────────────────
+           Server-side we only know push_enabled preferences are on; whether
+           this specific browser is actually able to receive them is a
+           client-only fact (Notification permission / active subscription),
+           so the CTA itself is entirely client-driven, gated by the
+           has_push_preference_enabled flag from the view. #}
+        {% if has_push_preference_enabled %}
+            <div x-data="pushPermissionCta()"
+                 x-show="show"
+                 x-cloak
+                 role="alert"
+                 class="alert alert-warning flex items-start gap-3 rounded-md">
+                {% heroicon_outline "bell-slash" class="w-5 h-5 shrink-0 mt-0.5" %}
+                <div class="flex flex-col gap-2 flex-1">
+                    <span class="text-sm">
+                        <template x-if="permissionDenied">
+                            <span>
+                                {% trans "Push notifications are on in your settings, but this browser is blocking them. Enable notifications for this site in your browser settings to receive them here." %}
+                            </span>
+                        </template>
+                        <template x-if="!permissionDenied">
+                            <span>
+                                {% trans "Push notifications are on in your settings, but this browser isn't set up to receive them yet." %}
+                            </span>
+                        </template>
+                    </span>
+                    <button type="button"
+                            x-show="!permissionDenied"
+                            @click="enable()"
+                            class="btn btn-sm btn-warning self-start rounded-sm">
+                        {% trans "Enable browser notifications" %}
+                    </button>
+                </div>
+            </div>
+        {% endif %}
+
         {# ── Personal Information ──────────────────────────────────────── #}
         <section class="flex flex-col gap-2">
             <form method="post"
@@ -310,6 +346,80 @@
         </dialog>
 
         <script>
+  function pushPermissionCta() {
+    return {
+      show: false,
+      permissionDenied: false,
+
+      async init() {
+        if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+          return;
+        }
+        await this._refresh();
+
+        // The browser permission can be flipped from site settings without a
+        // page reload (e.g. re-allowing after a prior block). Re-check live
+        // so the banner doesn't stay stuck on the state captured at init().
+        if ('permissions' in navigator) {
+          const status = await navigator.permissions.query({ name: 'notifications' });
+          status.onchange = () => this._refresh();
+        }
+      },
+
+      async _refresh() {
+        if (Notification.permission === 'denied') {
+          this.permissionDenied = true;
+          this.show = true;
+          return;
+        }
+        this.permissionDenied = false;
+        try {
+          const reg = await navigator.serviceWorker.getRegistration('/sw.js');
+          const sub = reg ? await reg.pushManager.getSubscription() : null;
+          this.show = !sub;
+        } catch (e) {
+          console.error('Push subscription check failed:', e);
+        }
+      },
+
+      async enable() {
+        try {
+          const reg = await navigator.serviceWorker.register('/sw.js');
+          const permission = await Notification.requestPermission();
+          if (permission !== 'granted') {
+            this.permissionDenied = true;
+            return;
+          }
+          let sub = await reg.pushManager.getSubscription();
+          if (!sub) {
+            sub = await reg.pushManager.subscribe({
+              userVisibleOnly: true,
+              applicationServerKey: this._urlBase64ToUint8Array('{{ vapid_public_key }}'),
+            });
+          }
+          await fetch('{% url "push-subscribe" %}', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRFToken': '{{ csrf_token }}',
+            },
+            body: JSON.stringify(sub.toJSON()),
+          });
+          this.show = false;
+        } catch (e) {
+          console.error('Push subscription failed:', e);
+        }
+      },
+
+      _urlBase64ToUint8Array(base64String) {
+        const padding = '='.repeat((4 - base64String.length % 4) % 4);
+        const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+        const rawData = atob(base64);
+        return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
+      },
+    };
+  }
+
   const imageInput = document.getElementById('id_image');
   const avatarPreview = document.getElementById('avatar-preview');
   const deleteBtn = document.getElementById('delete-avatar-btn');

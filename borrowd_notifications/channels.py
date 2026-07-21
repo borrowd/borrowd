@@ -1,12 +1,31 @@
+import json
+import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
 from django.conf import settings
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
+from django.templatetags.static import static
 from notifications.models import Notification
+from pywebpush import (
+    WebPushException,
+    webpush,
+)
 
-from borrowd_notifications.models import ChannelType, NotificationData, NotificationType
+from borrowd_notifications.models import (
+    ChannelType,
+    NotificationData,
+    NotificationType,
+    PushSubscription,
+)
+
+# pywebpush defaults to no timeout at all (an unresponsive push vendor would
+# block the caller indefinitely), which on a 2-worker synchronous gunicorn
+# deployment can tie up half of total request capacity for the duration.
+_WEBPUSH_TIMEOUT_SECONDS = 5
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -81,7 +100,7 @@ class AppNotificationStrategy(NotificationStrategy):
     def send(self, payload: NotificationPayload) -> None:
         try:
             # TODO: Migration to a push-based channel for real-time updates
-            # use_sse_channe(notification)
+            # use sse/websocket channel
 
             payload.data._success(channel=ChannelType.APP)
         except Exception as e:
@@ -91,7 +110,84 @@ class AppNotificationStrategy(NotificationStrategy):
 
 class PUSHNotificationStrategy(NotificationStrategy):
     def send(self, payload: NotificationPayload) -> None:
-        # Push delivery is not yet implemented; intentionally a no-op so the
-        # audit trail on the notification row never shows a false SUCCESS.
-        # Will be implemented in a different PR
-        pass
+        """
+        Sends web-push notifications to all of the user subscribed browser.
+        This would work for open browsers tabs and open/closed pwa.
+        No native push framework required.
+        """
+        if not settings.VAPID_PRIVATE_KEY or not settings.VAPID_PUBLIC_KEY:
+            # Guard required for channels needing external credentials — see the
+            # "To add a new channel" checklist on NotificationPreference above.
+            # Without this, an unconfigured deployment would hit webpush() on
+            # every send and report a cryptic ERROR (plus a Sentry event) per
+            # notification instead of failing quietly and audibly once here.
+            logger.warning(
+                "PUSH channel invoked without VAPID keys configured; skipping delivery."
+            )
+            payload.data._error(
+                channel=ChannelType.PUSH, error="VAPID keys not configured"
+            )
+            return
+
+        subscriptions = list(
+            PushSubscription.objects.filter(user=payload.notification.recipient)
+        )
+        if not subscriptions:
+            payload.data._not_subscribed(channel=ChannelType.PUSH)
+            return
+
+        context = payload.data.context
+        try:
+            body = payload.notification_type.message_template.format(**context)
+        except KeyError:
+            body = payload.notification.description or str(payload.notification_type)
+
+        base_url = settings.BASE_URL.rstrip("/")
+        push_data = json.dumps(
+            {
+                "title": "Borrow'd",
+                "body": body,
+                # Push payloads are delivered by the vendor's push service, not the
+                # browser, so this must be absolute rather than the relative path
+                # `static()` returns on its own. Safari doesn't support this field.
+                "icon": base_url + static("icon.svg"),
+                "url": (
+                    context.get("respond_url")
+                    or context.get("item_url")
+                    or context.get("group_url")
+                    or f"{base_url}/notifications/"
+                ),
+            }
+        )
+
+        errors: list[str] = []
+        for sub in subscriptions:
+            try:
+                webpush(
+                    subscription_info={
+                        "endpoint": sub.endpoint,
+                        "keys": {"p256dh": sub.p256dh, "auth": sub.auth},
+                    },
+                    data=push_data,
+                    vapid_private_key=settings.VAPID_PRIVATE_KEY,
+                    vapid_claims={"sub": f"mailto:{settings.VAPID_ADMIN_EMAIL}"},
+                    timeout=_WEBPUSH_TIMEOUT_SECONDS,
+                )
+            except WebPushException as exc:
+                errors.append(str(exc))
+                if exc.response is not None and exc.response.status_code in (404, 410):
+                    sub.delete()
+            except Exception as exc:
+                errors.append(str(exc))
+
+        if errors and len(errors) == len(subscriptions):
+            error_message = "; ".join(errors)
+            payload.data._error(channel=ChannelType.PUSH, error=error_message)
+            raise RuntimeError(
+                f"Push delivery failed for {len(errors)} of {len(subscriptions)} "
+                f"subscription(s): {error_message}"
+            )
+        else:
+            payload.data._success(
+                channel=ChannelType.PUSH, partial_errors=errors or None
+            )
