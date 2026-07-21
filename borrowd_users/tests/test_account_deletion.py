@@ -14,7 +14,6 @@ from django.urls import NoReverseMatch, reverse
 from notifications.models import Notification
 from PIL import Image
 
-from borrowd.models import TrustLevel
 from borrowd_groups.models import BorrowdGroup, Membership
 from borrowd_items.models import (
     AvailabilitySubscription,
@@ -22,6 +21,7 @@ from borrowd_items.models import (
     Item,
     ItemPhoto,
     ItemStatus,
+    ListingType,
     Transaction,
     TransactionStatus,
 )
@@ -62,7 +62,6 @@ def _make_item(owner: BorrowdUser, name: str = "Drill") -> Item:
         owner=owner,
         created_by=owner,
         updated_by=owner,
-        trust_level_required=TrustLevel.STANDARD,
     )
 
 
@@ -208,6 +207,62 @@ class AccountDeletionTransactionTests(TestCase):
 
         txn.refresh_from_db()
         self.assertEqual(txn.status, TransactionStatus.CANCELLED)
+
+    def test_requester_leaving_cancels_giveaway_request_and_frees_item(self) -> None:
+        # Leaver requested the counterparty's giveaway (leaver is party2), so
+        # the listing reopens and the owner is told.
+        item = _make_item(self.counterparty)
+        item.listing_type = ListingType.GIVEAWAY
+        item.status = ItemStatus.REQUESTED
+        item.save()
+        txn = self._txn(
+            item=item,
+            party1=self.counterparty,
+            party2=self.leaver,
+            status=TransactionStatus.GIVEAWAY_REQUESTED,
+        )
+        Notification.objects.all().delete()
+
+        soft_delete_account(self.leaver, deleted_by=self.leaver)
+
+        txn.refresh_from_db()
+        item.refresh_from_db()
+        self.assertEqual(txn.status, TransactionStatus.CANCELLED)
+        self.assertEqual(item.status, ItemStatus.AVAILABLE)
+        self.assertEqual(
+            Notification.objects.filter(
+                verb=NotificationType.REQUEST_CANCELLED_BORROWER_LEFT.value,
+                recipient=self.counterparty,
+            ).count(),
+            1,
+        )
+
+    def test_owner_leaving_cancels_pending_giveaway_request(self) -> None:
+        # Someone requested the leaver's giveaway (leaver is owner/party1), so
+        # the requester is told the item is gone.
+        item = _make_item(self.leaver)
+        item.listing_type = ListingType.GIVEAWAY
+        item.status = ItemStatus.REQUESTED
+        item.save()
+        txn = self._txn(
+            item=item,
+            party1=self.leaver,
+            party2=self.counterparty,
+            status=TransactionStatus.GIVEAWAY_REQUESTED,
+        )
+        Notification.objects.all().delete()
+
+        soft_delete_account(self.leaver, deleted_by=self.leaver)
+
+        txn.refresh_from_db()
+        self.assertEqual(txn.status, TransactionStatus.CANCELLED)
+        self.assertEqual(
+            Notification.objects.filter(
+                verb=NotificationType.REQUEST_CANCELLED_OWNER_LEFT.value,
+                recipient=self.counterparty,
+            ).count(),
+            1,
+        )
 
     def test_owner_leaving_mid_loan_leaves_loan_open_and_notifies_borrower(
         self,
@@ -379,14 +434,13 @@ class AccountDeletionGroupTests(TestCase):
             name=name,
             created_by=creator,
             updated_by=creator,
-            trust_level=TrustLevel.STANDARD,
             membership_requires_approval=False,
         )
 
     def test_membership_removed_but_group_kept_when_not_sole_moderator(self) -> None:
         # `other` owns the group; `user` is a plain member.
         group = self._group(self.other, "Bob's Group")
-        group.add_user(self.user, trust_level=TrustLevel.STANDARD)
+        group.add_user(self.user)
 
         soft_delete_account(self.user, deleted_by=self.user)
 
@@ -398,7 +452,7 @@ class AccountDeletionGroupTests(TestCase):
     def test_sole_moderator_deletion_triggers_handoff(self) -> None:
         # `user` created (and solely moderates) a group that `other` belongs to.
         group = self._group(self.user, "Alice's Group")
-        group.add_user(self.other, trust_level=TrustLevel.STANDARD)
+        group.add_user(self.other)
         Notification.objects.all().delete()
 
         soft_delete_account(self.user, deleted_by=self.user)
@@ -502,10 +556,9 @@ class PublicProfileAfterDeletionTests(TestCase):
             name="Shared",
             created_by=self.viewer,
             updated_by=self.viewer,
-            trust_level=TrustLevel.STANDARD,
             membership_requires_approval=False,
         )
-        group.add_user(self.subject, trust_level=TrustLevel.STANDARD)
+        group.add_user(self.subject)
 
     def test_public_profile_visible_before_deletion(self) -> None:
         self.client.force_login(self.viewer)

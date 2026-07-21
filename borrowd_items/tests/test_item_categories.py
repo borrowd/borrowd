@@ -10,7 +10,6 @@ from typing import Any
 from django.core.exceptions import ValidationError
 from django.test import RequestFactory, TestCase
 
-from borrowd.models import TrustLevel
 from borrowd_groups.models import BorrowdGroup
 from borrowd_items.filters import ItemFilter
 from borrowd_items.forms import ItemForm
@@ -59,7 +58,6 @@ class ItemCategoryTestBase(TestCase):
             owner=self.owner,
             created_by=self.owner,
             updated_by=self.owner,
-            trust_level_required=TrustLevel.STANDARD,
         )
         if categories:
             item.categories.add(*categories)
@@ -200,7 +198,6 @@ class ItemFormCategoryValidationTests(ItemCategoryTestBase):
             "name": name,
             "description": description,
             "categories": [c.pk for c in categories],
-            "trust_level_required": TrustLevel.STANDARD,
         }
 
     def test_form_valid_with_single_category(self) -> None:
@@ -225,7 +222,6 @@ class ItemFormCategoryValidationTests(ItemCategoryTestBase):
             "name": "Test Item",
             "description": "A test item description",
             "categories": [],
-            "trust_level_required": TrustLevel.STANDARD,
         }
         form = ItemForm(data=form_data)
 
@@ -365,7 +361,6 @@ class ItemFormCategoryValidationTests(ItemCategoryTestBase):
             "name": "Test Item",
             "description": "A test item description",
             "categories": [99999],  # Non-existent category ID
-            "trust_level_required": TrustLevel.STANDARD,
         }
         form = ItemForm(data=form_data)
 
@@ -397,10 +392,9 @@ class ItemFilterCategoryTests(ItemCategoryTestBase):
             name="Filter Test Group",
             created_by=cls.owner,
             updated_by=cls.owner,
-            trust_level=TrustLevel.HIGH,
             membership_requires_approval=False,
         )
-        group.add_user(cls.member, trust_level=TrustLevel.HIGH)
+        group.add_user(cls.member)
 
         # Create items with various category combinations
         cls.item_drill = Item.objects.create(
@@ -409,7 +403,6 @@ class ItemFilterCategoryTests(ItemCategoryTestBase):
             owner=cls.owner,
             created_by=cls.owner,
             updated_by=cls.owner,
-            trust_level_required=TrustLevel.STANDARD,
         )
         cls.item_drill.categories.add(cls.category_tools)
 
@@ -419,7 +412,6 @@ class ItemFilterCategoryTests(ItemCategoryTestBase):
             owner=cls.owner,
             created_by=cls.owner,
             updated_by=cls.owner,
-            trust_level_required=TrustLevel.STANDARD,
         )
         cls.item_laptop.categories.add(cls.category_electronics)
 
@@ -429,7 +421,6 @@ class ItemFilterCategoryTests(ItemCategoryTestBase):
             owner=cls.owner,
             created_by=cls.owner,
             updated_by=cls.owner,
-            trust_level_required=TrustLevel.STANDARD,
         )
         cls.item_tent.categories.add(cls.category_outdoor)
 
@@ -440,7 +431,6 @@ class ItemFilterCategoryTests(ItemCategoryTestBase):
             owner=cls.owner,
             created_by=cls.owner,
             updated_by=cls.owner,
-            trust_level_required=TrustLevel.STANDARD,
         )
         cls.item_multitool.categories.add(cls.category_electronics, cls.category_tools)
 
@@ -565,7 +555,6 @@ class ItemFilterCategoryTests(ItemCategoryTestBase):
         self.assertIn(self.item_drill, results)
 
     def test_filter_respects_item_visibility_rules(self) -> None:
-        """Category filtering respects trust level and group membership."""
         # Create a non-member who shouldn't see any items
         non_member = BorrowdUser.objects.create(
             username="nonmember",

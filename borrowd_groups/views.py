@@ -22,7 +22,6 @@ from django_filters.views import FilterView
 from guardian.mixins import LoginRequiredMixin
 from notifications.models import Notification
 
-from borrowd.models import TrustLevel
 from borrowd.util import BorrowdTemplateFinderMixin
 from borrowd_items.models import Transaction, TransactionStatus
 from borrowd_notifications.models import NotificationType
@@ -39,9 +38,7 @@ from .filters import GroupFilter
 from .forms import (
     DUPLICATE_GROUP_NAME_ERROR,
     GroupCreateForm,
-    GroupJoinForm,
     GroupUpdateForm,
-    UpdateTrustLevelForm,
 )
 from .models import BorrowdGroup, Membership, MembershipStatus
 
@@ -228,11 +225,6 @@ class GroupCreateView(
                 self.request.user.pk
             )
 
-        # This is a temporary property, only used in the post_save
-        # signal to set the trust level between the group and the
-        # user that created it.
-        setattr(form.instance, "_temp_trust_level", form.cleaned_data["trust_level"])
-
         return super().form_valid(form)
 
     def form_invalid(self, form: GroupCreateForm) -> HttpResponse:
@@ -273,34 +265,18 @@ class GroupDetailView(
                 is_moderator=True,
                 status=MembershipStatus.ACTIVE,
             ).exists()
-            # Get the current user's membership to expose their trust level
-            try:
-                user_membership = Membership.objects.get(
-                    user=user, group=group, status=MembershipStatus.ACTIVE
-                )
-                context["user_trust_level"] = user_membership.trust_level
-            except Membership.DoesNotExist:
-                context["user_trust_level"] = None
-
             # Flags used to decide which leave-group modal to open.
-            if context["user_trust_level"] is not None:
-                context["show_leave_group_button"] = True
-                context["leave_group_is_moderator"] = context["is_moderator"]
-                context["leave_group_has_active_borrows"] = (
-                    user_has_active_borrows_in_group(user, group)
-                )
-                context["leave_group_has_active_lends"] = (
-                    user_has_active_lends_in_group(user, group)
-                )
-                context["leave_group_requires_approval_to_rejoin"] = (
-                    group.membership_requires_approval
-                )
-            else:
-                context["show_leave_group_button"] = False
-                context["leave_group_is_moderator"] = False
-                context["leave_group_has_active_borrows"] = False
-                context["leave_group_has_active_lends"] = False
-                context["leave_group_requires_approval_to_rejoin"] = False
+            context["show_leave_group_button"] = True
+            context["leave_group_is_moderator"] = context["is_moderator"]
+            context["leave_group_has_active_borrows"] = (
+                user_has_active_borrows_in_group(user, group)
+            )
+            context["leave_group_has_active_lends"] = user_has_active_lends_in_group(
+                user, group
+            )
+            context["leave_group_requires_approval_to_rejoin"] = (
+                group.membership_requires_approval
+            )
 
             # 255: Show pending members to moderators only
             if context["is_moderator"]:
@@ -425,12 +401,10 @@ class GroupJoinView(LoginRequiredMixin, View):
             return val_res
 
         group: BorrowdGroup = val_res
-        form = GroupJoinForm()
 
         context = {
             "object": group,
             "group": group,
-            "form": form,
             "members_data": get_members_data(group),
         }
         return render(request, "groups/group_join.html", context)
@@ -444,22 +418,7 @@ class GroupJoinView(LoginRequiredMixin, View):
 
         group: BorrowdGroup = val_res
 
-        form = GroupJoinForm(request.POST)
-        # Making sure a Trust Level has been selected
-        if not form.is_valid():
-            context = {
-                "object": group,
-                "group": group,
-                "form": form,
-                "members_data": get_members_data(group),
-            }
-            return render(request, "groups/group_join.html", context)
-
-        # Check if membership_requires_approval, set pending
-        membership = group.add_user(
-            get_authenticated_user(request),
-            trust_level=form.cleaned_data["trust_level"],
-        )
+        membership = group.add_user(get_authenticated_user(request))
         if membership.status == MembershipStatus.PENDING:
             messages.info(request, "Your request is pending approval by a moderator.")
             return redirect("borrowd_groups:group-list")
@@ -566,44 +525,6 @@ class GroupUpdateView(
         if self.object is None:
             return reverse("borrowd_groups:group-list")
         return reverse("borrowd_groups:group-detail", args=[self.object.pk])
-
-
-class UpdateTrustLevelView(LoginRequiredMixin, View):
-    """
-    View to handle updating a user's trust level for a group they're a member of.
-    """
-
-    def post(
-        self, request: HttpRequest, pk: int
-    ) -> HttpResponsePermanentRedirect | HttpResponseRedirect:
-        try:
-            group = BorrowdGroup.objects.get(pk=pk)
-        except BorrowdGroup.DoesNotExist:
-            messages.error(request, "Group not found.")
-            return redirect("borrowd_groups:group-list")
-
-        try:
-            membership = Membership.objects.get(
-                user=get_authenticated_user(request), group=group
-            )
-        except Membership.DoesNotExist:
-            messages.error(request, "You are not a member of this group.")
-            return redirect("borrowd_groups:group-detail", pk=pk)
-
-        form = UpdateTrustLevelForm(request.POST)
-        if form.is_valid():
-            new_trust_level = form.cleaned_data["trust_level"]
-            membership.trust_level = new_trust_level
-            membership.save()
-            # Get human-readable label for the trust level
-            trust_level_label = dict(TrustLevel.choices)[int(new_trust_level)]
-            messages.success(
-                request, f"Your trust level has been updated to {trust_level_label}."
-            )
-        else:
-            messages.error(request, "Invalid trust level selected.")
-
-        return redirect("borrowd_groups:group-detail", pk=pk)
 
 
 class RemoveMemberView(LoginRequiredMixin, View):

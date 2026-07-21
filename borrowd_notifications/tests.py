@@ -1,13 +1,17 @@
+import json
 from datetime import timedelta
+from typing import Any
 from unittest.mock import patch
 
+from django.conf import settings
 from django.core import mail
 from django.http import HttpResponseBase
+from django.templatetags.static import static
 from django.test import TestCase, TransactionTestCase, override_settings
 from django.utils import timezone
 from notifications.models import Notification
+from pywebpush import WebPushException
 
-from borrowd.models import TrustLevel
 from borrowd_groups.models import BorrowdGroup, Membership
 from borrowd_items.models import (
     AvailabilitySubscription,
@@ -20,11 +24,21 @@ from borrowd_items.models import (
 from borrowd_notifications.channels import (
     AppNotificationStrategy,
     EmailNotificationStrategy,
+    NotificationPayload,
+    PUSHNotificationStrategy,
 )
 from borrowd_notifications.services import NotificationService
 from borrowd_users.models import BorrowdUser
 
-from .models import NotificationMetadata, NotificationPreference, NotificationType
+from .models import (
+    ChannelType,
+    NotificationData,
+    NotificationMetadata,
+    NotificationPreference,
+    NotificationState,
+    NotificationType,
+    PushSubscription,
+)
 
 
 class GroupMemberJoinedNotificationTests(TestCase):
@@ -54,7 +68,6 @@ class GroupMemberJoinedNotificationTests(TestCase):
             name="Test Group",
             created_by=self.user1,
             updated_by=self.user1,
-            trust_level=TrustLevel.STANDARD,
         )
 
         membership = Membership.objects.get(user=self.user1, group=group)
@@ -73,13 +86,12 @@ class GroupMemberJoinedNotificationTests(TestCase):
             name="Test Group",
             created_by=self.user1,
             updated_by=self.user1,
-            trust_level=TrustLevel.STANDARD,
         )
 
         # Clear any notifications from group creation
         Notification.objects.all().delete()
 
-        group.add_user(self.user2, trust_level=TrustLevel.STANDARD)
+        group.add_user(self.user2)
 
         membership = Membership.objects.get(user=self.user2, group=group)
 
@@ -99,13 +111,12 @@ class GroupMemberJoinedNotificationTests(TestCase):
             name="Test Group",
             created_by=self.user1,
             updated_by=self.user1,
-            trust_level=TrustLevel.STANDARD,
         )
 
         # Clear any notifications from group creation
         Notification.objects.all().delete()
 
-        group.add_user(self.user2, trust_level=TrustLevel.STANDARD)
+        group.add_user(self.user2)
 
         # User1 (creator) should receive a notification
         user1_notifications = Notification.objects.filter(recipient=self.user1)
@@ -129,14 +140,13 @@ class GroupMemberJoinedNotificationTests(TestCase):
             name="Test Group",
             created_by=self.user1,
             updated_by=self.user1,
-            trust_level=TrustLevel.STANDARD,
         )
 
         # Clear any notifications from group creation
         Notification.objects.all().delete()
 
-        group.add_user(self.user2, trust_level=TrustLevel.STANDARD)
-        group.add_user(self.user3, trust_level=TrustLevel.STANDARD)
+        group.add_user(self.user2)
+        group.add_user(self.user3)
 
         # User1 (creator) should receive 2 notifications
         user1_notifications = Notification.objects.filter(recipient=self.user1)
@@ -174,15 +184,14 @@ class GroupMemberJoinedNotificationTests(TestCase):
             name="Test Group",
             created_by=self.user1,
             updated_by=self.user1,
-            trust_level=TrustLevel.STANDARD,
         )
 
-        group.add_user(self.user2, trust_level=TrustLevel.STANDARD)
+        group.add_user(self.user2)
 
         # Clear notifications about user2's request
         Notification.objects.all().delete()
 
-        group.add_user(self.user3, trust_level=TrustLevel.STANDARD)
+        group.add_user(self.user3)
 
         # Only user1 (moderator) should receive notification; user2 is not a moderator
         user1_notifications = Notification.objects.filter(recipient=self.user1)
@@ -711,6 +720,127 @@ class GiveawayNotificationTests(TestCase):
         context = NotificationType._get_template_context_for(notification)
         message = ntype.message_template.format(**context)
         self.assertIn(self.owner.first_name, message)
+        self.assertIn(self.item.name, message)
+
+
+class GiveawayRequestNotificationTests(TestCase):
+    """Tests for giveaway-listing request notifications fired by the
+    Transaction post_save signal."""
+
+    def setUp(self) -> None:
+        self.owner = BorrowdUser.objects.create_user(
+            username="owner",
+            email="owner@example.com",
+            password="password",
+            first_name="Sofia",
+        )
+        self.requester = BorrowdUser.objects.create_user(
+            username="requester",
+            email="requester@example.com",
+            password="password",
+            first_name="Marcus",
+        )
+        self.item = Item.objects.create(
+            name="Test Item",
+            description="A test item",
+            owner=self.owner,
+            created_by=self.owner,
+            updated_by=self.owner,
+        )
+
+    def _create_request(self) -> Transaction:
+        return Transaction.objects.create(
+            item=self.item,
+            party1=self.owner,
+            party2=self.requester,
+            status=TransactionStatus.GIVEAWAY_REQUESTED,
+            created_by=self.requester,
+            updated_by=self.requester,
+        )
+
+    def test_request_notifies_owner(self) -> None:
+        """Owner receives GIVEAWAY_REQUEST_RECEIVED from the requester."""
+        self._create_request()
+
+        notifications = Notification.objects.filter(
+            recipient=self.owner,
+            verb=NotificationType.GIVEAWAY_REQUEST_RECEIVED.value,
+        )
+        self.assertEqual(notifications.count(), 1)
+        self.assertEqual(notifications.first().actor, self.requester)
+        self.assertEqual(
+            Notification.objects.filter(recipient=self.requester).count(), 0
+        )
+
+    def test_approve_notifies_both_parties(self) -> None:
+        """An approved request confirms both sides, without the offer-flow
+        GIVEAWAY_ACCEPTED."""
+        tx = self._create_request()
+        tx.status = TransactionStatus.OWNERSHIP_TRANSFERRED
+        tx.save()
+
+        approved = Notification.objects.filter(
+            recipient=self.requester,
+            verb=NotificationType.GIVEAWAY_REQUEST_APPROVED.value,
+        )
+        self.assertEqual(approved.count(), 1)
+        self.assertEqual(approved.first().actor, self.owner)
+        completed = Notification.objects.filter(
+            recipient=self.owner,
+            verb=NotificationType.GIVEAWAY_COMPLETED.value,
+        )
+        self.assertEqual(completed.count(), 1)
+        self.assertEqual(completed.first().actor, self.owner)
+        self.assertEqual(
+            Notification.objects.filter(
+                verb=NotificationType.GIVEAWAY_ACCEPTED.value
+            ).count(),
+            0,
+        )
+
+    def test_decline_notifies_requester(self) -> None:
+        """A declined request notifies the requester, not a spurious
+        borrow-request denial."""
+        tx = self._create_request()
+        tx.status = TransactionStatus.REJECTED
+        tx.save()
+
+        declined = Notification.objects.filter(
+            recipient=self.requester,
+            verb=NotificationType.GIVEAWAY_REQUEST_DECLINED.value,
+        )
+        self.assertEqual(declined.count(), 1)
+        self.assertEqual(declined.first().actor, self.owner)
+        self.assertEqual(
+            Notification.objects.filter(
+                verb=NotificationType.ITEM_REQUEST_DENIED.value
+            ).count(),
+            0,
+        )
+
+    def test_cancel_sends_nothing(self) -> None:
+        """A cancelled request fires no notification beyond the initial one."""
+        tx = self._create_request()
+        tx.status = TransactionStatus.CANCELLED
+        tx.save()
+
+        self.assertEqual(
+            Notification.objects.exclude(
+                verb=NotificationType.GIVEAWAY_REQUEST_RECEIVED.value
+            ).count(),
+            0,
+        )
+
+    def test_request_in_app_copy(self) -> None:
+        """The in-app message renders with the giveaway context."""
+        self._create_request()
+        notification = Notification.objects.get(
+            verb=NotificationType.GIVEAWAY_REQUEST_RECEIVED.value
+        )
+        ntype = NotificationType(notification.verb)
+        context = NotificationType._get_template_context_for(notification)
+        message = ntype.message_template.format(**context)
+        self.assertIn(self.requester.first_name, message)
         self.assertIn(self.item.name, message)
 
 
@@ -1906,3 +2036,353 @@ class SummaryDigestTests(TestCase):
         out = StringIO()
         call_command("send_summary_digests", stdout=out)
         self.assertIn("1", out.getvalue())
+
+
+class PushSubscribeEndpointAllowlistTests(TestCase):
+    """Tests that subscribe_push only accepts endpoints from known push services.
+
+    Endpoints are attacker-controlled input; PUSHNotificationStrategy.send() later
+    POSTs to whatever URL is stored, so anything outside the vendor allowlist must
+    be rejected here rather than persisted (see borrowd_notifications/channels.py).
+    """
+
+    def setUp(self) -> None:
+        self.user = BorrowdUser.objects.create_user(
+            username="user", email="user@example.com", password="password"
+        )
+        self.client.force_login(self.user)
+
+    def _subscribe(self, endpoint: str) -> HttpResponseBase:
+        return self.client.post(
+            "/push/subscribe/",
+            data=json.dumps(
+                {
+                    "endpoint": endpoint,
+                    "keys": {"p256dh": "test-p256dh", "auth": "test-auth"},
+                }
+            ),
+            content_type="application/json",
+        )
+
+    def test_accepts_fcm_endpoint(self) -> None:
+        """A real Firebase Cloud Messaging endpoint is accepted and stored."""
+        endpoint = "https://fcm.googleapis.com/fcm/send/abc123"
+        response = self._subscribe(endpoint)
+        self.assertEqual(response.status_code, 201)
+        self.assertTrue(PushSubscription.objects.filter(endpoint=endpoint).exists())
+
+    def test_accepts_mozilla_endpoint(self) -> None:
+        """A real Mozilla autopush endpoint is accepted and stored."""
+        endpoint = "https://updates.push.services.mozilla.com/wpush/v2/abc123"
+        response = self._subscribe(endpoint)
+        self.assertEqual(response.status_code, 201)
+        self.assertTrue(PushSubscription.objects.filter(endpoint=endpoint).exists())
+
+    def test_accepts_apple_endpoint(self) -> None:
+        """A real Apple web push endpoint is accepted and stored."""
+        endpoint = "https://web.push.apple.com/abc123"
+        response = self._subscribe(endpoint)
+        self.assertEqual(response.status_code, 201)
+        self.assertTrue(PushSubscription.objects.filter(endpoint=endpoint).exists())
+
+    def test_accepts_windows_notify_subdomain(self) -> None:
+        """A WNS endpoint on any *.notify.windows.com subdomain is accepted."""
+        endpoint = "https://wns2-abc1.notify.windows.com/abc123"
+        response = self._subscribe(endpoint)
+        self.assertEqual(response.status_code, 201)
+        self.assertTrue(PushSubscription.objects.filter(endpoint=endpoint).exists())
+
+    def test_rejects_arbitrary_host(self) -> None:
+        """An endpoint on a host outside the allowlist is rejected and not stored."""
+        endpoint = "https://evil.example.com/abc123"
+        response = self._subscribe(endpoint)
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(PushSubscription.objects.filter(endpoint=endpoint).exists())
+
+    def test_rejects_internal_network_target(self) -> None:
+        """An endpoint targeting an internal/link-local address is rejected (SSRF guard)."""
+        endpoint = "https://169.254.169.254/latest/meta-data/"
+        response = self._subscribe(endpoint)
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(PushSubscription.objects.filter(endpoint=endpoint).exists())
+
+    def test_rejects_non_https_scheme(self) -> None:
+        """A plain-http endpoint is rejected even if the host would otherwise match."""
+        endpoint = "http://fcm.googleapis.com/fcm/send/abc123"
+        response = self._subscribe(endpoint)
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(PushSubscription.objects.filter(endpoint=endpoint).exists())
+
+    def test_rejects_lookalike_host_with_allowed_domain_as_path(self) -> None:
+        """A host that merely contains an allowed domain in its path is rejected."""
+        endpoint = "https://evil.example.com/fcm.googleapis.com"
+        response = self._subscribe(endpoint)
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(PushSubscription.objects.filter(endpoint=endpoint).exists())
+
+    def test_rejects_lookalike_host_with_allowed_domain_as_subdomain_prefix(
+        self,
+    ) -> None:
+        """A host with an allowed domain as a prefix of a different domain is rejected."""
+        endpoint = "https://fcm.googleapis.com.evil.example.com/abc123"
+        response = self._subscribe(endpoint)
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(PushSubscription.objects.filter(endpoint=endpoint).exists())
+
+    def test_rejects_non_string_endpoint(self) -> None:
+        """A non-string endpoint (e.g. a JSON number) returns 400, not a 500."""
+        response = self.client.post(
+            "/push/subscribe/",
+            data=json.dumps(
+                {
+                    "endpoint": 12345,
+                    "keys": {"p256dh": "test-p256dh", "auth": "test-auth"},
+                }
+            ),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_second_user_subscribing_same_endpoint_keeps_first_users_row(
+        self,
+    ) -> None:
+        """Two users can share a physical endpoint (e.g. a shared browser)
+        without either one's subscription being reassigned to the other."""
+        endpoint = "https://fcm.googleapis.com/fcm/send/shared123"
+        self._subscribe(endpoint)
+        first_subscription = PushSubscription.objects.get(
+            user=self.user, endpoint=endpoint
+        )
+
+        other_user = BorrowdUser.objects.create_user(
+            username="other", email="other@example.com", password="password"
+        )
+        self.client.force_login(other_user)
+        response = self.client.post(
+            "/push/subscribe/",
+            data=json.dumps(
+                {
+                    "endpoint": endpoint,
+                    "keys": {"p256dh": "other-p256dh", "auth": "other-auth"},
+                }
+            ),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        first_subscription.refresh_from_db()
+        self.assertEqual(first_subscription.user, self.user)
+        self.assertEqual(first_subscription.p256dh, "test-p256dh")
+        self.assertTrue(
+            PushSubscription.objects.filter(
+                user=other_user, endpoint=endpoint, p256dh="other-p256dh"
+            ).exists()
+        )
+
+
+@override_settings(
+    VAPID_PRIVATE_KEY="test-private-key", VAPID_PUBLIC_KEY="test-public-key"
+)
+class PUSHNotificationStrategyTests(TransactionTestCase):
+    """Tests for PUSHNotificationStrategy.send(), the web-push delivery path."""
+
+    def setUp(self) -> None:
+        self.owner = BorrowdUser.objects.create_user(
+            username="owner", email="owner@example.com", password="password"
+        )
+        self.borrower = BorrowdUser.objects.create_user(
+            username="borrower", email="borrower@example.com", password="password"
+        )
+        self.item = Item.objects.create(
+            name="Test Item",
+            description="A test item",
+            owner=self.owner,
+            created_by=self.owner,
+            updated_by=self.owner,
+        )
+        NotificationPreference.objects.update_or_create(
+            user=self.borrower,
+            notification_type=NotificationType.ITEM_REQUEST_ACCEPTED.value,
+            defaults={
+                "in_app_enabled": False,
+                "email_enabled": False,
+                "push_enabled": True,
+            },
+        )
+        PushSubscription.objects.create(
+            user=self.borrower,
+            endpoint="https://fcm.googleapis.com/fcm/send/test-device",
+            p256dh="test-p256dh",
+            auth="test-auth",
+        )
+
+    def _trigger_accepted(self) -> Notification:
+        Transaction.objects.create(
+            item=self.item,
+            party1=self.owner,
+            party2=self.borrower,
+            status=TransactionStatus.ACCEPTED,
+            created_by=self.borrower,
+            updated_by=self.owner,
+        )
+        n = Notification.objects.get(
+            recipient=self.borrower,
+            verb=NotificationType.ITEM_REQUEST_ACCEPTED.value,
+        )
+        n.refresh_from_db()
+        return n
+
+    def test_template_keyerror_falls_back_to_description_not_raw_enum(self) -> None:
+        """If the in-app template can't be formatted, the push body falls back to the
+        notification's description rather than serializing the NotificationType member."""
+        notification = self._trigger_accepted()
+        payload = NotificationPayload(
+            notification=notification,
+            notification_type=NotificationType.ITEM_REQUEST_ACCEPTED,
+            template_name=str(NotificationType.ITEM_REQUEST_ACCEPTED),
+            data=NotificationData.create({}, {ChannelType.PUSH}),
+        )
+
+        with patch("borrowd_notifications.channels.webpush") as mock_webpush:
+            PUSHNotificationStrategy().send(payload)
+
+        sent_data = json.loads(mock_webpush.call_args.kwargs["data"])
+        self.assertEqual(sent_data["body"], notification.description)
+
+    def test_webpush_failure_is_recorded_and_reported_to_sentry(self) -> None:
+        """A webpush() failure marks the PUSH channel ERROR and reaches Sentry, matching
+        the parity every other NotificationStrategy has with NotificationService._dispatch."""
+        with (
+            patch(
+                "borrowd_notifications.channels.webpush",
+                side_effect=RuntimeError("push service unreachable"),
+            ),
+            patch(
+                "borrowd_notifications.services.sentry_sdk.capture_exception"
+            ) as mock_capture,
+        ):
+            notification = self._trigger_accepted()
+
+        results = NotificationService._channel_results(notification)
+        self.assertEqual(results.get("PUSH", {}).get("status"), "ERROR")
+        self.assertTrue(mock_capture.called)
+
+    def test_no_subscription_recorded_as_not_subscribed_not_error(self) -> None:
+        """A user with the PUSH preference enabled but no completed browser
+        subscription is a normal transitional state, not a delivery failure —
+        it must not be recorded as ERROR or reach Sentry."""
+        PushSubscription.objects.filter(user=self.borrower).delete()
+
+        with patch(
+            "borrowd_notifications.services.sentry_sdk.capture_exception"
+        ) as mock_capture:
+            notification = self._trigger_accepted()
+
+        results = NotificationService._channel_results(notification)
+        self.assertEqual(results.get("PUSH", {}).get("status"), "NOT_SUBSCRIBED")
+        self.assertIsNone(results.get("PUSH", {}).get("error"))
+        self.assertFalse(mock_capture.called)
+
+    def test_one_of_several_devices_failing_still_succeeds_the_channel(self) -> None:
+        """If N of a user's devices succeed and only one fails, the channel as a
+        whole is still SUCCESS (the user was notified elsewhere) — the failure
+        is captured in partial_errors rather than dragging the channel to ERROR."""
+        PushSubscription.objects.create(
+            user=self.borrower,
+            endpoint="https://fcm.googleapis.com/fcm/send/second-device",
+            p256dh="second-p256dh",
+            auth="second-auth",
+        )
+
+        def _side_effect(*, subscription_info: dict[str, Any], **kwargs: Any) -> None:
+            if subscription_info["endpoint"].endswith("second-device"):
+                raise WebPushException("stale subscription")
+
+        with (
+            patch("borrowd_notifications.channels.webpush", side_effect=_side_effect),
+            patch(
+                "borrowd_notifications.services.sentry_sdk.capture_exception"
+            ) as mock_capture,
+        ):
+            notification = self._trigger_accepted()
+
+        results = NotificationService._channel_results(notification)
+        self.assertEqual(results.get("PUSH", {}).get("status"), "SUCCESS")
+        partial_errors = results.get("PUSH", {}).get("partial_errors")
+        self.assertEqual(len(partial_errors), 1)
+        self.assertIn("stale subscription", partial_errors[0])
+        self.assertFalse(mock_capture.called)
+
+    def test_all_devices_failing_still_marks_channel_error(self) -> None:
+        """With only one device (as in setUp), that one failure is still 100% of
+        subscriptions, so the channel is correctly marked ERROR."""
+        with patch(
+            "borrowd_notifications.channels.webpush",
+            side_effect=WebPushException("push service unreachable"),
+        ):
+            notification = self._trigger_accepted()
+
+        results = NotificationService._channel_results(notification)
+        self.assertEqual(results.get("PUSH", {}).get("status"), "ERROR")
+
+    def test_icon_url_is_resolved_via_static_helper(self) -> None:
+        """The icon URL must go through Django's static() resolution rather than a
+        hardcoded `/static/` path, so it stays correct if static storage config
+        changes (e.g. the S3-backed media setup already used in prod)."""
+        notification = self._trigger_accepted()
+        payload = NotificationPayload(
+            notification=notification,
+            notification_type=NotificationType.ITEM_REQUEST_ACCEPTED,
+            template_name=str(NotificationType.ITEM_REQUEST_ACCEPTED),
+            data=NotificationData.create({}, {ChannelType.PUSH}),
+        )
+
+        with patch("borrowd_notifications.channels.webpush") as mock_webpush:
+            PUSHNotificationStrategy().send(payload)
+
+        sent_data = json.loads(mock_webpush.call_args.kwargs["data"])
+        expected_icon = settings.BASE_URL.rstrip("/") + static("icon.svg")
+        self.assertEqual(sent_data["icon"], expected_icon)
+
+    def test_webpush_call_has_a_bounded_timeout(self) -> None:
+        """webpush() must never be called without a timeout — pywebpush defaults to
+        blocking forever, which would tie up a gunicorn worker indefinitely on an
+        unresponsive push vendor."""
+        notification = self._trigger_accepted()
+        payload = NotificationPayload(
+            notification=notification,
+            notification_type=NotificationType.ITEM_REQUEST_ACCEPTED,
+            template_name=str(NotificationType.ITEM_REQUEST_ACCEPTED),
+            data=NotificationData.create(
+                {"item_owner_name": "Owner", "item_name": "Test Item"},
+                {ChannelType.PUSH},
+            ),
+        )
+
+        with patch("borrowd_notifications.channels.webpush") as mock_webpush:
+            PUSHNotificationStrategy().send(payload)
+
+        timeout = mock_webpush.call_args.kwargs["timeout"]
+        self.assertIsNotNone(timeout)
+        self.assertLessEqual(timeout, 10)
+
+    @override_settings(VAPID_PRIVATE_KEY="", VAPID_PUBLIC_KEY="")
+    def test_missing_vapid_keys_skips_delivery_without_calling_webpush(self) -> None:
+        """An unconfigured deployment must fail quietly and audibly (one ERROR,
+        one log line) rather than calling webpush() and hitting pywebpush/py_vapid
+        with an invalid key for every subscription on every send."""
+        notification = self._trigger_accepted()
+        payload = NotificationPayload(
+            notification=notification,
+            notification_type=NotificationType.ITEM_REQUEST_ACCEPTED,
+            template_name=str(NotificationType.ITEM_REQUEST_ACCEPTED),
+            data=NotificationData.create({}, {ChannelType.PUSH}),
+        )
+
+        with patch("borrowd_notifications.channels.webpush") as mock_webpush:
+            PUSHNotificationStrategy().send(payload)
+
+        mock_webpush.assert_not_called()
+        self.assertEqual(
+            payload.data.channels[ChannelType.PUSH].status, NotificationState.ERROR
+        )

@@ -6,7 +6,7 @@
     <section class="flex flex-col items-center justify-center min-h-[344px] gap-6 md:gap-8 px-[40px] py-[12px]">
         <!-- Progress bar -->
         <progress class="progress progress-primary w-[224px] md:w-[340px] h-[10px] md:h-[16px]"
-                  value="50"
+                  value="100"
                   max="100"></progress>
 
         <a href="/onboarding/1"
@@ -29,9 +29,9 @@
             Together, you build a shared inventory of useful things.
         </p>
 
-        <a href="/onboarding/3"
+        <a href="{% url 'onboarding_complete' %}"
            class="bg-[#2C51A1] text-white py-2 px-6 md:px-10 rounded-lg mt-10 font-medium shadow-md hover:shadow-lg hover:bg-[#25448A] active:scale-[0.98] transition">
-            Continue
+            Get started
         </a>
     </section>
 {% endblock %}

@@ -24,6 +24,7 @@ from .models import BorrowdUser
 # cancelled on deletion (and the counterparty's item freed).
 _OPEN_TRANSACTION_STATUSES = (
     TransactionStatus.REQUESTED,
+    TransactionStatus.GIVEAWAY_REQUESTED,
     TransactionStatus.ACCEPTED,
 )
 

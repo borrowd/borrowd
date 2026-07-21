@@ -158,6 +158,21 @@ Specifies whether or not to enable the sentry integration when running locally.
 Must be paired with `DJANGO_SETTINGS_MODULE=borrowd.config.dev.django`. This
 should only be turned on when debugging the sentry integration itself.
 
+* `VAPID_PRIVATE_KEY` / `VAPID_PUBLIC_KEY` / `VAPID_ADMIN_EMAIL`
+
+_Required: No_
+_Default: "" (push notifications are silently skipped)_
+
+VAPID keypair and contact email used to sign Web Push messages for the
+`PUSH` notification channel. Generate a keypair once with:
+
+```
+uv run python -c "from py_vapid import Vapid; v=Vapid(); v.generate_keys(); print(v.private_key.decode()); print(v.public_key.decode())"
+```
+
+`VAPID_ADMIN_EMAIL` is sent to push vendors as a contact address (via the
+`mailto:` VAPID claim) and isn't otherwise validated.
+
 ### 5. Running the app
 
 Now all your tooling is installed, you're ready to fire up the

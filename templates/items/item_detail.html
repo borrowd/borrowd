@@ -121,29 +121,15 @@
 
                     {% if item.owner == user %}
                         <div class="px-3 flex items-center gap-3 mb-4 lg:px-0 lg:mt-2">
-                            <div class="text-sm font-normal underline underline-offset-2 decoration-dotted bg-base-content/60 bg-clip-text text-transparent">
-                                Trust level:
-                            </div>
-
-                            {% if "High" in item.get_trust_level_required_display %}
+                            {% if item.share_with_all_groups %}
                                 <div class="badge badge-success badge-soft font-medium text-xs border-xl p-3">
-                                    {{
-                                    item.get_trust_level_required_display }}
+                                    Shared with all groups
                                 </div>
-                            {% elif "Standard" in item.get_trust_level_required_display %}
-                                <div class="badge badge-soft text-xs border-xl p-3">
-                                    {{
-                                    item.get_trust_level_required_display }}
+                            {% elif item.shared_with_groups.exists %}
+                                <div class="badge badge-success badge-soft font-medium text-xs border-xl p-3">
+                                    Shared with {{ item.shared_with_groups.count }} group{{ item.shared_with_groups.count|pluralize }}
                                 </div>
                             {% endif %}
-
-                            <button type="button"
-                                    onclick="showModal('trust-level-info-modal')"
-                                    class="inline-flex align-middle ml-1 cursor-pointer hover:drop-shadow-md transition">
-                                <span class="inline-flex [&>svg]:w-6 [&>svg]:h-6 text-base-content/60">
-                                    {% heroicon_solid "information-circle" %}
-                                </span>
-                            </button>
                         </div>
                     {% endif %}
 
@@ -176,6 +162,8 @@
             {% include "components/items/modals/dispute_resolution_modal.html" with item=item modal_id="dispute-resolution-modal"|add:modal_suffix %}
             {% include "components/items/modals/giveaway_offer_modal.html" with item=item modal_id="giveaway-offer-modal"|add:modal_suffix %}
             {% include "components/items/modals/accept_giveaway_modal.html" with item=item modal_id="accept-giveaway-modal"|add:modal_suffix %}
+            {% include "components/items/modals/request_giveaway_modal.html" with item=item modal_id="request-giveaway-modal"|add:modal_suffix %}
+            {% include "components/items/modals/approve_giveaway_request_modal.html" with item=item modal_id="approve-giveaway-request-modal"|add:modal_suffix %}
 
         {% endif %}
     </c-box>
@@ -255,7 +243,5 @@
     updateSlider();
   });
     </script>
-
-    {% include "components/modal.html" with modal_id="trust-level-info-modal" modal_title="Trust levels" modal_size="full" modal_content_template="items/_trust_level_info_content.html" cancel_button_text="Got it" %}
 
 {% endblock %}

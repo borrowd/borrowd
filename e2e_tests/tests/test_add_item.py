@@ -38,7 +38,6 @@ def test_create_item(user_page, base_url):
         max_count=3,
     )
 
-    chosen_trust = add.choose_random_trust_level()
     add.upload_photo("tests/assets/item.jpg")
     add.click_add_item_button()
 
@@ -50,7 +49,6 @@ def test_create_item(user_page, base_url):
     details.expect_details(
         name=item_name,
         description=description,
-        trust_value=chosen_trust,
     )
     details.expect_photo_visible(item_name)
     details.expect_categories(chosen_categories)

@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any, Dict
 
 from django.conf import settings
@@ -91,6 +92,10 @@ class NotificationType(models.TextChoices):
     GIVEAWAY_OFFER_SENT = "GIVEAWAY_OFFER_SENT"
     GIVEAWAY_ACCEPTED = "GIVEAWAY_ACCEPTED"
     GIVEAWAY_DECLINED = "GIVEAWAY_DECLINED"
+    GIVEAWAY_REQUEST_RECEIVED = "GIVEAWAY_REQUEST_RECEIVED"
+    GIVEAWAY_REQUEST_APPROVED = "GIVEAWAY_REQUEST_APPROVED"
+    GIVEAWAY_REQUEST_DECLINED = "GIVEAWAY_REQUEST_DECLINED"
+    GIVEAWAY_COMPLETED = "GIVEAWAY_COMPLETED"
 
     @classmethod
     def mandatory_types(cls) -> "frozenset[NotificationType]":
@@ -102,6 +107,7 @@ class NotificationType(models.TextChoices):
                 cls.MEMBERSHIP_PENDING,
                 cls.ITEM_RETURN_REQUESTED,
                 cls.GIVEAWAY_OFFER_SENT,
+                cls.GIVEAWAY_REQUEST_RECEIVED,
             }
         )
 
@@ -133,6 +139,10 @@ class NotificationType(models.TextChoices):
             NotificationType.GIVEAWAY_OFFER_SENT.value,
             NotificationType.GIVEAWAY_ACCEPTED.value,
             NotificationType.GIVEAWAY_DECLINED.value,
+            NotificationType.GIVEAWAY_REQUEST_RECEIVED.value,
+            NotificationType.GIVEAWAY_REQUEST_APPROVED.value,
+            NotificationType.GIVEAWAY_REQUEST_DECLINED.value,
+            NotificationType.GIVEAWAY_COMPLETED.value,
         ) and isinstance(notification.target, Transaction):
             giveaway: Transaction = notification.target
             return {
@@ -268,7 +278,7 @@ class NotificationType(models.TextChoices):
 _MESSAGE_TEMPLATES: dict[NotificationType, str] = {
     NotificationType.ITEM_REQUESTED: "{requester_name} wants to borrow your {item_name}",
     NotificationType.ITEM_REQUEST_ACCEPTED: "{item_owner_name} accepted your request for {item_name}",
-    NotificationType.ITEM_REQUEST_DENIED: "{item_owner_name} declined your request for {item_name}",
+    NotificationType.ITEM_REQUEST_DENIED: "Your request for {item_name} was declined",
     NotificationType.COLLECTION_ASSERTED: "{requester_name} says they have collected {item_name}",
     NotificationType.COLLECTION_CONFIRMED: "{item_owner_name} confirmed collection of {item_name}",
     NotificationType.RETURN_ASSERTED: "{requester_name} says they have returned {item_name}",
@@ -289,6 +299,10 @@ _MESSAGE_TEMPLATES: dict[NotificationType, str] = {
     NotificationType.GIVEAWAY_OFFER_SENT: "{gifter_name} wants to give you {item_name}!",
     NotificationType.GIVEAWAY_ACCEPTED: "{receiver_name} accepted your gift of {item_name}",
     NotificationType.GIVEAWAY_DECLINED: "{receiver_name} declined your giveaway offer for {item_name}",
+    NotificationType.GIVEAWAY_REQUEST_RECEIVED: "{receiver_name} would like your {item_name}!",
+    NotificationType.GIVEAWAY_REQUEST_APPROVED: "{gifter_name} approved your request - {item_name} is yours!",
+    NotificationType.GIVEAWAY_REQUEST_DECLINED: "{gifter_name} declined your request for {item_name}",
+    NotificationType.GIVEAWAY_COMPLETED: "You gave {item_name} to {receiver_name}",
 }
 
 
@@ -368,12 +382,17 @@ class NotificationState(TextChoices):
     SUCCESS = "SUCCESS"
     PENDING = "PENDING"
     ERROR = "ERROR"
+    NOT_SUBSCRIBED = "NOT_SUBSCRIBED"
 
 
 @dataclass
 class ChannelResult:
     status: NotificationState
     error: str | None = None
+    # Populated when some, but not all, of a channel's delivery attempts failed
+    # (e.g. one of several push devices had a stale subscription) — the channel
+    # as a whole still succeeded, but these are worth surfacing for debugging.
+    partial_errors: list[str] | None = None
 
 
 @dataclass
@@ -400,6 +419,7 @@ class NotificationData:
                     else ChannelResult(
                         status=NotificationState(result["status"]),
                         error=result.get("error"),
+                        partial_errors=result.get("partial_errors"),
                     )
                 )
                 for channel, result in data.get("channels", {}).items()
@@ -416,6 +436,10 @@ class NotificationData:
             return NotificationState.ERROR
         if NotificationState.PENDING in statuses:
             return NotificationState.PENDING
+        if NotificationState.SUCCESS in statuses:
+            return NotificationState.SUCCESS
+        if NotificationState.NOT_SUBSCRIBED in statuses:
+            return NotificationState.NOT_SUBSCRIBED
         return NotificationState.SUCCESS
 
     def _error(self, channel: ChannelType, error: str) -> None:
@@ -424,15 +448,29 @@ class NotificationData:
             error=error,
         )
 
-    def _success(self, channel: ChannelType) -> None:
-        self.channels[channel] = ChannelResult(status=NotificationState.SUCCESS)
+    def _success(
+        self, channel: ChannelType, partial_errors: list[str] | None = None
+    ) -> None:
+        self.channels[channel] = ChannelResult(
+            status=NotificationState.SUCCESS, partial_errors=partial_errors
+        )
+
+    def _not_subscribed(self, channel: ChannelType) -> None:
+        """Record that the user has this channel enabled but hasn't completed
+        the device-level opt-in yet (e.g. no PushSubscription row). Distinct
+        from ERROR: nothing failed, delivery just has nowhere to go."""
+        self.channels[channel] = ChannelResult(status=NotificationState.NOT_SUBSCRIBED)
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "context": self.context,
             "icon": self.icon,
             "channels": {
-                channel.value: {"status": result.status.value, "error": result.error}
+                channel.value: {
+                    "status": result.status.value,
+                    "error": result.error,
+                    "partial_errors": result.partial_errors,
+                }
                 for channel, result in self.channels.items()
             },
         }
@@ -448,3 +486,25 @@ class NotificationData:
                 ch: ChannelResult(status=NotificationState.PENDING) for ch in channels
             },
         )
+
+
+class PushSubscription(Model):
+    user: ForeignKey[BorrowdUser] = ForeignKey(
+        BorrowdUser,
+        on_delete=CASCADE,
+        related_name="push_subscriptions",
+    )
+    endpoint: models.TextField[str, str] = models.TextField()
+    p256dh: models.TextField[str, str] = models.TextField()
+    auth: models.TextField[str, str] = models.TextField()
+    created_at: models.DateTimeField[datetime, datetime] = models.DateTimeField(
+        auto_now_add=True
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "endpoint"],
+                name="unique_push_subscription_per_user",
+            )
+        ]

@@ -23,7 +23,6 @@ def backfill_group_creator_moderator_memberships(
     """
     from django.contrib.auth.models import Group
 
-    from borrowd.models import TrustLevel
     from borrowd_groups.models import MembershipStatus
 
     BorrowdGroup = apps.get_model("borrowd_groups", "BorrowdGroup")
@@ -52,7 +51,7 @@ def backfill_group_creator_moderator_memberships(
             Membership.objects.create(
                 user=group_creator_user,
                 group=existing_borrowd_group,
-                trust_level=TrustLevel.HIGH,
+                trust_level=2,  # TrustLevel.HIGH — field removed in 0013
                 status=MembershipStatus.ACTIVE,
                 is_moderator=True,
             )

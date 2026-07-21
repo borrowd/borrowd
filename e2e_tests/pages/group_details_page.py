@@ -10,12 +10,6 @@ class GroupDetails:
         self.group_details_heading = page.get_by_role("heading", name="Group details")
         self.banner_image = page.get_by_role("img", name="Group Banner Image")
 
-        self.your_trust_level_text = page.get_by_text(
-            re.compile("your trust level", re.I)
-        )
-        self.show_trust_level_details_button = page.get_by_role(
-            "button", name="Show trust level details"
-        )
         self.get_invite_link_button = page.get_by_role("link", name="Get invite link")
 
         self.members_heading = page.get_by_role(
@@ -40,28 +34,18 @@ class GroupDetails:
     def description_text(self, text: str):
         return self.page.get_by_text(text, exact=True)
 
-    def trust_level_value(self):
-        return self.page.get_by_role("combobox")
-
     def expect_opened(self):
         expect(self.page).to_have_url(re.compile(r"/groups/\d+/?$"))
         expect(self.group_details_heading).to_be_visible()
-        expect(self.your_trust_level_text).to_be_visible()
-        expect(self.show_trust_level_details_button).to_be_visible()
         expect(self.get_invite_link_button).to_be_visible()
         expect(self.edit_group_button).to_be_visible()
 
     def expect_banner_visible(self):
         expect(self.banner_image).to_be_visible()
 
-    def expect_trust_level(self, expected_value: str):
-        expect(self.trust_level_value()).to_have_value(expected_value)
-
-    def expect_details(self, name: str, description: str, trust_value: str):
+    def expect_details(self, name: str, description: str):
         expect(self.group_name(name)).to_be_visible()
         expect(self.description_text(description)).to_be_visible()
-        expect(self.your_trust_level_text).to_be_visible()
-        self.expect_trust_level(trust_value)
 
     def expect_members_count(self, count: int):
         expect(

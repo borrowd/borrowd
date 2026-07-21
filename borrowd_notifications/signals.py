@@ -144,13 +144,18 @@ def send_transaction_notifications(
                 description=f"Your request to borrow {instance.item.name} was approved",
             )
         case TransactionStatus.REJECTED:
+            verb = (
+                NotificationType.GIVEAWAY_REQUEST_DECLINED
+                if previous_status == TransactionStatus.GIVEAWAY_REQUESTED
+                else NotificationType.ITEM_REQUEST_DENIED
+            )
             notify.send(
                 instance.party1,
                 recipient=[instance.party2],
-                verb=NotificationType.ITEM_REQUEST_DENIED.value,
+                verb=verb.value,
                 action_object=instance.item,
                 target=instance,
-                description="The item you requested is not available",
+                description=f"Your request for {instance.item.name} was declined",
             )
         case TransactionStatus.COLLECTION_ASSERTED:
             notify.send(
@@ -179,7 +184,34 @@ def send_transaction_notifications(
                 target=instance,
                 description=f"{instance.party1.first_name} wants to give you {instance.item.name}!",
             )
+        case TransactionStatus.GIVEAWAY_REQUESTED:
+            notify.send(
+                instance.party2,
+                recipient=[instance.party1],
+                verb=NotificationType.GIVEAWAY_REQUEST_RECEIVED.value,
+                action_object=instance.item,
+                target=instance,
+                description=f"{instance.party2.first_name} would like your {instance.item.name}!",
+            )
         case TransactionStatus.OWNERSHIP_TRANSFERRED:
+            if previous_status == TransactionStatus.GIVEAWAY_REQUESTED:
+                notify.send(
+                    instance.party1,
+                    recipient=[instance.party2],
+                    verb=NotificationType.GIVEAWAY_REQUEST_APPROVED.value,
+                    action_object=instance.item,
+                    target=instance,
+                    description=f"{instance.party1.first_name} approved your request - {instance.item.name} is yours!",
+                )
+                notify.send(
+                    instance.party1,
+                    recipient=[instance.party1],
+                    verb=NotificationType.GIVEAWAY_COMPLETED.value,
+                    action_object=instance.item,
+                    target=instance,
+                    description=f"You gave {instance.item.name} to {instance.party2.first_name}",
+                )
+                return
             notify.send(
                 instance.party2,
                 recipient=[instance.party1],

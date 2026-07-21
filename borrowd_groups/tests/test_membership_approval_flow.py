@@ -1,7 +1,6 @@
 from django.test import TestCase
 from django.urls import reverse
 
-from borrowd.models import TrustLevel
 from borrowd_groups.models import BorrowdGroup, Membership, MembershipStatus
 from borrowd_groups.views import InviteSigner
 from borrowd_items.models import Item
@@ -33,9 +32,7 @@ class MembershipApprovalFlowTests(TestCase):
         )
 
         self.client.force_login(self.requester)
-        response = self.client.post(
-            self._join_url_for(group), {"trust_level": TrustLevel.STANDARD}
-        )
+        response = self.client.post(self._join_url_for(group))
 
         membership = Membership.objects.get(user=self.requester, group=group)
 
@@ -77,9 +74,7 @@ class MembershipApprovalFlowTests(TestCase):
         )
 
         self.client.force_login(self.requester)
-        response = self.client.post(
-            self._join_url_for(group), {"trust_level": TrustLevel.STANDARD}
-        )
+        response = self.client.post(self._join_url_for(group))
 
         membership = Membership.objects.get(user=self.requester, group=group)
 
@@ -103,9 +98,8 @@ class MembershipApprovalFlowTests(TestCase):
             owner=self.moderator,
             created_by=self.moderator,
             updated_by=self.moderator,
-            trust_level_required=TrustLevel.STANDARD,
         )
-        membership = group.add_user(self.requester, trust_level=TrustLevel.STANDARD)
+        membership = group.add_user(self.requester)
 
         self.client.force_login(self.moderator)
         response = self.client.post(
@@ -128,7 +122,7 @@ class MembershipApprovalFlowTests(TestCase):
             updated_by=self.moderator,
             membership_requires_approval=True,
         )
-        membership = group.add_user(self.requester, trust_level=TrustLevel.STANDARD)
+        membership = group.add_user(self.requester)
 
         self.client.force_login(self.moderator)
         response = self.client.post(
@@ -153,12 +147,12 @@ class MembershipApprovalFlowTests(TestCase):
             membership_requires_approval=False
         )
         group.refresh_from_db()
-        group.add_user(helper, trust_level=TrustLevel.STANDARD)
+        group.add_user(helper)
         BorrowdGroup.objects.filter(pk=group.pk).update(
             membership_requires_approval=True
         )
         group.refresh_from_db()
-        membership = group.add_user(self.requester, trust_level=TrustLevel.STANDARD)
+        membership = group.add_user(self.requester)
 
         self.client.force_login(helper)
 
@@ -189,11 +183,10 @@ class MembershipApprovalFlowTests(TestCase):
             updated_by=self.moderator,
             membership_requires_approval=False,
         )
-        group.add_user(active_member, trust_level=TrustLevel.STANDARD)
+        group.add_user(active_member)
         pending_membership = Membership.objects.create(
             user=pending_user,
             group=group,
-            trust_level=TrustLevel.STANDARD,
             status=MembershipStatus.PENDING,
             is_moderator=False,
         )

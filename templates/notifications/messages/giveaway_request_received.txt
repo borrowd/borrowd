@@ -1,0 +1,10 @@
+Hi {{ recipient_name }},
+
+{{ receiver_name }} would like your giveaway {{ item_name }}.
+
+Head to the item to approve or decline the request:
+{{ item_url }}
+
+Thanks for being part of a community that shares more and wastes less.
+
+The Borrow'd team
