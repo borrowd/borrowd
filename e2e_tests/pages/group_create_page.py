@@ -55,12 +55,4 @@ class GroupCreatePage:
 
     def click_create_group_button(self):
         expect(self.create_group_button).to_be_visible()
-        # Group creation synchronously recomputes item-sharing permissions for
-        # every item the creator owns (see borrowd_groups/signals.py,
-        # refresh_permissions_on_membership_update) — O(items owned), not a
-        # fixed cost. On an account with a large item backlog this can run
-        # well past the suite's global 30s timeout. Tracked as a real
-        # performance bug in https://github.com/borrowd/borrowd/issues/527;
-        # this longer timeout is a stopgap so the e2e suite isn't blocked on
-        # that fix landing.
-        self.create_group_button.click(timeout=120_000)
+        self.create_group_button.click()

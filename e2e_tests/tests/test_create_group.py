@@ -1,4 +1,4 @@
-from datetime import datetime
+from uuid import uuid4
 
 import allure
 import pytest
@@ -16,7 +16,7 @@ fake = Faker()
 @allure.title("User can create a new group and become its moderator")
 @allure.severity(allure.severity_level.CRITICAL)
 def test_create_group(user_page, base_url):
-    group_name = f"E2E {fake.company()[:25]} {datetime.now().strftime('%H%M%S')}"
+    group_name = f"E2E {fake.company()[:25]} {uuid4().hex[:8]}"
     description = fake.text(max_nb_chars=200)
 
     user_page.goto(f"{base_url}/groups/")
