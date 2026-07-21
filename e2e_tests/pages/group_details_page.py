@@ -35,7 +35,7 @@ class GroupDetails:
         return self.page.get_by_text(text, exact=True)
 
     def expect_opened(self):
-        expect(self.page).to_have_url(re.compile(r"/groups/\d+/?$"), timeout=5_000)
+        expect(self.page).to_have_url(re.compile(r"/groups/\d+/?$"))
         expect(self.group_details_heading).to_be_visible()
         expect(self.get_invite_link_button).to_be_visible()
         expect(self.edit_group_button).to_be_visible()
