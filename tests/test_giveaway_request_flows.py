@@ -2,7 +2,6 @@ from django.test import RequestFactory, SimpleTestCase
 from django.urls import reverse
 from guardian.shortcuts import get_perms
 
-from borrowd.models import TrustLevel
 from borrowd_groups.models import BorrowdGroup
 from borrowd_items.exceptions import InvalidItemAction, ItemAlreadyRequested
 from borrowd_items.models import (
@@ -50,17 +49,15 @@ class GiveawayRequestFlowTestBase(SimpleTestCase):
             name=f"{prefix} Test Group",
             created_by=cls.owner,
             updated_by=cls.owner,
-            trust_level=TrustLevel.HIGH,
             membership_requires_approval=False,
         )
-        cls.group.add_user(cls.requester, trust_level=TrustLevel.HIGH)
+        cls.group.add_user(cls.requester)
         cls.item = Item.objects.create(
             name=f"{prefix} Test Item",
             description="Test Description",
             owner=cls.owner,
             created_by=cls.owner,
             updated_by=cls.owner,
-            trust_level_required=TrustLevel.STANDARD,
             listing_type=ListingType.GIVEAWAY,
         )
         cls.factory = RequestFactory()
@@ -210,7 +207,7 @@ class GiveawayRequestDeclineFlowTest(GiveawayRequestFlowTestBase):
         cls.second_requester = BorrowdUser.objects.create(
             username="gwreq_decline_second", email="gwreq_decline_second@example.com"
         )
-        cls.group.add_user(cls.second_requester, trust_level=TrustLevel.HIGH)
+        cls.group.add_user(cls.second_requester)
         cls.item.process_action(user=cls.requester, action=ItemAction.REQUEST_GIVEAWAY)
 
     @classmethod
@@ -278,14 +275,13 @@ class GiveawayRequestGuardsTest(GiveawayRequestFlowTestBase):
         cls.second_requester = BorrowdUser.objects.create(
             username="gwreq_guards_second", email="gwreq_guards_second@example.com"
         )
-        cls.group.add_user(cls.second_requester, trust_level=TrustLevel.HIGH)
+        cls.group.add_user(cls.second_requester)
         cls.lend_item = Item.objects.create(
             name="gwreq_guards Lend Item",
             description="Test Description",
             owner=cls.owner,
             created_by=cls.owner,
             updated_by=cls.owner,
-            trust_level_required=TrustLevel.STANDARD,
         )
 
     @classmethod
