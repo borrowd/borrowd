@@ -10,7 +10,7 @@ Parameters:
 - name: Item title
 - description: Item description
 - image: Thumbnail URL
-- banner_type: 'available' | 'requested' | 'reserved' | 'borrowed' | 'pending' | 'waitlisted' | 'giveaway_offered'
+- banner_type: 'available' | 'requested' | 'reserved' | 'borrowed' | 'pending' | 'waitlisted' | 'giveaway_offered' | 'giveaway_listing' | 'giveaway_requested'
 - banner_bg: Background color classes (e.g. bg-success/15)
 - banner_text: Text/icon color classes (e.g. text-success)
 - banner_icon: SVG icon markup (HTML-safe string)
@@ -49,6 +49,14 @@ Parameters:
                     Waitlisted
                 {% elif banner_type == "giveaway_offered" %}
                     {{ person_name }} is offering you this item!
+                {% elif banner_type == "giveaway_listing" %}
+                    Free to a good home
+                {% elif banner_type == "giveaway_requested" %}
+                    {% if person_name %}
+                        {{ person_name }} wants your giveaway!
+                    {% else %}
+                        Gift requested - awaiting response
+                    {% endif %}
                 {% else %}
                     {{ banner_type|title }}
                 {% endif %}

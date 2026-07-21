@@ -1,0 +1,10 @@
+Hi {{ recipient_name }},
+
+Great news! {{ gifter_name }} approved your request for {{ item_name }}. It's yours now, and it has been added to your inventory.
+
+View the item:
+{{ item_url }}
+
+Thanks for being part of a community that shares more and wastes less.
+
+The Borrow'd team

@@ -76,7 +76,13 @@ class ItemForm(forms.ModelForm[Item]):
 
 
 class ItemCreateWithPhotoForm(ItemForm):
-    """Form for creating Items with optional photo upload."""
+    """Form for creating Items with optional photo upload.
+
+    Also exposes the listing type (lend vs give away)
+    """
+
+    class Meta(ItemForm.Meta):
+        fields = ItemForm.Meta.fields + ["listing_type"]
 
     image = forms.ImageField(
         required=False,

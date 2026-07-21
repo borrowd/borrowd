@@ -23,7 +23,7 @@ from borrowd_items.forms import (
     ItemPhotoForm,
     validate_image_size,
 )
-from borrowd_items.models import Item, ItemCategory
+from borrowd_items.models import Item, ItemCategory, ListingType
 from borrowd_items.views import ItemUpdateView
 from borrowd_users.models import BorrowdUser
 
@@ -183,6 +183,7 @@ class ItemCreateWithPhotoFormSizeValidationTests(TestCase):
             "name": "Test Item",
             "description": "A test item description",
             "categories": [self.category.pk],
+            "listing_type": ListingType.LEND,
         }
 
     def test_form_valid_without_image(self) -> None:
@@ -387,6 +388,7 @@ class ImageEdgeCaseTests(TestCase):
             "name": "Test Item",
             "description": "A test item description",
             "categories": [self.category.pk],
+            "listing_type": ListingType.LEND,
         }
 
     # Zero byte / empty file tests

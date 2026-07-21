@@ -21,6 +21,7 @@ from borrowd_items.models import (
     Item,
     ItemPhoto,
     ItemStatus,
+    ListingType,
     Transaction,
     TransactionStatus,
 )
@@ -206,6 +207,62 @@ class AccountDeletionTransactionTests(TestCase):
 
         txn.refresh_from_db()
         self.assertEqual(txn.status, TransactionStatus.CANCELLED)
+
+    def test_requester_leaving_cancels_giveaway_request_and_frees_item(self) -> None:
+        # Leaver requested the counterparty's giveaway (leaver is party2), so
+        # the listing reopens and the owner is told.
+        item = _make_item(self.counterparty)
+        item.listing_type = ListingType.GIVEAWAY
+        item.status = ItemStatus.REQUESTED
+        item.save()
+        txn = self._txn(
+            item=item,
+            party1=self.counterparty,
+            party2=self.leaver,
+            status=TransactionStatus.GIVEAWAY_REQUESTED,
+        )
+        Notification.objects.all().delete()
+
+        soft_delete_account(self.leaver, deleted_by=self.leaver)
+
+        txn.refresh_from_db()
+        item.refresh_from_db()
+        self.assertEqual(txn.status, TransactionStatus.CANCELLED)
+        self.assertEqual(item.status, ItemStatus.AVAILABLE)
+        self.assertEqual(
+            Notification.objects.filter(
+                verb=NotificationType.REQUEST_CANCELLED_BORROWER_LEFT.value,
+                recipient=self.counterparty,
+            ).count(),
+            1,
+        )
+
+    def test_owner_leaving_cancels_pending_giveaway_request(self) -> None:
+        # Someone requested the leaver's giveaway (leaver is owner/party1), so
+        # the requester is told the item is gone.
+        item = _make_item(self.leaver)
+        item.listing_type = ListingType.GIVEAWAY
+        item.status = ItemStatus.REQUESTED
+        item.save()
+        txn = self._txn(
+            item=item,
+            party1=self.leaver,
+            party2=self.counterparty,
+            status=TransactionStatus.GIVEAWAY_REQUESTED,
+        )
+        Notification.objects.all().delete()
+
+        soft_delete_account(self.leaver, deleted_by=self.leaver)
+
+        txn.refresh_from_db()
+        self.assertEqual(txn.status, TransactionStatus.CANCELLED)
+        self.assertEqual(
+            Notification.objects.filter(
+                verb=NotificationType.REQUEST_CANCELLED_OWNER_LEFT.value,
+                recipient=self.counterparty,
+            ).count(),
+            1,
+        )
 
     def test_owner_leaving_mid_loan_leaves_loan_open_and_notifies_borrower(
         self,

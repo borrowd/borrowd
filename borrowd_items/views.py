@@ -71,6 +71,9 @@ def _build_item_action_success_message(item_name: str, action: ItemAction) -> st
         ItemAction.OFFER_GIVEAWAY: "offered as a giveaway",
         ItemAction.ACCEPT_GIVEAWAY: "is now yours",
         ItemAction.DECLINE_GIVEAWAY: "giveaway declined",
+        ItemAction.REQUEST_GIVEAWAY: "gift requested",
+        ItemAction.APPROVE_GIVEAWAY_REQUEST: "giveaway approved - ownership transferred",
+        ItemAction.DECLINE_GIVEAWAY_REQUEST: "gift request declined",
     }
     return f"{item_name} {action_to_result[action]}."
 

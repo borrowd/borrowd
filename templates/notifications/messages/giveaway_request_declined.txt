@@ -1,0 +1,7 @@
+Hi {{ recipient_name }},
+
+{{ gifter_name }} has declined your request for {{ item_name }}.
+
+There's plenty more being shared in your groups - keep browsing!
+
+The Borrow'd team

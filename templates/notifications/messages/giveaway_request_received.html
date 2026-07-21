@@ -1,0 +1,32 @@
+{% extends "notifications/messages/layout.html" %}
+
+{% block title %}
+    Someone wants your giveaway - Borrow'd
+{% endblock %}
+
+{% block content %}
+    <h2>
+        Hi {{ recipient_name }},
+    </h2>
+
+    <p>
+        {{ receiver_name }} would like your giveaway
+        <strong>{{ item_name }}</strong>.
+    </p>
+
+    <p>
+        Head to the item to approve or decline the request:
+    </p>
+
+    <div class="text-center">
+        <a href="{{ item_url }}" class="button">View request</a>
+    </div>
+
+    <p>
+        Thanks for being part of a community that shares more and wastes less.
+    </p>
+
+    <p>
+        The Borrow'd team
+    </p>
+{% endblock %}
