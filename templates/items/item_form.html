@@ -124,7 +124,6 @@
                                 {% include "components/items/modals/category_filter_modal.html" with modal_id="item-category-modal" confirm_button_text="Select categories" %}
 
                             </div>
-<<<<<<< HEAD
                         {% elif field.name == "listing_type" %}
                             {# Lend | Give away toggle: DaisyUI radio buttons joined as a segmented control #}
                             <div class="join w-full">
@@ -137,7 +136,6 @@
                                            {% if field.value|stringformat:"s" == choice.0|stringformat:"s" %}checked{% endif %} />
                                 {% endfor %}
                             </div>
-=======
                         {% elif field.name == "share_with_all_groups" %}
                             <legend class="fieldset-legend text-xs font-normal text-base-content/60">
                                 Shared with
@@ -213,7 +211,6 @@
                             </div>
                         {% elif field.name == "shared_with_groups" %}
                             {# rendered inside the share_with_all_groups block above #}
->>>>>>> main
                         {% else %}
                             {{ field }}
                         {% endif %}
