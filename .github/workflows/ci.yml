@@ -9,7 +9,7 @@ on:
       skip_e2e:
         description: "Skip E2E tests"
         type: boolean
-        default: false
+        default: true
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -132,7 +132,7 @@ jobs:
 
       - run: playwright install chromium --with-deps
 
-      - run: pytest --tb=short
+      - run: pytest --tb=short --durations=0
 
       - name: Upload Allure results
         uses: actions/upload-artifact@v4

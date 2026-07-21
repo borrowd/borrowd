@@ -1,4 +1,4 @@
-from datetime import datetime
+from uuid import uuid4
 
 import allure
 import pytest
@@ -16,7 +16,7 @@ fake = Faker()
 @allure.title("Moderator can edit group name and description")
 @allure.severity(allure.severity_level.NORMAL)
 def test_edit_group(user_page, base_url):
-    original_name = f"E2E {fake.company()[:25]} {datetime.now().strftime('%H%M%S')}"
+    original_name = f"E2E {fake.company()[:25]} {uuid4().hex[:8]}"
     original_description = fake.text(max_nb_chars=200)
 
     with allure.step("Create a group to edit"):
@@ -41,9 +41,7 @@ def test_edit_group(user_page, base_url):
         edit.expect_opened()
 
     with allure.step("Update name and description"):
-        new_name = (
-            f"E2E Edited {fake.company()[:20]} {datetime.now().strftime('%H%M%S')}"
-        )
+        new_name = f"E2E Edited {fake.company()[:20]} {uuid4().hex[:8]}"
         new_description = fake.text(max_nb_chars=200)
 
         edit.fill_group_name(new_name)

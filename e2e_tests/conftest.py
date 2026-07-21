@@ -8,6 +8,7 @@ import allure
 import pytest
 from dotenv import load_dotenv
 from pages.auth_flow import AuthFlow
+from pages.group_details_page import GroupDetails
 from pages.inventory_page import InventoryPage
 from pages.item_details_page import ItemDetails
 from pages.item_edit_page import ItemEditPage
@@ -218,7 +219,7 @@ def _delete_e2e_items(page: Page, base_url: str, budget_seconds: float = 600) ->
     inventory = InventoryPage(page)
     details = ItemDetails(page)
     edit = ItemEditPage(page)
-    name_pattern = re.compile(r"^E2E\b.*\d{6}$")
+    name_pattern = re.compile(r"^E2E\b.*(?:\d{6}|[0-9a-f]{8})$")
     # Cards are stamped into the DOM by Alpine; wait for any card or the
     # empty state before concluding there are no leftovers.
     cards_rendered = page.locator("div[id^='item-card-']").or_(
@@ -232,16 +233,23 @@ def _delete_e2e_items(page: Page, base_url: str, budget_seconds: float = 600) ->
     skipped: set[str] = set()
     deadline = time.monotonic() + budget_seconds
 
-    for _ in range(100):
-        if time.monotonic() > deadline:
-            print("E2E item cleanup stopped: time budget exhausted")
-            return
-        # Generous timeout: a backlog of leftovers slows this page down.
+    # Generous timeout: a backlog of leftovers slows this page down. Only
+    # navigated here and after a failed delete attempt — a successful delete
+    # already redirects back to this exact page (see inventory.expect_opened()
+    # below), so re-navigating on every iteration was a pure wasted round trip
+    # per item, dominating the whole sweep's wall-clock time.
+    def goto_inventory() -> None:
         page.goto(
             f"{base_url}/profile/inventory/",
             wait_until="domcontentloaded",
             timeout=120_000,
         )
+
+    goto_inventory()
+    for _ in range(100):
+        if time.monotonic() > deadline:
+            print("E2E item cleanup stopped: time budget exhausted")
+            return
         try:
             cards_rendered.first.wait_for(timeout=30_000)
         except PlaywrightTimeoutError:
@@ -263,8 +271,11 @@ def _delete_e2e_items(page: Page, base_url: str, budget_seconds: float = 600) ->
             edit.confirm_delete()
             inventory.expect_opened()
         except Exception:
-            # Safety net so one bad item can't loop the sweep forever.
+            # Safety net so one bad item can't loop the sweep forever. The
+            # page may be in an unknown state after a failed attempt, so
+            # force a fresh navigation before the next iteration.
             skipped.add(leftover_name)
+            goto_inventory()
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -281,6 +292,80 @@ def cleanup_e2e_items(browser: Browser, base_url, user_auth_state):
 
     # Sweep before the run too: a failed run skips its own cleanup, and the
     # leftovers slow the inventory page down for every run after it.
+    sweep()
+    yield
+    sweep()
+
+
+def _delete_e2e_groups(page: Page, base_url: str, budget_seconds: float = 300) -> None:
+    """Leave (and thereby delete) generated 'E2E ... <timestamp>' groups via
+    the UI so the environment's group list doesn't grow without bound across
+    runs.
+
+    Unlike items, groups have no dedicated delete flow — leaving as the sole
+    active member is the only way to remove one (LeaveGroupView.post deletes
+    a group once it has no remaining active members). Since this cleanup
+    never existed before, the first few runs may hit the time budget before
+    draining a large historical backlog; the skip set + budget bound each
+    run's cost regardless of backlog size.
+    """
+    details = GroupDetails(page)
+    name_pattern = re.compile(r"^E2E\b.*(?:\d{6}|[0-9a-f]{8})$")
+    # #groups-card-container is (harmlessly) duplicated in the DOM: the
+    # group_list.html wrapper and the group_list_card.html partial it
+    # includes both carry the same id (an hx-swap="outerHTML" target that
+    # ends up nested rather than replaced on a plain server render). .first
+    # still contains everything the inner one does, since it wraps it.
+    container = page.locator("#groups-card-container").first
+    leftover_links = container.get_by_role("link", name=name_pattern)
+    skipped: set[str] = set()
+    deadline = time.monotonic() + budget_seconds
+
+    def goto_groups() -> None:
+        page.goto(f"{base_url}/groups/", wait_until="domcontentloaded", timeout=120_000)
+
+    goto_groups()
+    for _ in range(100):
+        if time.monotonic() > deadline:
+            print("E2E group cleanup stopped: time budget exhausted")
+            return
+        try:
+            container.wait_for(timeout=30_000)
+        except PlaywrightTimeoutError:
+            return
+        leftover_name = None
+        for link in leftover_links.all():
+            name = link.inner_text().strip()
+            if name not in skipped:
+                leftover_name = name
+                break
+        if leftover_name is None:
+            return
+        try:
+            container.get_by_role("link", name=leftover_name, exact=True).click()
+            details.expect_opened()
+            details.leave_group_as_sole_moderator()
+            expect(page).to_have_url(re.compile(r"/groups/?$"))
+        except Exception:
+            # Safety net so one bad group can't loop the sweep forever. The
+            # page may be in an unknown state after a failed attempt, so
+            # force a fresh navigation before the next iteration.
+            skipped.add(leftover_name)
+            goto_groups()
+
+
+@pytest.fixture(scope="session", autouse=True)
+def cleanup_e2e_groups(browser: Browser, base_url, user_auth_state):
+    def sweep() -> None:
+        context = browser.new_context(storage_state=user_auth_state)
+        page = context.new_page()
+        try:
+            _delete_e2e_groups(page, base_url)
+        except Exception as exc:  # best-effort: never fail the run on cleanup
+            print(f"E2E group cleanup skipped: {exc}")
+        finally:
+            context.close()
+
     sweep()
     yield
     sweep()
