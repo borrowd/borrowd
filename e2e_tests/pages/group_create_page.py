@@ -55,6 +55,4 @@ class GroupCreatePage:
 
     def click_create_group_button(self):
         expect(self.create_group_button).to_be_visible()
-        # Group creation synchronously recomputes item-sharing permissions for
-        # every item the creator owns, so the POST cost is not fixed.
-        self.create_group_button.click(timeout=70_000)
+        self.create_group_button.click()
