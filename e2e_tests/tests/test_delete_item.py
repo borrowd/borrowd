@@ -30,7 +30,6 @@ def test_delete_item(user_page, base_url):
         add.fill_item_description(fake.text(max_nb_chars=200))
         add.click_categories_button()
         add.select_random_categories(available=["Other"], min_count=1, max_count=1)
-        add.choose_random_trust_level()
         add.click_add_item_button()
 
         inventory.expect_opened()

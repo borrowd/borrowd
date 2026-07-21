@@ -7,7 +7,6 @@ from django.test import TestCase, TransactionTestCase, override_settings
 from django.utils import timezone
 from notifications.models import Notification
 
-from borrowd.models import TrustLevel
 from borrowd_groups.models import BorrowdGroup, Membership
 from borrowd_items.models import (
     AvailabilitySubscription,
@@ -54,7 +53,6 @@ class GroupMemberJoinedNotificationTests(TestCase):
             name="Test Group",
             created_by=self.user1,
             updated_by=self.user1,
-            trust_level=TrustLevel.STANDARD,
         )
 
         membership = Membership.objects.get(user=self.user1, group=group)
@@ -73,13 +71,12 @@ class GroupMemberJoinedNotificationTests(TestCase):
             name="Test Group",
             created_by=self.user1,
             updated_by=self.user1,
-            trust_level=TrustLevel.STANDARD,
         )
 
         # Clear any notifications from group creation
         Notification.objects.all().delete()
 
-        group.add_user(self.user2, trust_level=TrustLevel.STANDARD)
+        group.add_user(self.user2)
 
         membership = Membership.objects.get(user=self.user2, group=group)
 
@@ -99,13 +96,12 @@ class GroupMemberJoinedNotificationTests(TestCase):
             name="Test Group",
             created_by=self.user1,
             updated_by=self.user1,
-            trust_level=TrustLevel.STANDARD,
         )
 
         # Clear any notifications from group creation
         Notification.objects.all().delete()
 
-        group.add_user(self.user2, trust_level=TrustLevel.STANDARD)
+        group.add_user(self.user2)
 
         # User1 (creator) should receive a notification
         user1_notifications = Notification.objects.filter(recipient=self.user1)
@@ -129,14 +125,13 @@ class GroupMemberJoinedNotificationTests(TestCase):
             name="Test Group",
             created_by=self.user1,
             updated_by=self.user1,
-            trust_level=TrustLevel.STANDARD,
         )
 
         # Clear any notifications from group creation
         Notification.objects.all().delete()
 
-        group.add_user(self.user2, trust_level=TrustLevel.STANDARD)
-        group.add_user(self.user3, trust_level=TrustLevel.STANDARD)
+        group.add_user(self.user2)
+        group.add_user(self.user3)
 
         # User1 (creator) should receive 2 notifications
         user1_notifications = Notification.objects.filter(recipient=self.user1)
@@ -174,15 +169,14 @@ class GroupMemberJoinedNotificationTests(TestCase):
             name="Test Group",
             created_by=self.user1,
             updated_by=self.user1,
-            trust_level=TrustLevel.STANDARD,
         )
 
-        group.add_user(self.user2, trust_level=TrustLevel.STANDARD)
+        group.add_user(self.user2)
 
         # Clear notifications about user2's request
         Notification.objects.all().delete()
 
-        group.add_user(self.user3, trust_level=TrustLevel.STANDARD)
+        group.add_user(self.user3)
 
         # Only user1 (moderator) should receive notification; user2 is not a moderator
         user1_notifications = Notification.objects.filter(recipient=self.user1)

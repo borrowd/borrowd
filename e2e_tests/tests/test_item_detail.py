@@ -31,7 +31,6 @@ def test_item_detail_loads(user_page, base_url):
         add.fill_item_description(description)
         add.click_categories_button()
         add.select_random_categories(available=["Other"], min_count=1, max_count=1)
-        chosen_trust = add.choose_random_trust_level()
         add.click_add_item_button()
 
     with allure.step("Verify item appears in inventory"):
@@ -41,6 +40,4 @@ def test_item_detail_loads(user_page, base_url):
     with allure.step("Verify item detail page loads"):
         details = ItemDetails(user_page)
         details.expect_opened()
-        details.expect_details(
-            name=item_name, description=description, trust_value=chosen_trust
-        )
+        details.expect_details(name=item_name, description=description)

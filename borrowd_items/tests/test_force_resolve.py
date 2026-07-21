@@ -10,7 +10,6 @@ from django.urls import reverse
 from django.utils import timezone
 from guardian.shortcuts import assign_perm
 
-from borrowd.models import TrustLevel
 from borrowd_items.models import (
     Item,
     ItemAction,
@@ -37,7 +36,6 @@ def _item(owner: BorrowdUser, status: ItemStatus = ItemStatus.BORROWED) -> Item:
         status=status,
         created_by=owner,
         updated_by=owner,
-        trust_level_required=TrustLevel.STANDARD,
     )
 
 

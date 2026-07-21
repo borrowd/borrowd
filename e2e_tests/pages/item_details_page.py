@@ -11,12 +11,6 @@ class ItemDetails:
 
         self.edit_button = page.get_by_role("link", name="Edit")
         self.yours_badge = page.get_by_text("Yours", exact=True)
-        self.trust_level_text = page.get_by_text(re.compile("trust level:", re.I))
-        self.trust_level_description_button = (
-            page.get_by_text(re.compile("trust level:", re.I))
-            .locator("xpath=..")
-            .get_by_role("button")
-        )
 
         # confirm request modal
         self.confirm_requst_modal = page.locator("#form-request-item-modal-search-85")
@@ -55,9 +49,6 @@ class ItemDetails:
     def item_description_text(self, text: str):
         return self.page.get_by_text(text, exact=True)
 
-    def item_trust_level_value(self, text: str):
-        return self.page.get_by_text(text, exact=True)
-
     def click_edit(self):
         expect(self.edit_button).to_be_visible()
         self.edit_button.click()
@@ -67,8 +58,6 @@ class ItemDetails:
         expect(self.item_details_heading).to_be_visible()
         expect(self.edit_button).to_be_visible()
         expect(self.yours_badge).to_be_visible()
-        expect(self.trust_level_text).to_be_visible()
-        expect(self.trust_level_description_button).to_be_visible()
 
     def expect_photo_visible(self, name: str):
         expect(self.item_image(name)).to_be_visible()
@@ -77,10 +66,6 @@ class ItemDetails:
         for category in categories:
             expect(self.category(category)).to_be_visible()
 
-    def expect_trust_level(self, expected_value: str):
-        expect(self.item_trust_level_value(expected_value)).to_be_visible()
-
-    def expect_details(self, name: str, description: str, trust_value: str):
+    def expect_details(self, name: str, description: str):
         expect(self.item_name(name)).to_be_visible()
         expect(self.item_description_text(description)).to_be_visible()
-        self.expect_trust_level(trust_value)

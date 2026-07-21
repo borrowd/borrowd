@@ -2,7 +2,6 @@ from django.test import RequestFactory, SimpleTestCase
 from django.urls import reverse
 from guardian.shortcuts import get_perms
 
-from borrowd.models import TrustLevel
 from borrowd_groups.models import BorrowdGroup
 from borrowd_items.exceptions import InvalidItemAction
 from borrowd_items.models import (
@@ -45,17 +44,15 @@ class GiveawayFlowTestBase(SimpleTestCase):
             name=f"{prefix} Test Group",
             created_by=cls.lender,
             updated_by=cls.lender,
-            trust_level=TrustLevel.HIGH,
             membership_requires_approval=False,
         )
-        cls.group.add_user(cls.borrower, trust_level=TrustLevel.HIGH)
+        cls.group.add_user(cls.borrower)
         cls.item = Item.objects.create(
             name=f"{prefix} Test Item",
             description="Test Description",
             owner=cls.lender,
             created_by=cls.lender,
             updated_by=cls.lender,
-            trust_level_required=TrustLevel.STANDARD,
         )
         cls.factory = RequestFactory()
 
@@ -282,7 +279,6 @@ class GiveawayClearsNonSharedGroupTest(GiveawayFlowTestBase):
             name="give_noshare Lender Only",
             created_by=cls.lender,
             updated_by=cls.lender,
-            trust_level=TrustLevel.HIGH,
             membership_requires_approval=False,
         )
         # Re-derive perms now that the lender-only group exists so it can see

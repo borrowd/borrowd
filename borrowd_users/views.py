@@ -1,9 +1,12 @@
+from dataclasses import dataclass
 from typing import Any
 
 from allauth.account.views import PasswordChangeView
 from django.contrib import messages
 from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
+from django.db import DatabaseError
+from django.db.models.query import QuerySet
 from django.http import (
     Http404,
     HttpRequest,
@@ -32,20 +35,80 @@ from .request import get_authenticated_user
 from .services import soft_delete_account
 
 
+def safe_count(queryset: QuerySet[Any]) -> int | None:
+    try:
+        return queryset.count()
+    except DatabaseError:
+        return None
+
+
+@dataclass(frozen=True)
+class ProfileStat:
+    value: int | None
+    description: str
+    text_class: str
+    icon: str
+    icon_class: str
+    icon_bg_class: str
+
+
 def build_profile_context(
     subject_user: BorrowdUser,
     viewing_user: BorrowdUser,
-) -> dict[str, str]:
+) -> dict[str, Any]:
     """
     Profile context to determine which fields to display based on user roles
     """
     profile = subject_user.profile
 
     # Base profile context (all profile views get this).
-    profile_context: dict[str, str] = {
+    profile_context: dict[str, Any] = {
         "full_name": profile.full_name(),
         "bio": profile.bio,
         "profile_image_url": profile.image.url if profile.image else "",
+        # Defined this way to make the html template less redondant
+        "profile_stats": [
+            ProfileStat(
+                value=safe_count(Transaction.get_successful_borrows(subject_user)),
+                description="Successful borrows",
+                text_class="text-success",
+                icon_bg_class="bg-success/10",
+                icon_class="w-4 h-4 text-success",
+                icon="check",
+            ),
+            ProfileStat(
+                value=safe_count(Transaction.get_successful_lends(subject_user)),
+                description="Successful lends",
+                text_class="text-success",
+                icon_bg_class="bg-success/10",
+                icon_class="w-4 h-4 text-success",
+                icon="check",
+            ),
+            ProfileStat(
+                value=safe_count(Transaction.get_items_given_away(subject_user)),
+                description="Items given away",
+                text_class="text-info",
+                icon_bg_class="bg-info/10",
+                icon_class="w-4 h-4 text-info",
+                icon="gift",
+            ),
+            ProfileStat(
+                value=safe_count(Transaction.get_pending_return_requests(subject_user)),
+                description="Item returns requested",
+                text_class="text-warning",
+                icon_bg_class="bg-warning/10",
+                icon_class="w-4 h-4 text-warning",
+                icon="arrow-path-rounded-square",
+            ),
+            ProfileStat(
+                value=safe_count(Transaction.get_past_disputes(subject_user)),
+                description="Past disputes",
+                text_class="text-error",
+                icon_bg_class="bg-error/10",
+                icon_class="w-4 h-4 text-error",
+                icon="exclamation-triangle",
+            ),
+        ],
     }
 
     """
@@ -60,6 +123,18 @@ def build_profile_context(
     """
     if viewing_user == subject_user:
         profile_context["email"] = subject_user.email
+        profile_context["profile"] = profile
+
+        # Drives the delete-account modal. Borrowing blocks deletion; items still
+        # out on loan nudge the user to retrieve them first; owning only idle items
+        # just warns they'll be removed; with nothing at all it's a plain confirm.
+        profile_context["is_borrowing"] = Transaction.get_active_borrows_for_user(
+            subject_user
+        ).exists()
+        profile_context["is_lending"] = Transaction.get_active_lends_for_user(
+            subject_user
+        ).exists()
+        profile_context["has_items"] = Item.objects.filter(owner=subject_user).exists()
 
     return profile_context
 
@@ -111,23 +186,13 @@ def profile_view(request: HttpRequest) -> HttpResponse:
     else:
         form = ProfileUpdateForm(instance=profile)
 
-    # Drives the delete-account modal. Borrowing blocks deletion; items still
-    # out on loan nudge the user to retrieve them first; owning only idle items
-    # just warns they'll be removed; with nothing at all it's a plain confirm.
-    is_borrowing = Transaction.get_active_borrows_for_user(user).exists()
-    is_lending = Transaction.get_active_lends_for_user(user).exists()
-    has_items = Item.objects.filter(owner=user).exists()
+    profile_context = build_profile_context(user, user)
+    profile_context["form"] = form
 
     return render(
         request,
         "users/profile.html",
-        {
-            "profile": profile,
-            "form": form,
-            "is_borrowing": is_borrowing,
-            "is_lending": is_lending,
-            "has_items": has_items,
-        },
+        profile_context,
     )
 
 

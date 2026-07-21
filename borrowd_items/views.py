@@ -189,6 +189,11 @@ class ItemCreateView(
     model = Item
     form_class = ItemCreateWithPhotoForm
 
+    def get_form_kwargs(self) -> dict[str, Any]:
+        kwargs = super().get_form_kwargs()
+        kwargs["user"] = get_authenticated_user(self.request)
+        return kwargs
+
     def get_context_data(self, **kwargs: str) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
         context["page_title"] = "Add item"
@@ -354,6 +359,11 @@ class ItemUpdateView(
     model = Item
     permission_required = ItemOLP.EDIT
     form_class = ItemForm
+
+    def get_form_kwargs(self) -> dict[str, Any]:
+        kwargs = super().get_form_kwargs()
+        kwargs["user"] = get_authenticated_user(self.request)
+        return kwargs
 
     def get_context_data(self, **kwargs: str) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)

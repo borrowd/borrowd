@@ -1,7 +1,11 @@
+from typing import Any
+
 from django import forms
 from django.core.files.uploadedfile import UploadedFile
 from django.core.validators import FileExtensionValidator
 from django.template.defaultfilters import filesizeformat
+
+from borrowd_users.models import BorrowdUser
 
 from .models import Item, ItemPhoto
 
@@ -22,9 +26,29 @@ def validate_image_size(image: UploadedFile) -> None:
 class ItemForm(forms.ModelForm[Item]):
     """Base form for Item operations with consistent styling."""
 
+    def __init__(
+        self, *args: Any, user: BorrowdUser | None = None, **kwargs: Any
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        if not self.instance.pk:
+            self.initial.setdefault("share_with_all_groups", True)
+        if user is not None:
+            from borrowd_groups.models import MembershipStatus
+
+            self.fields["shared_with_groups"].queryset = user.borrowd_groups.filter(  # type: ignore[attr-defined]
+                membership__user=user,
+                membership__status=MembershipStatus.ACTIVE,
+            )
+
     class Meta:
         model = Item
-        fields = ["name", "description", "categories", "trust_level_required"]
+        fields = [
+            "name",
+            "description",
+            "categories",
+            "share_with_all_groups",
+            "shared_with_groups",
+        ]
         labels = {
             "name": "Item name",
         }
@@ -45,8 +69,8 @@ class ItemForm(forms.ModelForm[Item]):
                     "maxlength": "250",
                 }
             ),
-            "trust_level_required": forms.Select(
-                attrs={"class": "select select-bordered w-full bg-primary-content"}
+            "share_with_all_groups": forms.CheckboxInput(
+                attrs={"class": "checkbox checkbox-primary"}
             ),
         }
 

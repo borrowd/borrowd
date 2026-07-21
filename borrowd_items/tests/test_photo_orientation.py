@@ -4,7 +4,6 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from PIL import Image
 
-from borrowd.models import TrustLevel
 from borrowd_items.models import Item, ItemPhoto
 from borrowd_users.models import BorrowdUser
 
@@ -49,7 +48,6 @@ class ItemPhotoOrientationTests(TestCase):
             owner=cls.owner,
             created_by=cls.owner,
             updated_by=cls.owner,
-            trust_level_required=TrustLevel.STANDARD,
         )
 
     def test_phone_exif_orientation_is_applied_to_processed_image(self) -> None:

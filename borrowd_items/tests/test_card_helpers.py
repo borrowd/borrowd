@@ -13,7 +13,6 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from borrowd.models import TrustLevel
 from borrowd_items.card_helpers import (
     build_card_ids,
     build_item_card_context,
@@ -106,7 +105,6 @@ class BuildItemCardContextTests(TestCase):
             owner=self.owner,
             created_by=self.owner,
             updated_by=self.owner,
-            trust_level_required=TrustLevel.STANDARD,
         )
         item.categories.add(self.category)
         return item

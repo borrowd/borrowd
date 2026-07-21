@@ -2,7 +2,6 @@ from django.http import Http404
 from django.test import RequestFactory, TestCase
 from django.urls import reverse
 
-from borrowd.models import TrustLevel
 from borrowd_items.models import Item, ItemStatus, Transaction, TransactionStatus
 from borrowd_items.views import ItemDetailView
 from borrowd_users.models import BorrowdUser
@@ -30,7 +29,6 @@ class ItemDeletionTests(TestCase):
             status=status,
             created_by=self.owner,
             updated_by=self.owner,
-            trust_level_required=TrustLevel.STANDARD,
         )
 
     def test_owner_can_delete_available_item_with_transaction_history(self) -> None:

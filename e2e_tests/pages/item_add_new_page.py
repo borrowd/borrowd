@@ -1,10 +1,7 @@
 import random
 import re
 
-from faker import Faker
 from playwright.sync_api import Page, expect
-
-fake = Faker()
 
 
 class AddNewItem:
@@ -48,16 +45,13 @@ class AddNewItem:
             "button", name="Select categories"
         )
 
-        self.trust_select = page.locator("#id_trust_level_required")
+        self.group_sharing_button = page.get_by_role("button", name="All Groups")
+        self.group_sharing_modal = page.locator("#item-group-sharing-modal")
+        self.group_sharing_modal_apply_button = self.group_sharing_modal.get_by_role(
+            "button", name="Apply"
+        )
 
         self.upload_photo_button = page.get_by_role("button", name="Choose File")
-
-        self.trust_level_required_text = page.get_by_text(
-            "Trust level required", exact=False
-        )
-        self.trust_level_description_button = page.get_by_role(
-            "link", name="What is this?"
-        )
 
         self.add_item_button = page.get_by_role(
             "button", name=re.compile(r"Add an item|Create New Item|Add item", re.I)
@@ -68,8 +62,7 @@ class AddNewItem:
         expect(self.item_name_input).to_be_visible()
         expect(self.item_description_input).to_be_visible()
         expect(self.categories_button).to_be_visible()
-        expect(self.trust_level_required_text).to_be_visible()
-        expect(self.trust_select).to_be_visible()
+        expect(self.group_sharing_button).to_be_visible()
 
     def fill_item_name(self, item_name: str):
         self.item_name_input.fill(item_name)
@@ -100,19 +93,6 @@ class AddNewItem:
 
         expect(self.select_categories_modal_button).to_be_enabled()
         self.select_categories_modal_button.click()
-
-        return chosen
-
-    def choose_random_trust_level(self) -> str:
-        levels = ["Standard", "High"]
-        chosen = random.choice(levels)
-
-        self.trust_select.select_option(label=chosen)
-
-        option_value = self.trust_select.locator(
-            "option", has_text=chosen
-        ).get_attribute("value")
-        expect(self.trust_select).to_have_value(option_value or "")
 
         return chosen
 

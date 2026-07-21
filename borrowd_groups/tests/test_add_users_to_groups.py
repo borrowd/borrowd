@@ -1,6 +1,5 @@
 from django.test import TestCase
 
-from borrowd.models import TrustLevel
 from borrowd_groups.exceptions import ExistingMemberException
 from borrowd_groups.models import BorrowdGroup
 from borrowd_users.models import BorrowdUser
@@ -26,7 +25,7 @@ class AddUsersToGroupsTests(TestCase):
 
             # Act
             ## Add user1 to the group
-            group.add_user(user1, trust_level=TrustLevel.STANDARD)
+            group.add_user(user1)
 
     def test_users_only_in_added_groups(self) -> None:
         # Arrange
@@ -86,7 +85,7 @@ class AddUsersToGroupsTests(TestCase):
         # Act
         ## Add multiple users to the group
         for user in [user2, user3]:
-            group.add_user(user, trust_level=TrustLevel.STANDARD)
+            group.add_user(user)
 
         # Assert
 

@@ -14,7 +14,6 @@ from django.urls import NoReverseMatch, reverse
 from notifications.models import Notification
 from PIL import Image
 
-from borrowd.models import TrustLevel
 from borrowd_groups.models import BorrowdGroup, Membership
 from borrowd_items.models import (
     AvailabilitySubscription,
@@ -63,7 +62,6 @@ def _make_item(owner: BorrowdUser, name: str = "Drill") -> Item:
         owner=owner,
         created_by=owner,
         updated_by=owner,
-        trust_level_required=TrustLevel.STANDARD,
     )
 
 
@@ -436,14 +434,13 @@ class AccountDeletionGroupTests(TestCase):
             name=name,
             created_by=creator,
             updated_by=creator,
-            trust_level=TrustLevel.STANDARD,
             membership_requires_approval=False,
         )
 
     def test_membership_removed_but_group_kept_when_not_sole_moderator(self) -> None:
         # `other` owns the group; `user` is a plain member.
         group = self._group(self.other, "Bob's Group")
-        group.add_user(self.user, trust_level=TrustLevel.STANDARD)
+        group.add_user(self.user)
 
         soft_delete_account(self.user, deleted_by=self.user)
 
@@ -455,7 +452,7 @@ class AccountDeletionGroupTests(TestCase):
     def test_sole_moderator_deletion_triggers_handoff(self) -> None:
         # `user` created (and solely moderates) a group that `other` belongs to.
         group = self._group(self.user, "Alice's Group")
-        group.add_user(self.other, trust_level=TrustLevel.STANDARD)
+        group.add_user(self.other)
         Notification.objects.all().delete()
 
         soft_delete_account(self.user, deleted_by=self.user)
@@ -559,10 +556,9 @@ class PublicProfileAfterDeletionTests(TestCase):
             name="Shared",
             created_by=self.viewer,
             updated_by=self.viewer,
-            trust_level=TrustLevel.STANDARD,
             membership_requires_approval=False,
         )
-        group.add_user(self.subject, trust_level=TrustLevel.STANDARD)
+        group.add_user(self.subject)
 
     def test_public_profile_visible_before_deletion(self) -> None:
         self.client.force_login(self.viewer)

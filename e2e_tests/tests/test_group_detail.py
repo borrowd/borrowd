@@ -29,7 +29,6 @@ def test_group_detail_loads(user_page, base_url):
         create.expect_opened()
         create.fill_group_name(group_name)
         create.fill_group_description(description)
-        trust_value = create.set_random_trust_level()
         create.click_create_group_button()
 
     with allure.step("Navigate to groups list and verify group appears"):
@@ -42,6 +41,4 @@ def test_group_detail_loads(user_page, base_url):
 
         details = GroupDetails(user_page)
         details.expect_opened()
-        details.expect_details(
-            name=group_name, description=description, trust_value=trust_value
-        )
+        details.expect_details(name=group_name, description=description)

@@ -13,11 +13,8 @@
                 Do you want to join this group?
             </h1>
         </div>
-        <p class="text-base leading-[1.4rem]">
-            Before you join, choose a trust level for this group. This helps decide which of your items group members can see and request. (You can change this later.)
-        </p>
 
-        {# Group info card with trust level select and accept/decline #}
+        {# Group info card with accept/decline #}
         <div class="card bg-white shadow-sm w-full overflow-hidden">
             <div class="flex gap-3 p-2.5 items-center">
                 <div class="flex-1 min-w-0 overflow-hidden rounded-md">
@@ -47,47 +44,13 @@
                   action="{{ request.get_full_path }}"
                   onsubmit="this.querySelector('button[type=submit]').disabled = true;">
                 {% csrf_token %}
-                <div class="flex flex-col items-start w-full">
-                    <div class="flex items-center py-1.5 px-10">
-                        <span class="text-xs text-base-content/60 leading-[1.35 rem]">
-                            How much do you trust this group?
-                        </span>
-                        <button type="button"
-                                onclick="showModal('trust-level-info-modal')"
-                                class="inline-flex align-middle ml-1">
-                            {% heroicon_mini "question-mark-circle" class="w-5 h-5 text-base-content/40" %}
-                        </button>
-                    </div>
-                    <div class="px-2.5 w-full">
-                        <select name="trust_level"
-                                id="id_trust_level"
-                                class="select select-bordered w-full h-10 text-sm rounded"
-                                onchange="updateJoinButtons()">
-                            <option value="" selected disabled>
-                                Select a trust level
-                            </option>
-                            {% for value, label in form.fields.trust_level.choices %}
-                                <option value="{{ value }}">
-                                    {{ label }}
-                                </option>
-                            {% endfor %}
-                        </select>
-                        {% if form.trust_level.errors %}
-                            <p class="text-error text-xs mt-1">
-                                {{ form.trust_level.errors }}
-                            </p>
-                        {% endif %}
-                    </div>
-                </div>
-
                 <div class="flex gap-2 items-center p-3">
                     <a href="{% url 'index' %}"
                        class="btn btn-sm btn-soft btn-error flex-1 font-semibold"
                        id="decline-btn">Decline</a>
                     <button type="submit"
-                            class="btn btn-sm btn-soft btn-success flex-1 font-semibold disabled:opacity-40"
-                            id="accept-btn"
-                            disabled>
+                            class="btn btn-sm btn-soft btn-success flex-1 font-semibold"
+                            id="accept-btn">
                         Accept
                     </button>
                 </div>
@@ -125,15 +88,4 @@
             </div>
         {% endif %}
     </div>
-
-    <script>
-function updateJoinButtons() {
-    const select = document.getElementById('id_trust_level');
-    const acceptBtn = document.getElementById('accept-btn');
-    acceptBtn.disabled = !select.value;
-}
-    </script>
-
-    {% include "components/modal.html" with modal_id="trust-level-info-modal" modal_title="Group trust levels" modal_size="full" cancel_button_text="Got it" modal_content_template="groups/_trust_level_info_modal_content.html" %}
-
 {% endblock %}
