@@ -943,8 +943,10 @@ class Item(Model):
         # guardian mis-types get_groups_with_perms as `Group | dict`; for the
         # default attach_perms=False it returns a QuerySet[Group].
         groups_that_can_view_item = cast("QuerySet[Group]", get_groups_with_perms(self))
-        for group in groups_that_can_view_item:
-            remove_perm(ItemOLP.VIEW, group, self)
+        # Pass the queryset straight through rather than looping: remove_perm
+        # dispatches a single bulk DELETE for a group queryset, vs. one DELETE
+        # round-trip per currently-permitted group in a Python loop.
+        remove_perm(ItemOLP.VIEW, groups_that_can_view_item, self)
 
         allowed_groups = Group.objects.filter(
             pk__in=self._groups_allowed_to_view().values_list("perms_group", flat=True)

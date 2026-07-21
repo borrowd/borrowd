@@ -58,7 +58,15 @@ class GroupFilter(FilterSet):  # type: ignore[misc]
                     "group__membership",
                     filter=Q(group__membership__status=MembershipStatus.ACTIVE),
                     distinct=True,
-                )
+                ),
+                active_moderators_count=Count(
+                    "group__membership",
+                    filter=Q(
+                        group__membership__status=MembershipStatus.ACTIVE,
+                        group__membership__is_moderator=True,
+                    ),
+                    distinct=True,
+                ),
             )
             if self.is_bound:
                 # ensure form validation before filtering
