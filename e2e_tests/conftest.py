@@ -219,7 +219,7 @@ def _delete_e2e_items(page: Page, base_url: str, budget_seconds: float = 600) ->
     inventory = InventoryPage(page)
     details = ItemDetails(page)
     edit = ItemEditPage(page)
-    name_pattern = re.compile(r"^E2E\b.*\d{6}$")
+    name_pattern = re.compile(r"^E2E\b.*(?:\d{6}|[0-9a-f]{8})$")
     # Cards are stamped into the DOM by Alpine; wait for any card or the
     # empty state before concluding there are no leftovers.
     cards_rendered = page.locator("div[id^='item-card-']").or_(
@@ -310,7 +310,7 @@ def _delete_e2e_groups(page: Page, base_url: str, budget_seconds: float = 300) -
     run's cost regardless of backlog size.
     """
     details = GroupDetails(page)
-    name_pattern = re.compile(r"^E2E\b.*\d{6}$")
+    name_pattern = re.compile(r"^E2E\b.*(?:\d{6}|[0-9a-f]{8})$")
     # #groups-card-container is (harmlessly) duplicated in the DOM: the
     # group_list.html wrapper and the group_list_card.html partial it
     # includes both carry the same id (an hx-swap="outerHTML" target that
