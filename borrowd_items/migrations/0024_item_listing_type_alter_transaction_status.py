@@ -5,7 +5,10 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("borrowd_items", "0022_alter_transaction_status"),
+        (
+            "borrowd_items",
+            "0023_remove_item_trust_level_required_and_add_group_sharing",
+        ),
     ]
 
     operations = [
