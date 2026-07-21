@@ -277,7 +277,7 @@ class NotificationType(models.TextChoices):
 _MESSAGE_TEMPLATES: dict[NotificationType, str] = {
     NotificationType.ITEM_REQUESTED: "{requester_name} wants to borrow your {item_name}",
     NotificationType.ITEM_REQUEST_ACCEPTED: "{item_owner_name} accepted your request for {item_name}",
-    NotificationType.ITEM_REQUEST_DENIED: "{item_owner_name} declined your request for {item_name}",
+    NotificationType.ITEM_REQUEST_DENIED: "Your request for {item_name} was declined",
     NotificationType.COLLECTION_ASSERTED: "{requester_name} says they have collected {item_name}",
     NotificationType.COLLECTION_CONFIRMED: "{item_owner_name} confirmed collection of {item_name}",
     NotificationType.RETURN_ASSERTED: "{requester_name} says they have returned {item_name}",

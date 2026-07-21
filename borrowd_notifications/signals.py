@@ -155,7 +155,7 @@ def send_transaction_notifications(
                 verb=verb.value,
                 action_object=instance.item,
                 target=instance,
-                description=f"{instance.party1.first_name} declined your request for {instance.item.name}",
+                description=f"Your request for {instance.item.name} was declined",
             )
         case TransactionStatus.COLLECTION_ASSERTED:
             notify.send(
