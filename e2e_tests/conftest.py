@@ -232,16 +232,23 @@ def _delete_e2e_items(page: Page, base_url: str, budget_seconds: float = 600) ->
     skipped: set[str] = set()
     deadline = time.monotonic() + budget_seconds
 
-    for _ in range(100):
-        if time.monotonic() > deadline:
-            print("E2E item cleanup stopped: time budget exhausted")
-            return
-        # Generous timeout: a backlog of leftovers slows this page down.
+    # Generous timeout: a backlog of leftovers slows this page down. Only
+    # navigated here and after a failed delete attempt — a successful delete
+    # already redirects back to this exact page (see inventory.expect_opened()
+    # below), so re-navigating on every iteration was a pure wasted round trip
+    # per item, dominating the whole sweep's wall-clock time.
+    def goto_inventory() -> None:
         page.goto(
             f"{base_url}/profile/inventory/",
             wait_until="domcontentloaded",
             timeout=120_000,
         )
+
+    goto_inventory()
+    for _ in range(100):
+        if time.monotonic() > deadline:
+            print("E2E item cleanup stopped: time budget exhausted")
+            return
         try:
             cards_rendered.first.wait_for(timeout=30_000)
         except PlaywrightTimeoutError:
@@ -263,8 +270,11 @@ def _delete_e2e_items(page: Page, base_url: str, budget_seconds: float = 600) ->
             edit.confirm_delete()
             inventory.expect_opened()
         except Exception:
-            # Safety net so one bad item can't loop the sweep forever.
+            # Safety net so one bad item can't loop the sweep forever. The
+            # page may be in an unknown state after a failed attempt, so
+            # force a fresh navigation before the next iteration.
             skipped.add(leftover_name)
+            goto_inventory()
 
 
 @pytest.fixture(scope="session", autouse=True)
