@@ -7,20 +7,25 @@ used throughout the application.
 
 from typing import TYPE_CHECKING, Any
 
+from django.db.models import QuerySet
 from django.urls import reverse
 from django.utils.html import format_html
 from django.utils.text import capfirst
 
 from .models import (
+    AvailabilitySubscription,
     AvailabilitySubscriptionStatus,
+    Item,
     ItemAction,
     ItemActionContext,
+    ItemStatus,
+    PrecomputedItemState,
+    Transaction,
+    TransactionStatus,
 )
 
 if TYPE_CHECKING:
     from borrowd_users.models import BorrowdUser
-
-    from .models import Item, Transaction
 
 
 # Giveaway listings, offers, and pending requests share the gift icon.
@@ -63,6 +68,217 @@ BANNER_STYLES = {
     "giveaway_requested": {"bg": "bg-primary/15", "text": "text-primary"},
 }
 
+_TERMINAL_TRANSACTION_STATUSES = (
+    TransactionStatus.RETURNED,
+    TransactionStatus.REJECTED,
+    TransactionStatus.CANCELLED,
+    TransactionStatus.RESOLVED,
+    TransactionStatus.OWNERSHIP_TRANSFERRED,
+)
+
+_REQUEST_TRANSACTION_STATUSES = (
+    TransactionStatus.REQUESTED,
+    TransactionStatus.GIVEAWAY_REQUESTED,
+)
+
+_BORROWER_TRANSACTION_STATUSES = (
+    TransactionStatus.ACCEPTED,
+    TransactionStatus.COLLECTION_ASSERTED,
+    TransactionStatus.COLLECTED,
+    TransactionStatus.GIVEAWAY_OFFERED,
+    TransactionStatus.RETURN_REQUESTED,
+    TransactionStatus.RETURN_ASSERTED,
+    TransactionStatus.DISPUTED,
+)
+
+_TRANSACTION_SELECT_RELATED = (
+    "party1",
+    "party1__profile",
+    "party2",
+    "party2__profile",
+    "updated_by",
+)
+
+_ITEM_SELECT_RELATED = ("owner", "owner__profile")
+
+_CARD_TRANSACTION_SELECT_RELATED = (
+    *_TRANSACTION_SELECT_RELATED,
+    "item",
+    "item__owner",
+    "item__owner__profile",
+)
+
+
+def with_card_relations(queryset: "QuerySet[Item]") -> "QuerySet[Item]":
+    """
+    Apply the select_related/prefetch_related an item card needs.
+
+    Callers building a queryset of Items destined for
+    build_item_cards_for_items() should wrap it with this before
+    evaluating it, so owner/profile/photo access doesn't cost a query
+    per card. If a caller forgets, cards still render correctly -- just
+    with a query per card instead of one for the whole list.
+    """
+    return queryset.select_related(*_ITEM_SELECT_RELATED).prefetch_related("photos")
+
+
+def with_card_relations_for_transactions(
+    queryset: "QuerySet[Transaction]",
+) -> "QuerySet[Transaction]":
+    """
+    Apply the select_related/prefetch_related an item card needs when
+    rendering from a Transaction queryset.
+
+    Callers building a queryset of Transactions destined for
+    build_item_cards_for_transactions() should wrap it with this before
+    evaluating it. If a caller forgets, cards still render correctly --
+    just with a query per card instead of one for the whole list.
+    """
+    return queryset.select_related(*_CARD_TRANSACTION_SELECT_RELATED).prefetch_related(
+        "item__photos"
+    )
+
+
+def _state_from_transaction(
+    transaction: Transaction | None,
+    *,
+    has_active_subscription: bool = False,
+) -> PrecomputedItemState:
+    """
+    Derive card state from an already-loaded transaction without querying the db.
+
+    Both action context and banner rendering need borrower/requester/current
+    transaction state, so centralizing the derivation lets them share the same
+    in-memory facts.
+    """
+    current_borrower = None
+    requesting_user = None
+
+    if transaction is not None:
+        if transaction.status in _REQUEST_TRANSACTION_STATUSES:
+            requesting_user = transaction.party2
+        elif transaction.status in _BORROWER_TRANSACTION_STATUSES:
+            current_borrower = transaction.party2
+
+    return PrecomputedItemState(
+        current_borrower=current_borrower,
+        requesting_user=requesting_user,
+        current_transaction=transaction,
+        has_active_subscription=has_active_subscription,
+    )
+
+
+def _active_subscription_item_ids(
+    item_ids: list[int],
+    user: "BorrowdUser",
+) -> set[int]:
+    """
+    Fetch active subscription flags for all card items in one query.
+
+    Without this batch lookup, unavailable item cards can each check whether
+    the viewing user has an active notify-me subscription.
+    """
+    if not item_ids:
+        return set()
+
+    return set(
+        AvailabilitySubscription.objects.filter(
+            item_id__in=item_ids,
+            user=user,
+            status=AvailabilitySubscriptionStatus.ACTIVE,
+        ).values_list("item_id", flat=True)
+    )
+
+
+def _precompute_item_states_for_items(
+    items: list["Item"],
+    user: "BorrowdUser",
+) -> dict[int, PrecomputedItemState]:
+    """
+    Build per-item card state (cache-like) for an item list with batch queries.
+
+    This replaces repeated get_current_borrower/get_requesting_user/
+    get_current_transaction/subscription calls while rendering item grids.
+    """
+    item_ids = [item.pk for item in items]
+    if not item_ids:
+        return {}
+
+    current_transactions: dict[int, Transaction] = {}
+    for transaction in (
+        Transaction.objects.filter(item_id__in=item_ids)
+        .exclude(status__in=_TERMINAL_TRANSACTION_STATUSES)
+        .select_related(*_TRANSACTION_SELECT_RELATED)
+        .order_by("item_id", "-created_at")
+    ):
+        current_transactions.setdefault(transaction.item_id, transaction)
+
+    subscription_item_ids = _active_subscription_item_ids(item_ids, user)
+
+    return {
+        item_id: _state_from_transaction(
+            current_transactions.get(item_id),
+            has_active_subscription=item_id in subscription_item_ids,
+        )
+        for item_id in item_ids
+    }
+
+
+def _precompute_item_states_for_transactions(
+    transactions: list[Transaction],
+    user: "BorrowdUser",
+) -> dict[int, PrecomputedItemState]:
+    """
+    Build per-transaction card state (cache-like) from the loaded transaction rows.
+
+    Transaction sections already know the active transaction, so this avoids
+    asking the database to rediscover the same current transaction per card.
+    """
+    item_ids = [transaction.item_id for transaction in transactions]
+    if not item_ids:
+        return {}
+
+    subscription_item_ids = _active_subscription_item_ids(item_ids, user)
+
+    return {
+        transaction.pk: _state_from_transaction(
+            transaction,
+            has_active_subscription=transaction.item_id in subscription_item_ids,
+        )
+        for transaction in transactions
+    }
+
+
+def _precompute_item_state(
+    item: "Item",
+    user: "BorrowdUser",
+) -> PrecomputedItemState:
+    """
+    Build card state for a single item when no batch state was cached or supplied.
+
+    This preserves the standalone build_item_card_context() API while keeping
+    its action-context and banner paths on one shared state object.
+    """
+    current_transaction = item.get_current_transaction()
+    needs_subscription_state = item.owner_id != user.id and (
+        current_transaction is not None or item.status != ItemStatus.AVAILABLE
+    )
+    has_active_subscription = (
+        bool(
+            AvailabilitySubscription.objects.filter(
+                item=item,
+                user=user,
+                status=AvailabilitySubscriptionStatus.ACTIVE,
+            ).exists()
+        )
+        if needs_subscription_state
+        else False
+    )
+    return _state_from_transaction(
+        current_transaction,
+        has_active_subscription=has_active_subscription,
+    )
+
 
 def build_card_ids(context: str, pk: int) -> dict[str, str]:
     """
@@ -99,7 +315,9 @@ def build_card_ids(context: str, pk: int) -> dict[str, str]:
 
 
 def get_banner_info_for_item(
-    item: "Item", viewing_user: "BorrowdUser"
+    item: "Item",
+    viewing_user: "BorrowdUser",
+    precomputed: "PrecomputedItemState | None" = None,
 ) -> dict[str, str]:
     """
     Get banner type and request info, checking for pending requests.
@@ -119,6 +337,9 @@ def get_banner_info_for_item(
         viewing_user: The user viewing the card
             for "me" substitution
             determines what info is shown
+        precomputed: current_borrower/requesting_user, if the caller
+            already derived them (e.g. alongside action context for the
+            same item) and wants to skip re-deriving them here.
 
     Returns:
         Dict with banner_type (str),
@@ -140,33 +361,15 @@ def get_banner_info_for_item(
     """
     from django.utils.timesince import timesince
 
-    from .models import ListingType, TransactionStatus
+    from .models import ListingType
 
     # Check for active transaction to determine banner state
-    current_borrower = item.get_current_borrower()
-    requesting_user = item.get_requesting_user()
+    if precomputed is None:
+        precomputed = _precompute_item_state(item, viewing_user)
 
-    # Get current transaction for this item
-    current_transaction = None
-    if current_borrower or requesting_user:
-        current_transaction = (
-            item.transactions.select_related("party2")
-            .filter(
-                status__in=[
-                    TransactionStatus.REQUESTED,
-                    TransactionStatus.GIVEAWAY_REQUESTED,
-                    TransactionStatus.ACCEPTED,
-                    TransactionStatus.COLLECTION_ASSERTED,
-                    TransactionStatus.COLLECTED,
-                    TransactionStatus.GIVEAWAY_OFFERED,
-                    TransactionStatus.RETURN_REQUESTED,
-                    TransactionStatus.RETURN_ASSERTED,
-                    TransactionStatus.DISPUTED,
-                ]
-            )
-            .order_by("-created_at")
-            .first()
-        )
+    current_borrower = precomputed.current_borrower
+    requesting_user = precomputed.requesting_user
+    current_transaction = precomputed.current_transaction
 
     if not current_transaction:
         # No active transaction; a giveaway listing advertises itself.
@@ -178,24 +381,21 @@ def get_banner_info_for_item(
     if (
         requesting_user != viewing_user
         and current_borrower != viewing_user
-        and item.subscriptions.filter(
-            status=AvailabilitySubscriptionStatus.ACTIVE,
-            user=viewing_user,
-        ).exists()
+        and precomputed.has_active_subscription
     ):
         return {"banner_type": "waitlisted"}
 
     # Return-request, giveaway, and dispute banners only concern the two
     # parties; everyone else sees the generic borrowed label.
     if current_transaction.status == TransactionStatus.DISPUTED:
-        if item.owner == viewing_user or current_borrower == viewing_user:
+        if item.owner_id == viewing_user.id or current_borrower == viewing_user:
             return {"banner_type": "disputed"}
         return {"banner_type": "borrowed"}
 
     # giveaway banner: owner sees "Giveaway Offered",
     # borrower sees the offer with the lender's name.
     if current_transaction.status == TransactionStatus.GIVEAWAY_OFFERED:
-        if item.owner == viewing_user:
+        if item.owner_id == viewing_user.id:
             return {"banner_type": "giveaway_offered"}
         if current_borrower == viewing_user:
             return {
@@ -207,7 +407,7 @@ def get_banner_info_for_item(
     # giveaway-request banner: owner sees who's asking, the requester sees
     # their request is pending, everyone else sees the generic pending label.
     if current_transaction.status == TransactionStatus.GIVEAWAY_REQUESTED:
-        if item.owner == viewing_user:
+        if item.owner_id == viewing_user.id:
             return {
                 "banner_type": "giveaway_requested",
                 "person_name": capfirst(current_transaction.party2.first_name),
@@ -229,7 +429,7 @@ def get_banner_info_for_item(
         )
     )
     if return_request_open:
-        if item.owner == viewing_user:
+        if item.owner_id == viewing_user.id:
             return {"banner_type": "return_requested", "person_name": "you"}
         if current_borrower == viewing_user:
             return {
@@ -267,7 +467,7 @@ def get_banner_info_for_item(
         defining `person_name` and `person_url` below"""
         return {"banner_type": "available"}
 
-    viewing_user_is_item_owner = item.owner == viewing_user
+    viewing_user_is_item_owner = item.owner_id == viewing_user.id
     viewing_user_is_borrower = user_whose_name_should_be_shown_in_banner == viewing_user
 
     # Everyone except the owner and the person in the transaction gets a
@@ -305,6 +505,7 @@ def build_item_card_context(
     user: "BorrowdUser",
     context: str,
     action_context: "ItemActionContext | None" = None,
+    precomputed: "PrecomputedItemState | None" = None,
     error_message: str | None = None,
     error_type: str | None = None,
 ) -> dict[str, Any]:
@@ -319,14 +520,23 @@ def build_item_card_context(
         user: The viewing user (for permissions and "me" substitution)
         context: The card context/section (e.g., "search", "my-items")
         action_context: Pre-computed action context, or None to compute it
+        precomputed: Pre-computed item state, or None to compute it
         error_message: Optional error message to display
         error_type: Optional error type (e.g., "already_requested")
 
     Returns:
         Dict with all context variables needed by item_card.html template.
     """
+    # current_borrower/requesting_user are viewer-independent, so computing
+    # them once here lets both get_action_context_for and
+    # get_banner_info_for_item skip re-deriving them below.
     if action_context is None:
-        action_context = item.get_action_context_for(user=user)
+        if precomputed is None:
+            precomputed = _precompute_item_state(item, user)
+        action_context = item.get_action_context_for(
+            user=user,
+            precomputed=precomputed,
+        )
 
     # Once the request is approved, the card only shows "Confirm picked up".
     # Cancel is still accessible on the item detail page.
@@ -343,8 +553,11 @@ def build_item_card_context(
             waiting_text=action_context.waiting_text,
         )
 
-    first_photo = item.photos.first()
-    banner_info = get_banner_info_for_item(item, user)
+    # item.photos.first() would build a fresh ordered queryset and bypass
+    # any prefetch_related("photos") the caller set up; this reads the
+    # prefetch cache when present.
+    first_photo = next(iter(item.photos.all()), None)
+    banner_info = get_banner_info_for_item(item, user, precomputed=precomputed)
     card_ids = build_card_ids(context, item.pk)
 
     # Get banner styling
@@ -371,7 +584,7 @@ def build_item_card_context(
         "name": item.name,
         "description": item.description,
         "image": image,
-        "is_yours": item.owner == user,
+        "is_yours": item.owner_id == user.id,
         "is_removed": is_removed,
         "banner_type": banner_type,
         "banner_bg": banner_style.get("bg", ""),
@@ -398,14 +611,25 @@ def build_item_cards_for_items(
     Build card contexts for a list of items.
 
     Args:
-        items: List of Item objects to render
+        items: List of Item objects to render. Build the queryset this list
+            came from with with_card_relations() so owner/profile/photo
+            access doesn't cost a query per card.
         user: The viewing user
         context: The card context/section (e.g., "search", "my-items")
 
     Returns:
         List of context dicts for item_card.html template.
     """
-    return [build_item_card_context(item, user, context) for item in items]
+    precomputed_by_item_id = _precompute_item_states_for_items(items, user)
+    return [
+        build_item_card_context(
+            item,
+            user,
+            context,
+            precomputed=precomputed_by_item_id[item.pk],
+        )
+        for item in items
+    ]
 
 
 def build_item_cards_for_transactions(
@@ -417,17 +641,28 @@ def build_item_cards_for_transactions(
     Extracts the item from each transaction and builds card context.
 
     Args:
-        transactions: List of Transaction objects
+        transactions: List of Transaction objects. Build the queryset this
+            list came from with with_card_relations_for_transactions() so
+            party/item/photo access doesn't cost a query per card.
         user: The viewing user
         context: The card context/section (e.g., "incoming-borrow-requests")
 
     Returns:
         List of context dicts for item_card.html template.
     """
+    precomputed_by_transaction_id = _precompute_item_states_for_transactions(
+        transactions,
+        user,
+    )
     return [
         # ForeignKey type not fully resolved without django-stubs mypy plugin
         # Ref: https://forum.djangoproject.com/t/mypy-and-type-checking/15787,
         # Ref: https://github.com/typeddjango/django-stubs
-        build_item_card_context(transaction.item, user, context)
+        build_item_card_context(
+            transaction.item,
+            user,
+            context,
+            precomputed=precomputed_by_transaction_id[transaction.pk],
+        )
         for transaction in transactions
     ]

@@ -26,6 +26,8 @@ from borrowd_groups.models import Membership
 from borrowd_items.card_helpers import (
     build_item_cards_for_items,
     build_item_cards_for_transactions,
+    with_card_relations,
+    with_card_relations_for_transactions,
 )
 from borrowd_items.models import Item, ItemStatus, Transaction
 from borrowd_notifications.models import NotificationPreference
@@ -258,9 +260,9 @@ def inventory_view(request: HttpRequest) -> HttpResponse:
     user = get_authenticated_user(request)
 
     # All transactions associated with the user with status == REQUESTED (awaiting approval from someone)
-    requested_transactions = Transaction.get_requested_status_transactions_for_user(
-        user
-    ).prefetch_related("item__photos")
+    requested_transactions = with_card_relations_for_transactions(
+        Transaction.get_requested_status_transactions_for_user(user)
+    )
 
     # these are requests FROM others TO this user - party1 is the item owner/lender
     incoming_borrow_requests = requested_transactions.filter(party1=user)
@@ -269,20 +271,20 @@ def inventory_view(request: HttpRequest) -> HttpResponse:
     outgoing_borrow_requests = requested_transactions.filter(party2=user)
 
     # User's items currently lent out (approved/accepted through return asserted)
-    owned_items_lent = Transaction.get_active_lends_for_user(user).prefetch_related(
-        "item__photos"
+    # Pre-fetch the required fields for the card context
+    owned_items_lent = with_card_relations_for_transactions(
+        Transaction.get_active_lends_for_user(user)
     )
 
     # Items the user is actively borrowing from others (accepted/approved through return asserted)
-    borrowed_items_from_others = Transaction.get_active_borrows_for_user(
-        user
-    ).prefetch_related("item__photos")
+    borrowed_items_from_others = with_card_relations_for_transactions(
+        Transaction.get_active_borrows_for_user(user)
+    )
 
     # User's items sitting idle with no active transaction.
-    owned_items_available = Item.objects.filter(
-        owner=user,
-        status=ItemStatus.AVAILABLE,
-    ).prefetch_related("photos")
+    owned_items_available = with_card_relations(
+        Item.objects.filter(owner=user, status=ItemStatus.AVAILABLE)
+    )
 
     # Build card context
     incoming_borrow_requests_cards = build_item_cards_for_transactions(
