@@ -28,6 +28,7 @@ from borrowd_users.request import get_authenticated_user
 from .card_helpers import (
     build_item_card_context,
     build_item_cards_for_items,
+    with_card_relations,
 )
 from .exceptions import InvalidItemAction, ItemAlreadyRequested
 from .filters import ItemFilter
@@ -331,7 +332,7 @@ class ItemListView(
 
     def get_queryset(self) -> QuerySet[Item]:
         queryset: QuerySet[Item] = super().get_queryset()
-        return queryset.prefetch_related("photos")
+        return with_card_relations(queryset)
 
     def get_context_data(self, **kwargs: str) -> dict[str, Any]:
         context: dict[str, Any] = super().get_context_data(**kwargs)
