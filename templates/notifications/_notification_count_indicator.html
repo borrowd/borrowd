@@ -1,0 +1,10 @@
+{% load heroicons %}
+
+{% if unread_notification_count %}
+    {% heroicon_solid "bell" class="h-5 w-5" %}
+    <span class="indicator-item badge badge-primary badge-xs">
+        {{ unread_notification_count }}
+    </span>
+{% else %}
+    {% heroicon_outline "bell" class="h-5 w-5" %}
+{% endif %}

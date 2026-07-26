@@ -6,7 +6,7 @@
         <h2 class="text-md font-semibold text-base-content">
             {% trans "Notifications" %}
         </h2>
-        {% if unread_count %}
+        {% if unread_notification_count %}
             <form method="post" action="{% url 'notification-mark-all-read' %}">
                 {% csrf_token %}
                 <button type="submit"

@@ -14,4 +14,4 @@ def unread_notification_count(request: HttpRequest) -> dict[str, Any]:
 
     # notifications is untyped (see mypy.ini): user.notifications is invisible to mypy.
     qs: QuerySet[Notification] = app_channel_qs(request.user.notifications.all())  # type: ignore[attr-defined]
-    return {"unread_count": qs.unread().count()}  # type: ignore[attr-defined]
+    return {"unread_notification_count": qs.unread().count()}  # type: ignore[attr-defined]

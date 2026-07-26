@@ -1704,19 +1704,37 @@ class NotificationInboxViewTests(TestCase):
         )
         return n
 
-    def test_unread_count_only_includes_app_channel_notifications(self) -> None:
+    def test_unread_notification_count_only_includes_app_channel_notifications(
+        self,
+    ) -> None:
         """Notifications without APP channel don't inflate the unread badge count."""
         self._make_notification(with_app_channel=False)
         response = self.client.get("/notifications/")
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context["unread_count"], 0)
+        self.assertEqual(response.context["unread_notification_count"], 0)
 
-    def test_unread_count_includes_app_channel_notifications(self) -> None:
+    def test_unread_notification_count_includes_app_channel_notifications(self) -> None:
         """Notifications with APP channel are counted in the unread badge."""
         self._make_notification(with_app_channel=True)
         response = self.client.get("/notifications/")
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context["unread_count"], 1)
+        self.assertEqual(response.context["unread_notification_count"], 1)
+
+    def test_notification_bell_count_returns_indicator_contents_only(self) -> None:
+        """The poll endpoint must not return another polling wrapper."""
+        self._make_notification(with_app_channel=True)
+
+        response = self.client.get("/notifications/notification-count/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(
+            response, "notifications/_notification_count_indicator.html"
+        )
+        self.assertContains(response, "badge-primary")
+        self.assertContains(response, "1")
+        self.assertNotContains(response, 'id="notification-indicator"')
+        self.assertNotContains(response, "hx-trigger")
+        self.assertNotContains(response, "notification-popup-content")
 
     def test_inbox_excludes_non_app_channel_notifications(self) -> None:
         """Notifications routed only to EMAIL don't appear in the inbox list."""

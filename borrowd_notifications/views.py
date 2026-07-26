@@ -424,7 +424,7 @@ def notification_inbox_view(request: HttpRequest) -> HttpResponse:
 
     _annotate_for_display(page_obj)
 
-    # unread_count comes from the unread_notification_count context
+    # unread_notification_count comes from the unread_notification_count context
     # processor (borrowd_notifications/context_processors.py), which every
     # authenticated page already computes for the header bell — no need to
     # run the same count query again here.
@@ -555,7 +555,7 @@ def notification_popup_view(request: HttpRequest) -> HttpResponse:
 
     _annotate_for_display(notifications)
 
-    # unread_count comes from the unread_notification_count context
+    # unread_notification_count comes from the unread_notification_count context
     # processor (borrowd_notifications/context_processors.py), which every
     # authenticated page already computes for the header bell — no need to
     # run the same count query again here.
@@ -564,3 +564,9 @@ def notification_popup_view(request: HttpRequest) -> HttpResponse:
         "notifications/popup.html",
         {"notifications": notifications},
     )
+
+
+@login_required
+@require_GET
+def notification_bell_count(request: HttpRequest) -> HttpResponse:
+    return render(request, "notifications/_notification_count_indicator.html")

@@ -16,13 +16,13 @@
                 <h1 class="text-xl font-semibold">
                     {% trans "Notifications" %}
                 </h1>
-                {% if unread_count %}
+                {% if unread_notification_count %}
                     <span id="unread-count"
                           class="badge badge-primary badge-sm"
-                          {% if not page_obj.number or page_obj.number == 1 %} hx-get="{% url 'notification-inbox' %}" hx-trigger="every 30s" hx-select="#unread-count" hx-swap="outerHTML" {% endif %}>{{ unread_count }}</span>
+                          {% if not page_obj.number or page_obj.number == 1 %} hx-get="{% url 'notification-inbox' %}" hx-trigger="every 30s" hx-select="#unread-count" hx-swap="outerHTML" {% endif %}>{{ unread_notification_count }}</span>
                 {% endif %}
             </div>
-            {% if unread_count %}
+            {% if unread_notification_count %}
                 <form method="post" action="{% url 'notification-mark-all-read' %}">
                     {% csrf_token %}
                     <button type="submit" class="btn btn-ghost btn-sm text-base-content/60">

@@ -1,5 +1,4 @@
 {% load i18n %}
-{% load heroicons %}
 
 <div class="dropdown dropdown-end">
     <!-- daisyUI sets pointer-events:none on this element the instant it gains
@@ -14,15 +13,14 @@
          hx-trigger="focus once"
          hx-target="#notification-popup-content"
          hx-swap="innerHTML">
-        <div class="indicator">
-            {% if unread_count %}
-                {% heroicon_solid "bell" class="h-5 w-5" %}
-                <span id="nav-unread-count"
-                      class="indicator-item badge badge-primary badge-xs"
-                      hx-get="{% url 'notification-popup' %}">{{ unread_count }}</span>
-            {% else %}
-                {% heroicon_outline "bell" class="h-5 w-5" %}
-            {% endif %}
+        <div id="notification-indicator"
+             class="indicator"
+             hx-get="{% url 'notification-bell-count' %}"
+             hx-trigger="load, every 30s"
+             hx-target="this"
+             hx-swap="innerHTML">
+            {% include "notifications/_notification_count_indicator.html" %}
+
         </div>
     </div>
     <div id="notification-popup-content"
