@@ -1730,6 +1730,42 @@ class NotificationInboxViewTests(TestCase):
         response = self.client.get("/notifications/")
         self.assertEqual(response.context["page_obj"].paginator.count, 1)
 
+    def test_notification_delete_button_uses_htmx_card_swap(self) -> None:
+        """Rendered delete controls remove their card without a full-page redirect."""
+        notification = self._make_notification(with_app_channel=True)
+
+        response = self.client.get("/notifications/")
+
+        self.assertContains(response, f'id="notification-card-{notification.pk}"')
+        self.assertContains(
+            response,
+            f'hx-post="/notifications/{notification.pk}/delete/"',
+        )
+        self.assertContains(
+            response,
+            f'hx-target="#notification-card-{notification.pk}"',
+        )
+        self.assertContains(response, 'hx-swap="outerHTML swap:200ms"')
+
+    def test_notification_mark_read_button_uses_htmx_card_swap(self) -> None:
+        """Rendered mark-read controls update their card without a redirect."""
+        notification = self._make_notification(with_app_channel=True)
+
+        response = self.client.get("/notifications/")
+
+        self.assertContains(
+            response,
+            f'hx-post="/notifications/{notification.pk}/read/"',
+        )
+        self.assertContains(
+            response,
+            f'hx-target="#notification-card-{notification.pk}"',
+        )
+        self.assertContains(
+            response,
+            "notification-card-reading",
+        )
+
     def test_recent_notification_uses_relative_timestamp(self) -> None:
         """Notifications less than seven days old retain relative timestamps."""
         notification = self._make_notification(with_app_channel=True)
@@ -1765,6 +1801,22 @@ class NotificationInboxViewTests(TestCase):
         response = self.client.post(f"/notifications/{notification.pk}/read/")
 
         self.assertEqual(response.status_code, 404)
+
+    def test_mark_notification_read_htmx_returns_read_card(self) -> None:
+        """HTMX mark-read returns the card re-rendered in its read state."""
+        notification = self._make_notification(with_app_channel=True)
+
+        response = self.client.post(
+            f"/notifications/{notification.pk}/read/",
+            HTTP_HX_REQUEST="true",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        notification.refresh_from_db()
+        self.assertFalse(notification.unread)
+        self.assertContains(response, f'id="notification-card-{notification.pk}"')
+        self.assertNotContains(response, "Mark as read")
+        self.assertNotContains(response, "notification-card-reading")
 
     def test_mark_all_read_only_updates_visible_notifications(self) -> None:
         """Mark-all leaves non-app notification state untouched."""
@@ -1821,6 +1873,22 @@ class NotificationDeleteTests(TestCase):
         n.borrowd_metadata.refresh_from_db()
         self.assertFalse(n.borrowd_metadata.visible_in_app)
         self.assertIn("APP", (n.data or {}).get("channels", {}))
+        self.assertFalse(n.unread)
+
+    def test_remove_notification_htmx_returns_empty_response(self) -> None:
+        """HTMX deletion removes the card without forcing a full-page redirect."""
+        n = self._make_app_notification()
+
+        response = self.client.post(
+            f"/notifications/{n.pk}/delete/",
+            HTTP_HX_REQUEST="true",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content, b"")
+        n.refresh_from_db()
+        n.borrowd_metadata.refresh_from_db()
+        self.assertFalse(n.borrowd_metadata.visible_in_app)
         self.assertFalse(n.unread)
 
     def test_remove_notification_disappears_from_inbox(self) -> None:

@@ -1,7 +1,8 @@
 {% load i18n heroicons static humanize %}
 
-<div data-testid="notification-card"
-     class="px-4 py-4 hover:bg-blue-50/70 {% if notification.unread %}bg-blue-50/70{% else %}bg-primary-content{% endif %}">
+<div id="notification-card-{{ notification.pk }}"
+     data-testid="notification-card"
+     class="notification-card max-h-80 overflow-hidden px-4 py-4 transition-all duration-200 ease-out hover:bg-blue-50/70 motion-reduce:transition-none {% if notification.unread %}bg-blue-50/70{% else %}bg-primary-content{% endif %}">
     <div class="flex min-w-0 items-start gap-3">
         {% if notification.action_url %}
             <form method="post"
@@ -18,8 +19,8 @@
                          alt=""
                          class="size-10 shrink-0 rounded-full object-cover bg-base-200" />
 
-                    <div class="min-w-0 flex flex-col flex-1 gap-3">
-                        <div class="flex flex-col items-start justify-between gap-2">
+                    <span class="min-w-0 flex flex-col flex-1 gap-3">
+                        <span class="flex flex-col items-start justify-between gap-2">
                             <span class="min-w-0 text-sm leading-snug text-base-content line-clamp-2 font-semibold">
                                 {{ notification.title }}
                             </span>
@@ -30,7 +31,7 @@
                                     {{ notification.timestamp|naturaltime }}
                                 {% endif %}
                             </span>
-                        </div>
+                        </span>
 
                         <span class="block text-sm leading-snug text-base-content/60 line-clamp-3">
                             {% for part in notification.message_parts %}
@@ -41,7 +42,7 @@
                                 {% endif %}
                             {% endfor %}
                         </span>
-                    </div>
+                    </span>
 
                     {% if notification.action_url %}
                     </button>
@@ -53,7 +54,11 @@
         <div class="flex shrink-0 items-start gap-1">
             {% if notification.unread %}
                 <form method="post"
-                      action="{% url 'notification-mark-read' pk=notification.pk %}">
+                      action="{% url 'notification-mark-read' pk=notification.pk %}"
+                      hx-post="{% url 'notification-mark-read' pk=notification.pk %}"
+                      hx-target="#notification-card-{{ notification.pk }}"
+                      hx-swap="outerHTML swap:200ms"
+                      hx-on::before-request="this.closest('.notification-card').classList.add('notification-card-reading')">
                     {% csrf_token %}
                     {% trans "Mark as read" as mark_read_label %}
                     <button type="submit"
@@ -67,7 +72,11 @@
             {% endif %}
 
             <form method="post"
-                  action="{% url 'notification-delete' pk=notification.pk %}">
+                  action="{% url 'notification-delete' pk=notification.pk %}"
+                  hx-post="{% url 'notification-delete' pk=notification.pk %}"
+                  hx-target="#notification-card-{{ notification.pk }}"
+                  hx-swap="outerHTML swap:200ms"
+                  hx-on::before-request="this.closest('.notification-card').classList.add('notification-card-removing')">
                 {% csrf_token %}
                 {% trans "Delete" as delete_label %}
                 <button type="submit"

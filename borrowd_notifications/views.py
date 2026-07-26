@@ -457,6 +457,13 @@ def mark_notification_read(request: HttpRequest, pk: int) -> HttpResponse:
         borrowd_metadata__visible_in_app=True,
     )
     notification.mark_as_read()
+    if request.headers.get("HX-Request") == "true":
+        _annotate_for_display([notification])
+        return render(
+            request,
+            "notifications/_notification_card.html",
+            {"notification": notification},
+        )
     return _redirect_to_caller(request)
 
 
@@ -512,6 +519,8 @@ def remove_app_notification(request: HttpRequest, pk: int) -> HttpResponse:
     )
 
     delete_app_notification(notification=notification)
+    if request.headers.get("HX-Request") == "true":
+        return HttpResponse("")
     return _redirect_to_caller(request)
 
 
