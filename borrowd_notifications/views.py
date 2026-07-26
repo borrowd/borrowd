@@ -102,6 +102,10 @@ NOTIFICATION_CATEGORIES: list[dict[str, Any]] = [
 
 
 def _optional_types_for_scope(scope: str) -> list[NotificationType]:
+    """Returns the non-mandatory notification types in scope (a category
+    slug, or "master" for every category) — the ones a user can actually
+    toggle off for the app/email channels.
+    """
     mandatory = NotificationType.mandatory_types()
     if scope == "master":
         return [
@@ -117,6 +121,12 @@ def _optional_types_for_scope(scope: str) -> list[NotificationType]:
 
 
 def _all_types_for_scope(scope: str) -> list[NotificationType]:
+    """Returns every notification type in scope, including mandatory ones.
+
+    Used for the push channel: unlike app/email, push has no mandatory-type
+    carve-out, so bulk push toggles must cover the full category rather
+    than just the optional types.
+    """
     if scope == "master":
         return [ntype for cat in NOTIFICATION_CATEGORIES for ntype, _ in cat["types"]]
     for cat in NOTIFICATION_CATEGORIES:
@@ -126,6 +136,11 @@ def _all_types_for_scope(scope: str) -> list[NotificationType]:
 
 
 def _build_preferences_context(user: BorrowdUser) -> dict[str, Any]:
+    """Builds the template context for the notification preferences page:
+    per-category, per-channel toggle state for every notification type,
+    plus a flat `prefs_json` blob the page's JS reads to drive the
+    category-level "select all" switches.
+    """
     mandatory = NotificationType.mandatory_types()
     prefs: dict[str, NotificationPreference] = {
         p.notification_type: p for p in NotificationPreference.objects.filter(user=user)
@@ -198,6 +213,7 @@ def _build_preferences_context(user: BorrowdUser) -> dict[str, Any]:
 
 @login_required
 def notification_preferences_view(request: HttpRequest) -> HttpResponse:
+    """Renders the notification preferences page."""
     user = get_authenticated_user(request)
     context = _build_preferences_context(user)
     context["vapid_public_key"] = settings.VAPID_PUBLIC_KEY
@@ -207,6 +223,10 @@ def notification_preferences_view(request: HttpRequest) -> HttpResponse:
 @login_required
 @require_POST
 def toggle_preference(request: HttpRequest) -> HttpResponse:
+    """Toggles a single (notification_type, channel) preference on/off for
+    the current user. Rejects disabling a mandatory type on a non-push
+    channel — those must always stay on.
+    """
     user = get_authenticated_user(request)
     type_value = request.POST.get("notification_type", "")
     channel_value = request.POST.get("channel", "")
@@ -243,6 +263,10 @@ def toggle_preference(request: HttpRequest) -> HttpResponse:
 @login_required
 @require_POST
 def bulk_toggle_preferences(request: HttpRequest) -> HttpResponse:
+    """Toggles every applicable type in a scope (a category slug, or
+    "master" for all categories) for one channel at once — backs the
+    preferences page's category-level and global "select all" switches.
+    """
     user = get_authenticated_user(request)
     scope = request.POST.get("scope", "")
     channel_value = request.POST.get("channel", "")
@@ -300,6 +324,10 @@ def app_channel_qs(qs: QuerySet[Notification]) -> QuerySet[Notification]:
 def _notification_message_template_and_context(
     notification: Notification,
 ) -> tuple[str, dict[str, Any]]:
+    """Looks up the message template registered for a notification's verb
+    (NotificationType.message_template) and the interpolation context
+    stored on the notification by the notify.send() call that created it.
+    """
     try:
         template = NotificationType(notification.verb).message_template
     except ValueError:
@@ -316,6 +344,11 @@ def _notification_message_template_and_context(
 def _notification_message_parts(
     template: str, context: dict[str, Any], fallback_text: str
 ) -> list[NotificationMessagePart]:
+    """Splits a message template into literal and interpolated parts so the
+    notification card can render the interpolated values (e.g. an item
+    name) in bold. Falls back to `fallback_text` as a single plain part if
+    the template or context is malformed.
+    """
     formatter = Formatter()
     parts: list[NotificationMessagePart] = []
 
@@ -347,6 +380,10 @@ def _notification_message_parts(
 def _get_notification_category(
     notification_type: NotificationType,
 ) -> dict[str, Any] | None:
+    """Finds the NOTIFICATION_CATEGORIES entry a notification type belongs
+    to, returning its display title and category dict, or None if the
+    type isn't registered in any category.
+    """
     for cat in NOTIFICATION_CATEGORIES:
         for ntype, type_des in cat["types"]:
             if ntype == notification_type:
@@ -414,6 +451,7 @@ def _annotate_for_display(notifications: Iterable[Notification]) -> None:
 
 @login_required
 def notification_inbox_view(request: HttpRequest) -> HttpResponse:
+    """Renders the paginated in-app notification inbox for the current user."""
     user = get_authenticated_user(request)
 
     # only show the notifications that where sent through the in-app channel
@@ -450,6 +488,10 @@ def _redirect_to_caller(request: HttpRequest) -> HttpResponse:
 @login_required
 @require_POST
 def mark_notification_read(request: HttpRequest, pk: int) -> HttpResponse:
+    """Marks a notification as read. For htmx requests, returns the
+    updated card partial so it can be swapped in place; otherwise redirects
+    back to wherever the form was submitted from.
+    """
     notification = get_object_or_404(
         Notification,
         pk=pk,
@@ -500,6 +542,10 @@ def mark_all_notifications_read(request: HttpRequest) -> HttpResponse:
 
 
 def delete_app_notification(notification: Notification) -> None:
+    """Hides a notification from the in-app inbox by flipping its metadata's
+    `visible_in_app` off, without touching its email/push delivery history.
+    Also clears `unread` so it stops counting toward the header badge.
+    """
     if NotificationMetadata.objects.filter(
         notification=notification,
         visible_in_app=True,
@@ -511,6 +557,10 @@ def delete_app_notification(notification: Notification) -> None:
 @login_required
 @require_POST
 def remove_app_notification(request: HttpRequest, pk: int) -> HttpResponse:
+    """Removes a single notification from the in-app inbox. For htmx
+    requests, returns an empty response so the card's outerHTML swap
+    deletes it in place; otherwise redirects back to the caller.
+    """
     notification = get_object_or_404(
         Notification,
         pk=pk,
@@ -527,6 +577,9 @@ def remove_app_notification(request: HttpRequest, pk: int) -> HttpResponse:
 @login_required
 @require_POST
 def remove_all_app_notifications(request: HttpRequest) -> HttpResponse:
+    """Clears the current user's entire in-app inbox: marks every visible
+    notification read and hides it from the in-app channel.
+    """
     user = get_authenticated_user(request)
     # notifications is untyped (see mypy.ini): user.notifications is invisible to mypy.
     visible_notifications = app_channel_qs(user.notifications.all())  # type: ignore[attr-defined]
@@ -544,6 +597,9 @@ _POPUP_NOTIFICATION_LIMIT = 5
 @login_required
 @require_GET
 def notification_popup_view(request: HttpRequest) -> HttpResponse:
+    """Renders the header bell's dropdown popup with the user's most
+    recent notifications (see _POPUP_NOTIFICATION_LIMIT).
+    """
     user = get_authenticated_user(request)
 
     # notifications is untyped (see mypy.ini): user.notifications is invisible to mypy.
@@ -569,4 +625,8 @@ def notification_popup_view(request: HttpRequest) -> HttpResponse:
 @login_required
 @require_GET
 def notification_bell_count(request: HttpRequest) -> HttpResponse:
+    """Renders the header bell's icon/badge fragment. Polled every 30s by
+    `#notification-indicator` (notification_bell.html) to keep the unread
+    count fresh without a full page reload.
+    """
     return render(request, "notifications/_notification_count_indicator.html")
