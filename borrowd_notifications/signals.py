@@ -158,13 +158,14 @@ def send_transaction_notifications(
                 description=f"Your request for {instance.item.name} was declined",
             )
         case TransactionStatus.COLLECTION_ASSERTED:
+            who = "they've" if instance.item.owner != instance.updated_by else "you've"
             notify.send(
                 instance.updated_by,
                 recipient=[instance.counter_party(instance.updated_by)],
                 verb=NotificationType.COLLECTION_ASSERTED.value,
                 action_object=instance.item,
                 target=instance,
-                description=f"{instance.updated_by.first_name} says they've collected {instance.item.name}. Please confirm.",
+                description=f"{instance.updated_by.first_name} says {who} collected {instance.item.name}. Please confirm.",
             )
         case TransactionStatus.COLLECTED:
             notify.send(

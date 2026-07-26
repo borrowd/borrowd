@@ -256,7 +256,6 @@ class NotificationType(models.TextChoices):
             if notification.verb == NotificationType.ITEM_SUBSCRIPTION.value:
                 context.update(
                     {
-                        "subscriber_name": subscription.user.first_name,
                         "item_name": subscription.item.name,
                         "item_url": base_url
                         + reverse("item-detail", args=[subscription.item.pk]),
@@ -279,12 +278,12 @@ _MESSAGE_TEMPLATES: dict[NotificationType, str] = {
     NotificationType.ITEM_REQUESTED: "{requester_name} wants to borrow your {item_name}",
     NotificationType.ITEM_REQUEST_ACCEPTED: "{item_owner_name} accepted your request for {item_name}",
     NotificationType.ITEM_REQUEST_DENIED: "Your request for {item_name} was declined",
-    NotificationType.COLLECTION_ASSERTED: "{requester_name} says they have collected {item_name}",
+    NotificationType.COLLECTION_ASSERTED: "{requester_name} says {item_name} has been collected, please confirm.",
     NotificationType.COLLECTION_CONFIRMED: "{item_owner_name} confirmed collection of {item_name}",
-    NotificationType.RETURN_ASSERTED: "{requester_name} says they have returned {item_name}",
+    NotificationType.RETURN_ASSERTED: "{requester_name} says {item_name} has been returned, please confirm.",
     NotificationType.RETURN_CONFIRMED: "{item_owner_name} confirmed the return of {item_name}",
     NotificationType.ITEM_NOTIFY_WHEN_AVAILABLE: "{owner_name} has {item_name} available to borrow",
-    NotificationType.ITEM_SUBSCRIPTION: "{subscriber_name} subscribed to be notified when {item_name} becomes available",
+    NotificationType.ITEM_SUBSCRIPTION: "You've subscribed to be notified when {item_name} becomes available.",
     NotificationType.ITEM_RETURN_REQUESTED: "{owner_name} requested the return of {item_name}",
     NotificationType.ITEM_DISPUTED: "{dispute_raiser_name} raised a dispute over {item_name}",
     NotificationType.GROUP_MEMBER_JOINED: "{new_member_name} joined {group_name}",
