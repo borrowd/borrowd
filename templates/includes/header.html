@@ -25,12 +25,12 @@
         </div>
         <div class="navbar-end">
             {% if user.is_authenticated %}
-                <!-- currently empty. Avatar picture in future? -->
-                <div class="w-12">
-                </div>
+                {% include "notifications/notification_bell.html" %}
+
             {% endif %}
         </div>
     </div>
+
     <!-- Drawer/Sidebar -->
     {% if user.is_authenticated %}
         <div class="drawer">

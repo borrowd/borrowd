@@ -271,7 +271,7 @@ _INBOX_PAGE_SIZE = 25
 _RELATIVE_TIMESTAMP_MAX_AGE = timedelta(days=7)
 
 
-def _app_channel_qs(qs: QuerySet[Notification]) -> QuerySet[Notification]:
+def app_channel_qs(qs: QuerySet[Notification]) -> QuerySet[Notification]:
     """Filter to notifications currently visible in the in-app inbox."""
     return qs.filter(borrowd_metadata__visible_in_app=True)
 
@@ -296,7 +296,7 @@ def notification_inbox_view(request: HttpRequest) -> HttpResponse:
 
     # only show the notifications that where sent through the in-app channel
     # notifications is untyped (see mypy.ini): user.notifications is invisible to mypy.
-    qs: QuerySet[Notification] = _app_channel_qs(user.notifications.all())  # type: ignore[attr-defined]
+    qs: QuerySet[Notification] = app_channel_qs(user.notifications.all())  # type: ignore[attr-defined]
     paginator = Paginator(qs, _INBOX_PAGE_SIZE)
     page_obj = paginator.get_page(request.GET.get("page", 1))
 
@@ -336,7 +336,7 @@ def mark_notification_read(request: HttpRequest, pk: int) -> HttpResponse:
 def mark_all_notifications_read(request: HttpRequest) -> HttpResponse:
     user = get_authenticated_user(request)
     # notifications is untyped (see mypy.ini): user.notifications is invisible to mypy.
-    _app_channel_qs(user.notifications.all()).update(unread=False)  # type: ignore[attr-defined]
+    app_channel_qs(user.notifications.all()).update(unread=False)  # type: ignore[attr-defined]
     return redirect("notification-inbox")
 
 
@@ -368,7 +368,7 @@ def remove_app_notification(request: HttpRequest, pk: int) -> HttpResponse:
 def remove_all_app_notifications(request: HttpRequest) -> HttpResponse:
     user = get_authenticated_user(request)
     # notifications is untyped (see mypy.ini): user.notifications is invisible to mypy.
-    visible_notifications = _app_channel_qs(user.notifications.all())  # type: ignore[attr-defined]
+    visible_notifications = app_channel_qs(user.notifications.all())  # type: ignore[attr-defined]
     visible_notifications.update(unread=False)
     NotificationMetadata.objects.filter(
         notification__recipient=user,

@@ -1,0 +1,32 @@
+{% load i18n %}
+{% load heroicons %}
+
+<div class="dropdown dropdown-end">
+    <!-- daisyUI sets pointer-events:none on this element the instant it gains
+         focus (to let clicks pass through to the dropdown-content beneath),
+         so a click-triggered load races that CSS change and never fires;
+         focus doesn't race it and fires on click too. -->
+    <div tabindex="0"
+         role="button"
+         class="btn btn-ghost text-borrowd-indigo-600 btn-circle md:mr-6"
+         aria-label="{% trans 'Notifications' %}"
+         hx-get="{% url 'notification-popup' %}"
+         hx-trigger="focus once"
+         hx-target="#notification-popup-content"
+         hx-swap="innerHTML">
+        <div class="indicator">
+            {% if unread_count %}
+                {% heroicon_solid "bell" class="h-5 w-5" %}
+                <span id="nav-unread-count"
+                      class="indicator-item badge badge-primary badge-xs"
+                      hx-get="{% url 'notification-popup' %}">{{ unread_count }}</span>
+            {% else %}
+                {% heroicon_outline "bell" class="h-5 w-5" %}
+            {% endif %}
+        </div>
+    </div>
+    <div id="notification-popup-content"
+         tabindex="0"
+         class="dropdown-content z-60 mt-5 w-90 md:w-200">
+    </div>
+</div>
