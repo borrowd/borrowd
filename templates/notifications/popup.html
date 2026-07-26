@@ -1,0 +1,39 @@
+{% load i18n heroicons %}
+
+<div id="notification-popup-list"
+     class="card bg-primary-content rounded-md border border-gray-200 shadow-sm max-h-[calc(100dvh-5rem)] overflow-y-auto overscroll-contain">
+    <div class="sticky top-0 z-10 flex items-center justify-between gap-3 bg-primary-content px-5 py-4 border-b border-gray-100">
+        <h2 class="text-md font-semibold text-base-content">
+            {% trans "Notifications" %}
+        </h2>
+        {% if unread_count %}
+            <form method="post" action="{% url 'notification-mark-all-read' %}">
+                {% csrf_token %}
+                <button type="submit"
+                        class="btn btn-ghost btn-xs px-2 text-xs font-semibold text-borrowd-indigo-600 hover:bg-transparent">
+                    {% heroicon_outline "envelope-open" class="size-5" %}
+                    {% trans "Mark all as read" %}
+                </button>
+            </form>
+        {% endif %}
+    </div>
+
+    <div class="divide-y divide-gray-100">
+        {% if notifications %}
+            {% for notification in notifications %}
+                {% include "notifications/_notification_card.html" %}
+
+            {% endfor %}
+        {% else %}
+            <div class="flex flex-col items-center justify-center py-16 gap-2 text-base-content/40">
+                <p class="text-sm">
+                    {% trans "No notifications yet." %}
+                </p>
+            </div>
+        {% endif %}
+    </div>
+
+    <div class="px-5 py-4">
+        <a class="btn btn-primary w-full" href="{% url 'notification-inbox' %}">{% trans "View all" %}</a>
+    </div>
+</div>

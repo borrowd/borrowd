@@ -1,16 +1,23 @@
+from collections.abc import Iterable
 from datetime import timedelta
-from typing import Any
+from string import Formatter
+from typing import Any, TypedDict
 
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
+from django.contrib.contenttypes.prefetch import GenericPrefetch
 from django.core.paginator import Paginator
 from django.db.models import QuerySet
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_GET, require_POST
 from notifications.models import Notification
 
+from borrowd.util import is_safe_back_url
+from borrowd_groups.models import BorrowdGroup, Membership
+from borrowd_items.models import Item
 from borrowd_users.models import BorrowdUser
 from borrowd_users.request import get_authenticated_user
 
@@ -271,23 +278,138 @@ _INBOX_PAGE_SIZE = 25
 _RELATIVE_TIMESTAMP_MAX_AGE = timedelta(days=7)
 
 
+class NotificationMessagePart(TypedDict):
+    text: str
+    is_emphasized: bool
+
+
 def app_channel_qs(qs: QuerySet[Notification]) -> QuerySet[Notification]:
-    """Filter to notifications currently visible in the in-app inbox."""
-    return qs.filter(borrowd_metadata__visible_in_app=True)
+    """Filter to notifications currently visible in the in-app inbox.
+
+    Also prefetches action_object (a GenericForeignKey, so a plain
+    select_related/prefetch_related can't cover it): every notify.send()
+    call sets it to an Item or a Membership (see signals.py), and
+    _notification_action_url reads it for every row on the page, so
+    without this each row costs its own query.
+    """
+    return qs.filter(borrowd_metadata__visible_in_app=True).prefetch_related(
+        GenericPrefetch("action_object", [Item.objects.all(), Membership.objects.all()])
+    )
 
 
-def _format_notification(notification: Notification) -> str:
+def _notification_message_template_and_context(
+    notification: Notification,
+) -> tuple[str, dict[str, Any]]:
     try:
         template = NotificationType(notification.verb).message_template
     except ValueError:
-        return str(notification.verb)
+        return str(notification.verb), {}
+
     context: dict[str, Any] = {}
     if isinstance(notification.data, dict):
-        context = notification.data.get("context", {})
+        raw_context = notification.data.get("context", {})
+        if isinstance(raw_context, dict):
+            context = {str(key): value for key, value in raw_context.items()}
+    return template, context
+
+
+def _notification_message_parts(
+    template: str, context: dict[str, Any], fallback_text: str
+) -> list[NotificationMessagePart]:
+    formatter = Formatter()
+    parts: list[NotificationMessagePart] = []
+
     try:
-        return template.format(**context)
-    except KeyError:
-        return str(notification.verb)
+        parsed_template = list(formatter.parse(template))
+    except ValueError:
+        return [{"text": fallback_text, "is_emphasized": False}]
+
+    for literal_text, field_name, format_spec, _conversion in parsed_template:
+        if literal_text:
+            parts.append({"text": literal_text, "is_emphasized": False})
+
+        if field_name is None:
+            continue
+
+        if field_name not in context:
+            return [{"text": fallback_text, "is_emphasized": False}]
+
+        try:
+            text = formatter.format_field(context[field_name], format_spec or "")
+        except (KeyError, ValueError, TypeError):
+            return [{"text": fallback_text, "is_emphasized": False}]
+
+        parts.append({"text": text, "is_emphasized": True})
+
+    return parts or [{"text": fallback_text, "is_emphasized": False}]
+
+
+def _get_notification_category(
+    notification_type: NotificationType,
+) -> dict[str, Any] | None:
+    for cat in NOTIFICATION_CATEGORIES:
+        for ntype, type_des in cat["types"]:
+            if ntype == notification_type:
+                return {"notification_title": type_des, "notification_category": cat}
+    return None
+
+
+def _notification_action_url(notification: Notification) -> str | None:
+    """Resolves where clicking a notification should land, based on the
+    action_object set by notify.send() calls across the app (see signals.py
+    in this app, borrowd_groups, and borrowd_users/services.py): an Item
+    goes to its detail page, a Membership or BorrowdGroup to the group's
+    detail page.
+    """
+    action_object = notification.action_object
+    if isinstance(action_object, Item):
+        # A soft-deleted item's detail page 404s (ItemDetailView uses the
+        # default active-only manager). item_card.html already treats
+        # `is_removed` items as non-clickable elsewhere in the app
+        # (pointer-events-none); match that instead of linking to a dead page.
+        if action_object.deleted_at is not None:
+            return None
+        return reverse("item-detail", kwargs={"pk": action_object.pk})
+    if isinstance(action_object, Membership):
+        return reverse(
+            "borrowd_groups:group-detail", kwargs={"pk": action_object.group_id}
+        )
+    if isinstance(action_object, BorrowdGroup):
+        return reverse("borrowd_groups:group-detail", kwargs={"pk": action_object.pk})
+    return None
+
+
+def _annotate_for_display(notifications: Iterable[Notification]) -> None:
+    """Sets display-only fields (not persisted) read by the notification card partial."""
+    relative_timestamp_cutoff = timezone.now() - _RELATIVE_TIMESTAMP_MAX_AGE
+    for notification in notifications:
+        message_template, message_context = _notification_message_template_and_context(
+            notification
+        )
+        notification.message_template = message_template
+        notification.message_context = message_context
+        notification.message_parts = _notification_message_parts(
+            message_template, message_context, str(notification.verb)
+        )
+
+        try:
+            notification_type = NotificationType(notification.verb)
+        except ValueError:
+            notification.category = "Borrowd"
+            notification.title = "Notification"
+        else:
+            cat = _get_notification_category(notification_type)
+            if cat:
+                notification.category = cat["notification_category"]
+                notification.title = cat["notification_title"]
+            else:
+                notification.category = "Borrowd"
+                notification.title = "Notification"
+
+        notification.show_absolute_timestamp = (
+            notification.timestamp <= relative_timestamp_cutoff
+        )
+        notification.action_url = _notification_action_url(notification)
 
 
 @login_required
@@ -300,22 +422,29 @@ def notification_inbox_view(request: HttpRequest) -> HttpResponse:
     paginator = Paginator(qs, _INBOX_PAGE_SIZE)
     page_obj = paginator.get_page(request.GET.get("page", 1))
 
-    relative_timestamp_cutoff = timezone.now() - _RELATIVE_TIMESTAMP_MAX_AGE
-    for notification in page_obj:
-        notification.formatted_message = _format_notification(notification)
-        notification.show_absolute_timestamp = (
-            notification.timestamp <= relative_timestamp_cutoff
-        )
+    _annotate_for_display(page_obj)
 
+    # unread_count comes from the unread_notification_count context
+    # processor (borrowd_notifications/context_processors.py), which every
+    # authenticated page already computes for the header bell — no need to
+    # run the same count query again here.
     return render(
         request,
         "notifications/inbox.html",
-        {
-            "page_obj": page_obj,
-            # notifications is untyped (see mypy.ini): unread() manager method is invisible.
-            "unread_count": qs.unread().count(),  # type: ignore[attr-defined]
-        },
+        {"page_obj": page_obj},
     )
+
+
+def _redirect_to_caller(request: HttpRequest) -> HttpResponse:
+    """Sends the user back to wherever they submitted the form from (the
+    inbox page or the header's notification popup), rather than always
+    landing on the inbox.
+    """
+    fallback_url = reverse("notification-inbox")
+    referer = request.META.get("HTTP_REFERER", "")
+    if referer and is_safe_back_url(referer, request):
+        return redirect(referer)
+    return redirect(fallback_url)
 
 
 @login_required
@@ -328,7 +457,30 @@ def mark_notification_read(request: HttpRequest, pk: int) -> HttpResponse:
         borrowd_metadata__visible_in_app=True,
     )
     notification.mark_as_read()
-    return redirect("notification-inbox")
+    return _redirect_to_caller(request)
+
+
+@login_required
+@require_POST
+def open_notification(request: HttpRequest, pk: int) -> HttpResponse:
+    """Marks a notification read and sends the user to the page it's about
+    (see _notification_action_url); falls back to the inbox if it has
+    nothing to link to.
+
+    POST rather than GET: marking read is a state change, and a bare GET
+    link has no CSRF protection, so any cross-site request (an <img> tag,
+    a prefetched link) could silently mark a guessed notification pk as
+    read. A form matches the other per-notification actions in this card.
+    """
+    notification = get_object_or_404(
+        Notification,
+        pk=pk,
+        recipient=request.user,
+        borrowd_metadata__visible_in_app=True,
+    )
+    notification.mark_as_read()
+    action_url = _notification_action_url(notification)
+    return redirect(action_url or reverse("notification-inbox"))
 
 
 @login_required
@@ -337,7 +489,7 @@ def mark_all_notifications_read(request: HttpRequest) -> HttpResponse:
     user = get_authenticated_user(request)
     # notifications is untyped (see mypy.ini): user.notifications is invisible to mypy.
     app_channel_qs(user.notifications.all()).update(unread=False)  # type: ignore[attr-defined]
-    return redirect("notification-inbox")
+    return _redirect_to_caller(request)
 
 
 def delete_app_notification(notification: Notification) -> None:
@@ -360,7 +512,7 @@ def remove_app_notification(request: HttpRequest, pk: int) -> HttpResponse:
     )
 
     delete_app_notification(notification=notification)
-    return redirect("notification-inbox")
+    return _redirect_to_caller(request)
 
 
 @login_required
@@ -375,3 +527,31 @@ def remove_all_app_notifications(request: HttpRequest) -> HttpResponse:
         visible_in_app=True,
     ).update(visible_in_app=False)
     return redirect("notification-inbox")
+
+
+_POPUP_NOTIFICATION_LIMIT = 5
+
+
+@login_required
+@require_GET
+def notification_popup_view(request: HttpRequest) -> HttpResponse:
+    user = get_authenticated_user(request)
+
+    # notifications is untyped (see mypy.ini): user.notifications is invisible to mypy.
+    qs: QuerySet[Notification] = app_channel_qs(
+        user.notifications.all()  # type: ignore[attr-defined]
+    )
+
+    notifications = qs.order_by("-timestamp")[:_POPUP_NOTIFICATION_LIMIT]
+
+    _annotate_for_display(notifications)
+
+    # unread_count comes from the unread_notification_count context
+    # processor (borrowd_notifications/context_processors.py), which every
+    # authenticated page already computes for the header bell — no need to
+    # run the same count query again here.
+    return render(
+        request,
+        "notifications/popup.html",
+        {"notifications": notifications},
+    )

@@ -39,6 +39,7 @@ from .models import (
     NotificationType,
     PushSubscription,
 )
+from .views import _notification_action_url
 
 
 class GroupMemberJoinedNotificationTests(TestCase):
@@ -2386,3 +2387,106 @@ class PUSHNotificationStrategyTests(TransactionTestCase):
         self.assertEqual(
             payload.data.channels[ChannelType.PUSH].status, NotificationState.ERROR
         )
+
+
+class NotificationActionUrlTests(TestCase):
+    """Guards _notification_action_url's dispatch on action_object type.
+
+    Every notify.send() call across the app (borrowd_notifications,
+    borrowd_groups, and borrowd_users/services.py) sets action_object to an
+    Item, a Membership, or a BorrowdGroup. If a future call site sets some
+    other type without _notification_action_url being updated to match, the
+    resulting notification silently renders as a non-clickable card with no
+    error anywhere -- these tests fail loudly instead.
+    """
+
+    def setUp(self) -> None:
+        self.user = BorrowdUser.objects.create_user(
+            username="user", email="user@example.com", password="password"
+        )
+        self.group = BorrowdGroup.objects.create_group(
+            name="Test Group", created_by=self.user, updated_by=self.user
+        )
+        self.item = Item.objects.create(
+            name="Drill",
+            owner=self.user,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+    def _notification_for(self, action_object: Any) -> Notification:
+        from notifications.signals import notify
+
+        notify.send(
+            self.user,
+            recipient=[self.user],
+            verb=NotificationType.ITEM_REQUESTED.value,
+            action_object=action_object,
+            description="test",
+        )
+        return Notification.objects.filter(recipient=self.user).latest("timestamp")
+
+    def test_item_action_object_resolves_to_item_detail(self) -> None:
+        notification = self._notification_for(self.item)
+        self.assertEqual(
+            _notification_action_url(notification), f"/items/{self.item.pk}/"
+        )
+
+    def test_soft_deleted_item_action_object_resolves_to_no_link(self) -> None:
+        """ItemDetailView's default manager excludes soft-deleted items, so
+        linking there would 404. item_card.html already treats a removed
+        item as non-clickable (pointer-events-none) elsewhere in the app;
+        match that instead of producing a dead link."""
+        self.item.deleted_at = timezone.now()
+        self.item.save(update_fields=["deleted_at"])
+        notification = self._notification_for(self.item)
+        self.assertIsNone(_notification_action_url(notification))
+
+    def test_membership_action_object_resolves_to_group_detail(self) -> None:
+        membership = Membership.objects.get(user=self.user, group=self.group)
+        notification = self._notification_for(membership)
+        self.assertEqual(
+            _notification_action_url(notification), f"/groups/{self.group.pk}/"
+        )
+
+    def test_group_action_object_resolves_to_group_detail(self) -> None:
+        """Regression test: GROUP_NEEDS_MODERATOR (borrowd_groups/signals.py)
+        sets action_object=group directly, not a Membership."""
+        notification = self._notification_for(self.group)
+        self.assertEqual(
+            _notification_action_url(notification), f"/groups/{self.group.pk}/"
+        )
+
+    def test_unrecognized_action_object_resolves_to_no_link(self) -> None:
+        """A recipient user (or any other model) as action_object has no
+        known destination -- this is the expected safe fallback, not a bug."""
+        notification = self._notification_for(self.user)
+        self.assertIsNone(_notification_action_url(notification))
+
+
+class GroupNeedsModeratorNotificationLinkTests(TestCase):
+    """End-to-end regression test for the real GROUP_NEEDS_MODERATOR gap:
+    the last moderator leaving a group notifies remaining members with
+    action_object=group, which _notification_action_url must resolve."""
+
+    def test_last_moderator_leaving_produces_a_clickable_notification(self) -> None:
+        creator = BorrowdUser.objects.create_user(
+            username="creator", email="creator@example.com", password="password"
+        )
+        member = BorrowdUser.objects.create_user(
+            username="member", email="member@example.com", password="password"
+        )
+        group = BorrowdGroup.objects.create_group(
+            name="Test Group",
+            created_by=creator,
+            updated_by=creator,
+            membership_requires_approval=False,
+        )
+        group.add_user(member)
+
+        group.remove_user(creator, bypass_last_moderator_check=True)
+
+        notification = Notification.objects.get(
+            recipient=member, verb=NotificationType.GROUP_NEEDS_MODERATOR.value
+        )
+        self.assertEqual(_notification_action_url(notification), f"/groups/{group.pk}/")
