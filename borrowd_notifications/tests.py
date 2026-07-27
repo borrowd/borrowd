@@ -1850,6 +1850,49 @@ class NotificationInboxViewTests(TestCase):
         self.assertTrue(hidden.unread)
 
 
+class NotificationPopupViewTests(TestCase):
+    """Tests for the header bell's dropdown popup."""
+
+    def setUp(self) -> None:
+        self.user = BorrowdUser.objects.create_user(
+            username="user", email="user@example.com", password="password"
+        )
+        self.client.force_login(self.user)
+
+    def _make_notification(self) -> Notification:
+        from notifications.signals import notify
+
+        notify.send(
+            self.user,
+            recipient=[self.user],
+            verb=NotificationType.ITEM_REQUESTED.value,
+            description="test",
+        )
+        n = Notification.objects.filter(recipient=self.user).latest("timestamp")
+        n.data = {
+            "context": {},
+            "icon": None,
+            "channels": {"APP": {"status": "SUCCESS", "error": None}},
+        }
+        n.unread = True
+        n.save()
+        NotificationMetadata.objects.update_or_create(
+            notification=n,
+            defaults={"visible_in_app": True},
+        )
+        return n
+
+    def test_popup_shows_up_to_ten_notifications(self) -> None:
+        """PRD AC 6.1: the dropdown shows the most recent 10 notifications."""
+        for _ in range(12):
+            self._make_notification()
+
+        response = self.client.get("/notifications/popup/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.context["notifications"]), 10)
+
+
 class NotificationDeleteTests(TestCase):
     """Tests for remove_app_notification and remove_all_app_notifications."""
 
@@ -2542,6 +2585,25 @@ class NotificationActionUrlTests(TestCase):
         self.assertEqual(
             _notification_action_url(notification), f"/groups/{self.group.pk}/"
         )
+
+    def test_soft_deleted_group_action_object_resolves_to_no_link(self) -> None:
+        """A soft-deleted group's detail page isn't guaranteed reachable, so
+        (matching the soft-deleted item case) the card should render
+        non-clickable rather than link to a group that may 404 or 403."""
+        self.group.deleted_at = timezone.now()
+        self.group.save(update_fields=["deleted_at"])
+        notification = self._notification_for(self.group)
+        self.assertIsNone(_notification_action_url(notification))
+
+    def test_membership_action_object_with_soft_deleted_group_resolves_to_no_link(
+        self,
+    ) -> None:
+        """Same soft-delete guard, one hop out via the membership's group."""
+        self.group.deleted_at = timezone.now()
+        self.group.save(update_fields=["deleted_at"])
+        membership = Membership.objects.get(user=self.user, group=self.group)
+        notification = self._notification_for(membership)
+        self.assertIsNone(_notification_action_url(notification))
 
     def test_unrecognized_action_object_resolves_to_no_link(self) -> None:
         """A recipient user (or any other model) as action_object has no

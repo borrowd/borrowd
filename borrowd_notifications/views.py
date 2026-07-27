@@ -446,10 +446,14 @@ def _notification_action_url(notification: Notification) -> str | None:
             return None
         return reverse("item-detail", kwargs={"pk": action_object.pk})
     if isinstance(action_object, Membership):
-        return reverse(
-            "borrowd_groups:group-detail", kwargs={"pk": action_object.group_id}
-        )
+        group = action_object.group
+        # Same soft-delete guard as above, one hop out via the membership.
+        if group.deleted_at is not None:
+            return None
+        return reverse("borrowd_groups:group-detail", kwargs={"pk": group.pk})
     if isinstance(action_object, BorrowdGroup):
+        if action_object.deleted_at is not None:
+            return None
         return reverse("borrowd_groups:group-detail", kwargs={"pk": action_object.pk})
     return None
 
@@ -675,7 +679,7 @@ def remove_all_app_notifications(request: HttpRequest) -> HttpResponse:
     return redirect("notification-inbox")
 
 
-_POPUP_NOTIFICATION_LIMIT = 5
+_POPUP_NOTIFICATION_LIMIT = 10
 
 
 @login_required
