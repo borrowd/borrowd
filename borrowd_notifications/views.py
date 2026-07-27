@@ -34,6 +34,7 @@ NOTIFICATION_CATEGORIES: list[dict[str, Any]] = [
     {
         "name": "Lending Lifecycle",
         "slug": "lending",
+        "icon": "arrows-right-left",
         "types": [
             (NotificationType.ITEM_REQUESTED, "Borrow request received"),
             (NotificationType.ITEM_REQUEST_ACCEPTED, "Request accepted"),
@@ -58,6 +59,7 @@ NOTIFICATION_CATEGORIES: list[dict[str, Any]] = [
     {
         "name": "Group & Membership",
         "slug": "membership",
+        "icon": "user-group",
         "types": [
             (
                 NotificationType.GROUP_MEMBER_JOINED,
@@ -71,6 +73,7 @@ NOTIFICATION_CATEGORIES: list[dict[str, Any]] = [
     {
         "name": "Item Availability",
         "slug": "availability",
+        "icon": "bell-alert",
         "types": [
             (NotificationType.ITEM_NOTIFY_WHEN_AVAILABLE, "Item now available"),
             (NotificationType.ITEM_SUBSCRIPTION, "Item subscription"),
@@ -79,6 +82,7 @@ NOTIFICATION_CATEGORIES: list[dict[str, Any]] = [
     {
         "name": "Ownership Transfer",
         "slug": "giveaway",
+        "icon": "gift",
         "types": [
             (NotificationType.GIVEAWAY_OFFER_SENT, "Giveaway offer received"),
             (NotificationType.GIVEAWAY_ACCEPTED, "Giveaway accepted"),
@@ -312,12 +316,19 @@ def app_channel_qs(qs: QuerySet[Notification]) -> QuerySet[Notification]:
 
     Also prefetches action_object (a GenericForeignKey, so a plain
     select_related/prefetch_related can't cover it): every notify.send()
-    call sets it to an Item or a Membership (see signals.py), and
-    _notification_action_url reads it for every row on the page, so
+    call sets it to an Item, Membership, or BorrowdGroup (see signals.py), and
+    display helpers read it for every row on the page, so
     without this each row costs its own query.
     """
     return qs.filter(borrowd_metadata__visible_in_app=True).prefetch_related(
-        GenericPrefetch("action_object", [Item.objects.all(), Membership.objects.all()])
+        GenericPrefetch(
+            "action_object",
+            [
+                Item.objects.prefetch_related("photos"),
+                Membership.objects.select_related("group", "user__profile"),
+                BorrowdGroup.objects.all(),
+            ],
+        )
     )
 
 
@@ -379,15 +390,42 @@ def _notification_message_parts(
 
 def _get_notification_category(
     notification_type: NotificationType,
-) -> dict[str, Any] | None:
+) -> tuple[str | None, str | None]:
     """Finds the NOTIFICATION_CATEGORIES entry a notification type belongs
     to, returning its display title and category dict, or None if the
     type isn't registered in any category.
     """
     for cat in NOTIFICATION_CATEGORIES:
-        for ntype, type_des in cat["types"]:
+        for ntype, title in cat["types"]:
             if ntype == notification_type:
-                return {"notification_title": type_des, "notification_category": cat}
+                try:
+                    return (str(title), str(cat["slug"]))
+                except ValueError:
+                    return (None, None)
+    return (None, None)
+
+
+def _get_category_icon(slug: str | None) -> str | None:
+    """Returns the heroicon name (see `templates/notifications/preferences.html`
+    and `{% heroicon_outline %}`) for a NOTIFICATION_CATEGORIES slug, or
+    None if no category has that slug.
+    """
+
+    if not slug:
+        return None
+
+    for cat in NOTIFICATION_CATEGORIES:
+        if cat["slug"] == slug:
+            return str(cat["icon"])
+    return None
+
+
+def _notification_action_object(
+    notification: Notification,
+) -> Item | Membership | BorrowdGroup | None:
+    action_object = notification.action_object
+    if isinstance(action_object, (Item, Membership, BorrowdGroup)):
+        return action_object
     return None
 
 
@@ -398,7 +436,7 @@ def _notification_action_url(notification: Notification) -> str | None:
     goes to its detail page, a Membership or BorrowdGroup to the group's
     detail page.
     """
-    action_object = notification.action_object
+    action_object = _notification_action_object(notification)
     if isinstance(action_object, Item):
         # A soft-deleted item's detail page 404s (ItemDetailView uses the
         # default active-only manager). item_card.html already treats
@@ -413,6 +451,49 @@ def _notification_action_url(notification: Notification) -> str | None:
         )
     if isinstance(action_object, BorrowdGroup):
         return reverse("borrowd_groups:group-detail", kwargs={"pk": action_object.pk})
+    return None
+
+
+def _image_url(image: Any) -> str | None:
+    if not image:
+        return None
+    try:
+        return str(image.url)
+    except (FileNotFoundError, ValueError):
+        return None
+
+
+def _item_avatar_url(item: Item) -> str | None:
+    first_photo = item.photos.first()
+    if first_photo is None:
+        return None
+    return _image_url(first_photo.thumbnail)
+
+
+def _group_avatar_url(group: BorrowdGroup) -> str | None:
+    return _image_url(group.banner or group.logo)
+
+
+def _membership_avatar_url(
+    notification: Notification, membership: Membership
+) -> str | None:
+    if notification.verb in {
+        NotificationType.GROUP_MEMBER_JOINED.value,
+        NotificationType.MEMBERSHIP_PENDING.value,
+    }:
+        return _image_url(membership.user.profile.image)
+    return _group_avatar_url(membership.group)
+
+
+def _notification_avatar_content(notification: Notification) -> str | None:
+    """Resolves the image URL shown in a notification card."""
+    action_object = _notification_action_object(notification)
+    if isinstance(action_object, Item):
+        return _item_avatar_url(action_object)
+    if isinstance(action_object, Membership):
+        return _membership_avatar_url(notification, action_object)
+    if isinstance(action_object, BorrowdGroup):
+        return _group_avatar_url(action_object)
     return None
 
 
@@ -434,19 +515,22 @@ def _annotate_for_display(notifications: Iterable[Notification]) -> None:
         except ValueError:
             notification.category = "Borrowd"
             notification.title = "Notification"
-        else:
-            cat = _get_notification_category(notification_type)
-            if cat:
-                notification.category = cat["notification_category"]
-                notification.title = cat["notification_title"]
-            else:
-                notification.category = "Borrowd"
-                notification.title = "Notification"
+
+        notification_title, category = (None, None)
+        if notification_type:
+            notification_title, category = _get_notification_category(notification_type)
+
+        notification.title = (
+            notification_title if notification_title else "Notification"
+        )
+        notification.category = category if category else "borrowd"
 
         notification.show_absolute_timestamp = (
             notification.timestamp <= relative_timestamp_cutoff
         )
         notification.action_url = _notification_action_url(notification)
+        notification.avatar_content = _notification_avatar_content(notification)
+        notification.category_icon = _get_category_icon(category)
 
 
 @login_required
