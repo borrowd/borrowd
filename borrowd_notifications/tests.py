@@ -1936,8 +1936,13 @@ class NotificationDeleteTests(TestCase):
         self.assertIn("APP", (n.data or {}).get("channels", {}))
         self.assertFalse(n.unread)
 
-    def test_remove_notification_htmx_returns_empty_response(self) -> None:
-        """HTMX deletion removes the card without forcing a full-page redirect."""
+    def test_remove_notification_htmx_returns_oob_badge_update(self) -> None:
+        """HTMX deletion removes the card (an empty main swap, since there's
+        no notification content left to show) without forcing a full-page
+        redirect, and carries an out-of-band header badge update so the
+        unread count refreshes immediately instead of waiting for the next
+        30s poll.
+        """
         n = self._make_app_notification()
 
         response = self.client.post(
@@ -1946,7 +1951,9 @@ class NotificationDeleteTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.content, b"")
+        self.assertNotContains(response, f'id="notification-card-{n.pk}"')
+        self.assertContains(response, 'id="notification-indicator"')
+        self.assertContains(response, 'hx-swap-oob="true"')
         n.refresh_from_db()
         n.borrowd_metadata.refresh_from_db()
         self.assertFalse(n.borrowd_metadata.visible_in_app)

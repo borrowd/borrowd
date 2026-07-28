@@ -10,6 +10,7 @@ from django.core.paginator import Paginator
 from django.db.models import QuerySet
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_GET, require_POST
@@ -561,6 +562,19 @@ def notification_inbox_view(request: HttpRequest) -> HttpResponse:
     )
 
 
+def _render_notification_indicator_oob(request: HttpRequest) -> str:
+    """Renders the header bell's icon/badge as an out-of-band swap fragment
+    (see `templates/notifications/_notification_indicator_oob.html`), for
+    htmx action responses to append so the badge updates immediately
+    instead of waiting for the next 30s poll. The count itself comes from
+    the `unread_notification_count` context processor, so it's always
+    freshly queried rather than manually decremented.
+    """
+    return render_to_string(
+        "notifications/_notification_indicator_oob.html", request=request
+    )
+
+
 def _redirect_to_caller(request: HttpRequest) -> HttpResponse:
     """Sends the user back to wherever they submitted the form from (the
     inbox page or the header's notification popup), rather than always
@@ -577,8 +591,9 @@ def _redirect_to_caller(request: HttpRequest) -> HttpResponse:
 @require_POST
 def mark_notification_read(request: HttpRequest, pk: int) -> HttpResponse:
     """Marks a notification as read. For htmx requests, returns the
-    updated card partial so it can be swapped in place; otherwise redirects
-    back to wherever the form was submitted from.
+    updated card partial plus an out-of-band header badge update, so both
+    swap in place immediately; otherwise redirects back to wherever the
+    form was submitted from.
     """
     notification = get_object_or_404(
         Notification,
@@ -589,11 +604,12 @@ def mark_notification_read(request: HttpRequest, pk: int) -> HttpResponse:
     notification.mark_as_read()
     if request.headers.get("HX-Request") == "true":
         _annotate_for_display([notification])
-        return render(
-            request,
+        card_html = render_to_string(
             "notifications/_notification_card.html",
             {"notification": notification},
+            request=request,
         )
+        return HttpResponse(card_html + _render_notification_indicator_oob(request))
     return _redirect_to_caller(request)
 
 
@@ -646,8 +662,9 @@ def delete_app_notification(notification: Notification) -> None:
 @require_POST
 def remove_app_notification(request: HttpRequest, pk: int) -> HttpResponse:
     """Removes a single notification from the in-app inbox. For htmx
-    requests, returns an empty response so the card's outerHTML swap
-    deletes it in place; otherwise redirects back to the caller.
+    requests, returns an out-of-band header badge update with no other
+    content, so the card's outerHTML swap deletes it in place and the
+    badge updates immediately; otherwise redirects back to the caller.
     """
     notification = get_object_or_404(
         Notification,
@@ -658,7 +675,10 @@ def remove_app_notification(request: HttpRequest, pk: int) -> HttpResponse:
 
     delete_app_notification(notification=notification)
     if request.headers.get("HX-Request") == "true":
-        return HttpResponse("")
+        # No main content: the card's outerHTML target swaps to nothing
+        # (removing it), while the OOB fragment updates the badge in the
+        # same response.
+        return HttpResponse(_render_notification_indicator_oob(request))
     return _redirect_to_caller(request)
 
 
