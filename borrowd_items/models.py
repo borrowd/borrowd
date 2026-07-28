@@ -541,7 +541,7 @@ class Item(Model):
             # give it away.
             if self.owner == user:
                 return (
-                    ItemAction.MARK_RETURNED,
+                    ItemAction.CONFIRM_RETURNED,
                     ItemAction.REQUEST_RETURN,
                     ItemAction.OFFER_GIVEAWAY,
                 )
