@@ -514,14 +514,14 @@ def _annotate_for_display(notifications: Iterable[Notification]) -> None:
             message_template, message_context, str(notification.verb)
         )
 
+        notification_type: NotificationType | None = None
         try:
             notification_type = NotificationType(notification.verb)
         except ValueError:
-            notification.category = "Borrowd"
-            notification.title = "Notification"
+            pass
 
         notification_title, category = (None, None)
-        if notification_type:
+        if notification_type is not None:
             notification_title, category = _get_notification_category(notification_type)
 
         notification.title = (
