@@ -350,7 +350,7 @@ class LenderMarkReturnedClosesImmediatelyTest(ReturnFlowTestBase):
 
     def test_010_lender_marks_returned_closes_loan(self) -> None:
         """The lender's mark closes the transaction and frees the item."""
-        self.post_action(self.lender, ItemAction.MARK_RETURNED)
+        self.post_action(self.lender, ItemAction.CONFIRM_RETURNED)
         tx = self.current_tx()
         self.assertEqual(tx.status, TransactionStatus.RETURNED)
         self.item.refresh_from_db()
