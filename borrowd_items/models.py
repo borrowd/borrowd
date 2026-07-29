@@ -836,7 +836,10 @@ class Item(Model):
                         # The borrower's assertion still needs the lender's confirmation.
                         current_tx.status = TransactionStatus.RETURN_ASSERTED
                         current_tx.updated_by = user
-                        current_tx.save()
+                    # The borrower's assertion still needs the lender's confirmation.
+                    current_tx.status = TransactionStatus.RETURN_ASSERTED
+                    current_tx.updated_by = user
+                    current_tx.save()
                 case ItemAction.CONFIRM_RETURNED | ItemAction.RESOLVE_DISPUTE_RETURNED:
                     # The other party confirms return or lender resolved dispute happily
                     self.status = ItemStatus.AVAILABLE
