@@ -822,20 +822,6 @@ class Item(Model):
                     self.status = ItemStatus.BORROWED
                     self.save()
                 case ItemAction.MARK_RETURNED:
-                    if self.owner == user:
-                        # The lender has the item back in hand, which is
-                        # authoritative on its own -- close the loan out
-                        # immediately rather than waiting on the borrower
-                        # to confirm, so the lender can relist right away.
-                        self.status = ItemStatus.AVAILABLE
-                        self.save()
-                        current_tx.status = TransactionStatus.RETURNED
-                        current_tx.updated_by = user
-                        current_tx.save()
-                    else:
-                        # The borrower's assertion still needs the lender's confirmation.
-                        current_tx.status = TransactionStatus.RETURN_ASSERTED
-                        current_tx.updated_by = user
                     # The borrower's assertion still needs the lender's confirmation.
                     current_tx.status = TransactionStatus.RETURN_ASSERTED
                     current_tx.updated_by = user
