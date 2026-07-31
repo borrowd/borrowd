@@ -2,7 +2,8 @@
 
 {% if unread_notification_count %}
     {% heroicon_solid "bell" class="h-5 w-5" %}
-    <span id="nav-unread-count" class="indicator-item badge badge-primary badge-xs">
+    <span id="nav-unread-count"
+          class="indicator-item badge badge-primary badge-xs">
         {{ unread_notification_count }}
     </span>
 {% else %}
