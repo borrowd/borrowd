@@ -1,5 +1,6 @@
 from typing import Any
 
+from django.conf import settings
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from guardian.shortcuts import assign_perm
@@ -48,7 +49,13 @@ def sync_chat_thread_with_transaction(
     give a new one its thread,
     close everyone else's conversation once the item is spoken for,
     and archive or annotate the thread as the status moves on.
+
+    Gated on MESSAGING_ENABLED so transactions behave exactly as they did
+    before messaging existed while the feature is switched off.
     """
+    if not settings.MESSAGING_ENABLED:
+        return
+
     if created:
         MessagingService.attach_thread_to(instance)
         return

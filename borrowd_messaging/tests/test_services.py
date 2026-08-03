@@ -217,7 +217,11 @@ class AttachThreadToTransactionTests(MessagingTestCase):
         self.assertNotEqual(fresh.pk, thread.pk)
 
     @override_settings(MESSAGING_ENABLED=False)
-    def test_attaches_while_the_feature_flag_is_off(self) -> None:
+    def test_ignores_the_feature_flag(self) -> None:
+        """
+        The flag gates the lifecycle hook, not this call, so a backfill can
+        attach threads to existing transactions before the flag is flipped.
+        """
         transaction = self.make_transaction()
 
         thread = MessagingService.attach_thread_to(transaction)

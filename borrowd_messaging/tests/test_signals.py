@@ -22,12 +22,8 @@ class ChatThreadPermissionSignalTests(MessagingTestCase):
         self.assertFalse(outsider.has_perm(ChatThreadOLP.VIEW, self.thread))
 
 
+@override_settings(MESSAGING_ENABLED=True)
 class TransactionLifecycleTests(MessagingTestCase):
-    """
-    Deliberately runs with MESSAGING_ENABLED off, since threads must stay in
-    step with transactions whether or not the feature is switched on.
-    """
-
     def test_a_new_transaction_gets_a_thread(self) -> None:
         transaction = self.make_transaction()
 
@@ -133,7 +129,6 @@ class TransactionLifecycleTests(MessagingTestCase):
         self.assertFalse(thread.is_archived)
         self.assertEqual(thread.messages.count(), 0)
 
-    @override_settings(MESSAGING_ENABLED=True)
     def test_a_dispute_warns_both_parties_but_keeps_the_thread_open(self) -> None:
         transaction = self.make_transaction()
         transaction.status = TransactionStatus.DISPUTED
@@ -155,3 +150,35 @@ class TransactionLifecycleTests(MessagingTestCase):
 
         thread = ChatThread.objects.get(transaction=transaction)
         self.assertEqual(thread.messages.count(), 1)
+
+
+@override_settings(MESSAGING_ENABLED=False)
+class TransactionsAreUntouchedWhileTheFeatureFlagIsOffTests(MessagingTestCase):
+    """
+    With the flag off, transactions must behave exactly as they did before
+    messaging existed: no threads, no system messages, nothing to PROTECT
+    a transaction from being deleted.
+    """
+
+    def test_a_new_transaction_gets_no_thread(self) -> None:
+        transaction = self.make_transaction()
+
+        self.assertFalse(ChatThread.objects.filter(transaction=transaction).exists())
+
+    def test_a_terminal_status_archives_nothing(self) -> None:
+        onlooker_thread = self.make_thread(borrower=self.make_user("onlooker"))
+        transaction = self.make_transaction()
+
+        transaction.status = TransactionStatus.RETURNED
+        transaction.save()
+
+        onlooker_thread.refresh_from_db()
+        self.assertFalse(onlooker_thread.is_archived)
+        self.assertEqual(onlooker_thread.messages.count(), 0)
+
+    def test_a_transaction_can_still_be_destroyed(self) -> None:
+        transaction = self.make_transaction()
+
+        transaction.delete()
+
+        self.assertFalse(Transaction.objects.filter(pk=transaction.pk).exists())
