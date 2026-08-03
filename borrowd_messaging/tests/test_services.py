@@ -1,36 +1,35 @@
+from unittest.mock import patch
+
 from django.core.exceptions import PermissionDenied
 from django.test import TestCase, override_settings
 from django.utils import timezone
 from guardian.shortcuts import assign_perm
 
-from borrowd_items.models import Item, ItemStatus
-from borrowd_messaging.exceptions import MessagingDisabled, PreRequestChatUnavailable
+from borrowd_items.models import ItemStatus
+from borrowd_messaging.exceptions import (
+    MessagingDisabled,
+    NotThreadParticipant,
+    PreRequestChatUnavailable,
+    ThreadNotWritable,
+)
 from borrowd_messaging.models import ArchiveReason, ChatThread
-from borrowd_messaging.services import MessagingService
+from borrowd_messaging.services import _ARCHIVE_MESSAGES, MessagingService
+from borrowd_messaging.tests.base import MessagingTestCase
 from borrowd_permissions.models import ItemOLP
 from borrowd_users.models import BorrowdUser
+from borrowd_users.system import get_system_user
+
+
+class ArchiveMessageCopyTests(TestCase):
+    def test_every_archive_reason_has_copy(self) -> None:
+        for reason in ArchiveReason:
+            self.assertIn(reason, _ARCHIVE_MESSAGES)
 
 
 @override_settings(MESSAGING_ENABLED=True)
-class GetOrCreatePreRequestThreadTests(TestCase):
+class GetOrCreatePreRequestThreadTests(MessagingTestCase):
     def setUp(self) -> None:
-        self.lender = BorrowdUser.objects.create_user(
-            username="lender",
-            email="lender@example.com",
-            password="password",
-        )
-        self.borrower = BorrowdUser.objects.create_user(
-            username="borrower",
-            email="borrower@example.com",
-            password="password",
-        )
-        self.item = Item.objects.create(
-            name="Drill",
-            description="A drill",
-            owner=self.lender,
-            created_by=self.lender,
-            updated_by=self.lender,
-        )
+        super().setUp()
         assign_perm(ItemOLP.VIEW, self.borrower, self.item)
 
     def test_creates_a_thread_for_an_eligible_borrower(self) -> None:
@@ -74,11 +73,7 @@ class GetOrCreatePreRequestThreadTests(TestCase):
             MessagingService.get_or_create_prerequest_thread(self.lender, self.item)
 
     def test_user_without_item_view_permission_is_refused(self) -> None:
-        stranger = BorrowdUser.objects.create_user(
-            username="stranger",
-            email="stranger@example.com",
-            password="password",
-        )
+        stranger = self.make_user("stranger")
 
         with self.assertRaises(PermissionDenied):
             MessagingService.get_or_create_prerequest_thread(stranger, self.item)
@@ -102,3 +97,237 @@ class GetOrCreatePreRequestThreadTests(TestCase):
     def test_refused_while_the_feature_flag_is_off(self) -> None:
         with self.assertRaises(MessagingDisabled):
             MessagingService.get_or_create_prerequest_thread(self.borrower, self.item)
+
+
+@override_settings(MESSAGING_ENABLED=True)
+class SendMessageTests(MessagingTestCase):
+    def setUp(self) -> None:
+        super().setUp()
+        self.thread = self.make_thread()
+
+    def test_stores_a_message_from_either_party(self) -> None:
+        from_borrower = MessagingService.send_message(
+            self.thread, self.borrower, "Is this available?"
+        )
+        from_lender = MessagingService.send_message(self.thread, self.lender, "It is.")
+
+        self.assertEqual(from_borrower.sender, self.borrower)
+        self.assertEqual(from_lender.sender, self.lender)
+        self.assertFalse(from_borrower.is_system)
+        self.assertEqual(
+            list(self.thread.messages.order_by("id")),
+            [from_borrower, from_lender],
+        )
+
+    def test_strips_surrounding_whitespace(self) -> None:
+        message = MessagingService.send_message(self.thread, self.borrower, "  hello  ")
+
+        self.assertEqual(message.body, "hello")
+
+    def test_rejects_a_blank_body(self) -> None:
+        with self.assertRaises(ValueError):
+            MessagingService.send_message(self.thread, self.borrower, "   ")
+
+    def test_rejects_a_non_participant(self) -> None:
+        outsider = self.make_user("outsider")
+
+        with self.assertRaises(NotThreadParticipant):
+            MessagingService.send_message(self.thread, outsider, "hello")
+
+    def test_rejects_an_archived_thread(self) -> None:
+        self.thread.archived_at = timezone.now()
+        self.thread.archive_reason = ArchiveReason.RETURNED
+        self.thread.save(update_fields=["archived_at", "archive_reason"])
+
+        with self.assertRaises(ThreadNotWritable):
+            MessagingService.send_message(self.thread, self.borrower, "hello")
+
+    @override_settings(MESSAGING_ENABLED=False)
+    def test_refused_while_the_feature_flag_is_off(self) -> None:
+        with self.assertRaises(MessagingDisabled):
+            MessagingService.send_message(self.thread, self.borrower, "hello")
+
+    def test_hands_every_stored_message_to_dispatch(self) -> None:
+        with patch.object(MessagingService, "_dispatch") as dispatch:
+            message = MessagingService.send_message(self.thread, self.borrower, "hello")
+
+        dispatch.assert_called_once_with(message)
+
+
+@override_settings(MESSAGING_ENABLED=True)
+class AttachThreadToTransactionTests(MessagingTestCase):
+    def test_carries_an_existing_conversation_forward(self) -> None:
+        thread = self.make_thread()
+        message = MessagingService.send_message(
+            thread, self.borrower, "Is this available?"
+        )
+
+        attached = MessagingService.attach_thread_to(self.make_transaction())
+
+        self.assertEqual(attached.pk, thread.pk)
+        self.assertEqual(ChatThread.objects.count(), 1)
+        self.assertEqual(list(attached.messages.order_by("id")), [message])
+
+    def test_creates_a_thread_when_there_was_no_conversation(self) -> None:
+        transaction = self.make_transaction()
+
+        thread = MessagingService.attach_thread_to(transaction)
+
+        self.assertEqual(thread.transaction, transaction)
+        self.assertEqual(thread.lender, self.lender)
+        self.assertEqual(thread.borrower, self.borrower)
+        self.assertEqual(thread.item, self.item)
+
+    def test_is_idempotent(self) -> None:
+        transaction = self.make_transaction()
+
+        first = MessagingService.attach_thread_to(transaction)
+        second = MessagingService.attach_thread_to(transaction)
+
+        self.assertEqual(first.pk, second.pk)
+        self.assertEqual(ChatThread.objects.count(), 1)
+
+    def test_ignores_another_borrowers_conversation(self) -> None:
+        other_borrower = self.make_user("other")
+        other_thread = self.make_thread(borrower=other_borrower)
+
+        attached = MessagingService.attach_thread_to(self.make_transaction())
+
+        self.assertNotEqual(attached.pk, other_thread.pk)
+        other_thread.refresh_from_db()
+        self.assertIsNone(other_thread.transaction)
+
+    def test_ignores_an_archived_conversation(self) -> None:
+        thread = self.make_thread()
+        MessagingService.close_prerequest_thread(thread, self.borrower)
+
+        attached = MessagingService.attach_thread_to(self.make_transaction())
+
+        self.assertNotEqual(attached.pk, thread.pk)
+
+    def test_frees_the_borrower_to_open_a_new_conversation(self) -> None:
+        assign_perm(ItemOLP.VIEW, self.borrower, self.item)
+        thread = self.make_thread()
+        MessagingService.attach_thread_to(self.make_transaction())
+
+        fresh = MessagingService.get_or_create_prerequest_thread(
+            self.borrower, self.item
+        )
+
+        self.assertNotEqual(fresh.pk, thread.pk)
+
+    @override_settings(MESSAGING_ENABLED=False)
+    def test_attaches_while_the_feature_flag_is_off(self) -> None:
+        transaction = self.make_transaction()
+
+        thread = MessagingService.attach_thread_to(transaction)
+
+        self.assertEqual(thread.transaction, transaction)
+
+
+@override_settings(MESSAGING_ENABLED=True)
+class ThreadArchivalTests(MessagingTestCase):
+    def setUp(self) -> None:
+        super().setUp()
+        self.thread = self.make_thread()
+
+    def last_message_body(self, thread: ChatThread) -> str:
+        message = thread.messages.order_by("id").last()
+        assert message is not None
+        return message.body
+
+    def test_system_messages_come_from_the_system_user(self) -> None:
+        message = MessagingService.post_system_message(
+            self.thread, "Something happened."
+        )
+
+        self.assertEqual(message.sender, get_system_user())
+        self.assertTrue(message.is_system)
+        self.assertEqual(message.body, "Something happened.")
+
+    def test_archiving_locks_the_thread_and_explains_why(self) -> None:
+        MessagingService.archive_thread(self.thread, ArchiveReason.RETURNED)
+        self.thread.refresh_from_db()
+
+        self.assertTrue(self.thread.is_archived)
+        self.assertEqual(self.thread.archive_reason, ArchiveReason.RETURNED)
+        self.assertEqual(self.thread.updated_by, get_system_user())
+        self.assertEqual(
+            self.last_message_body(self.thread),
+            _ARCHIVE_MESSAGES[ArchiveReason.RETURNED],
+        )
+
+    def test_archiving_twice_posts_one_notice(self) -> None:
+        MessagingService.archive_thread(self.thread, ArchiveReason.RETURNED)
+        MessagingService.archive_thread(self.thread, ArchiveReason.CANCELLED)
+        self.thread.refresh_from_db()
+
+        self.assertEqual(self.thread.archive_reason, ArchiveReason.RETURNED)
+        self.assertEqual(self.thread.messages.count(), 1)
+
+    def test_archiving_accepts_alternate_copy(self) -> None:
+        MessagingService.archive_thread(
+            self.thread,
+            ArchiveReason.OWNERSHIP_TRANSFERRED,
+            message="This item is no longer available. Chat is now archived.",
+        )
+
+        self.assertEqual(
+            self.last_message_body(self.thread),
+            "This item is no longer available. Chat is now archived.",
+        )
+
+    def test_either_party_can_close_a_prerequest_thread(self) -> None:
+        MessagingService.close_prerequest_thread(self.thread, self.lender)
+        self.thread.refresh_from_db()
+
+        self.assertEqual(self.thread.archive_reason, ArchiveReason.CLOSED)
+        self.assertEqual(self.thread.updated_by, self.lender)
+        self.assertEqual(
+            self.last_message_body(self.thread),
+            _ARCHIVE_MESSAGES[ArchiveReason.CLOSED],
+        )
+
+    def test_outsiders_cannot_close_a_thread(self) -> None:
+        outsider = self.make_user("outsider")
+
+        with self.assertRaises(NotThreadParticipant):
+            MessagingService.close_prerequest_thread(self.thread, outsider)
+
+    def test_threads_with_a_transaction_cannot_be_closed(self) -> None:
+        self.thread.transaction = self.make_transaction()
+        self.thread.save(update_fields=["transaction"])
+
+        with self.assertRaises(PermissionDenied):
+            MessagingService.close_prerequest_thread(self.thread, self.borrower)
+
+    def test_archives_every_open_conversation_about_an_item(self) -> None:
+        other_borrower: BorrowdUser = self.make_user("other")
+        other_thread = self.make_thread(borrower=other_borrower)
+
+        MessagingService.archive_prerequest_threads_for_item(
+            self.item, ArchiveReason.ITEM_UNAVAILABLE
+        )
+
+        for thread in (self.thread, other_thread):
+            thread.refresh_from_db()
+            self.assertEqual(thread.archive_reason, ArchiveReason.ITEM_UNAVAILABLE)
+
+    def test_leaves_conversations_that_have_a_transaction(self) -> None:
+        self.thread.transaction = self.make_transaction()
+        self.thread.save(update_fields=["transaction"])
+
+        MessagingService.archive_prerequest_threads_for_item(
+            self.item, ArchiveReason.ITEM_UNAVAILABLE
+        )
+
+        self.thread.refresh_from_db()
+        self.assertFalse(self.thread.is_archived)
+
+    @override_settings(MESSAGING_ENABLED=False)
+    def test_archival_works_while_the_feature_flag_is_off(self) -> None:
+        MessagingService.archive_thread(self.thread, ArchiveReason.RETURNED)
+        self.thread.refresh_from_db()
+
+        self.assertTrue(self.thread.is_archived)
+        self.assertEqual(self.thread.messages.count(), 1)
