@@ -351,6 +351,11 @@ class ThreadArchivalTests(MessagingTestCase):
             thread.refresh_from_db()
             self.assertEqual(thread.archive_reason, ArchiveReason.ITEM_UNAVAILABLE)
 
+    def test_archiving_looks_the_system_user_up_once(self) -> None:
+        # system user lookup, thread update, message insert
+        with self.assertNumQueries(3):
+            MessagingService.archive_thread(self.thread, ArchiveReason.RETURNED)
+
     def test_leaves_conversations_that_have_a_transaction(self) -> None:
         self.thread.transaction = self.make_transaction()
         self.thread.save(update_fields=["transaction"])

@@ -157,13 +157,16 @@ class MessagingService:
         )
 
     @classmethod
-    def post_system_message(cls, thread: ChatThread, body: str) -> Message:
+    def post_system_message(
+        cls, thread: ChatThread, body: str, sender: BorrowdUser | None = None
+    ) -> Message:
         """
-        Write a message from the system user.
+        Write a message from the system user. Pass `sender` to reuse an
+        already-fetched system user.
         """
         message = Message.objects.create(
             thread=thread,
-            sender=get_system_user(),
+            sender=sender or get_system_user(),
             is_system=True,
             body=body,
         )
@@ -195,13 +198,16 @@ class MessagingService:
         if thread.is_archived:
             return
 
+        system_user = get_system_user()
         thread.archived_at = timezone.now()
         thread.archive_reason = reason
-        thread.updated_by = actor or get_system_user()
+        thread.updated_by = actor or system_user
         thread.save(
             update_fields=["archived_at", "archive_reason", "updated_by", "updated_at"]
         )
-        cls.post_system_message(thread, message or _ARCHIVE_MESSAGES[reason])
+        cls.post_system_message(
+            thread, message or _ARCHIVE_MESSAGES[reason], sender=system_user
+        )
 
     @classmethod
     def archive_prerequest_threads_for_item(
