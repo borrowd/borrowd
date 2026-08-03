@@ -230,7 +230,7 @@ class MessagingService:
         cls, thread: ChatThread, closed_by: BorrowdUser
     ) -> None:
         """
-        End a pre-request chat that never became a request. Either party may do this;
+        End a pre-request chat that never became a request. Either party may do this.
         """
         if closed_by.pk not in (thread.lender_id, thread.borrower_id):
             raise NotThreadParticipant(
@@ -238,6 +238,8 @@ class MessagingService:
             )
         if thread.transaction_id is not None:
             raise PermissionDenied("Only pre-request conversations can be closed.")
+        if thread.is_archived:
+            raise ThreadNotWritable(f"ChatThread {thread.pk} is already archived.")
 
         cls.archive_thread(thread, ArchiveReason.CLOSED, actor=closed_by)
 

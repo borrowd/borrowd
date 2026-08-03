@@ -333,6 +333,12 @@ class ThreadArchivalTests(MessagingTestCase):
             _ARCHIVE_MESSAGES[ArchiveReason.CLOSED],
         )
 
+    def test_closing_an_already_archived_thread_is_refused(self) -> None:
+        MessagingService.close_prerequest_thread(self.thread, self.borrower)
+
+        with self.assertRaises(ThreadNotWritable):
+            MessagingService.close_prerequest_thread(self.thread, self.lender)
+
     def test_outsiders_cannot_close_a_thread(self) -> None:
         outsider = self.make_user("outsider")
 
