@@ -75,6 +75,13 @@ class Profile(models.Model):
         blank=True,
     )
     bio = models.CharField(max_length=200, blank=True, default="")
+    allow_pre_request_chat = models.BooleanField(
+        default=True,
+        help_text=(
+            "Whether other users can message this user about their items"
+            " before making a request."
+        ),
+    )
     created_by = ForeignKey(
         BorrowdUser,
         related_name="+",  # No reverse relation needed
