@@ -176,6 +176,9 @@ class MessagingService:
         Nudge both parties toward civility. The thread stays writable so they
         can still work the dispute out between themselves.
         """
+        existing = thread.messages.filter(is_system=True, body=_DISPUTE_NOTICE).first()
+        if existing is not None:
+            return existing
         return cls.post_system_message(thread, _DISPUTE_NOTICE)
 
     @classmethod

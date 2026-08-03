@@ -142,6 +142,15 @@ class TransactionLifecycleTests(MessagingTestCase):
         self.assertIn("dispute has been raised", last_message.body)
         MessagingService.send_message(thread, self.borrower, "Let's sort this out.")
 
+    def test_re_saving_a_disputed_transaction_posts_one_notice(self) -> None:
+        transaction = self.make_transaction()
+        transaction.status = TransactionStatus.DISPUTED
+        transaction.save()
+        transaction.save()
+
+        thread = ChatThread.objects.get(transaction=transaction)
+        self.assertEqual(thread.messages.count(), 1)
+
     def test_re_saving_a_terminal_transaction_posts_one_notice(self) -> None:
         transaction = self.make_transaction()
         transaction.status = TransactionStatus.RETURNED

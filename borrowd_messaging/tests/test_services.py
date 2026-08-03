@@ -288,6 +288,13 @@ class ThreadArchivalTests(MessagingTestCase):
             _ARCHIVE_MESSAGES[ArchiveReason.RETURNED],
         )
 
+    def test_the_dispute_notice_is_posted_once(self) -> None:
+        first = MessagingService.post_dispute_notice(self.thread)
+        second = MessagingService.post_dispute_notice(self.thread)
+
+        self.assertEqual(first.pk, second.pk)
+        self.assertEqual(self.thread.messages.count(), 1)
+
     def test_archiving_twice_posts_one_notice(self) -> None:
         MessagingService.archive_thread(self.thread, ArchiveReason.RETURNED)
         MessagingService.archive_thread(self.thread, ArchiveReason.CANCELLED)
