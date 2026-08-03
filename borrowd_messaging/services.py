@@ -67,7 +67,7 @@ class MessagingService:
             raise PermissionDenied("Owners cannot open a chat about their own item.")
         if not borrower.has_perm(ItemOLP.VIEW, item):
             raise PermissionDenied("Cannot open a chat about an unviewable item.")
-        if item.status != ItemStatus.AVAILABLE:
+        if item.deleted_at is not None or item.status != ItemStatus.AVAILABLE:
             raise PreRequestChatUnavailable("This item is not available.")
         if not item.owner.profile.allow_pre_request_chat:
             raise PreRequestChatUnavailable(

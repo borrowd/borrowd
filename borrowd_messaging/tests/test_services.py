@@ -90,6 +90,13 @@ class GetOrCreatePreRequestThreadTests(MessagingTestCase):
         with self.assertRaises(PreRequestChatUnavailable):
             MessagingService.get_or_create_prerequest_thread(self.borrower, self.item)
 
+    def test_soft_deleted_item_is_refused(self) -> None:
+        # soft_delete leaves status alone, so the AVAILABLE check misses this.
+        self.item.soft_delete(deleted_by=self.lender)
+
+        with self.assertRaises(PreRequestChatUnavailable):
+            MessagingService.get_or_create_prerequest_thread(self.borrower, self.item)
+
     def test_lender_can_turn_off_pre_request_chat(self) -> None:
         profile = self.lender.profile
         profile.allow_pre_request_chat = False
