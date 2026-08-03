@@ -49,8 +49,8 @@ class MessagingService:
         cls, borrower: BorrowdUser, item: Item
     ) -> ChatThread:
         """
-        Return the borrower's open pre-request thread for this item, creating
-        one if they have none.
+        Return the borrower's open pre-request thread for this item,
+        creating one if they have none.
         """
         if not settings.MESSAGING_ENABLED:
             raise MessagingDisabled("Messaging is not enabled.")
@@ -112,10 +112,9 @@ class MessagingService:
     @staticmethod
     def attach_thread_to(transaction: Transaction) -> ChatThread:
         """
-        Give a new Transaction its thread: the borrower's open pre-request
-        conversation if they have one, so it carries forward, otherwise a
-        fresh thread. Idempotent, and exempt from the feature flag so
-        transactions predating the messaging launch still get a thread.
+        Give a new Transaction its thread:
+        the open pre-request conversation if there is one,
+        otherwise a fresh thread.
         """
         existing = ChatThread.objects.filter(transaction=transaction).first()
         if existing is not None:
