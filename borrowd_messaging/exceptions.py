@@ -13,6 +13,12 @@ class MessagingDisabled(BorrowdException):
     pass
 
 
+class ThreadNotWritable(BorrowdException):
+    """Raised when a message is sent to an archived, read-only thread."""
+
+    pass
+
+
 class PreRequestChatUnavailable(BorrowdException):
     """
     Raised when a pre-request thread cannot be opened for an item, e.g. the

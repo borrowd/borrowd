@@ -7,8 +7,13 @@ from borrowd_items.models import Item, ItemStatus
 from borrowd_permissions.models import ItemOLP
 from borrowd_users.models import BorrowdUser
 
-from .exceptions import MessagingDisabled, PreRequestChatUnavailable
-from .models import ChatThread
+from .exceptions import (
+    MessagingDisabled,
+    NotThreadParticipant,
+    PreRequestChatUnavailable,
+    ThreadNotWritable,
+)
+from .models import ChatThread, Message
 
 
 class MessagingService:
@@ -63,3 +68,35 @@ class MessagingService:
             if thread is None:
                 raise
             return thread
+
+    @classmethod
+    def send_message(
+        cls, thread: ChatThread, sender: BorrowdUser, body: str
+    ) -> Message:
+        """
+        Write one message to a thread.
+        """
+        if not settings.MESSAGING_ENABLED:
+            raise MessagingDisabled("Messaging is not enabled.")
+        if sender.pk not in (thread.lender_id, thread.borrower_id):
+            raise NotThreadParticipant(
+                f"User {sender.pk} is not a participant of ChatThread {thread.pk}."
+            )
+        if thread.is_archived:
+            raise ThreadNotWritable(f"ChatThread {thread.pk} is archived.")
+
+        body = body.strip()
+        if not body:
+            raise ValueError("Message body cannot be empty.")
+
+        message = Message.objects.create(thread=thread, sender=sender, body=body)
+        cls._dispatch(message)
+        return message
+
+    @staticmethod
+    def _dispatch(message: Message) -> None:
+        """
+        TODO: this eventually will be where WS would come in.
+        A no-op currently.
+        """
+        return None
