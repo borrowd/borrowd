@@ -4,9 +4,12 @@ from django.db.models import (
     DO_NOTHING,
     PROTECT,
     SET_NULL,
+    BooleanField,
     CharField,
+    CheckConstraint,
     DateTimeField,
     ForeignKey,
+    Index,
     Model,
     OneToOneField,
     Q,
@@ -117,8 +120,8 @@ class ChatThread(Model):
 
     class Meta:
         constraints = [
-            # Rows leave this partial index once they gain a transaction or
-            # archive, so a pair can hold many historical threads.
+            # Rows leave this partial index once they gain a transaction or are archived
+            # See: https://docs.djangoproject.com/en/5.2/ref/models/constraints/#django.db.models.UniqueConstraint.condition
             UniqueConstraint(
                 fields=["borrower", "item"],
                 condition=Q(archived_at__isnull=True, transaction__isnull=True),
@@ -153,3 +156,52 @@ class ChatThread(Model):
         field = self._last_read_field_for(user)
         setattr(self, field, timezone.now())
         self.save(update_fields=[field, "updated_at"])
+
+
+class Message(Model):
+    """
+    A single message in a ChatThread.
+    Uneditable and undeletable, so there are no update or soft-delete fields;
+    `sender` serves as `created_by`.
+    """
+
+    thread = ForeignKey(
+        to=ChatThread,
+        on_delete=PROTECT,
+        related_name="messages",
+        help_text="The thread this message belongs to.",
+    )
+    # System messages should be sent by system user; borrowd_users.system.get_system_user()
+    sender = ForeignKey(
+        to=BorrowdUser,
+        on_delete=PROTECT,
+        related_name="+",  # No reverse relation needed
+        help_text="Who wrote the message. The system user for system messages.",
+    )
+    is_system = BooleanField(
+        default=False,
+        help_text="True for messages the app posts itself, e.g. archival notices.",
+    )
+    body = CharField(
+        max_length=2000,
+        help_text="The message text. Plain text only.",
+    )
+    created_at = DateTimeField(
+        auto_now_add=True,
+        help_text="When the message was sent.",
+    )
+
+    class Meta:
+        indexes = [
+            # For ordering within a thread and cursor pagination
+            Index(fields=["thread", "id"], name="msg_thread_cursor_idx"),
+        ]
+        constraints = [
+            CheckConstraint(
+                condition=~Q(body=""),
+                name="message_body_not_empty",
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"Message #{self.pk} in ChatThread #{self.thread_id}"
