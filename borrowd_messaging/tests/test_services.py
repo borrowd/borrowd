@@ -7,12 +7,17 @@ from guardian.shortcuts import assign_perm
 
 from borrowd_items.models import ItemStatus
 from borrowd_messaging.exceptions import (
+    InvalidMessageBody,
     MessagingDisabled,
     NotThreadParticipant,
     PreRequestChatUnavailable,
     ThreadNotWritable,
 )
-from borrowd_messaging.models import ArchiveReason, ChatThread
+from borrowd_messaging.models import (
+    MESSAGE_BODY_MAX_LENGTH,
+    ArchiveReason,
+    ChatThread,
+)
 from borrowd_messaging.services import _ARCHIVE_MESSAGES, MessagingService
 from borrowd_messaging.tests.base import MessagingTestCase
 from borrowd_permissions.models import ItemOLP
@@ -125,8 +130,30 @@ class SendMessageTests(MessagingTestCase):
         self.assertEqual(message.body, "hello")
 
     def test_rejects_a_blank_body(self) -> None:
-        with self.assertRaises(ValueError):
+        with self.assertRaises(InvalidMessageBody):
             MessagingService.send_message(self.thread, self.borrower, "   ")
+
+    def test_accepts_a_body_at_the_length_limit(self) -> None:
+        message = MessagingService.send_message(
+            self.thread, self.borrower, "a" * MESSAGE_BODY_MAX_LENGTH
+        )
+
+        self.assertEqual(len(message.body), MESSAGE_BODY_MAX_LENGTH)
+
+    def test_rejects_a_body_over_the_length_limit(self) -> None:
+        with self.assertRaises(InvalidMessageBody):
+            MessagingService.send_message(
+                self.thread, self.borrower, "a" * (MESSAGE_BODY_MAX_LENGTH + 1)
+            )
+
+    def test_measures_length_after_stripping(self) -> None:
+        body = "a" * MESSAGE_BODY_MAX_LENGTH
+
+        message = MessagingService.send_message(
+            self.thread, self.borrower, f"  {body}  "
+        )
+
+        self.assertEqual(message.body, body)
 
     def test_rejects_a_non_participant(self) -> None:
         outsider = self.make_user("outsider")

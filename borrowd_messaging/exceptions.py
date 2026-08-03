@@ -19,6 +19,12 @@ class ThreadNotWritable(BorrowdException):
     pass
 
 
+class InvalidMessageBody(BorrowdException):
+    """Raised when a message body is empty or longer than the column allows."""
+
+    pass
+
+
 class PreRequestChatUnavailable(BorrowdException):
     """
     Raised when a pre-request thread cannot be opened for an item, e.g. the

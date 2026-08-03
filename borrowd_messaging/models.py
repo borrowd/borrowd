@@ -159,6 +159,9 @@ class ChatThread(Model):
         self.save(update_fields=[field, "updated_at"])
 
 
+MESSAGE_BODY_MAX_LENGTH = 2000
+
+
 class Message(Model):
     """
     A single message in a ChatThread.
@@ -184,7 +187,7 @@ class Message(Model):
         help_text="True for messages the app posts itself, e.g. archival notices.",
     )
     body = CharField(
-        max_length=2000,
+        max_length=MESSAGE_BODY_MAX_LENGTH,
         help_text="The message text. Plain text only.",
     )
     created_at = DateTimeField(

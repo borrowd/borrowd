@@ -10,12 +10,13 @@ from borrowd_users.models import BorrowdUser
 from borrowd_users.system import get_system_user
 
 from .exceptions import (
+    InvalidMessageBody,
     MessagingDisabled,
     NotThreadParticipant,
     PreRequestChatUnavailable,
     ThreadNotWritable,
 )
-from .models import ArchiveReason, ChatThread, Message
+from .models import MESSAGE_BODY_MAX_LENGTH, ArchiveReason, ChatThread, Message
 
 _ARCHIVE_MESSAGES: dict[ArchiveReason, str] = {
     ArchiveReason.RETURNED: "This item has been returned. Chat is now archived.",
@@ -109,9 +110,15 @@ class MessagingService:
         if thread.is_archived:
             raise ThreadNotWritable(f"ChatThread {thread.pk} is archived.")
 
+        # Django only enforces max_length in forms, so an over-long body would
+        # reach Postgres as a DataError (and SQLite would take it silently).
         body = body.strip()
         if not body:
-            raise ValueError("Message body cannot be empty.")
+            raise InvalidMessageBody("Message body cannot be empty.")
+        if len(body) > MESSAGE_BODY_MAX_LENGTH:
+            raise InvalidMessageBody(
+                f"Message body cannot exceed {MESSAGE_BODY_MAX_LENGTH} characters."
+            )
 
         message = Message.objects.create(thread=thread, sender=sender, body=body)
         cls._dispatch(message)
