@@ -4,15 +4,14 @@ from borrowd_messaging.models import ChatThread
 
 def hard_delete_threads_and_transactions(item: Item) -> None:
     """
-    Destroy an item's chat threads and transactions for test teardown, in that
-    order: messages reference threads with PROTECT and threads reference
-    transactions the same way, so the graph comes apart from the bottom up.
+    Destroy an item's chats and transactions in test teardown.
 
-    Threads are found by item, which is enough here because Transaction.item is
-    PROTECT, so an item with transactions cannot be hard-deleted out from under
-    them and leave a thread with a NULL item behind.
+    Order matters. Messages point at chats, and chats point at transactions.
+    Both links are PROTECT, so nothing can be deleted while something still
+    points at it. Start at the bottom.
 
-    A no-op when MESSAGING_ENABLED is off, since no threads exist to begin with.
+    Does nothing if the item has no chats, which is the case whenever
+    MESSAGING_ENABLED is off.
     """
     for thread in ChatThread.objects.filter(item=item):
         thread.messages.all().delete()

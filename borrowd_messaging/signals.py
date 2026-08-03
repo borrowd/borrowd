@@ -49,9 +49,6 @@ def sync_chat_thread_with_transaction(
     give a new one its thread,
     close everyone else's conversation once the item is spoken for,
     and archive or annotate the thread as the status moves on.
-
-    Gated on MESSAGING_ENABLED so transactions behave exactly as they did
-    before messaging existed while the feature is switched off.
     """
     if not settings.MESSAGING_ENABLED:
         return

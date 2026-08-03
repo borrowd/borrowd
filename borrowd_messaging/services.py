@@ -166,8 +166,7 @@ class MessagingService:
         cls, thread: ChatThread, body: str, sender: BorrowdUser | None = None
     ) -> Message:
         """
-        Write a message from the system user. Pass `sender` to reuse an
-        already-fetched system user.
+        Write a message from the system user. Sender should probably be system user
         """
         message = Message.objects.create(
             thread=thread,

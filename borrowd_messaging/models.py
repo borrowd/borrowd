@@ -159,8 +159,6 @@ class ChatThread(Model):
         return value
 
     def mark_read(self, user: BorrowdUser) -> None:
-        # Written through the queryset so auto_now leaves updated_at alone:
-        # reading a thread is not a change to it.
         field = self._last_read_field_for(user)
         now = timezone.now()
         setattr(self, field, now)
