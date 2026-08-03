@@ -34,6 +34,11 @@ _ARCHIVE_MESSAGES: dict[ArchiveReason, str] = {
     ArchiveReason.CLOSED: "This conversation was closed.",
 }
 
+_DISPUTE_NOTICE = (
+    "A dispute has been raised on this transaction. Please keep the"
+    " conversation respectful; this chat history is retained."
+)
+
 
 class MessagingService:
     @staticmethod
@@ -157,6 +162,14 @@ class MessagingService:
         )
         cls._dispatch(message)
         return message
+
+    @classmethod
+    def post_dispute_notice(cls, thread: ChatThread) -> Message:
+        """
+        Nudge both parties toward civility. The thread stays writable so they
+        can still work the dispute out between themselves.
+        """
+        return cls.post_system_message(thread, _DISPUTE_NOTICE)
 
     @classmethod
     def archive_thread(
