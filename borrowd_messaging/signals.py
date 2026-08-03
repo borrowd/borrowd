@@ -18,9 +18,7 @@ _TERMINAL_ARCHIVE_REASONS: dict[TransactionStatus, ArchiveReason] = {
     TransactionStatus.OWNERSHIP_TRANSFERRED: ArchiveReason.OWNERSHIP_TRANSFERRED,
 }
 
-# Statuses at which the item is really spoken for. A pending request is not
-# one of them: it can still be rejected or cancelled, and the item goes back
-# on offer, so other people's conversations have to survive it.
+# Statuses at which the item is unavailable to others. I.E., pre-request threads should be closed.
 _COMMITTED_STATUSES = frozenset(
     {
         TransactionStatus.ACCEPTED,
