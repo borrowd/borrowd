@@ -164,7 +164,13 @@ class Migration(migrations.Migration):
                         ),
                         fields=("borrower", "item"),
                         name="one_active_prerequest_thread_per_borrower_item",
-                    )
+                    ),
+                    models.CheckConstraint(
+                        condition=models.Q(
+                            ("lender", models.F("borrower")), _negated=True
+                        ),
+                        name="chat_thread_lender_is_not_borrower",
+                    ),
                 ],
             },
         ),

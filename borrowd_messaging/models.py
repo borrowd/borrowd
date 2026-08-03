@@ -8,6 +8,7 @@ from django.db.models import (
     CharField,
     CheckConstraint,
     DateTimeField,
+    F,
     ForeignKey,
     Index,
     Model,
@@ -127,7 +128,11 @@ class ChatThread(Model):
                 fields=["borrower", "item"],
                 condition=Q(archived_at__isnull=True, transaction__isnull=True),
                 name="one_active_prerequest_thread_per_borrower_item",
-            )
+            ),
+            CheckConstraint(
+                condition=~Q(lender=F("borrower")),
+                name="chat_thread_lender_is_not_borrower",
+            ),
         ]
         permissions = [
             (ChatThreadOLP.VIEW, "Can view this chat thread"),

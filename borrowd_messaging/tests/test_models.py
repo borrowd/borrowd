@@ -51,6 +51,11 @@ class ChatThreadModelTests(MessagingTestCase):
             with atomic():
                 self.make_thread(transaction=txn, borrower=self.make_user("other"))
 
+    def test_a_user_cannot_chat_with_themselves(self) -> None:
+        with self.assertRaises(IntegrityError):
+            with atomic():
+                self.make_thread(borrower=self.lender)
+
     def test_is_archived_reflects_archived_at(self) -> None:
         thread = self.make_thread()
         self.assertFalse(thread.is_archived)
