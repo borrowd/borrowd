@@ -18,6 +18,16 @@ _TERMINAL_ARCHIVE_REASONS: dict[TransactionStatus, ArchiveReason] = {
     TransactionStatus.OWNERSHIP_TRANSFERRED: ArchiveReason.OWNERSHIP_TRANSFERRED,
 }
 
+# Statuses at which the item is really spoken for. A pending request is not
+# one of them: it can still be rejected or cancelled, and the item goes back
+# on offer, so other people's conversations have to survive it.
+_COMMITTED_STATUSES = frozenset(
+    {
+        TransactionStatus.ACCEPTED,
+        TransactionStatus.OWNERSHIP_TRANSFERRED,
+    }
+)
+
 
 @receiver(post_save, sender=ChatThread)
 def assign_chat_thread_permissions(
@@ -38,19 +48,20 @@ def sync_chat_thread_with_transaction(
     """
     Keep a transaction's thread in step with the transaction itself:
     give a new one its thread,
-    close everyone else's conversation about the item,
+    close everyone else's conversation once the item is spoken for,
     and archive or annotate the thread as the status moves on.
     """
     if created:
         MessagingService.attach_thread_to(instance)
-        # The item is off the table for everyone else now.
-        MessagingService.archive_prerequest_threads_for_item(
-            instance.item, ArchiveReason.ITEM_UNAVAILABLE
-        )
         return
 
     if instance.status == getattr(instance, "_previous_status", None):
         return
+
+    if instance.status in _COMMITTED_STATUSES:
+        MessagingService.archive_prerequest_threads_for_item(
+            instance.item, ArchiveReason.ITEM_UNAVAILABLE
+        )
 
     thread = ChatThread.objects.filter(transaction=instance).first()
     if thread is None:

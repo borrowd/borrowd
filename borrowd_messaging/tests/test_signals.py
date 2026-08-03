@@ -1,6 +1,6 @@
 from django.test import override_settings
 
-from borrowd_items.models import TransactionStatus
+from borrowd_items.models import Transaction, TransactionStatus
 from borrowd_messaging.models import ArchiveReason, ChatThread
 from borrowd_messaging.services import _ARCHIVE_MESSAGES, MessagingService
 from borrowd_messaging.tests.base import MessagingTestCase
@@ -35,13 +35,62 @@ class TransactionLifecycleTests(MessagingTestCase):
 
         self.assertIsNotNone(thread)
 
-    def test_a_new_transaction_closes_everyone_elses_conversation(self) -> None:
+    def advance(self, transaction: Transaction, status: TransactionStatus) -> None:
+        transaction.status = status
+        transaction.save()
+
+    def test_a_pending_request_leaves_other_conversations_open(self) -> None:
         onlooker_thread = self.make_thread(borrower=self.make_user("onlooker"))
 
         self.make_transaction()
 
         onlooker_thread.refresh_from_db()
+        self.assertFalse(onlooker_thread.is_archived)
+
+    def test_a_rejected_request_leaves_other_conversations_open(self) -> None:
+        onlooker_thread = self.make_thread(borrower=self.make_user("onlooker"))
+        transaction = self.make_transaction()
+
+        self.advance(transaction, TransactionStatus.REJECTED)
+
+        onlooker_thread.refresh_from_db()
+        self.assertFalse(onlooker_thread.is_archived)
+
+    def test_a_cancelled_request_leaves_other_conversations_open(self) -> None:
+        onlooker_thread = self.make_thread(borrower=self.make_user("onlooker"))
+        transaction = self.make_transaction()
+
+        self.advance(transaction, TransactionStatus.CANCELLED)
+
+        onlooker_thread.refresh_from_db()
+        self.assertFalse(onlooker_thread.is_archived)
+
+    def test_accepting_closes_everyone_elses_conversation(self) -> None:
+        onlooker_thread = self.make_thread(borrower=self.make_user("onlooker"))
+        transaction = self.make_transaction()
+
+        self.advance(transaction, TransactionStatus.ACCEPTED)
+
+        onlooker_thread.refresh_from_db()
         self.assertEqual(onlooker_thread.archive_reason, ArchiveReason.ITEM_UNAVAILABLE)
+
+    def test_giving_the_item_away_closes_everyone_elses_conversation(self) -> None:
+        onlooker_thread = self.make_thread(borrower=self.make_user("onlooker"))
+        transaction = self.make_transaction()
+
+        self.advance(transaction, TransactionStatus.OWNERSHIP_TRANSFERRED)
+
+        onlooker_thread.refresh_from_db()
+        self.assertEqual(onlooker_thread.archive_reason, ArchiveReason.ITEM_UNAVAILABLE)
+
+    def test_accepting_leaves_the_requesters_own_conversation_open(self) -> None:
+        thread = self.make_thread()
+        transaction = self.make_transaction()
+
+        self.advance(transaction, TransactionStatus.ACCEPTED)
+
+        thread.refresh_from_db()
+        self.assertFalse(thread.is_archived)
 
     def test_the_requesters_own_conversation_carries_forward(self) -> None:
         thread = self.make_thread()
