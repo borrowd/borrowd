@@ -4,7 +4,7 @@ from django.db import IntegrityError
 from django.db.transaction import atomic
 from django.utils import timezone
 
-from borrowd_items.models import Item, ItemStatus
+from borrowd_items.models import Item, ItemStatus, Transaction
 from borrowd_permissions.models import ItemOLP
 from borrowd_users.models import BorrowdUser
 from borrowd_users.system import get_system_user
@@ -108,6 +108,39 @@ class MessagingService:
         message = Message.objects.create(thread=thread, sender=sender, body=body)
         cls._dispatch(message)
         return message
+
+    @staticmethod
+    def attach_thread_to(transaction: Transaction) -> ChatThread:
+        """
+        Give a new Transaction its thread: the borrower's open pre-request
+        conversation if they have one, so it carries forward, otherwise a
+        fresh thread. Idempotent, and exempt from the feature flag so
+        transactions predating the messaging launch still get a thread.
+        """
+        existing = ChatThread.objects.filter(transaction=transaction).first()
+        if existing is not None:
+            return existing
+
+        thread = ChatThread.objects.filter(
+            borrower=transaction.party2,
+            item=transaction.item,
+            archived_at__isnull=True,
+            transaction__isnull=True,
+        ).first()
+        if thread is not None:
+            thread.transaction = transaction
+            thread.updated_by = transaction.party2
+            thread.save(update_fields=["transaction", "updated_by", "updated_at"])
+            return thread
+
+        return ChatThread.objects.create(
+            transaction=transaction,
+            item=transaction.item,
+            lender=transaction.party1,
+            borrower=transaction.party2,
+            created_by=transaction.party2,
+            updated_by=transaction.party2,
+        )
 
     @classmethod
     def post_system_message(cls, thread: ChatThread, body: str) -> Message:
