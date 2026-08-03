@@ -117,6 +117,45 @@ class ThreadArchivalTests(TestCase):
         with self.assertRaises(PermissionDenied):
             MessagingService.close_prerequest_thread(self.thread, self.borrower)
 
+    def test_archives_every_open_conversation_about_an_item(self) -> None:
+        other_borrower = BorrowdUser.objects.create_user(
+            username="other",
+            email="other@example.com",
+            password="password",
+        )
+        other_thread = ChatThread.objects.create(
+            item=self.item,
+            lender=self.lender,
+            borrower=other_borrower,
+            created_by=other_borrower,
+            updated_by=other_borrower,
+        )
+
+        MessagingService.archive_prerequest_threads_for_item(
+            self.item, ArchiveReason.ITEM_UNAVAILABLE
+        )
+
+        for thread in (self.thread, other_thread):
+            thread.refresh_from_db()
+            self.assertEqual(thread.archive_reason, ArchiveReason.ITEM_UNAVAILABLE)
+
+    def test_leaves_conversations_that_have_a_transaction(self) -> None:
+        self.thread.transaction = Transaction.objects.create(
+            item=self.item,
+            party1=self.lender,
+            party2=self.borrower,
+            created_by=self.borrower,
+            updated_by=self.borrower,
+        )
+        self.thread.save(update_fields=["transaction"])
+
+        MessagingService.archive_prerequest_threads_for_item(
+            self.item, ArchiveReason.ITEM_UNAVAILABLE
+        )
+
+        self.thread.refresh_from_db()
+        self.assertFalse(self.thread.is_archived)
+
     @override_settings(MESSAGING_ENABLED=False)
     def test_archival_works_while_the_feature_flag_is_off(self) -> None:
         MessagingService.archive_thread(self.thread, ArchiveReason.RETURNED)
