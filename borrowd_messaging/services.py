@@ -18,7 +18,7 @@ from .exceptions import (
 )
 from .models import MESSAGE_BODY_MAX_LENGTH, ArchiveReason, ChatThread, Message
 
-_ARCHIVE_MESSAGES: dict[ArchiveReason, str] = {
+ARCHIVE_MESSAGES: dict[ArchiveReason, str] = {
     ArchiveReason.RETURNED: "This item has been returned. Chat is now archived.",
     ArchiveReason.REJECTED: "This request was declined. Chat is now archived.",
     ArchiveReason.CANCELLED: "This request was cancelled. Chat is now archived.",
@@ -26,12 +26,14 @@ _ARCHIVE_MESSAGES: dict[ArchiveReason, str] = {
     ArchiveReason.OWNERSHIP_TRANSFERRED: (
         "This item has been given away. Chat is now archived."
     ),
+    # item has been lent/given away to another person
     ArchiveReason.ITEM_UNAVAILABLE: (
         "This item is no longer available. Chat is now archived."
     ),
     ArchiveReason.ITEM_DELETED: (
         "This item is no longer available. Chat is now archived."
     ),
+    # manually closed. I.E., one of the parties decided to end the pre-request chat
     ArchiveReason.CLOSED: "This conversation was closed.",
 }
 
@@ -209,7 +211,7 @@ class MessagingService:
             update_fields=["archived_at", "archive_reason", "updated_by", "updated_at"]
         )
         cls.post_system_message(
-            thread, message or _ARCHIVE_MESSAGES[reason], sender=system_user
+            thread, message or ARCHIVE_MESSAGES[reason], sender=system_user
         )
 
     @classmethod

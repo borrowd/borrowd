@@ -2,7 +2,7 @@ from django.test import override_settings
 
 from borrowd_items.models import Transaction, TransactionStatus
 from borrowd_messaging.models import ArchiveReason, ChatThread
-from borrowd_messaging.services import _ARCHIVE_MESSAGES, MessagingService
+from borrowd_messaging.services import ARCHIVE_MESSAGES, MessagingService
 from borrowd_messaging.tests.base import MessagingTestCase
 from borrowd_permissions.models import ChatThreadOLP
 
@@ -118,7 +118,7 @@ class TransactionLifecycleTests(MessagingTestCase):
                 self.assertEqual(thread.archive_reason, reason)
                 last_message = thread.messages.order_by("id").last()
                 assert last_message is not None
-                self.assertEqual(last_message.body, _ARCHIVE_MESSAGES[reason])
+                self.assertEqual(last_message.body, ARCHIVE_MESSAGES[reason])
 
     def test_progress_short_of_a_terminal_status_leaves_the_thread_alone(self) -> None:
         transaction = self.make_transaction()

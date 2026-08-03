@@ -1,6 +1,7 @@
 from unittest.mock import patch
 
 from django.core.exceptions import PermissionDenied
+from django.db import IntegrityError
 from django.test import TestCase, override_settings
 from django.utils import timezone
 from guardian.shortcuts import assign_perm
@@ -18,7 +19,7 @@ from borrowd_messaging.models import (
     ArchiveReason,
     ChatThread,
 )
-from borrowd_messaging.services import _ARCHIVE_MESSAGES, MessagingService
+from borrowd_messaging.services import ARCHIVE_MESSAGES, MessagingService
 from borrowd_messaging.tests.base import MessagingTestCase
 from borrowd_permissions.models import ItemOLP
 from borrowd_users.models import BorrowdUser
@@ -28,7 +29,7 @@ from borrowd_users.system import get_system_user
 class ArchiveMessageCopyTests(TestCase):
     def test_every_archive_reason_has_copy(self) -> None:
         for reason in ArchiveReason:
-            self.assertIn(reason, _ARCHIVE_MESSAGES)
+            self.assertIn(reason, ARCHIVE_MESSAGES)
 
 
 @override_settings(MESSAGING_ENABLED=True)
@@ -109,6 +110,32 @@ class GetOrCreatePreRequestThreadTests(MessagingTestCase):
     def test_refused_while_the_feature_flag_is_off(self) -> None:
         with self.assertRaises(MessagingDisabled):
             MessagingService.get_or_create_prerequest_thread(self.borrower, self.item)
+
+    def test_losing_a_race_returns_the_thread_the_winner_made(self) -> None:
+        # First lookup sees nothing and we try to create; the unique constraint
+        # rejects it; the second lookup finds what the winner just made.
+        winner = self.make_thread()
+
+        with patch.object(
+            MessagingService, "_active_prerequest_thread", side_effect=[None, winner]
+        ):
+            thread = MessagingService.get_or_create_prerequest_thread(
+                self.borrower, self.item
+            )
+
+        self.assertEqual(thread.pk, winner.pk)
+        self.assertEqual(ChatThread.objects.count(), 1)
+
+    def test_an_integrity_error_with_no_racing_thread_is_reraised(self) -> None:
+        self.make_thread()
+
+        with patch.object(
+            MessagingService, "_active_prerequest_thread", return_value=None
+        ):
+            with self.assertRaises(IntegrityError):
+                MessagingService.get_or_create_prerequest_thread(
+                    self.borrower, self.item
+                )
 
 
 @override_settings(MESSAGING_ENABLED=True)
@@ -311,7 +338,7 @@ class ThreadArchivalTests(MessagingTestCase):
         self.assertEqual(self.thread.updated_by, get_system_user())
         self.assertEqual(
             self.last_message_body(self.thread),
-            _ARCHIVE_MESSAGES[ArchiveReason.RETURNED],
+            ARCHIVE_MESSAGES[ArchiveReason.RETURNED],
         )
 
     def test_the_dispute_notice_is_posted_once(self) -> None:
@@ -349,7 +376,7 @@ class ThreadArchivalTests(MessagingTestCase):
         self.assertEqual(self.thread.updated_by, self.lender)
         self.assertEqual(
             self.last_message_body(self.thread),
-            _ARCHIVE_MESSAGES[ArchiveReason.CLOSED],
+            ARCHIVE_MESSAGES[ArchiveReason.CLOSED],
         )
 
     def test_closing_an_already_archived_thread_is_refused(self) -> None:
