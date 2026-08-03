@@ -25,6 +25,9 @@ _ARCHIVE_MESSAGES: dict[ArchiveReason, str] = {
     ArchiveReason.OWNERSHIP_TRANSFERRED: (
         "This item has been given away. Chat is now archived."
     ),
+    ArchiveReason.ITEM_UNAVAILABLE: (
+        "This item is no longer available. Chat is now archived."
+    ),
     ArchiveReason.ITEM_DELETED: (
         "This item is no longer available. Chat is now archived."
     ),
@@ -176,6 +179,22 @@ class MessagingService:
             update_fields=["archived_at", "archive_reason", "updated_by", "updated_at"]
         )
         cls.post_system_message(thread, message or _ARCHIVE_MESSAGES[reason])
+
+    @classmethod
+    def archive_prerequest_threads_for_item(
+        cls, item: Item, reason: ArchiveReason
+    ) -> None:
+        """
+        Archive every open pre-request chat for an item when it stops being on offer to everyone else:
+        it enters a transaction, gets given away, or is deleted.
+        """
+        threads = ChatThread.objects.filter(
+            item=item,
+            archived_at__isnull=True,
+            transaction__isnull=True,
+        )
+        for thread in threads:
+            cls.archive_thread(thread, reason)
 
     @classmethod
     def close_prerequest_thread(

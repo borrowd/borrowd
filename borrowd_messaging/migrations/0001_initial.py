@@ -47,6 +47,7 @@ class Migration(migrations.Migration):
                             ("cancelled", "Cancelled"),
                             ("resolved", "Resolved"),
                             ("ownership_transferred", "Ownership Transferred"),
+                            ("item_unavailable", "Item Unavailable"),
                             ("item_deleted", "Item Deleted"),
                             ("closed", "Closed"),
                         ],

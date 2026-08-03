@@ -29,6 +29,7 @@ class ArchiveReason(TextChoices):
     CANCELLED = "cancelled"
     RESOLVED = "resolved"
     OWNERSHIP_TRANSFERRED = "ownership_transferred"
+    ITEM_UNAVAILABLE = "item_unavailable"
     ITEM_DELETED = "item_deleted"
     CLOSED = "closed"
 
