@@ -124,8 +124,8 @@ class MessagingService:
         cls._dispatch(message)
         return message
 
-    @staticmethod
-    def attach_thread_to(transaction: Transaction) -> ChatThread:
+    @classmethod
+    def attach_thread_to(cls, transaction: Transaction) -> ChatThread:
         """
         Give a new Transaction its thread:
         the open pre-request conversation if there is one,
@@ -135,17 +135,20 @@ class MessagingService:
         if existing is not None:
             return existing
 
-        thread = ChatThread.objects.filter(
-            borrower=transaction.party2,
-            item=transaction.item,
-            archived_at__isnull=True,
-            transaction__isnull=True,
-        ).first()
+        thread = cls._active_prerequest_thread(transaction.party2, transaction.item)
         if thread is not None:
-            thread.transaction = transaction
-            thread.updated_by = transaction.party2
-            thread.save(update_fields=["transaction", "updated_by", "updated_at"])
-            return thread
+            # Conditional so two concurrent requests can't claim the same
+            # thread; the loser falls through and gets a fresh one.
+            claimed = ChatThread.objects.filter(
+                pk=thread.pk, transaction__isnull=True
+            ).update(
+                transaction=transaction,
+                updated_by=transaction.party2,
+                updated_at=timezone.now(),
+            )
+            if claimed:
+                thread.refresh_from_db()
+                return thread
 
         return ChatThread.objects.create(
             transaction=transaction,

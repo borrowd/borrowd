@@ -231,6 +231,25 @@ class AttachThreadToTransactionTests(MessagingTestCase):
         other_thread.refresh_from_db()
         self.assertIsNone(other_thread.transaction)
 
+    def test_does_not_steal_a_conversation_claimed_mid_flight(self) -> None:
+        thread = self.make_thread()
+        winner = self.make_transaction()
+        stale = ChatThread.objects.get(pk=thread.pk)
+        # What a racing caller would have read just before the winner claimed it.
+        stale.transaction = None
+        with override_settings(MESSAGING_ENABLED=False):
+            loser = self.make_transaction()
+
+        with patch.object(
+            MessagingService, "_active_prerequest_thread", return_value=stale
+        ):
+            attached = MessagingService.attach_thread_to(loser)
+
+        self.assertNotEqual(attached.pk, thread.pk)
+        self.assertEqual(attached.transaction, loser)
+        thread.refresh_from_db()
+        self.assertEqual(thread.transaction, winner)
+
     def test_ignores_an_archived_conversation(self) -> None:
         thread = self.make_thread()
         MessagingService.close_prerequest_thread(thread, self.borrower)
