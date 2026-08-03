@@ -159,9 +159,12 @@ class ChatThread(Model):
         return value
 
     def mark_read(self, user: BorrowdUser) -> None:
+        # Written through the queryset so auto_now leaves updated_at alone:
+        # reading a thread is not a change to it.
         field = self._last_read_field_for(user)
-        setattr(self, field, timezone.now())
-        self.save(update_fields=[field, "updated_at"])
+        now = timezone.now()
+        setattr(self, field, now)
+        ChatThread.objects.filter(pk=self.pk).update(**{field: now})
 
 
 MESSAGE_BODY_MAX_LENGTH = 2000

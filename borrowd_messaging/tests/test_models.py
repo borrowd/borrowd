@@ -85,6 +85,16 @@ class ChatThreadModelTests(MessagingTestCase):
         self.assertIsNotNone(thread.lender_last_read_at)
         self.assertIsNone(thread.borrower_last_read_at)
 
+    def test_mark_read_leaves_the_audit_fields_alone(self) -> None:
+        thread = self.make_thread()
+        updated_at = thread.updated_at
+
+        thread.mark_read(self.borrower)
+        thread.refresh_from_db()
+
+        self.assertEqual(thread.updated_at, updated_at)
+        self.assertEqual(thread.updated_by, self.borrower)
+
     def test_read_helpers_reject_non_participants(self) -> None:
         outsider = self.make_user("outsider")
         thread = self.make_thread()
