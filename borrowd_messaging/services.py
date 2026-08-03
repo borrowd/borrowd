@@ -2,10 +2,12 @@ from django.conf import settings
 from django.core.exceptions import PermissionDenied
 from django.db import IntegrityError
 from django.db.transaction import atomic
+from django.utils import timezone
 
 from borrowd_items.models import Item, ItemStatus
 from borrowd_permissions.models import ItemOLP
 from borrowd_users.models import BorrowdUser
+from borrowd_users.system import get_system_user
 
 from .exceptions import (
     MessagingDisabled,
@@ -13,7 +15,21 @@ from .exceptions import (
     PreRequestChatUnavailable,
     ThreadNotWritable,
 )
-from .models import ChatThread, Message
+from .models import ArchiveReason, ChatThread, Message
+
+_ARCHIVE_MESSAGES: dict[ArchiveReason, str] = {
+    ArchiveReason.RETURNED: "This item has been returned. Chat is now archived.",
+    ArchiveReason.REJECTED: "This request was declined. Chat is now archived.",
+    ArchiveReason.CANCELLED: "This request was cancelled. Chat is now archived.",
+    ArchiveReason.RESOLVED: "This transaction has been resolved. Chat is now archived.",
+    ArchiveReason.OWNERSHIP_TRANSFERRED: (
+        "This item has been given away. Chat is now archived."
+    ),
+    ArchiveReason.ITEM_DELETED: (
+        "This item is no longer available. Chat is now archived."
+    ),
+    ArchiveReason.CLOSED: "This conversation was closed.",
+}
 
 
 class MessagingService:
@@ -92,6 +108,58 @@ class MessagingService:
         message = Message.objects.create(thread=thread, sender=sender, body=body)
         cls._dispatch(message)
         return message
+
+    @classmethod
+    def post_system_message(cls, thread: ChatThread, body: str) -> Message:
+        """
+        Write a message from the system user.
+        """
+        message = Message.objects.create(
+            thread=thread,
+            sender=get_system_user(),
+            is_system=True,
+            body=body,
+        )
+        cls._dispatch(message)
+        return message
+
+    @classmethod
+    def archive_thread(
+        cls,
+        thread: ChatThread,
+        reason: ArchiveReason,
+        actor: BorrowdUser | None = None,
+        message: str | None = None,
+    ) -> None:
+        """
+        Lock a thread to read-only and explain why. `message` overrides the default copy.
+        """
+        if thread.is_archived:
+            return
+
+        thread.archived_at = timezone.now()
+        thread.archive_reason = reason
+        thread.updated_by = actor or get_system_user()
+        thread.save(
+            update_fields=["archived_at", "archive_reason", "updated_by", "updated_at"]
+        )
+        cls.post_system_message(thread, message or _ARCHIVE_MESSAGES[reason])
+
+    @classmethod
+    def close_prerequest_thread(
+        cls, thread: ChatThread, closed_by: BorrowdUser
+    ) -> None:
+        """
+        End a pre-request chat that never became a request. Either party may do this;
+        """
+        if closed_by.pk not in (thread.lender_id, thread.borrower_id):
+            raise NotThreadParticipant(
+                f"User {closed_by.pk} is not a participant of ChatThread {thread.pk}."
+            )
+        if thread.transaction_id is not None:
+            raise PermissionDenied("Only pre-request conversations can be closed.")
+
+        cls.archive_thread(thread, ArchiveReason.CLOSED, actor=closed_by)
 
     @staticmethod
     def _dispatch(message: Message) -> None:
