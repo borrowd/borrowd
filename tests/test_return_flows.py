@@ -17,7 +17,7 @@ from borrowd_items.models import (
 )
 from borrowd_items.views import borrow_item
 from borrowd_users.models import BorrowdUser
-from tests.helpers import hard_delete_transactions_and_threads
+from tests.helpers import hard_delete_threads_and_transactions
 
 
 class ReturnFlowTestBase(SimpleTestCase):
@@ -77,7 +77,7 @@ class ReturnFlowTestBase(SimpleTestCase):
 
     @classmethod
     def tearDownClass(cls) -> None:
-        hard_delete_transactions_and_threads(cls.item)
+        hard_delete_threads_and_transactions(cls.item)
         cls.item.delete()
         cls.group.delete()
         cls.lender.delete()
