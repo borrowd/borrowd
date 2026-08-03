@@ -95,7 +95,7 @@ class ChatThreadModelTests(TestCase):
 
     def test_transaction_can_only_have_one_thread(self) -> None:
         txn = self.create_transaction()
-        self.create_thread(transaction=txn)
+        self.assertTrue(ChatThread.objects.filter(transaction=txn).exists())
 
         with self.assertRaises(IntegrityError):
             with atomic():
