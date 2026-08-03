@@ -245,7 +245,9 @@ MEDIA_URL = "/media/"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # borrowd_messaging settings
-MESSAGING_ENABLED = env.bool("MESSAGING_ENABLED", default=False)
+MESSAGING_ENABLED = not IS_RUNNING_MANAGE_PY_TESTS and env.bool(
+    "MESSAGING_ENABLED", default=False
+)
 
 # borrowd_beta settings
 BORROWD_BETA_ENABLED = env.bool("BORROWD_BETA_ENABLED", default=False)

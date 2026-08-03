@@ -3,7 +3,7 @@ from django.db.transaction import atomic
 from django.utils import timezone
 
 from borrowd_messaging.exceptions import NotThreadParticipant
-from borrowd_messaging.models import ArchiveReason, ChatThread, Message
+from borrowd_messaging.models import ArchiveReason, Message
 from borrowd_messaging.tests.base import MessagingTestCase
 
 
@@ -44,11 +44,12 @@ class ChatThreadModelTests(MessagingTestCase):
 
     def test_transaction_can_only_have_one_thread(self) -> None:
         txn = self.make_transaction()
-        self.assertTrue(ChatThread.objects.filter(transaction=txn).exists())
+        self.make_thread(transaction=txn)
 
+        # A different borrower, so only the OneToOne can be what trips.
         with self.assertRaises(IntegrityError):
             with atomic():
-                self.make_thread(transaction=txn)
+                self.make_thread(transaction=txn, borrower=self.make_user("other"))
 
     def test_is_archived_reflects_archived_at(self) -> None:
         thread = self.make_thread()
