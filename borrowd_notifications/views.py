@@ -1,16 +1,24 @@
+from collections.abc import Iterable
 from datetime import timedelta
-from typing import Any
+from string import Formatter
+from typing import Any, TypedDict
 
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
+from django.contrib.contenttypes.prefetch import GenericPrefetch
 from django.core.paginator import Paginator
 from django.db.models import QuerySet
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.template.loader import render_to_string
+from django.urls import reverse
 from django.utils import timezone
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_GET, require_POST
 from notifications.models import Notification
 
+from borrowd.util import is_safe_back_url
+from borrowd_groups.models import BorrowdGroup, Membership
+from borrowd_items.models import Item
 from borrowd_users.models import BorrowdUser
 from borrowd_users.request import get_authenticated_user
 
@@ -27,6 +35,7 @@ NOTIFICATION_CATEGORIES: list[dict[str, Any]] = [
     {
         "name": "Lending Lifecycle",
         "slug": "lending",
+        "icon": "arrows-right-left",
         "types": [
             (NotificationType.ITEM_REQUESTED, "Borrow request received"),
             (NotificationType.ITEM_REQUEST_ACCEPTED, "Request accepted"),
@@ -51,6 +60,7 @@ NOTIFICATION_CATEGORIES: list[dict[str, Any]] = [
     {
         "name": "Group & Membership",
         "slug": "membership",
+        "icon": "user-group",
         "types": [
             (
                 NotificationType.GROUP_MEMBER_JOINED,
@@ -64,6 +74,7 @@ NOTIFICATION_CATEGORIES: list[dict[str, Any]] = [
     {
         "name": "Item Availability",
         "slug": "availability",
+        "icon": "bell-alert",
         "types": [
             (NotificationType.ITEM_NOTIFY_WHEN_AVAILABLE, "Item now available"),
             (NotificationType.ITEM_SUBSCRIPTION, "Item subscription"),
@@ -72,6 +83,7 @@ NOTIFICATION_CATEGORIES: list[dict[str, Any]] = [
     {
         "name": "Ownership Transfer",
         "slug": "giveaway",
+        "icon": "gift",
         "types": [
             (NotificationType.GIVEAWAY_OFFER_SENT, "Giveaway offer received"),
             (NotificationType.GIVEAWAY_ACCEPTED, "Giveaway accepted"),
@@ -95,6 +107,10 @@ NOTIFICATION_CATEGORIES: list[dict[str, Any]] = [
 
 
 def _optional_types_for_scope(scope: str) -> list[NotificationType]:
+    """Returns the non-mandatory notification types in scope (a category
+    slug, or "master" for every category) — the ones a user can actually
+    toggle off for the app/email channels.
+    """
     mandatory = NotificationType.mandatory_types()
     if scope == "master":
         return [
@@ -110,6 +126,12 @@ def _optional_types_for_scope(scope: str) -> list[NotificationType]:
 
 
 def _all_types_for_scope(scope: str) -> list[NotificationType]:
+    """Returns every notification type in scope, including mandatory ones.
+
+    Used for the push channel: unlike app/email, push has no mandatory-type
+    carve-out, so bulk push toggles must cover the full category rather
+    than just the optional types.
+    """
     if scope == "master":
         return [ntype for cat in NOTIFICATION_CATEGORIES for ntype, _ in cat["types"]]
     for cat in NOTIFICATION_CATEGORIES:
@@ -119,6 +141,11 @@ def _all_types_for_scope(scope: str) -> list[NotificationType]:
 
 
 def _build_preferences_context(user: BorrowdUser) -> dict[str, Any]:
+    """Builds the template context for the notification preferences page:
+    per-category, per-channel toggle state for every notification type,
+    plus a flat `prefs_json` blob the page's JS reads to drive the
+    category-level "select all" switches.
+    """
     mandatory = NotificationType.mandatory_types()
     prefs: dict[str, NotificationPreference] = {
         p.notification_type: p for p in NotificationPreference.objects.filter(user=user)
@@ -191,6 +218,7 @@ def _build_preferences_context(user: BorrowdUser) -> dict[str, Any]:
 
 @login_required
 def notification_preferences_view(request: HttpRequest) -> HttpResponse:
+    """Renders the notification preferences page."""
     user = get_authenticated_user(request)
     context = _build_preferences_context(user)
     context["vapid_public_key"] = settings.VAPID_PUBLIC_KEY
@@ -200,6 +228,10 @@ def notification_preferences_view(request: HttpRequest) -> HttpResponse:
 @login_required
 @require_POST
 def toggle_preference(request: HttpRequest) -> HttpResponse:
+    """Toggles a single (notification_type, channel) preference on/off for
+    the current user. Rejects disabling a mandatory type on a non-push
+    channel — those must always stay on.
+    """
     user = get_authenticated_user(request)
     type_value = request.POST.get("notification_type", "")
     channel_value = request.POST.get("channel", "")
@@ -236,6 +268,10 @@ def toggle_preference(request: HttpRequest) -> HttpResponse:
 @login_required
 @require_POST
 def bulk_toggle_preferences(request: HttpRequest) -> HttpResponse:
+    """Toggles every applicable type in a scope (a category slug, or
+    "master" for all categories) for one channel at once — backs the
+    preferences page's category-level and global "select all" switches.
+    """
     user = get_authenticated_user(request)
     scope = request.POST.get("scope", "")
     channel_value = request.POST.get("channel", "")
@@ -271,56 +307,294 @@ _INBOX_PAGE_SIZE = 25
 _RELATIVE_TIMESTAMP_MAX_AGE = timedelta(days=7)
 
 
-def _app_channel_qs(qs: QuerySet[Notification]) -> QuerySet[Notification]:
-    """Filter to notifications currently visible in the in-app inbox."""
-    return qs.filter(borrowd_metadata__visible_in_app=True)
+class NotificationMessagePart(TypedDict):
+    text: str
+    is_emphasized: bool
 
 
-def _format_notification(notification: Notification) -> str:
+def app_channel_qs(qs: QuerySet[Notification]) -> QuerySet[Notification]:
+    """Filter to notifications currently visible in the in-app inbox.
+
+    Also prefetches action_object (a GenericForeignKey, so a plain
+    select_related/prefetch_related can't cover it): every notify.send()
+    call sets it to an Item, Membership, or BorrowdGroup (see signals.py), and
+    display helpers read it for every row on the page, so
+    without this each row costs its own query.
+    """
+    return qs.filter(borrowd_metadata__visible_in_app=True).prefetch_related(
+        GenericPrefetch(
+            "action_object",
+            [
+                Item.objects.prefetch_related("photos"),
+                Membership.objects.select_related("group", "user__profile"),
+                BorrowdGroup.objects.all(),
+            ],
+        )
+    )
+
+
+def _notification_message_template_and_context(
+    notification: Notification,
+) -> tuple[str, dict[str, Any]]:
+    """Looks up the message template registered for a notification's verb
+    (NotificationType.message_template) and the interpolation context
+    stored on the notification by the notify.send() call that created it.
+    """
     try:
         template = NotificationType(notification.verb).message_template
     except ValueError:
-        return str(notification.verb)
+        return str(notification.verb), {}
+
     context: dict[str, Any] = {}
     if isinstance(notification.data, dict):
-        context = notification.data.get("context", {})
+        raw_context = notification.data.get("context", {})
+        if isinstance(raw_context, dict):
+            context = {str(key): value for key, value in raw_context.items()}
+    return template, context
+
+
+def _notification_message_parts(
+    template: str, context: dict[str, Any], fallback_text: str
+) -> list[NotificationMessagePart]:
+    """Splits a message template into literal and interpolated parts so the
+    notification card can render the interpolated values (e.g. an item
+    name) in bold. Falls back to `fallback_text` as a single plain part if
+    the template or context is malformed.
+    """
+    formatter = Formatter()
+    parts: list[NotificationMessagePart] = []
+
     try:
-        return template.format(**context)
-    except KeyError:
-        return str(notification.verb)
+        parsed_template = list(formatter.parse(template))
+    except ValueError:
+        return [{"text": fallback_text, "is_emphasized": False}]
+
+    for literal_text, field_name, format_spec, _conversion in parsed_template:
+        if literal_text:
+            parts.append({"text": literal_text, "is_emphasized": False})
+
+        if field_name is None:
+            continue
+
+        if field_name not in context:
+            return [{"text": fallback_text, "is_emphasized": False}]
+
+        try:
+            text = formatter.format_field(context[field_name], format_spec or "")
+        except (KeyError, ValueError, TypeError):
+            return [{"text": fallback_text, "is_emphasized": False}]
+
+        parts.append({"text": text, "is_emphasized": True})
+
+    return parts or [{"text": fallback_text, "is_emphasized": False}]
+
+
+def _get_notification_category(
+    notification_type: NotificationType,
+) -> tuple[str | None, str | None]:
+    """Finds the NOTIFICATION_CATEGORIES entry a notification type belongs
+    to, returning its display title and category dict, or None if the
+    type isn't registered in any category.
+    """
+    for cat in NOTIFICATION_CATEGORIES:
+        for ntype, title in cat["types"]:
+            if ntype == notification_type:
+                try:
+                    return (str(title), str(cat["slug"]))
+                except ValueError:
+                    return (None, None)
+    return (None, None)
+
+
+def _get_category_icon(slug: str | None) -> str | None:
+    """Returns the heroicon name (see `templates/notifications/preferences.html`
+    and `{% heroicon_outline %}`) for a NOTIFICATION_CATEGORIES slug, or
+    None if no category has that slug.
+    """
+
+    if not slug:
+        return None
+
+    for cat in NOTIFICATION_CATEGORIES:
+        if cat["slug"] == slug:
+            return str(cat["icon"])
+    return None
+
+
+def _notification_action_object(
+    notification: Notification,
+) -> Item | Membership | BorrowdGroup | None:
+    action_object = notification.action_object
+    if isinstance(action_object, (Item, Membership, BorrowdGroup)):
+        return action_object
+    return None
+
+
+def _notification_action_url(notification: Notification) -> str | None:
+    """Resolves where clicking a notification should land, based on the
+    action_object set by notify.send() calls across the app (see signals.py
+    in this app, borrowd_groups, and borrowd_users/services.py): an Item
+    goes to its detail page, a Membership or BorrowdGroup to the group's
+    detail page.
+    """
+    action_object = _notification_action_object(notification)
+    if isinstance(action_object, Item):
+        # A soft-deleted item's detail page 404s (ItemDetailView uses the
+        # default active-only manager). item_card.html already treats
+        # `is_removed` items as non-clickable elsewhere in the app
+        # (pointer-events-none); match that instead of linking to a dead page.
+        if action_object.deleted_at is not None:
+            return None
+        return reverse("item-detail", kwargs={"pk": action_object.pk})
+    if isinstance(action_object, Membership):
+        group = action_object.group
+        # Same soft-delete guard as above, one hop out via the membership.
+        if group.deleted_at is not None:
+            return None
+        return reverse("borrowd_groups:group-detail", kwargs={"pk": group.pk})
+    if isinstance(action_object, BorrowdGroup):
+        if action_object.deleted_at is not None:
+            return None
+        return reverse("borrowd_groups:group-detail", kwargs={"pk": action_object.pk})
+    return None
+
+
+def _image_url(image: Any) -> str | None:
+    if not image:
+        return None
+    try:
+        return str(image.url)
+    except (FileNotFoundError, ValueError):
+        return None
+
+
+def _item_avatar_url(item: Item) -> str | None:
+    first_photo = item.photos.first()
+    if first_photo is None:
+        return None
+    return _image_url(first_photo.thumbnail)
+
+
+def _group_avatar_url(group: BorrowdGroup) -> str | None:
+    return _image_url(group.banner or group.logo)
+
+
+def _membership_avatar_url(
+    notification: Notification, membership: Membership
+) -> str | None:
+    if notification.verb in {
+        NotificationType.GROUP_MEMBER_JOINED.value,
+        NotificationType.MEMBERSHIP_PENDING.value,
+    }:
+        return _image_url(membership.user.profile.image)
+    return _group_avatar_url(membership.group)
+
+
+def _notification_avatar_content(notification: Notification) -> str | None:
+    """Resolves the image URL shown in a notification card."""
+    action_object = _notification_action_object(notification)
+    if isinstance(action_object, Item):
+        return _item_avatar_url(action_object)
+    if isinstance(action_object, Membership):
+        return _membership_avatar_url(notification, action_object)
+    if isinstance(action_object, BorrowdGroup):
+        return _group_avatar_url(action_object)
+    return None
+
+
+def _annotate_for_display(notifications: Iterable[Notification]) -> None:
+    """Sets display-only fields (not persisted) read by the notification card partial."""
+    relative_timestamp_cutoff = timezone.now() - _RELATIVE_TIMESTAMP_MAX_AGE
+    for notification in notifications:
+        message_template, message_context = _notification_message_template_and_context(
+            notification
+        )
+        notification.message_template = message_template
+        notification.message_context = message_context
+        notification.message_parts = _notification_message_parts(
+            message_template, message_context, str(notification.verb)
+        )
+
+        notification_type: NotificationType | None = None
+        try:
+            notification_type = NotificationType(notification.verb)
+        except ValueError:
+            pass
+
+        notification_title, category = (None, None)
+        if notification_type is not None:
+            notification_title, category = _get_notification_category(notification_type)
+
+        notification.title = (
+            notification_title if notification_title else "Notification"
+        )
+        notification.category = category if category else "borrowd"
+
+        notification.show_absolute_timestamp = (
+            notification.timestamp <= relative_timestamp_cutoff
+        )
+        notification.action_url = _notification_action_url(notification)
+        notification.avatar_content = _notification_avatar_content(notification)
+        notification.category_icon = _get_category_icon(category)
 
 
 @login_required
 def notification_inbox_view(request: HttpRequest) -> HttpResponse:
+    """Renders the paginated in-app notification inbox for the current user."""
     user = get_authenticated_user(request)
 
     # only show the notifications that where sent through the in-app channel
     # notifications is untyped (see mypy.ini): user.notifications is invisible to mypy.
-    qs: QuerySet[Notification] = _app_channel_qs(user.notifications.all())  # type: ignore[attr-defined]
+    qs: QuerySet[Notification] = app_channel_qs(user.notifications.all())  # type: ignore[attr-defined]
     paginator = Paginator(qs, _INBOX_PAGE_SIZE)
     page_obj = paginator.get_page(request.GET.get("page", 1))
 
-    relative_timestamp_cutoff = timezone.now() - _RELATIVE_TIMESTAMP_MAX_AGE
-    for notification in page_obj:
-        notification.formatted_message = _format_notification(notification)
-        notification.show_absolute_timestamp = (
-            notification.timestamp <= relative_timestamp_cutoff
-        )
+    _annotate_for_display(page_obj)
 
+    # unread_notification_count comes from the unread_notification_count context
+    # processor (borrowd_notifications/context_processors.py), which every
+    # authenticated page already computes for the header bell — no need to
+    # run the same count query again here.
     return render(
         request,
         "notifications/inbox.html",
-        {
-            "page_obj": page_obj,
-            # notifications is untyped (see mypy.ini): unread() manager method is invisible.
-            "unread_count": qs.unread().count(),  # type: ignore[attr-defined]
-        },
+        {"page_obj": page_obj},
     )
+
+
+def _render_notification_indicator_oob(request: HttpRequest) -> str:
+    """Renders the header bell's icon/badge as an out-of-band swap fragment
+    (see `templates/notifications/_notification_indicator_oob.html`), for
+    htmx action responses to append so the badge updates immediately
+    instead of waiting for the next 30s poll. The count itself comes from
+    the `unread_notification_count` context processor, so it's always
+    freshly queried rather than manually decremented.
+    """
+    return render_to_string(
+        "notifications/_notification_indicator_oob.html", request=request
+    )
+
+
+def _redirect_to_caller(request: HttpRequest) -> HttpResponse:
+    """Sends the user back to wherever they submitted the form from (the
+    inbox page or the header's notification popup), rather than always
+    landing on the inbox.
+    """
+    fallback_url = reverse("notification-inbox")
+    referer = request.META.get("HTTP_REFERER", "")
+    if referer and is_safe_back_url(referer, request):
+        return redirect(referer)
+    return redirect(fallback_url)
 
 
 @login_required
 @require_POST
 def mark_notification_read(request: HttpRequest, pk: int) -> HttpResponse:
+    """Marks a notification as read. For htmx requests, returns the
+    updated card partial plus an out-of-band header badge update, so both
+    swap in place immediately; otherwise redirects back to wherever the
+    form was submitted from.
+    """
     notification = get_object_or_404(
         Notification,
         pk=pk,
@@ -328,7 +602,38 @@ def mark_notification_read(request: HttpRequest, pk: int) -> HttpResponse:
         borrowd_metadata__visible_in_app=True,
     )
     notification.mark_as_read()
-    return redirect("notification-inbox")
+    if request.headers.get("HX-Request") == "true":
+        _annotate_for_display([notification])
+        card_html = render_to_string(
+            "notifications/_notification_card.html",
+            {"notification": notification},
+            request=request,
+        )
+        return HttpResponse(card_html + _render_notification_indicator_oob(request))
+    return _redirect_to_caller(request)
+
+
+@login_required
+@require_POST
+def open_notification(request: HttpRequest, pk: int) -> HttpResponse:
+    """Marks a notification read and sends the user to the page it's about
+    (see _notification_action_url); falls back to the inbox if it has
+    nothing to link to.
+
+    POST rather than GET: marking read is a state change, and a bare GET
+    link has no CSRF protection, so any cross-site request (an <img> tag,
+    a prefetched link) could silently mark a guessed notification pk as
+    read. A form matches the other per-notification actions in this card.
+    """
+    notification = get_object_or_404(
+        Notification,
+        pk=pk,
+        recipient=request.user,
+        borrowd_metadata__visible_in_app=True,
+    )
+    notification.mark_as_read()
+    action_url = _notification_action_url(notification)
+    return redirect(action_url or reverse("notification-inbox"))
 
 
 @login_required
@@ -336,11 +641,15 @@ def mark_notification_read(request: HttpRequest, pk: int) -> HttpResponse:
 def mark_all_notifications_read(request: HttpRequest) -> HttpResponse:
     user = get_authenticated_user(request)
     # notifications is untyped (see mypy.ini): user.notifications is invisible to mypy.
-    _app_channel_qs(user.notifications.all()).update(unread=False)  # type: ignore[attr-defined]
-    return redirect("notification-inbox")
+    app_channel_qs(user.notifications.all()).update(unread=False)  # type: ignore[attr-defined]
+    return _redirect_to_caller(request)
 
 
 def delete_app_notification(notification: Notification) -> None:
+    """Hides a notification from the in-app inbox by flipping its metadata's
+    `visible_in_app` off, without touching its email/push delivery history.
+    Also clears `unread` so it stops counting toward the header badge.
+    """
     if NotificationMetadata.objects.filter(
         notification=notification,
         visible_in_app=True,
@@ -352,6 +661,11 @@ def delete_app_notification(notification: Notification) -> None:
 @login_required
 @require_POST
 def remove_app_notification(request: HttpRequest, pk: int) -> HttpResponse:
+    """Removes a single notification from the in-app inbox. For htmx
+    requests, returns an out-of-band header badge update with no other
+    content, so the card's outerHTML swap deletes it in place and the
+    badge updates immediately; otherwise redirects back to the caller.
+    """
     notification = get_object_or_404(
         Notification,
         pk=pk,
@@ -360,18 +674,67 @@ def remove_app_notification(request: HttpRequest, pk: int) -> HttpResponse:
     )
 
     delete_app_notification(notification=notification)
-    return redirect("notification-inbox")
+    if request.headers.get("HX-Request") == "true":
+        # No main content: the card's outerHTML target swaps to nothing
+        # (removing it), while the OOB fragment updates the badge in the
+        # same response.
+        return HttpResponse(_render_notification_indicator_oob(request))
+    return _redirect_to_caller(request)
 
 
 @login_required
 @require_POST
 def remove_all_app_notifications(request: HttpRequest) -> HttpResponse:
+    """Clears the current user's entire in-app inbox: marks every visible
+    notification read and hides it from the in-app channel.
+    """
     user = get_authenticated_user(request)
     # notifications is untyped (see mypy.ini): user.notifications is invisible to mypy.
-    visible_notifications = _app_channel_qs(user.notifications.all())  # type: ignore[attr-defined]
+    visible_notifications = app_channel_qs(user.notifications.all())  # type: ignore[attr-defined]
     visible_notifications.update(unread=False)
     NotificationMetadata.objects.filter(
         notification__recipient=user,
         visible_in_app=True,
     ).update(visible_in_app=False)
     return redirect("notification-inbox")
+
+
+_POPUP_NOTIFICATION_LIMIT = 10
+
+
+@login_required
+@require_GET
+def notification_popup_view(request: HttpRequest) -> HttpResponse:
+    """Renders the header bell's dropdown popup with the user's most
+    recent notifications (see _POPUP_NOTIFICATION_LIMIT).
+    """
+    user = get_authenticated_user(request)
+
+    # notifications is untyped (see mypy.ini): user.notifications is invisible to mypy.
+    qs: QuerySet[Notification] = app_channel_qs(
+        user.notifications.all()  # type: ignore[attr-defined]
+    )
+
+    notifications = qs.order_by("-timestamp")[:_POPUP_NOTIFICATION_LIMIT]
+
+    _annotate_for_display(notifications)
+
+    # unread_notification_count comes from the unread_notification_count context
+    # processor (borrowd_notifications/context_processors.py), which every
+    # authenticated page already computes for the header bell — no need to
+    # run the same count query again here.
+    return render(
+        request,
+        "notifications/popup.html",
+        {"notifications": notifications},
+    )
+
+
+@login_required
+@require_GET
+def notification_bell_count(request: HttpRequest) -> HttpResponse:
+    """Renders the header bell's icon/badge fragment. Polled every 30s by
+    `#notification-indicator` (notification_bell.html) to keep the unread
+    count fresh without a full page reload.
+    """
+    return render(request, "notifications/_notification_count_indicator.html")

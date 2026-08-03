@@ -1,0 +1,30 @@
+{% load i18n %}
+
+<div class="dropdown dropdown-end">
+    <!-- daisyUI sets pointer-events:none on this element the instant it gains
+         focus (to let clicks pass through to the dropdown-content beneath),
+         so a click-triggered load races that CSS change and never fires;
+         focus doesn't race it and fires on click too. -->
+    <div tabindex="0"
+         role="button"
+         class="btn btn-ghost text-borrowd-indigo-600 btn-circle md:mr-6"
+         aria-label="{% trans 'Notifications' %}"
+         hx-get="{% url 'notification-popup' %}"
+         hx-trigger="focus"
+         hx-target="#notification-popup-content"
+         hx-swap="innerHTML">
+        <div id="notification-indicator"
+             class="indicator"
+             hx-get="{% url 'notification-bell-count' %}"
+             hx-trigger="load, every 30s"
+             hx-target="this"
+             hx-swap="innerHTML">
+            {% include "notifications/_notification_count_indicator.html" %}
+
+        </div>
+    </div>
+    <div id="notification-popup-content"
+         tabindex="0"
+         class="dropdown-content z-60 mt-5 w-90 md:w-200">
+    </div>
+</div>

@@ -107,6 +107,7 @@ TEMPLATES = [
                 "django.contrib.messages.context_processors.messages",
                 "borrowd_beta.context_processors.beta_status",
                 "borrowd_groups.context_processors.groups_needing_moderator",
+                "borrowd_notifications.context_processors.unread_notification_count",
             ],
         },
     },

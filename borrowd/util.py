@@ -12,7 +12,7 @@ from django.urls import Resolver404, resolve
 logger = logging.getLogger(__name__)
 
 
-def _is_safe_back_url(url: str, request: HttpRequest) -> bool:
+def is_safe_back_url(url: str, request: HttpRequest) -> bool:
     """
     True if `url` is safe to use as a back-button target: a relative path,
     or an absolute URL whose host matches the current request's host.
@@ -61,7 +61,7 @@ def resolve_back_url(
     """
 
     """
-    Using `url_has_allowed_host_and_scheme` instead of `_is_safe_back_url`
+    Using `url_has_allowed_host_and_scheme` instead of `is_safe_back_url`
     would look something like:
     ```
     next_url = request.GET.get("next")
@@ -74,7 +74,7 @@ def resolve_back_url(
     ```
     """
     next_url = request.GET.get("next")
-    if next_url and _is_safe_back_url(next_url, request):
+    if next_url and is_safe_back_url(next_url, request):
         return next_url
 
     referer = request.META.get("HTTP_REFERER")
