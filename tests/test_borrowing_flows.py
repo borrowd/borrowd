@@ -5,6 +5,7 @@ from borrowd_groups.models import BorrowdGroup
 from borrowd_items.models import Item, ItemAction, ItemStatus, TransactionStatus
 from borrowd_items.views import ItemDetailView, borrow_item
 from borrowd_users.models import BorrowdUser
+from tests.helpers import hard_delete_transactions_and_threads
 
 
 # Use SimpleTestCase to prevent database cleanup between tests.
@@ -71,8 +72,7 @@ class RejectedFlowTest(SimpleTestCase):
     @classmethod
     def tearDownClass(cls) -> None:
         # Clean up the database after the class completes
-        for tx in cls.item.transactions.all():
-            tx.delete()
+        hard_delete_transactions_and_threads(cls.item)
         cls.item.delete()
         cls.group.delete()
         cls.lender.delete()
@@ -315,8 +315,7 @@ class AcceptedFlowTest(SimpleTestCase):
 
     @classmethod
     def tearDownClass(cls) -> None:
-        for tx in cls.item.transactions.all():
-            tx.delete()
+        hard_delete_transactions_and_threads(cls.item)
         cls.item.delete()
         cls.group.delete()
         cls.lender.delete()
@@ -421,8 +420,7 @@ class CancelFromRequestedFlowTest(SimpleTestCase):
 
     @classmethod
     def tearDownClass(cls) -> None:
-        for tx in cls.item.transactions.all():
-            tx.delete()
+        hard_delete_transactions_and_threads(cls.item)
         cls.item.delete()
         cls.group.delete()
         cls.lender.delete()
@@ -503,8 +501,7 @@ class CancelFromAcceptedFlowTest(SimpleTestCase):
 
     @classmethod
     def tearDownClass(cls) -> None:
-        for tx in cls.item.transactions.all():
-            tx.delete()
+        hard_delete_transactions_and_threads(cls.item)
         cls.item.delete()
         cls.group.delete()
         cls.lender.delete()
