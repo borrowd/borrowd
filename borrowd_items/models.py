@@ -538,9 +538,8 @@ class Item(Model):
                 return (ItemAction.CANCEL_NOTIFICATION_REQUEST,)
 
             # At this point, either:
-            # - the user is the owner of the item (and thus can't request to borrow their
-            # no Request can be initiated.
-
+            # - the user is the owner of the item (and thus can't request to borrow it), or
+            # - the item is not borrowable and no notify/cancel-notify action applies.
             # NOTE Later we may want to allow new Requests on Items
             # even when they're currently Borrowed; that will
             # imply date-based borrowing bookings, which we're
