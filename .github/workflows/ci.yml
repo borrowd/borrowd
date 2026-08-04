@@ -9,7 +9,7 @@ on:
       skip_e2e:
         description: "Skip E2E tests"
         type: boolean
-        default: true
+        default: false
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
