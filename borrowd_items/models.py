@@ -124,6 +124,22 @@ class PrecomputedItemState:
     current_transaction: Optional["Transaction"]
     has_active_subscription: bool = False
 
+    def current_transaction_for_user(
+        self, user: BorrowdUser
+    ) -> Optional["Transaction"]:
+        """
+        Returns current_transaction if the given user is a party to it,
+        mirroring what Item.get_current_transaction_for_user() would query.
+        """
+        if self.current_transaction is None:
+            return None
+        if (
+            self.current_transaction.party1_id == user.id
+            or self.current_transaction.party2_id == user.id
+        ):
+            return self.current_transaction
+        return None
+
 
 class ItemCategory(Model):
     name = CharField(max_length=50, null=False, blank=False)
@@ -274,15 +290,7 @@ class Item(Model):
         if precomputed is not None:
             current_borrower = precomputed.current_borrower
             requesting_user = precomputed.requesting_user
-            current_tx = (
-                precomputed.current_transaction
-                if precomputed.current_transaction
-                and (
-                    precomputed.current_transaction.party1_id == user.id
-                    or precomputed.current_transaction.party2_id == user.id
-                )
-                else None
-            )
+            current_tx = precomputed.current_transaction_for_user(user)
         else:
             current_borrower = self.get_current_borrower()
             requesting_user = self.get_requesting_user()
@@ -474,15 +482,7 @@ class Item(Model):
         # This may raise Transaction.MultipleObjectsReturned.
         # Let it propagate.
         if precomputed is not None:
-            current_tx = (
-                precomputed.current_transaction
-                if precomputed.current_transaction
-                and (
-                    precomputed.current_transaction.party1_id == user.id
-                    or precomputed.current_transaction.party2_id == user.id
-                )
-                else None
-            )
+            current_tx = precomputed.current_transaction_for_user(user)
             current_borrower = precomputed.current_borrower
             requesting_user = precomputed.requesting_user
             has_active_subscription = precomputed.has_active_subscription
