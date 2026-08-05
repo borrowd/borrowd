@@ -735,16 +735,15 @@ class Item(Model):
         Returns the transaction involving this item regardless of the user
         """
         try:
-        # Use `first()` so unexpected data issues (multiple non-terminal transactions)
-        # don't 500 the page; the most recent active transaction wins.
-        return (
-            Transaction.objects.select_related(
+            # Using `get()` here because if there *is* a current Active
+            # Transaction involving this Item , there should only be one.
+            # Related user data is loaded for card/status text rendering.
+            return Transaction.objects.select_related(
                 "party1",
                 "party1__profile",
                 "party2",
                 "party2__profile",
-            )
-            .filter(
+            ).get(
                 Q(item=self)
                 & ~Q(
                     status__in=[
@@ -756,9 +755,8 @@ class Item(Model):
                     ]
                 )
             )
-            .order_by("-created_at")
-            .first()
-        )
+        except Transaction.DoesNotExist:
+            return None
 
     def get_current_transaction_for_user(
         self, user: BorrowdUser
