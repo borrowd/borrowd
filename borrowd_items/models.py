@@ -735,25 +735,29 @@ class Item(Model):
         Returns the transaction involving this item regardless of the user
         """
         try:
-            # Using `get()` here because if there *is* a current Active
-            # Transaction involving this Item , there should only be one.
-            # Related user data is loaded for card/status text rendering.
-            return Transaction.objects.select_related(
-                "party1",
-                "party1__profile",
-                "party2",
-                "party2__profile",
-            ).get(
-                Q(item=self)
-                & ~Q(
-                    status__in=[
-                        TransactionStatus.RETURNED,
-                        TransactionStatus.REJECTED,
-                        TransactionStatus.CANCELLED,
-                        TransactionStatus.RESOLVED,
-                        TransactionStatus.OWNERSHIP_TRANSFERRED,
-                    ]
+            # Use `first()` so unexpected data issues (multiple non-terminal transactions)
+            # don't 500 the page; the most recent active transaction wins.
+            return (
+                Transaction.objects.select_related(
+                    "party1",
+                    "party1__profile",
+                    "party2",
+                    "party2__profile",
                 )
+                .filter(
+                    Q(item=self)
+                    & ~Q(
+                        status__in=[
+                            TransactionStatus.RETURNED,
+                            TransactionStatus.REJECTED,
+                            TransactionStatus.CANCELLED,
+                            TransactionStatus.RESOLVED,
+                            TransactionStatus.OWNERSHIP_TRANSFERRED,
+                        ]
+                    )
+                )
+                .order_by("-created_at")
+                .first()
             )
         except Transaction.DoesNotExist:
             return None
