@@ -13,6 +13,9 @@ from django.utils.html import format_html
 from django.utils.text import capfirst
 
 from .models import (
+    BORROWER_TRANSACTION_STATUSES,
+    REQUEST_TRANSACTION_STATUSES,
+    TERMINAL_TRANSACTION_STATUSES,
     AvailabilitySubscription,
     AvailabilitySubscriptionStatus,
     Item,
@@ -67,29 +70,6 @@ BANNER_STYLES = {
     "giveaway_listing": {"bg": "bg-primary/15", "text": "text-primary"},
     "giveaway_requested": {"bg": "bg-primary/15", "text": "text-primary"},
 }
-
-_TERMINAL_TRANSACTION_STATUSES = (
-    TransactionStatus.RETURNED,
-    TransactionStatus.REJECTED,
-    TransactionStatus.CANCELLED,
-    TransactionStatus.RESOLVED,
-    TransactionStatus.OWNERSHIP_TRANSFERRED,
-)
-
-_REQUEST_TRANSACTION_STATUSES = (
-    TransactionStatus.REQUESTED,
-    TransactionStatus.GIVEAWAY_REQUESTED,
-)
-
-_BORROWER_TRANSACTION_STATUSES = (
-    TransactionStatus.ACCEPTED,
-    TransactionStatus.COLLECTION_ASSERTED,
-    TransactionStatus.COLLECTED,
-    TransactionStatus.GIVEAWAY_OFFERED,
-    TransactionStatus.RETURN_REQUESTED,
-    TransactionStatus.RETURN_ASSERTED,
-    TransactionStatus.DISPUTED,
-)
 
 _TRANSACTION_SELECT_RELATED = (
     "party1",
@@ -155,9 +135,9 @@ def _state_from_transaction(
     requesting_user = None
 
     if transaction is not None:
-        if transaction.status in _REQUEST_TRANSACTION_STATUSES:
+        if transaction.status in REQUEST_TRANSACTION_STATUSES:
             requesting_user = transaction.party2
-        elif transaction.status in _BORROWER_TRANSACTION_STATUSES:
+        elif transaction.status in BORROWER_TRANSACTION_STATUSES:
             current_borrower = transaction.party2
 
     return PrecomputedItemState(
@@ -207,7 +187,7 @@ def _precompute_item_states_for_items(
     current_transactions: dict[int, Transaction] = {}
     for transaction in (
         Transaction.objects.filter(item_id__in=item_ids)
-        .exclude(status__in=_TERMINAL_TRANSACTION_STATUSES)
+        .exclude(status__in=TERMINAL_TRANSACTION_STATUSES)
         .select_related(*_TRANSACTION_SELECT_RELATED)
         .order_by("item_id", "-created_at")
     ):

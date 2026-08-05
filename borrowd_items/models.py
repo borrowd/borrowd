@@ -660,13 +660,9 @@ class Item(Model):
         Returns the User with an open borrow or giveaway request on
         this Item, if any.
         """
-        pending_statuses = [
-            TransactionStatus.REQUESTED,
-            TransactionStatus.GIVEAWAY_REQUESTED,
-        ]
         try:
             transaction = Transaction.objects.get(
-                Q(item=self) & Q(status__in=pending_statuses)
+                Q(item=self) & Q(status__in=REQUEST_TRANSACTION_STATUSES)
             )
             # party2 is the requestor
             return transaction.party2
@@ -676,7 +672,7 @@ class Item(Model):
             # Return the most recent request (for now)
             txn: Optional["Transaction"] = (
                 Transaction.objects.filter(
-                    Q(item=self) & Q(status__in=pending_statuses)
+                    Q(item=self) & Q(status__in=REQUEST_TRANSACTION_STATUSES)
                 )
                 .order_by("-created_at")
                 .first()
@@ -690,18 +686,7 @@ class Item(Model):
         # Look for an active transaction where the item is borrowed or reserved
         try:
             transaction = Transaction.objects.get(
-                Q(item=self)
-                & Q(
-                    status__in=[
-                        TransactionStatus.ACCEPTED,
-                        TransactionStatus.COLLECTION_ASSERTED,
-                        TransactionStatus.COLLECTED,
-                        TransactionStatus.GIVEAWAY_OFFERED,
-                        TransactionStatus.RETURN_REQUESTED,
-                        TransactionStatus.RETURN_ASSERTED,
-                        TransactionStatus.DISPUTED,
-                    ]
-                )
+                Q(item=self) & Q(status__in=BORROWER_TRANSACTION_STATUSES)
             )
             # party2 is the borrower
             return transaction.party2
@@ -712,18 +697,7 @@ class Item(Model):
             # return the most recent one
             txn: Optional["Transaction"] = (
                 Transaction.objects.filter(
-                    Q(item=self)
-                    & Q(
-                        status__in=[
-                            TransactionStatus.ACCEPTED,
-                            TransactionStatus.COLLECTION_ASSERTED,
-                            TransactionStatus.COLLECTED,
-                            TransactionStatus.GIVEAWAY_OFFERED,
-                            TransactionStatus.RETURN_REQUESTED,
-                            TransactionStatus.RETURN_ASSERTED,
-                            TransactionStatus.DISPUTED,
-                        ]
-                    )
+                    Q(item=self) & Q(status__in=BORROWER_TRANSACTION_STATUSES)
                 )
                 .order_by("-updated_at")
                 .first()
@@ -744,18 +718,7 @@ class Item(Model):
                     "party2",
                     "party2__profile",
                 )
-                .filter(
-                    Q(item=self)
-                    & ~Q(
-                        status__in=[
-                            TransactionStatus.RETURNED,
-                            TransactionStatus.REJECTED,
-                            TransactionStatus.CANCELLED,
-                            TransactionStatus.RESOLVED,
-                            TransactionStatus.OWNERSHIP_TRANSFERRED,
-                        ]
-                    )
-                )
+                .filter(Q(item=self) & ~Q(status__in=TERMINAL_TRANSACTION_STATUSES))
                 .order_by("-created_at")
                 .first()
             )
@@ -776,15 +739,7 @@ class Item(Model):
             return Transaction.objects.get(
                 Q(item=self)
                 & (Q(party1=user) | Q(party2=user))
-                & ~Q(
-                    status__in=[
-                        TransactionStatus.RETURNED,
-                        TransactionStatus.REJECTED,
-                        TransactionStatus.CANCELLED,
-                        TransactionStatus.RESOLVED,
-                        TransactionStatus.OWNERSHIP_TRANSFERRED,
-                    ]
-                )
+                & ~Q(status__in=TERMINAL_TRANSACTION_STATUSES)
             )
         except Transaction.DoesNotExist:
             return None
@@ -1199,6 +1154,36 @@ class TransactionStatus(IntegerChoices):
     CANCELLED = 80, "Cancelled"
     RESOLVED = 90, "Resolved"  # any force-resolved transaction, regardless of reason
     OWNERSHIP_TRANSFERRED = 95, "Ownership Transferred"
+
+
+# A transaction in one of these statuses is done; it no longer counts as the
+# item's current transaction.
+TERMINAL_TRANSACTION_STATUSES = (
+    TransactionStatus.RETURNED,
+    TransactionStatus.REJECTED,
+    TransactionStatus.CANCELLED,
+    TransactionStatus.RESOLVED,
+    TransactionStatus.OWNERSHIP_TRANSFERRED,
+)
+
+# A transaction in one of these statuses is an open borrow or giveaway
+# request awaiting the owner's decision.
+REQUEST_TRANSACTION_STATUSES = (
+    TransactionStatus.REQUESTED,
+    TransactionStatus.GIVEAWAY_REQUESTED,
+)
+
+# A transaction in one of these statuses has an assigned borrower (party2)
+# holding, or about to hold, the item.
+BORROWER_TRANSACTION_STATUSES = (
+    TransactionStatus.ACCEPTED,
+    TransactionStatus.COLLECTION_ASSERTED,
+    TransactionStatus.COLLECTED,
+    TransactionStatus.GIVEAWAY_OFFERED,
+    TransactionStatus.RETURN_REQUESTED,
+    TransactionStatus.RETURN_ASSERTED,
+    TransactionStatus.DISPUTED,
+)
 
 
 class ResolutionReason(TextChoices):
