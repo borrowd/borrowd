@@ -356,6 +356,16 @@ class ThreadArchivalTests(MessagingTestCase):
         self.assertEqual(self.thread.archive_reason, ArchiveReason.RETURNED)
         self.assertEqual(self.thread.messages.count(), 1)
 
+    def test_archiving_twice_from_separate_instances_posts_one_notice(self) -> None:
+        stale = ChatThread.objects.get(pk=self.thread.pk)
+
+        MessagingService.archive_thread(self.thread, ArchiveReason.RETURNED)
+        MessagingService.archive_thread(stale, ArchiveReason.CANCELLED)
+
+        self.thread.refresh_from_db()
+        self.assertEqual(self.thread.archive_reason, ArchiveReason.RETURNED)
+        self.assertEqual(self.thread.messages.count(), 1)
+
     def test_archiving_accepts_alternate_copy(self) -> None:
         MessagingService.archive_thread(
             self.thread,
@@ -411,8 +421,8 @@ class ThreadArchivalTests(MessagingTestCase):
             self.assertEqual(thread.archive_reason, ArchiveReason.ITEM_UNAVAILABLE)
 
     def test_archiving_looks_the_system_user_up_once(self) -> None:
-        # system user lookup, thread update, message insert
-        with self.assertNumQueries(3):
+        # system user lookup, then savepoint, thread update, message insert, release
+        with self.assertNumQueries(5):
             MessagingService.archive_thread(self.thread, ArchiveReason.RETURNED)
 
     def test_leaves_conversations_that_have_a_transaction(self) -> None:

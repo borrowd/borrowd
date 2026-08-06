@@ -203,15 +203,28 @@ class MessagingService:
             return
 
         system_user = get_system_user()
-        thread.archived_at = timezone.now()
-        thread.archive_reason = reason
-        thread.updated_by = actor or system_user
-        thread.save(
-            update_fields=["archived_at", "archive_reason", "updated_by", "updated_at"]
-        )
-        cls.post_system_message(
-            thread, message or ARCHIVE_MESSAGES[reason], sender=system_user
-        )
+        actor = actor or system_user
+        now = timezone.now()
+
+        with atomic():
+            archived = ChatThread.objects.filter(
+                pk=thread.pk, archived_at__isnull=True
+            ).update(
+                archived_at=now,
+                archive_reason=reason,
+                updated_by=actor,
+                updated_at=now,
+            )
+            if not archived:
+                return
+
+            thread.archived_at = now
+            thread.archive_reason = reason
+            thread.updated_by = actor
+            thread.updated_at = now
+            cls.post_system_message(
+                thread, message or ARCHIVE_MESSAGES[reason], sender=system_user
+            )
 
     @classmethod
     def archive_prerequest_threads_for_item(
