@@ -109,20 +109,22 @@ class MessagingService:
             raise NotThreadParticipant(
                 f"User {sender.pk} is not a participant of ChatThread {thread.pk}."
             )
-        if thread.is_archived:
-            raise ThreadNotWritable(f"ChatThread {thread.pk} is archived.")
+        with atomic():
+            # the thread may have been archived since the caller loaded it.
+            current = ChatThread.objects.select_for_update().get(pk=thread.pk)
+            if current.is_archived:
+                raise ThreadNotWritable(f"ChatThread {thread.pk} is archived.")
 
-        # Django only enforces max_length in forms, so an over-long body would
-        # reach Postgres as a DataError (and SQLite would take it silently).
-        body = body.strip()
-        if not body:
-            raise InvalidMessageBody("Message body cannot be empty.")
-        if len(body) > MESSAGE_BODY_MAX_LENGTH:
-            raise InvalidMessageBody(
-                f"Message body cannot exceed {MESSAGE_BODY_MAX_LENGTH} characters."
-            )
+            body = body.strip()
+            if not body:
+                raise InvalidMessageBody("Message body cannot be empty.")
+            if len(body) > MESSAGE_BODY_MAX_LENGTH:
+                raise InvalidMessageBody(
+                    f"Message body cannot exceed {MESSAGE_BODY_MAX_LENGTH} characters."
+                )
 
-        message = Message.objects.create(thread=thread, sender=sender, body=body)
+            message = Message.objects.create(thread=current, sender=sender, body=body)
+
         cls._dispatch(message)
         return message
 

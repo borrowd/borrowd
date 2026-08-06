@@ -203,6 +203,16 @@ class SendMessageTests(MessagingTestCase):
         with self.assertRaises(ThreadNotWritable):
             MessagingService.send_message(self.thread, self.borrower, "hello")
 
+    def test_rejects_a_thread_archived_since_the_caller_loaded_it(self) -> None:
+        # What a request that opened the thread page would still be holding.
+        stale = ChatThread.objects.get(pk=self.thread.pk)
+        MessagingService.archive_thread(self.thread, ArchiveReason.RETURNED)
+
+        with self.assertRaises(ThreadNotWritable):
+            MessagingService.send_message(stale, self.borrower, "snuck in")
+
+        self.assertEqual(self.thread.messages.count(), 1)
+
     @override_settings(MESSAGING_ENABLED=False)
     def test_refused_while_the_feature_flag_is_off(self) -> None:
         with self.assertRaises(MessagingDisabled):
