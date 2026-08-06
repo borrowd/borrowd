@@ -11,7 +11,8 @@ from borrowd_permissions.models import ChatThreadOLP
 from .models import ArchiveReason, ChatThread
 from .services import MessagingService
 
-_TERMINAL_ARCHIVE_REASONS: dict[TransactionStatus, ArchiveReason] = {
+# Keyed by int so a raw status value looks up without coercion.
+_TERMINAL_ARCHIVE_REASONS: dict[int, ArchiveReason] = {
     TransactionStatus.RETURNED: ArchiveReason.RETURNED,
     TransactionStatus.REJECTED: ArchiveReason.REJECTED,
     TransactionStatus.CANCELLED: ArchiveReason.CANCELLED,
@@ -73,6 +74,6 @@ def sync_chat_thread_with_transaction(
         MessagingService.post_dispute_notice(thread)
         return
 
-    reason = _TERMINAL_ARCHIVE_REASONS.get(TransactionStatus(instance.status))
+    reason = _TERMINAL_ARCHIVE_REASONS.get(instance.status)
     if reason is not None:
         MessagingService.archive_thread(thread, reason)
