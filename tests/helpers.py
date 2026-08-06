@@ -6,15 +6,13 @@ def hard_delete_threads_and_transactions(item: Item) -> None:
     """
     Destroy an item's chats and transactions in test teardown.
 
-    Order matters. Messages point at chats, and chats point at transactions.
-    Both links are PROTECT, so nothing can be deleted while something still
-    points at it. Start at the bottom.
-
-    Does nothing if the item has no chats, which is the case whenever
-    MESSAGING_ENABLED is off.
+    Since we have messages and threads set to PROTECT, we have to delete from
+    the bottom (messages) up.
     """
+    # no-op when no chats (e.g. MESSAGING_ENABLED == false)
     for thread in ChatThread.objects.filter(item=item):
         thread.messages.all().delete()
         thread.delete()
+    # always runs
     for tx in item.transactions.all():
         tx.delete()
