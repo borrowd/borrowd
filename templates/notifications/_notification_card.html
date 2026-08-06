@@ -1,0 +1,102 @@
+{% load i18n heroicons static humanize %}
+
+<div id="notification-card-{{ notification.pk }}"
+     data-testid="notification-card"
+     class="notification-card max-h-80 overflow-hidden px-4 py-4 transition-all duration-200 ease-out hover:bg-blue-50/70 motion-reduce:transition-none {% if notification.unread %}bg-blue-50/70{% else %}bg-primary-content{% endif %}">
+    <div class="flex min-w-0 items-start gap-3">
+        {% if notification.action_url %}
+            <form method="post"
+                  action="{% url 'notification-open' pk=notification.pk %}"
+                  class="min-w-0 flex-1">
+                {% csrf_token %}
+                <button type="submit"
+                        class="flex w-full min-w-0 items-start gap-3 rounded-md text-left cursor-pointer">
+                {% else %}
+                    <div class="flex min-w-0 flex-1 items-start gap-3">
+                    {% endif %}
+
+                    <div class="indicator shrink-0">
+                        {% if notification.avatar_content %}
+                            <img src="{{ notification.avatar_content }}"
+                                 alt=""
+                                 class="size-12 rounded-full object-cover bg-base-200 border-2 border-white" />
+                        {% else %}
+                            <span class="size-12 rounded-full bg-base-200 border-2 border-white flex items-center justify-center">
+                                {% heroicon_solid notification.category_icon|default:"bell" class="size-5" %}
+                            </span>
+                        {% endif %}
+                        {% if notification.unread %}
+                            <span class="indicator-item bg-accent w-3 h-3 mt-2 mr-1 rounded-full border-2 border-white"></span>
+                        {% endif %}
+                    </div>
+
+                    <span class="min-w-0 flex flex-col flex-1 gap-3">
+                        <span class="flex flex-col items-start justify-between gap-2">
+                            <span class="min-w-0 text-sm leading-snug text-base-content line-clamp-2 font-semibold">
+                                {{ notification.title }}
+                            </span>
+                            <span class="shrink-0 whitespace-nowrap text-xs leading-none text-base-content/50">
+                                {% if notification.show_absolute_timestamp %}
+                                    {{ notification.timestamp|date:"M j, Y" }}
+                                {% else %}
+                                    {{ notification.timestamp|naturaltime }}
+                                {% endif %}
+                            </span>
+                        </span>
+
+                        <span class="block text-sm leading-snug text-base-content/60 line-clamp-3">
+                            {% for part in notification.message_parts %}
+                                {% if part.is_emphasized %}
+                                    <span class="font-semibold">{{ part.text }}</span>
+                                {% else %}
+                                    {{ part.text }}
+                                {% endif %}
+                            {% endfor %}
+                        </span>
+                    </span>
+
+                    {% if notification.action_url %}
+                    </button>
+                </form>
+            {% else %}
+            </div>
+        {% endif %}
+
+        <div class="flex shrink-0 items-start gap-1">
+            {% if notification.unread %}
+                <form method="post"
+                      action="{% url 'notification-mark-read' pk=notification.pk %}"
+                      hx-post="{% url 'notification-mark-read' pk=notification.pk %}"
+                      hx-target="#notification-card-{{ notification.pk }}"
+                      hx-swap="outerHTML swap:200ms"
+                      hx-on::before-request="this.closest('.notification-card').classList.add('notification-card-reading')">
+                    {% csrf_token %}
+                    {% trans "Mark as read" as mark_read_label %}
+                    <button type="submit"
+                            class="btn btn-ghost btn-xs inline-flex items-center gap-1 whitespace-nowrap px-2 text-borrowd-indigo-600"
+                            aria-label="{{ mark_read_label }}"
+                            title="{{ mark_read_label }}">
+                        {% heroicon_outline "envelope-open" class="size-5" %}
+                        <span class="hidden sm:inline">{{ mark_read_label }}</span>
+                    </button>
+                </form>
+            {% endif %}
+
+            <form method="post"
+                  action="{% url 'notification-delete' pk=notification.pk %}"
+                  hx-post="{% url 'notification-delete' pk=notification.pk %}"
+                  hx-target="#notification-card-{{ notification.pk }}"
+                  hx-swap="outerHTML swap:200ms"
+                  hx-on::before-request="this.closest('.notification-card').classList.add('notification-card-removing')">
+                {% csrf_token %}
+                {% trans "Delete" as delete_label %}
+                <button type="submit"
+                        class="btn btn-ghost btn-xs inline-flex size-7 items-center justify-center p-0 text-red-600"
+                        aria-label="{{ delete_label }}"
+                        title="{{ delete_label }}">
+                    {% heroicon_solid "trash" class="size-5" %}
+                </button>
+            </form>
+        </div>
+    </div>
+</div>

@@ -119,7 +119,7 @@ class ReturnRequestedHappyFlowTest(ReturnFlowTestBase):
         self.assertTupleEqual(
             self.item.get_actions_for(self.lender),
             (
-                ItemAction.MARK_RETURNED,
+                ItemAction.CONFIRM_RETURNED,
                 ItemAction.REQUEST_RETURN,
                 ItemAction.OFFER_GIVEAWAY,
             ),
@@ -334,26 +334,34 @@ class LenderDeniesReturnAssertionFlowTest(ReturnFlowTestBase):
         self.assertEqual(tx.dispute_raised_by, self.lender)
 
 
-class BorrowerCannotDisputeLenderAssertionTest(ReturnFlowTestBase):
+class LenderMarkReturnedClosesImmediatelyTest(ReturnFlowTestBase):
     """
-    When the lender asserts the return themselves, the borrower may only
-    confirm -- the dispute deny-path is lender-only.
+    COLLECTED -> lender marks the item returned -> the loan closes right
+    away. The item is back in the lender's hands, which is authoritative
+    on its own, so the lender doesn't have to wait on the borrower to
+    confirm before the item is available to lend out again.
     """
 
     @classmethod
     def setUpClass(cls) -> None:
         super().setUpClass()
-        cls.create_loan_fixtures("ret_noborrower")
+        cls.create_loan_fixtures("ret_lenderclose")
         cls.advance_to_collected()
 
-    def test_010_borrower_gets_confirm_only(self) -> None:
-        """Borrower sees only the confirm action on the lender's assertion."""
-        self.post_action(self.lender, ItemAction.MARK_RETURNED)
+    def test_010_lender_marks_returned_closes_loan(self) -> None:
+        """The lender's mark closes the transaction and frees the item."""
+        self.post_action(self.lender, ItemAction.CONFIRM_RETURNED)
+        tx = self.current_tx()
+        self.assertEqual(tx.status, TransactionStatus.RETURNED)
+        self.item.refresh_from_db()
+        self.assertEqual(self.item.status, ItemStatus.AVAILABLE)
+
+    def test_020_borrower_has_no_pending_actions(self) -> None:
+        """With the loan already closed, the borrower has nothing to confirm."""
         self.assertTupleEqual(
             self.item.get_actions_for(self.borrower),
-            (ItemAction.CONFIRM_RETURNED,),
+            (ItemAction.REQUEST_ITEM,),
         )
-        # Lender asserted directly (no return request): borrower-facing chip copy must not show.
         self.assertIsNone(self.item.get_action_context_for(self.lender).waiting_text)
         self.assertIsNone(self.item.get_action_context_for(self.borrower).waiting_text)
 

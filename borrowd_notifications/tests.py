@@ -39,6 +39,7 @@ from .models import (
     NotificationType,
     PushSubscription,
 )
+from .views import _notification_action_url
 
 
 class GroupMemberJoinedNotificationTests(TestCase):
@@ -1703,19 +1704,37 @@ class NotificationInboxViewTests(TestCase):
         )
         return n
 
-    def test_unread_count_only_includes_app_channel_notifications(self) -> None:
+    def test_unread_notification_count_only_includes_app_channel_notifications(
+        self,
+    ) -> None:
         """Notifications without APP channel don't inflate the unread badge count."""
         self._make_notification(with_app_channel=False)
         response = self.client.get("/notifications/")
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context["unread_count"], 0)
+        self.assertEqual(response.context["unread_notification_count"], 0)
 
-    def test_unread_count_includes_app_channel_notifications(self) -> None:
+    def test_unread_notification_count_includes_app_channel_notifications(self) -> None:
         """Notifications with APP channel are counted in the unread badge."""
         self._make_notification(with_app_channel=True)
         response = self.client.get("/notifications/")
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context["unread_count"], 1)
+        self.assertEqual(response.context["unread_notification_count"], 1)
+
+    def test_notification_bell_count_returns_indicator_contents_only(self) -> None:
+        """The poll endpoint must not return another polling wrapper."""
+        self._make_notification(with_app_channel=True)
+
+        response = self.client.get("/notifications/notification-count/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(
+            response, "notifications/_notification_count_indicator.html"
+        )
+        self.assertContains(response, "badge-primary")
+        self.assertContains(response, "1")
+        self.assertNotContains(response, 'id="notification-indicator"')
+        self.assertNotContains(response, "hx-trigger")
+        self.assertNotContains(response, "notification-popup-content")
 
     def test_inbox_excludes_non_app_channel_notifications(self) -> None:
         """Notifications routed only to EMAIL don't appear in the inbox list."""
@@ -1728,6 +1747,42 @@ class NotificationInboxViewTests(TestCase):
         self._make_notification(with_app_channel=True)
         response = self.client.get("/notifications/")
         self.assertEqual(response.context["page_obj"].paginator.count, 1)
+
+    def test_notification_delete_button_uses_htmx_card_swap(self) -> None:
+        """Rendered delete controls remove their card without a full-page redirect."""
+        notification = self._make_notification(with_app_channel=True)
+
+        response = self.client.get("/notifications/")
+
+        self.assertContains(response, f'id="notification-card-{notification.pk}"')
+        self.assertContains(
+            response,
+            f'hx-post="/notifications/{notification.pk}/delete/"',
+        )
+        self.assertContains(
+            response,
+            f'hx-target="#notification-card-{notification.pk}"',
+        )
+        self.assertContains(response, 'hx-swap="outerHTML swap:200ms"')
+
+    def test_notification_mark_read_button_uses_htmx_card_swap(self) -> None:
+        """Rendered mark-read controls update their card without a redirect."""
+        notification = self._make_notification(with_app_channel=True)
+
+        response = self.client.get("/notifications/")
+
+        self.assertContains(
+            response,
+            f'hx-post="/notifications/{notification.pk}/read/"',
+        )
+        self.assertContains(
+            response,
+            f'hx-target="#notification-card-{notification.pk}"',
+        )
+        self.assertContains(
+            response,
+            "notification-card-reading",
+        )
 
     def test_recent_notification_uses_relative_timestamp(self) -> None:
         """Notifications less than seven days old retain relative timestamps."""
@@ -1765,6 +1820,22 @@ class NotificationInboxViewTests(TestCase):
 
         self.assertEqual(response.status_code, 404)
 
+    def test_mark_notification_read_htmx_returns_read_card(self) -> None:
+        """HTMX mark-read returns the card re-rendered in its read state."""
+        notification = self._make_notification(with_app_channel=True)
+
+        response = self.client.post(
+            f"/notifications/{notification.pk}/read/",
+            HTTP_HX_REQUEST="true",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        notification.refresh_from_db()
+        self.assertFalse(notification.unread)
+        self.assertContains(response, f'id="notification-card-{notification.pk}"')
+        self.assertNotContains(response, "Mark as read")
+        self.assertNotContains(response, "notification-card-reading")
+
     def test_mark_all_read_only_updates_visible_notifications(self) -> None:
         """Mark-all leaves non-app notification state untouched."""
         visible = self._make_notification(with_app_channel=True)
@@ -1777,6 +1848,49 @@ class NotificationInboxViewTests(TestCase):
         hidden.refresh_from_db()
         self.assertFalse(visible.unread)
         self.assertTrue(hidden.unread)
+
+
+class NotificationPopupViewTests(TestCase):
+    """Tests for the header bell's dropdown popup."""
+
+    def setUp(self) -> None:
+        self.user = BorrowdUser.objects.create_user(
+            username="user", email="user@example.com", password="password"
+        )
+        self.client.force_login(self.user)
+
+    def _make_notification(self) -> Notification:
+        from notifications.signals import notify
+
+        notify.send(
+            self.user,
+            recipient=[self.user],
+            verb=NotificationType.ITEM_REQUESTED.value,
+            description="test",
+        )
+        n = Notification.objects.filter(recipient=self.user).latest("timestamp")
+        n.data = {
+            "context": {},
+            "icon": None,
+            "channels": {"APP": {"status": "SUCCESS", "error": None}},
+        }
+        n.unread = True
+        n.save()
+        NotificationMetadata.objects.update_or_create(
+            notification=n,
+            defaults={"visible_in_app": True},
+        )
+        return n
+
+    def test_popup_shows_up_to_ten_notifications(self) -> None:
+        """PRD AC 6.1: the dropdown shows the most recent 10 notifications."""
+        for _ in range(12):
+            self._make_notification()
+
+        response = self.client.get("/notifications/popup/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.context["notifications"]), 10)
 
 
 class NotificationDeleteTests(TestCase):
@@ -1820,6 +1934,29 @@ class NotificationDeleteTests(TestCase):
         n.borrowd_metadata.refresh_from_db()
         self.assertFalse(n.borrowd_metadata.visible_in_app)
         self.assertIn("APP", (n.data or {}).get("channels", {}))
+        self.assertFalse(n.unread)
+
+    def test_remove_notification_htmx_returns_oob_badge_update(self) -> None:
+        """HTMX deletion removes the card (an empty main swap, since there's
+        no notification content left to show) without forcing a full-page
+        redirect, and carries an out-of-band header badge update so the
+        unread count refreshes immediately instead of waiting for the next
+        30s poll.
+        """
+        n = self._make_app_notification()
+
+        response = self.client.post(
+            f"/notifications/{n.pk}/delete/",
+            HTTP_HX_REQUEST="true",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, f'id="notification-card-{n.pk}"')
+        self.assertContains(response, 'id="notification-indicator"')
+        self.assertContains(response, 'hx-swap-oob="true"')
+        n.refresh_from_db()
+        n.borrowd_metadata.refresh_from_db()
+        self.assertFalse(n.borrowd_metadata.visible_in_app)
         self.assertFalse(n.unread)
 
     def test_remove_notification_disappears_from_inbox(self) -> None:
@@ -2386,3 +2523,125 @@ class PUSHNotificationStrategyTests(TransactionTestCase):
         self.assertEqual(
             payload.data.channels[ChannelType.PUSH].status, NotificationState.ERROR
         )
+
+
+class NotificationActionUrlTests(TestCase):
+    """Guards _notification_action_url's dispatch on action_object type.
+
+    Every notify.send() call across the app (borrowd_notifications,
+    borrowd_groups, and borrowd_users/services.py) sets action_object to an
+    Item, a Membership, or a BorrowdGroup. If a future call site sets some
+    other type without _notification_action_url being updated to match, the
+    resulting notification silently renders as a non-clickable card with no
+    error anywhere -- these tests fail loudly instead.
+    """
+
+    def setUp(self) -> None:
+        self.user = BorrowdUser.objects.create_user(
+            username="user", email="user@example.com", password="password"
+        )
+        self.group = BorrowdGroup.objects.create_group(
+            name="Test Group", created_by=self.user, updated_by=self.user
+        )
+        self.item = Item.objects.create(
+            name="Drill",
+            owner=self.user,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+
+    def _notification_for(self, action_object: Any) -> Notification:
+        from notifications.signals import notify
+
+        notify.send(
+            self.user,
+            recipient=[self.user],
+            verb=NotificationType.ITEM_REQUESTED.value,
+            action_object=action_object,
+            description="test",
+        )
+        return Notification.objects.filter(recipient=self.user).latest("timestamp")
+
+    def test_item_action_object_resolves_to_item_detail(self) -> None:
+        notification = self._notification_for(self.item)
+        self.assertEqual(
+            _notification_action_url(notification), f"/items/{self.item.pk}/"
+        )
+
+    def test_soft_deleted_item_action_object_resolves_to_no_link(self) -> None:
+        """ItemDetailView's default manager excludes soft-deleted items, so
+        linking there would 404. item_card.html already treats a removed
+        item as non-clickable (pointer-events-none) elsewhere in the app;
+        match that instead of producing a dead link."""
+        self.item.deleted_at = timezone.now()
+        self.item.save(update_fields=["deleted_at"])
+        notification = self._notification_for(self.item)
+        self.assertIsNone(_notification_action_url(notification))
+
+    def test_membership_action_object_resolves_to_group_detail(self) -> None:
+        membership = Membership.objects.get(user=self.user, group=self.group)
+        notification = self._notification_for(membership)
+        self.assertEqual(
+            _notification_action_url(notification), f"/groups/{self.group.pk}/"
+        )
+
+    def test_group_action_object_resolves_to_group_detail(self) -> None:
+        """Regression test: GROUP_NEEDS_MODERATOR (borrowd_groups/signals.py)
+        sets action_object=group directly, not a Membership."""
+        notification = self._notification_for(self.group)
+        self.assertEqual(
+            _notification_action_url(notification), f"/groups/{self.group.pk}/"
+        )
+
+    def test_soft_deleted_group_action_object_resolves_to_no_link(self) -> None:
+        """A soft-deleted group's detail page isn't guaranteed reachable, so
+        (matching the soft-deleted item case) the card should render
+        non-clickable rather than link to a group that may 404 or 403."""
+        self.group.deleted_at = timezone.now()
+        self.group.save(update_fields=["deleted_at"])
+        notification = self._notification_for(self.group)
+        self.assertIsNone(_notification_action_url(notification))
+
+    def test_membership_action_object_with_soft_deleted_group_resolves_to_no_link(
+        self,
+    ) -> None:
+        """Same soft-delete guard, one hop out via the membership's group."""
+        self.group.deleted_at = timezone.now()
+        self.group.save(update_fields=["deleted_at"])
+        membership = Membership.objects.get(user=self.user, group=self.group)
+        notification = self._notification_for(membership)
+        self.assertIsNone(_notification_action_url(notification))
+
+    def test_unrecognized_action_object_resolves_to_no_link(self) -> None:
+        """A recipient user (or any other model) as action_object has no
+        known destination -- this is the expected safe fallback, not a bug."""
+        notification = self._notification_for(self.user)
+        self.assertIsNone(_notification_action_url(notification))
+
+
+class GroupNeedsModeratorNotificationLinkTests(TestCase):
+    """End-to-end regression test for the real GROUP_NEEDS_MODERATOR gap:
+    the last moderator leaving a group notifies remaining members with
+    action_object=group, which _notification_action_url must resolve."""
+
+    def test_last_moderator_leaving_produces_a_clickable_notification(self) -> None:
+        creator = BorrowdUser.objects.create_user(
+            username="creator", email="creator@example.com", password="password"
+        )
+        member = BorrowdUser.objects.create_user(
+            username="member", email="member@example.com", password="password"
+        )
+        group = BorrowdGroup.objects.create_group(
+            name="Test Group",
+            created_by=creator,
+            updated_by=creator,
+            membership_requires_approval=False,
+        )
+        group.add_user(member)
+
+        group.remove_user(creator, bypass_last_moderator_check=True)
+
+        notification = Notification.objects.get(
+            recipient=member, verb=NotificationType.GROUP_NEEDS_MODERATOR.value
+        )
+        self.assertEqual(_notification_action_url(notification), f"/groups/{group.pk}/")
