@@ -50,13 +50,9 @@ def test_borrow_and_return_item(borrower_page: Page, lender_page: Page):
         lender_search_page.confirm_returned_modal_opens()
         lender_search_page.confirm_returned_modal_click_confirm_returned()
 
-    with allure.step("Borrower confirms return"):
-        borrower_search_page.page.reload()
-        borrower_search_page.click_confirm_returned_button()
-        borrower_search_page.confirm_returned_modal_borrower_opens()
-        borrower_search_page.confirm_returned_modal_borrower_click_confirm_returned()
-
-    with allure.step("Item is available again"):
+    with allure.step(
+        "Item is available again immediately, without borrower confirmation"
+    ):
         borrower_search_page.page.reload()
         borrower_search_page.expect_opened()
         borrower_search_page.expect_item_is_available()

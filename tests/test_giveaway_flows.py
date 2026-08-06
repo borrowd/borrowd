@@ -124,7 +124,7 @@ class GiveawayHappyFlowTest(GiveawayFlowTestBase):
         self.assertEqual(
             self.item.get_actions_for(self.lender),
             (
-                ItemAction.MARK_RETURNED,
+                ItemAction.CONFIRM_RETURNED,
                 ItemAction.REQUEST_RETURN,
                 ItemAction.OFFER_GIVEAWAY,
             ),

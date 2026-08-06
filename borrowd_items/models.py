@@ -534,11 +534,14 @@ class Item(Model):
                 # Otherwise, nothing to do but wait...
                 return tuple()
         elif current_tx.status == TransactionStatus.COLLECTED:
-            # Either borrower or lender can assert return.
-            # The lender can also request the item back, or give it away.
+            # Either borrower or lender can mark the item returned. The lender
+            # has it back in hand, so their mark closes the loan immediately;
+            # the borrower's is only an assertion pending the lender's
+            # confirmation. The lender can also request the item back, or
+            # give it away.
             if self.owner == user:
                 return (
-                    ItemAction.MARK_RETURNED,
+                    ItemAction.CONFIRM_RETURNED,
                     ItemAction.REQUEST_RETURN,
                     ItemAction.OFFER_GIVEAWAY,
                 )
@@ -558,7 +561,9 @@ class Item(Model):
             # The borrower confirms the return or flags that they can't return the item.
             return (ItemAction.MARK_RETURNED, ItemAction.FLAG_CANNOT_RETURN)
         elif current_tx.status == TransactionStatus.RETURN_ASSERTED:
-            # Make sure the same person doesn't confirm the assertion
+            # Reached only via the borrower's assertion -- the lender's
+            # mark closes the loan directly without passing through this
+            # status. Make sure the same person doesn't confirm the assertion.
             if current_tx.updated_by != user:
                 if self.owner == user:
                     # The lender can deny the borrower's return claim.
@@ -817,7 +822,7 @@ class Item(Model):
                     self.status = ItemStatus.BORROWED
                     self.save()
                 case ItemAction.MARK_RETURNED:
-                    # Either party can assert return.
+                    # The borrower's assertion still needs the lender's confirmation.
                     current_tx.status = TransactionStatus.RETURN_ASSERTED
                     current_tx.updated_by = user
                     current_tx.save()
