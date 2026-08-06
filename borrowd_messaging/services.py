@@ -249,16 +249,19 @@ class MessagingService:
         """
         End a pre-request chat that never became a request. Either party may do this.
         """
-        if closed_by.pk not in (thread.lender_id, thread.borrower_id):
-            raise NotThreadParticipant(
-                f"User {closed_by.pk} is not a participant of ChatThread {thread.pk}."
-            )
-        if thread.transaction_id is not None:
-            raise PermissionDenied("Only pre-request conversations can be closed.")
-        if thread.is_archived:
-            raise ThreadNotWritable(f"ChatThread {thread.pk} is already archived.")
+        with atomic():
+            # the thread may have gained a transaction or been archived since the caller loaded it.
+            current = ChatThread.objects.select_for_update().get(pk=thread.pk)
+            if closed_by.pk not in (current.lender_id, current.borrower_id):
+                raise NotThreadParticipant(
+                    f"User {closed_by.pk} is not a participant of ChatThread {thread.pk}."
+                )
+            if current.transaction_id is not None:
+                raise PermissionDenied("Only pre-request conversations can be closed.")
+            if current.is_archived:
+                raise ThreadNotWritable(f"ChatThread {thread.pk} is already archived.")
 
-        cls.archive_thread(thread, ArchiveReason.CLOSED, actor=closed_by)
+            cls.archive_thread(current, ArchiveReason.CLOSED, actor=closed_by)
 
     @staticmethod
     def _dispatch(message: Message) -> None:

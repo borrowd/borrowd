@@ -408,6 +408,19 @@ class ThreadArchivalTests(MessagingTestCase):
         with self.assertRaises(PermissionDenied):
             MessagingService.close_prerequest_thread(self.thread, self.borrower)
 
+    def test_closing_a_thread_that_gained_a_transaction_is_refused(self) -> None:
+        # The lender's close request read the thread just before the borrower tapped Request Item;
+        # closing at that point would lock the live chat. Hence, test it doesn't happen
+        stale = ChatThread.objects.get(pk=self.thread.pk)
+        self.make_transaction()
+
+        with self.assertRaises(PermissionDenied):
+            MessagingService.close_prerequest_thread(stale, self.lender)
+
+        self.thread.refresh_from_db()
+        self.assertFalse(self.thread.is_archived)
+        self.assertIsNotNone(self.thread.transaction_id)
+
     def test_archives_every_open_conversation_about_an_item(self) -> None:
         other_borrower: BorrowdUser = self.make_user("other")
         other_thread = self.make_thread(borrower=other_borrower)
