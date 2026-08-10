@@ -70,6 +70,7 @@ INSTALLED_APPS = [
     "borrowd_beta",
     "borrowd_items",
     "borrowd_groups",
+    "borrowd_messaging",
     "notifications",  # Must be below apps that send notifications and above borrowd_notifications
     "borrowd_notifications",
     "django_filters",
@@ -243,6 +244,11 @@ MEDIA_URL = "/media/"
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# borrowd_messaging settings
+MESSAGING_ENABLED = not IS_RUNNING_MANAGE_PY_TESTS and env.bool(
+    "MESSAGING_ENABLED", default=False
+)
 
 # borrowd_beta settings
 BORROWD_BETA_ENABLED = env.bool("BORROWD_BETA_ENABLED", default=False)

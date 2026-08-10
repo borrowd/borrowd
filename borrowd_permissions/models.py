@@ -15,3 +15,7 @@ class ItemOLP(StrEnum):
     VIEW = "view_this_item"
     EDIT = "edit_this_item"
     DELETE = "delete_this_item"
+
+
+class ChatThreadOLP(StrEnum):
+    VIEW = "view_this_chatthread"
