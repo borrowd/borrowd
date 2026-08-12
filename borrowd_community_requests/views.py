@@ -105,6 +105,21 @@ class CommunityRequestListView(
         return context
 
 
+class CommunityRequestCancelView(LoginRequiredMixin, View):
+    """
+    Cancel the current user's own open community request.
+    """
+
+    def post(self, request: HttpRequest, pk: int) -> HttpResponse:
+        user = get_authenticated_user(request)
+        community_request = get_object_or_404(
+            CommunityRequest.objects.owned_by(user).open(), pk=pk
+        )
+        community_request.cancel()
+        messages.success(request, "Your request has been cancelled.")
+        return redirect(f"{reverse('community-request-list')}?tab=mine")
+
+
 class CommunityRequestDismissView(LoginRequiredMixin, View):
     """
     Hide an open community request from the current user's "Requests" tab,

@@ -274,3 +274,106 @@ class FulfilledRequestIndicatorTests(CommunityRequestActionsTestBase):
         self.assertContains(
             response, 'data-testid="community-request-fulfilled-indicator"'
         )
+
+
+class CommunityRequestCancelViewTests(CommunityRequestActionsTestBase):
+    def test_cancel_transitions_status_and_redirects_with_success_message(
+        self,
+    ) -> None:
+        community_request = self._make_request()
+        self.client.force_login(self.requester)
+
+        response = self.client.post(
+            reverse("community-request-cancel", args=[community_request.pk]),
+            follow=True,
+        )
+
+        self.assertRedirects(response, f"{reverse('community-request-list')}?tab=mine")
+        community_request.refresh_from_db()
+        self.assertEqual(community_request.status, CommunityRequestStatus.CANCELLED)
+        messages_list = [str(m) for m in response.context["messages"]]
+        self.assertIn("Your request has been cancelled.", messages_list)
+
+    def test_cancel_404s_for_a_non_owner(self) -> None:
+        community_request = self._make_request()
+        self.client.force_login(self.lender)
+
+        response = self.client.post(
+            reverse("community-request-cancel", args=[community_request.pk])
+        )
+
+        self.assertEqual(response.status_code, 404)
+        community_request.refresh_from_db()
+        self.assertEqual(community_request.status, CommunityRequestStatus.OPEN)
+
+    def test_cancel_404s_for_a_lender_who_dismissed_the_request(self) -> None:
+        community_request = self._make_request()
+        community_request.dismiss_for(self.lender)
+        self.client.force_login(self.lender)
+
+        response = self.client.post(
+            reverse("community-request-cancel", args=[community_request.pk])
+        )
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_cancel_404s_for_a_lender_who_fulfilled_the_request(self) -> None:
+        community_request = self._make_request()
+        item = self._make_item(self.lender)
+        community_request.link_response_item(item)
+        self.client.force_login(self.lender)
+
+        response = self.client.post(
+            reverse("community-request-cancel", args=[community_request.pk])
+        )
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_cancel_404s_for_an_already_cancelled_request(self) -> None:
+        community_request = self._make_request()
+        community_request.cancel()
+        self.client.force_login(self.requester)
+
+        response = self.client.post(
+            reverse("community-request-cancel", args=[community_request.pk])
+        )
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_cancel_404s_for_a_nonexistent_pk(self) -> None:
+        self.client.force_login(self.requester)
+
+        response = self.client.post(reverse("community-request-cancel", args=[999999]))
+
+        self.assertEqual(response.status_code, 404)
+
+
+class CancelledRequestVisibilityAndActionsTests(CommunityRequestActionsTestBase):
+    def test_cancelled_request_disappears_from_requesters_mine_tab(self) -> None:
+        community_request = self._make_request()
+        community_request.cancel()
+        self.client.force_login(self.requester)
+
+        response = self.client.get(f"{reverse('community-request-list')}?tab=mine")
+
+        self.assertNotIn(community_request, response.context["community_requests"])
+
+    def test_cancelled_request_disappears_from_other_users_requests_tab(self) -> None:
+        community_request = self._make_request()
+        community_request.cancel()
+        self.client.force_login(self.lender)
+
+        response = self.client.get(f"{reverse('community-request-list')}?tab=all")
+
+        self.assertNotIn(community_request, response.context["community_requests"])
+
+    def test_cancelled_request_cannot_be_dismissed(self) -> None:
+        community_request = self._make_request()
+        community_request.cancel()
+        self.client.force_login(self.lender)
+
+        response = self.client.post(
+            reverse("community-request-dismiss", args=[community_request.pk])
+        )
+
+        self.assertEqual(response.status_code, 404)

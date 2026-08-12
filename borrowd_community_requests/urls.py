@@ -1,6 +1,7 @@
 from django.urls import path
 
 from .views import (
+    CommunityRequestCancelView,
     CommunityRequestCreateView,
     CommunityRequestDismissView,
     CommunityRequestListView,
@@ -21,5 +22,10 @@ urlpatterns = [
         "<int:pk>/dismiss/",
         CommunityRequestDismissView.as_view(),
         name="community-request-dismiss",
+    ),
+    path(
+        "<int:pk>/cancel/",
+        CommunityRequestCancelView.as_view(),
+        name="community-request-cancel",
     ),
 ]

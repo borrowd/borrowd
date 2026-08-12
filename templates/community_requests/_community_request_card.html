@@ -54,5 +54,23 @@ Parameters:
                 </button>
             </form>
         </div>
+    {% else %}
+        <div class="flex items-center gap-2 pt-1">
+            <button type="button"
+                    class="btn btn-ghost btn-xs text-error"
+                    onclick="showModal('community-request-cancel-modal-{{ community_request.pk }}')">
+                Cancel
+            </button>
+        </div>
+
+        <form id="community-request-cancel-form-{{ community_request.pk }}"
+              method="post"
+              action="{% url 'community-request-cancel' community_request.pk %}"
+              class="hidden">
+            {% csrf_token %}
+        </form>
+
+        {% include "components/modal.html" with modal_id="community-request-cancel-modal-"|add:community_request.pk modal_title="Cancel request" modal_content_template="community_requests/_cancel_request_modal_content.html" cancel_button_text="No, keep it" confirm_button_text="Yes, cancel request" confirm_submit_form_id="community-request-cancel-form-"|add:community_request.pk confirm_button_class="btn btn-md btn-error btn-soft rounded-sm" %}
+
     {% endif %}
 </div>
