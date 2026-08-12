@@ -1,8 +1,6 @@
 from typing import Any, cast
 
-from django.contrib import messages
 from django.db.models import QuerySet
-from django.http import HttpResponse
 from django.urls import reverse
 from django.views.generic import CreateView, DetailView
 from guardian.mixins import LoginRequiredMixin
@@ -38,10 +36,6 @@ class CommunityRequestCreateView(
         form = super().get_form(form_class)
         form.instance.requester = cast(BorrowdUser, self.request.user)
         return form
-
-    def form_valid(self, form: CommunityRequestForm) -> HttpResponse:
-        messages.success(self.request, "Your request has been made")
-        return super().form_valid(form)
 
     def get_context_data(self, **kwargs: str) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
