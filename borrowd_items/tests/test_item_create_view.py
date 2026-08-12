@@ -3,7 +3,7 @@ from typing import Any
 from django.test import TestCase
 from django.urls import reverse
 
-from borrowd_community_requests.models import CommunityRequest
+from borrowd_community_requests.models import CommunityRequest, CommunityRequestStatus
 from borrowd_groups.models import BorrowdGroup
 from borrowd_items.models import Item, ItemCategory, ListingType
 from borrowd_users.models import BorrowdUser
@@ -191,3 +191,22 @@ class ItemCreateViewFulfillsRequestTests(ItemCreateViewTestBase):
 
         self.assertEqual(response.status_code, 302)
         self.assertTrue(Item.objects.filter(name="Drill").exists())
+
+    def test_cancelled_request_cannot_be_fulfilled_via_add_item_flow(self) -> None:
+        self.community_request.cancel()
+        self.client.force_login(self.lender)
+
+        response = self.client.post(
+            reverse("item-create"),
+            self._valid_post_data(fulfills_request=str(self.community_request.pk)),
+        )
+
+        self.assertEqual(response.status_code, 302)
+        # The item is still created — only the link to the cancelled
+        # request is a no-op, matching the already-fulfilled case.
+        self.assertTrue(Item.objects.filter(name="Drill").exists())
+        self.community_request.refresh_from_db()
+        self.assertIsNone(self.community_request.fulfilled_by_item)
+        self.assertEqual(
+            self.community_request.status, CommunityRequestStatus.CANCELLED
+        )

@@ -133,8 +133,13 @@ class CommunityRequest(Model):
         # conditional update (rather than a check-then-save) avoids a race
         # between two lenders linking an item to the same request at once:
         # only the first update that finds fulfilled_by_item still null wins.
+        # The status=OPEN condition races safely against cancel() the same
+        # way: a request cancelled concurrently with a fulfillment attempt
+        # can't be fulfilled after the fact.
         updated = CommunityRequest.objects.filter(
-            pk=self.pk, fulfilled_by_item__isnull=True
+            pk=self.pk,
+            status=CommunityRequestStatus.OPEN,
+            fulfilled_by_item__isnull=True,
         ).update(fulfilled_by_item=item, updated_at=timezone.now())
 
         if updated:

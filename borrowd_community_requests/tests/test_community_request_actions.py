@@ -128,6 +128,17 @@ class LinkResponseItemTests(CommunityRequestActionsTestBase):
         community_request.refresh_from_db()
         self.assertIsNone(community_request.fulfilled_by_item)
 
+    def test_link_response_item_is_a_no_op_on_a_cancelled_request(self) -> None:
+        community_request = self._make_request()
+        community_request.cancel()
+        item = self._make_item(self.lender)
+
+        linked = community_request.link_response_item(item)
+
+        self.assertFalse(linked)
+        community_request.refresh_from_db()
+        self.assertIsNone(community_request.fulfilled_by_item)
+
 
 class DismissForTests(CommunityRequestActionsTestBase):
     def test_dismiss_for_creates_a_dismissal(self) -> None:
