@@ -1,0 +1,39 @@
+{% comment %}
+Community Request Card
+
+Displays a single community request: requester name, item name,
+category, description, and relative time since the request was made.
+
+Parameters:
+- community_request: A CommunityRequest instance
+{% endcomment %}
+{% load time_filters %}
+
+<div class="bg-base-100 rounded-lg shadow-sm overflow-hidden w-full flex flex-col p-3 gap-2">
+    <div class="flex items-center justify-between gap-2">
+        <span class="badge badge-outline badge-sm">{{ community_request.category.name }}</span>
+        <span class="text-xs text-base-content/60">{{ community_request.created_at|timesince|first_unit }} ago</span>
+    </div>
+
+    <p class="text-sm font-semibold text-base-content line-clamp-2 break-words">
+        {{ community_request.item_name }}
+    </p>
+
+    {% if community_request.description %}
+        <p class="text-sm text-base-content line-clamp-3 break-words">
+            {{ community_request.description }}
+        </p>
+    {% endif %}
+
+    <p class="text-xs text-base-content/70">
+        Requested by
+        {{ community_request.requester.first_name|capfirst|default:community_request.requester.username }}
+    </p>
+
+    {% if community_request.fulfilled_by_item_id %}
+        <span class="badge badge-info badge-sm w-fit"
+              data-testid="community-request-fulfilled-indicator">
+            Someone's already responded
+        </span>
+    {% endif %}
+</div>

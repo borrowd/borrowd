@@ -1,0 +1,57 @@
+{% extends "layouts/default.html" %}
+
+{% block head_title %}
+    Community requests
+{% endblock %}
+
+{% block content %}
+    <div class="w-full max-w-5xl self-start px-4">
+        <div class="flex flex-col gap-4">
+            <div class="flex items-center justify-between gap-4">
+                <c-h2>
+                    Community requests
+                </c-h2>
+                <c-button-nav url="{% url 'community-request-create' %}"
+                              class="btn btn-primary btn-sm">
+                    Add Community Request
+                </c-button-nav>
+            </div>
+
+            <div class="tabs tabs-boxed w-fit" role="tablist">
+                <a href="?tab=all"
+                   role="tab"
+                   class="tab {% if active_tab == 'all' %}tab-active{% endif %}">
+                    Requests
+                </a>
+                <a href="?tab=mine"
+                   role="tab"
+                   class="tab {% if active_tab == 'mine' %}tab-active{% endif %}">
+                    Your requests
+                </a>
+            </div>
+
+            <c-divider />
+
+            {% if not community_requests %}
+                <div class="flex flex-col gap-5 items-center py-16 px-4">
+                    <p class="text-base text-base-content text-center leading-normal">
+                        There are no community requests right now.
+                    </p>
+                </div>
+            {% else %}
+                <div class="hidden md:grid md:grid-cols-2 gap-4">
+                    {% for community_request in community_requests %}
+                        {% include "community_requests/_community_request_card.html" with community_request=community_request %}
+
+                    {% endfor %}
+                </div>
+                <div class="md:hidden flex flex-col gap-3">
+                    {% for community_request in community_requests %}
+                        {% include "community_requests/_community_request_card.html" with community_request=community_request %}
+
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+    </div>
+{% endblock %}

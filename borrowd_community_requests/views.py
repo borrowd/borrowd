@@ -2,11 +2,12 @@ from typing import Any, cast
 
 from django.db.models import QuerySet
 from django.urls import reverse
-from django.views.generic import CreateView, DetailView
+from django.views.generic import CreateView, DetailView, TemplateView
 from guardian.mixins import LoginRequiredMixin
 
 from borrowd.util import BorrowdTemplateFinderMixin
 from borrowd_users.models import BorrowdUser
+from borrowd_users.request import get_authenticated_user
 
 from .forms import CommunityRequestForm
 from .models import CommunityRequest
@@ -65,4 +66,36 @@ class CommunityRequestSuccessView(
     def get_context_data(self, **kwargs: str) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
         context["page_title"] = "Item request"
+        return context
+
+
+class CommunityRequestListView(
+    LoginRequiredMixin,
+    BorrowdTemplateFinderMixin,
+    TemplateView,
+):
+    # TemplateView doesn't set model/template_name_suffix the way
+    # ListView/DetailView do, but BorrowdTemplateFinderMixin.get_template_names()
+    # relies on both to resolve the template path.
+    model = CommunityRequest
+    template_name_suffix = "_list"
+
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+        context = super().get_context_data(**kwargs)
+        user = get_authenticated_user(self.request)
+
+        active_tab = self.request.GET.get("tab")
+        if active_tab != "mine":
+            active_tab = "all"
+
+        if active_tab == "mine":
+            community_requests = CommunityRequest.objects.owned_by(user).open()
+        else:
+            community_requests = CommunityRequest.objects.visible_to(user).exclude(
+                requester=user
+            )
+
+        context["active_tab"] = active_tab
+        context["community_requests"] = community_requests
+        context["page_title"] = "Community requests"
         return context
