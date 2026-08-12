@@ -1,7 +1,10 @@
 Hi,
 
-A community request in {{ group_name }} has been fulfilled.
+Someone responded to your request for {{ item_name }}.
 
 That's your community in action — sharing what we have so nobody has to buy what they only need once.
+
+View {{ item_name }}:
+{{ item_url }}
 
 The Borrow'd team

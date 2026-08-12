@@ -1,7 +1,8 @@
 Hi,
 
-A new community request has been posted in {{ group_name }}.
+{{ requester_name }} is looking for {{ item_name }} in {{ group_name }}.
 
-Check it out on Borrow'd — you might have just what they need.
+If you have one to lend, head over and add it to their request:
+{{ requests_url }}
 
 The Borrow'd team
