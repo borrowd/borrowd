@@ -1,5 +1,5 @@
 from django.core.exceptions import ValidationError
-from django.db import models
+from django.db import models, transaction
 from django.db.models import (
     CASCADE,
     PROTECT,
@@ -14,7 +14,6 @@ from django.db.models import (
     UniqueConstraint,
 )
 from django.urls import reverse
-from django.utils import timezone
 
 from borrowd_groups.models import Membership, MembershipStatus
 from borrowd_items.models import Item, ItemCategory
@@ -86,6 +85,13 @@ class CommunityRequest(Model):
     created_at = DateTimeField(auto_now_add=True)
     updated_at = DateTimeField(auto_now=True)
 
+    # Scratch attribute stashed by borrowd_notifications' pre_save receiver so
+    # its post_save counterpart can tell a genuine first fulfillment apart
+    # from a later unrelated save (e.g. cancel()). Declared here (mirroring
+    # Item._previous_status / Membership._previous_status) so mypy --strict
+    # accepts the signal handler's assignment.
+    _previous_fulfilled_by_item_id: int | None = None
+
     objects = CommunityRequestQuerySet.as_manager()
 
     def __str__(self) -> str:
@@ -129,23 +135,37 @@ class CommunityRequest(Model):
         if item.owner_id == self.requester_id:
             raise CannotActOnOwnRequestException("You can't fulfill your own request.")
 
-        # Keep the request open so multiple lenders can respond. A
-        # conditional update (rather than a check-then-save) avoids a race
-        # between two lenders linking an item to the same request at once:
-        # only the first update that finds fulfilled_by_item still null wins.
-        # The status=OPEN condition races safely against cancel() the same
-        # way: a request cancelled concurrently with a fulfillment attempt
-        # can't be fulfilled after the fact.
-        updated = CommunityRequest.objects.filter(
-            pk=self.pk,
-            status=CommunityRequestStatus.OPEN,
-            fulfilled_by_item__isnull=True,
-        ).update(fulfilled_by_item=item, updated_at=timezone.now())
+        # Keep the request open so multiple lenders can respond. Locking the
+        # row (rather than a check-then-save on self) avoids a race between
+        # two lenders linking an item to the same request at once: only the
+        # first caller to lock the row and find fulfilled_by_item still null
+        # wins, and the status==OPEN recheck races safely against cancel()
+        # the same way — a request cancelled concurrently with a
+        # fulfillment attempt can't be fulfilled after the fact.
+        #
+        # This re-fetches and saves through the ORM (rather than a plain
+        # .filter().update()) so the write still goes through Model.save()
+        # and fires pre_save/post_save signals — borrowd_notifications relies
+        # on that to detect a genuine first fulfillment and send exactly one
+        # COMMUNITY_REQUEST_FULFILLED notification.
+        #
+        # select_for_update() is a no-op-with-warning on SQLite (used for
+        # local/CI unit tests) but genuinely locks the row on PostgreSQL
+        # (used by the CI Django-test job); the check-then-save inside the
+        # same transaction is still race-safe either way, since every caller
+        # re-reads the row fresh before deciding whether to write.
+        with transaction.atomic():
+            locked = CommunityRequest.objects.select_for_update().get(pk=self.pk)
+            if (
+                locked.status != CommunityRequestStatus.OPEN
+                or locked.fulfilled_by_item_id is not None
+            ):
+                return False
+            locked.fulfilled_by_item = item
+            locked.save(update_fields=["fulfilled_by_item", "updated_at"])
 
-        if updated:
-            self.fulfilled_by_item = item
-
-        return updated > 0
+        self.fulfilled_by_item = item
+        return True
 
     def dismiss_for(self, user: BorrowdUser) -> None:
         if user.id == self.requester_id:
