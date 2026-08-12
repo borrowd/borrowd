@@ -342,11 +342,15 @@ class ItemListView(
         context["item_cards"] = build_item_cards_for_items(items, user, "search")
         context["user_has_items"] = Item.objects.filter(
             owner=user,
-        ).exists
+        ).exists()
         context["user_has_groups"] = Membership.objects.filter(
             user=user,
             status=MembershipStatus.ACTIVE,
         ).exists()
+
+        search_term = self.request.GET.get("search", "").strip()
+        context["search_term"] = search_term
+        context["is_empty_search"] = bool(search_term) and not context["item_cards"]
 
         return context
 
