@@ -22,7 +22,8 @@ from django.utils import timezone
 from notifications.models import Notification
 from notifications.signals import notify
 
-from borrowd_groups.models import Membership, MembershipStatus
+from borrowd_community_requests.models import CommunityRequest
+from borrowd_groups.models import BorrowdGroup, Membership, MembershipStatus
 from borrowd_items.models import (
     AvailabilitySubscription,
     AvailabilitySubscriptionStatus,
@@ -397,4 +398,77 @@ def send_item_available_notification_on_subscription(
             action_object=item,
             target=instance,
             description=f"You have subscribed to be notified when {item.name} becomes available. We will let you know when it does!",
+        )
+
+
+def _send_community_request_posted_notifications(instance: CommunityRequest) -> None:
+    """One notification per group the requester shares with other active
+    members — a user sharing two groups with the requester gets two
+    notifications, mirroring GROUP_MEMBER_JOINED's fan-out.
+    """
+    requester_group_ids = Membership.objects.filter(
+        user=instance.requester,
+        status=MembershipStatus.ACTIVE,
+    ).values_list("group_id", flat=True)
+
+    for group in BorrowdGroup.objects.filter(pk__in=requester_group_ids):
+        other_active_members = BorrowdUser.objects.filter(
+            membership__group=group,
+            membership__status=MembershipStatus.ACTIVE,
+        ).exclude(pk=instance.requester_id)
+        notify.send(
+            instance.requester,
+            recipient=other_active_members,
+            verb=NotificationType.COMMUNITY_REQUEST_POSTED.value,
+            action_object=instance,
+            target=group,
+            description=f"{instance.requester.first_name} is looking for {instance.item_name}",
+        )
+
+
+@receiver(pre_save, sender=CommunityRequest)
+def capture_community_request_previous_fulfilled_by_item_id(
+    sender: type[CommunityRequest], instance: CommunityRequest, **kwargs: Any
+) -> None:
+    """Store the pre-save fulfilled_by_item_id so post_save can tell a
+    genuine first fulfillment (via the atomic link_response_item()) apart
+    from a later unrelated save to the same request, e.g. cancel().
+    """
+    if instance.pk:
+        try:
+            instance._previous_fulfilled_by_item_id = (
+                CommunityRequest.objects.values_list(
+                    "fulfilled_by_item_id", flat=True
+                ).get(pk=instance.pk)
+            )
+        except CommunityRequest.DoesNotExist:
+            instance._previous_fulfilled_by_item_id = None
+    else:
+        instance._previous_fulfilled_by_item_id = None
+
+
+@receiver(post_save, sender=CommunityRequest)
+def send_community_request_notifications(
+    sender: type[CommunityRequest],
+    instance: CommunityRequest,
+    created: bool,
+    **kwargs: Any,
+) -> None:
+    """Send notifications for community-request lifecycle events."""
+    if created:
+        _send_community_request_posted_notifications(instance)
+        return
+
+    previous_fulfilled_by_item_id = getattr(
+        instance, "_previous_fulfilled_by_item_id", None
+    )
+    fulfilled_item = instance.fulfilled_by_item
+    if fulfilled_item is not None and previous_fulfilled_by_item_id is None:
+        notify.send(
+            fulfilled_item.owner,
+            recipient=[instance.requester],
+            verb=NotificationType.COMMUNITY_REQUEST_FULFILLED.value,
+            action_object=fulfilled_item,
+            target=instance,
+            description=f"Someone responded to your request for {instance.item_name}",
         )

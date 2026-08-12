@@ -17,6 +17,7 @@ from django.views.decorators.http import require_GET, require_POST
 from notifications.models import Notification
 
 from borrowd.util import is_safe_back_url
+from borrowd_community_requests.models import CommunityRequest
 from borrowd_groups.models import BorrowdGroup, Membership
 from borrowd_items.models import Item
 from borrowd_users.models import BorrowdUser
@@ -101,6 +102,18 @@ NOTIFICATION_CATEGORIES: list[dict[str, Any]] = [
                 "Giveaway request declined",
             ),
             (NotificationType.GIVEAWAY_COMPLETED, "Giveaway completed"),
+        ],
+    },
+    {
+        "name": "Community Requests",
+        "slug": "community_requests",
+        "icon": "megaphone",
+        "types": [
+            (NotificationType.COMMUNITY_REQUEST_POSTED, "New community request posted"),
+            (
+                NotificationType.COMMUNITY_REQUEST_FULFILLED,
+                "Your community request was fulfilled",
+            ),
         ],
     },
 ]
@@ -317,9 +330,9 @@ def app_channel_qs(qs: QuerySet[Notification]) -> QuerySet[Notification]:
 
     Also prefetches action_object (a GenericForeignKey, so a plain
     select_related/prefetch_related can't cover it): every notify.send()
-    call sets it to an Item, Membership, or BorrowdGroup (see signals.py), and
-    display helpers read it for every row on the page, so
-    without this each row costs its own query.
+    call sets it to an Item, Membership, BorrowdGroup, or CommunityRequest
+    (see signals.py), and display helpers read it for every row on the
+    page, so without this each row costs its own query.
     """
     return qs.filter(borrowd_metadata__visible_in_app=True).prefetch_related(
         GenericPrefetch(
@@ -328,6 +341,7 @@ def app_channel_qs(qs: QuerySet[Notification]) -> QuerySet[Notification]:
                 Item.objects.prefetch_related("photos"),
                 Membership.objects.select_related("group", "user__profile"),
                 BorrowdGroup.objects.all(),
+                CommunityRequest.objects.select_related("requester"),
             ],
         )
     )
@@ -423,9 +437,9 @@ def _get_category_icon(slug: str | None) -> str | None:
 
 def _notification_action_object(
     notification: Notification,
-) -> Item | Membership | BorrowdGroup | None:
+) -> Item | Membership | BorrowdGroup | CommunityRequest | None:
     action_object = notification.action_object
-    if isinstance(action_object, (Item, Membership, BorrowdGroup)):
+    if isinstance(action_object, (Item, Membership, BorrowdGroup, CommunityRequest)):
         return action_object
     return None
 
@@ -435,7 +449,8 @@ def _notification_action_url(notification: Notification) -> str | None:
     action_object set by notify.send() calls across the app (see signals.py
     in this app, borrowd_groups, and borrowd_users/services.py): an Item
     goes to its detail page, a Membership or BorrowdGroup to the group's
-    detail page.
+    detail page, and a CommunityRequest (COMMUNITY_REQUEST_POSTED) to the
+    community requests list.
     """
     action_object = _notification_action_object(notification)
     if isinstance(action_object, Item):
@@ -456,6 +471,8 @@ def _notification_action_url(notification: Notification) -> str | None:
         if action_object.deleted_at is not None:
             return None
         return reverse("borrowd_groups:group-detail", kwargs={"pk": action_object.pk})
+    if isinstance(action_object, CommunityRequest):
+        return reverse("community-request-list")
     return None
 
 
