@@ -14,10 +14,13 @@ from django.db.models import (
     UniqueConstraint,
 )
 from django.urls import reverse
+from django.utils import timezone
 
 from borrowd_groups.models import Membership, MembershipStatus
 from borrowd_items.models import Item, ItemCategory
 from borrowd_users.models import BorrowdUser
+
+from .exceptions import CannotActOnOwnRequestException
 
 MAX_ACTIVE_REQUESTS_PER_USER = 3
 
@@ -123,13 +126,27 @@ class CommunityRequest(Model):
         self.save(update_fields=["status", "updated_at"])
 
     def link_response_item(self, item: Item) -> bool:
-        # Keep the request open so multiple lenders can respond.
-        if self.fulfilled_by_item_id is not None:
-            return False
+        if item.owner_id == self.requester_id:
+            raise CannotActOnOwnRequestException("You can't fulfill your own request.")
 
-        self.fulfilled_by_item = item
-        self.save(update_fields=["fulfilled_by_item", "updated_at"])
-        return True
+        # Keep the request open so multiple lenders can respond. A
+        # conditional update (rather than a check-then-save) avoids a race
+        # between two lenders linking an item to the same request at once:
+        # only the first update that finds fulfilled_by_item still null wins.
+        updated = CommunityRequest.objects.filter(
+            pk=self.pk, fulfilled_by_item__isnull=True
+        ).update(fulfilled_by_item=item, updated_at=timezone.now())
+
+        if updated:
+            self.fulfilled_by_item = item
+
+        return updated > 0
+
+    def dismiss_for(self, user: BorrowdUser) -> None:
+        if user.id == self.requester_id:
+            raise CannotActOnOwnRequestException("You can't hide your own request.")
+
+        CommunityRequestDismissal.objects.get_or_create(request=self, user=user)
 
     class Meta:
         ordering = ["-created_at"]

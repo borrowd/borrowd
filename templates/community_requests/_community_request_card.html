@@ -2,10 +2,12 @@
 Community Request Card
 
 Displays a single community request: requester name, item name,
-category, description, and relative time since the request was made.
+category, description, relative time since the request was made, and
+(for anyone other than the requester) actions to respond to or hide it.
 
 Parameters:
 - community_request: A CommunityRequest instance
+- user: The current user (used to hide requester-only actions on their own request)
 {% endcomment %}
 {% load time_filters %}
 
@@ -35,5 +37,22 @@ Parameters:
               data-testid="community-request-fulfilled-indicator">
             Someone's already responded
         </span>
+    {% endif %}
+
+    {% if community_request.requester_id != user.id %}
+        <div class="flex items-center gap-2 pt-1">
+            <c-button-nav url="{% url 'item-create' %}?name={{ community_request.item_name|urlencode }}&category={{ community_request.category_id }}&fulfills_request={{ community_request.pk }}"
+                          class="btn btn-primary btn-xs">
+                Add Item
+            </c-button-nav>
+
+            <form method="post"
+                  action="{% url 'community-request-dismiss' community_request.pk %}">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-ghost btn-xs">
+                    Hide Request
+                </button>
+            </form>
+        </div>
     {% endif %}
 </div>

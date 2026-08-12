@@ -1,14 +1,18 @@
 from typing import Any, cast
 
+from django.contrib import messages
 from django.db.models import QuerySet
+from django.http import HttpRequest, HttpResponse
+from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
-from django.views.generic import CreateView, DetailView, TemplateView
+from django.views.generic import CreateView, DetailView, TemplateView, View
 from guardian.mixins import LoginRequiredMixin
 
 from borrowd.util import BorrowdTemplateFinderMixin
 from borrowd_users.models import BorrowdUser
 from borrowd_users.request import get_authenticated_user
 
+from .exceptions import CannotActOnOwnRequestException
 from .forms import CommunityRequestForm
 from .models import CommunityRequest
 
@@ -99,3 +103,23 @@ class CommunityRequestListView(
         context["community_requests"] = community_requests
         context["page_title"] = "Community requests"
         return context
+
+
+class CommunityRequestDismissView(LoginRequiredMixin, View):
+    """
+    Hide an open community request from the current user's "Requests" tab,
+    without affecting its visibility to anyone else.
+    """
+
+    def post(self, request: HttpRequest, pk: int) -> HttpResponse:
+        user = get_authenticated_user(request)
+        community_request = get_object_or_404(CommunityRequest.objects.open(), pk=pk)
+
+        try:
+            community_request.dismiss_for(user)
+        except CannotActOnOwnRequestException:
+            messages.error(request, "You can't hide your own request.")
+        else:
+            messages.success(request, "Request hidden.")
+
+        return redirect("community-request-list")
