@@ -985,10 +985,11 @@ class CommunityRequestPostedNotificationTests(TestCase):
 
 
 class CommunityRequestFulfilledNotificationTests(TestCase):
-    """Tests for COMMUNITY_REQUEST_FULFILLED, fired from CommunityRequest's
-    post_save signal only when link_response_item()'s locked check-then-save
-    performs a genuine first fulfillment -- not on a later unrelated save
-    to the same request, e.g. cancel()."""
+    """Tests for COMMUNITY_REQUEST_FULFILLED, fired from
+    CommunityRequestResponse's post_save signal. Each newly-created response
+    is its own one-shot event -- there's no "unrelated save" ambiguity to
+    guard against the way CommunityRequest's own saves (e.g. cancel())
+    needed a previous-value comparison for the old single-FK design."""
 
     def setUp(self) -> None:
         self.requester = BorrowdUser.objects.create_user(
@@ -1031,7 +1032,7 @@ class CommunityRequestFulfilledNotificationTests(TestCase):
     def test_fulfilled_fires_exactly_once_on_first_fulfillment(self) -> None:
         item = self._make_item(self.lender)
 
-        self.community_request.link_response_item(item)
+        self.community_request.add_response(item)
 
         notifications = Notification.objects.filter(
             recipient=self.requester,
@@ -1043,45 +1044,41 @@ class CommunityRequestFulfilledNotificationTests(TestCase):
         self.assertEqual(notification.target, self.community_request)
         self.assertEqual(notification.actor, self.lender)
 
-    def test_fulfilled_does_not_fire_again_for_a_second_lenders_item(self) -> None:
-        """A second lender's item is a no-op on the model (link_response_item
-        returns False), so it must not send a second FULFILLED notification."""
+    def test_fulfilled_fires_once_per_response_for_multiple_lenders(self) -> None:
+        """Multiple lenders may respond to the same request -- each
+        CommunityRequestResponse is its own event, so the requester gets a
+        separate FULFILLED notification for each one."""
         first_item = self._make_item(self.lender, name="First drill")
         second_item = self._make_item(self.other_lender, name="Second drill")
 
-        self.community_request.link_response_item(first_item)
-        self.community_request.link_response_item(second_item)
+        self.community_request.add_response(first_item)
+        self.community_request.add_response(second_item)
 
+        notifications = Notification.objects.filter(
+            recipient=self.requester,
+            verb=NotificationType.COMMUNITY_REQUEST_FULFILLED.value,
+        )
+        self.assertEqual(notifications.count(), 2)
         self.assertEqual(
-            Notification.objects.filter(
-                verb=NotificationType.COMMUNITY_REQUEST_FULFILLED.value
-            ).count(),
-            1,
+            set(notifications.values_list("action_object_object_id", flat=True)),
+            {str(first_item.pk), str(second_item.pk)},
         )
 
-    def test_fulfilled_does_not_refire_on_an_unrelated_save_like_cancel(
-        self,
-    ) -> None:
-        """The specific regression the pre_save/post_save previous-value
-        comparison exists to prevent: a later save to an already-fulfilled
-        request (e.g. cancel()) must not re-send COMMUNITY_REQUEST_FULFILLED,
-        since fulfilled_by_item hasn't changed on that save."""
-        item = self._make_item(self.lender)
-        self.community_request.link_response_item(item)
-        self.assertEqual(
-            Notification.objects.filter(
-                verb=NotificationType.COMMUNITY_REQUEST_FULFILLED.value
-            ).count(),
-            1,
-        )
-
+    def test_add_response_after_close_fires_no_notification(self) -> None:
+        """A response rejected because the request is no longer OPEN (e.g.
+        cancelled first) never creates a CommunityRequestResponse row, so
+        there's nothing to trigger a notification."""
         self.community_request.cancel()
+        item = self._make_item(self.lender)
 
+        result = self.community_request.add_response(item)
+
+        self.assertIsNone(result)
         self.assertEqual(
             Notification.objects.filter(
                 verb=NotificationType.COMMUNITY_REQUEST_FULFILLED.value
             ).count(),
-            1,
+            0,
         )
 
     def test_creating_a_request_does_not_fire_fulfilled(self) -> None:
@@ -1103,7 +1100,7 @@ class CommunityRequestFulfilledNotificationTests(TestCase):
         self,
     ) -> None:
         item = self._make_item(self.lender)
-        self.community_request.link_response_item(item)
+        self.community_request.add_response(item)
         notification = Notification.objects.get(
             verb=NotificationType.COMMUNITY_REQUEST_FULFILLED.value
         )
@@ -1124,7 +1121,7 @@ class CommunityRequestFulfilledNotificationTests(TestCase):
         this phase builds never provides -- .format() would KeyError and the
         intended templated text would never actually render."""
         item = self._make_item(self.lender)
-        self.community_request.link_response_item(item)
+        self.community_request.add_response(item)
         notification = Notification.objects.get(
             verb=NotificationType.COMMUNITY_REQUEST_FULFILLED.value
         )
@@ -1188,7 +1185,7 @@ class CommunityRequestNotificationEmailTests(TestCase):
         item.categories.add(self.category)
 
         with self.captureOnCommitCallbacks(execute=True):
-            community_request.link_response_item(item)
+            community_request.add_response(item)
 
         self.assertEqual(len(mail.outbox), 1)
         email = mail.outbox[0]
@@ -1283,7 +1280,7 @@ class CommunityRequestActionUrlAndAvatarTests(TestCase):
             updated_by=self.lender,
         )
         item.categories.add(self.category)
-        community_request.link_response_item(item)
+        community_request.add_response(item)
         notification = Notification.objects.get(
             recipient=self.requester,
             verb=NotificationType.COMMUNITY_REQUEST_FULFILLED.value,

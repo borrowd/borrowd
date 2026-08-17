@@ -4,7 +4,11 @@ from django.test import TestCase
 from django.urls import reverse
 
 from borrowd_community_requests.exceptions import CannotActOnOwnRequestException
-from borrowd_community_requests.models import CommunityRequest, CommunityRequestStatus
+from borrowd_community_requests.models import (
+    CommunityRequest,
+    CommunityRequestResponse,
+    CommunityRequestStatus,
+)
 from borrowd_groups.models import BorrowdGroup
 from borrowd_items.models import Item, ItemCategory
 from borrowd_users.models import BorrowdUser
@@ -66,84 +70,104 @@ class CommunityRequestActionsTestBase(TestCase):
         )
 
 
-class LinkResponseItemTests(CommunityRequestActionsTestBase):
-    def test_link_response_item_sets_fulfilled_by_item(self) -> None:
+class AddResponseTests(CommunityRequestActionsTestBase):
+    def test_add_response_creates_a_response(self) -> None:
         community_request = self._make_request()
         item = self._make_item(self.lender)
 
-        linked = community_request.link_response_item(item)
+        response = community_request.add_response(item)
 
-        self.assertTrue(linked)
-        community_request.refresh_from_db()
-        self.assertEqual(community_request.fulfilled_by_item, item)
+        self.assertIsNotNone(response)
+        assert response is not None  # narrows for mypy
+        self.assertEqual(response.request, community_request)
+        self.assertEqual(response.item, item)
+        self.assertTrue(community_request.responses.filter(item=item).exists())
 
-    def test_link_response_item_is_a_no_op_on_an_already_fulfilled_request(
-        self,
-    ) -> None:
+    def test_add_response_allows_multiple_lenders_to_respond(self) -> None:
+        """The request stays OPEN and accepts responses from any number of
+        lenders — there is no single-slot "already fulfilled" limit."""
         community_request = self._make_request()
         first_item = self._make_item(self.lender, name="First drill")
         second_item = self._make_item(self.other_lender, name="Second drill")
 
-        self.assertTrue(community_request.link_response_item(first_item))
-        self.assertFalse(community_request.link_response_item(second_item))
+        first_response = community_request.add_response(first_item)
+        second_response = community_request.add_response(second_item)
 
-        community_request.refresh_from_db()
-        self.assertEqual(community_request.fulfilled_by_item, first_item)
+        self.assertIsNotNone(first_response)
+        self.assertIsNotNone(second_response)
+        self.assertEqual(community_request.responses.count(), 2)
+        self.assertEqual(
+            set(community_request.responses.values_list("item", flat=True)),
+            {first_item.pk, second_item.pk},
+        )
 
-    def test_link_response_item_is_atomic_against_concurrent_fulfillment(
+    def test_add_response_is_idempotent_for_the_same_item(self) -> None:
+        community_request = self._make_request()
+        item = self._make_item(self.lender)
+
+        community_request.add_response(item)
+        community_request.add_response(item)
+
+        self.assertEqual(community_request.responses.filter(item=item).count(), 1)
+
+    def test_add_response_allows_concurrent_responses_from_different_lenders(
         self,
     ) -> None:
-        """
-        Simulates two lenders submitting "Add Item" for the same request at
-        nearly the same time: both fetch the request while it is still
-        unfulfilled, then both attempt to link their item. Only the first
-        conditional update should succeed; the second must see the row is
-        no longer eligible and back off, rather than overwriting the link
-        or racing past an in-memory check that both instances would pass.
-        """
+        """Two lenders submitting "Add Item" for the same request at nearly
+        the same time both succeed — each response is independent, unlike
+        the old single-FK "first wins" behavior."""
         community_request = self._make_request()
         first_item = self._make_item(self.lender, name="First drill")
         second_item = self._make_item(self.other_lender, name="Second drill")
 
-        # Two independently-fetched copies, both still showing no
-        # fulfillment, standing in for two concurrent request-handling
-        # processes.
+        # Two independently-fetched copies, standing in for two concurrent
+        # request-handling processes.
         first_lenders_copy = CommunityRequest.objects.get(pk=community_request.pk)
         second_lenders_copy = CommunityRequest.objects.get(pk=community_request.pk)
-        self.assertIsNone(first_lenders_copy.fulfilled_by_item_id)
-        self.assertIsNone(second_lenders_copy.fulfilled_by_item_id)
 
-        first_result = first_lenders_copy.link_response_item(first_item)
-        second_result = second_lenders_copy.link_response_item(second_item)
+        first_result = first_lenders_copy.add_response(first_item)
+        second_result = second_lenders_copy.add_response(second_item)
 
-        self.assertTrue(first_result)
-        self.assertFalse(second_result)
+        self.assertIsNotNone(first_result)
+        self.assertIsNotNone(second_result)
+        self.assertEqual(community_request.responses.count(), 2)
 
-        community_request.refresh_from_db()
-        self.assertEqual(community_request.fulfilled_by_item, first_item)
+    def test_add_response_rejects_a_response_concurrent_with_a_cancel(self) -> None:
+        """A request cancelled concurrently with an incoming response still
+        correctly rejects that response — the locked re-check is on
+        status == OPEN, not on any per-response state."""
+        community_request = self._make_request()
+        item = self._make_item(self.lender)
 
-    def test_link_response_item_raises_when_requester_tries_to_fulfill_own_request(
+        # Simulates the request being cancelled by the requester in another
+        # process just before the lender's response is processed.
+        community_request.cancel()
+
+        result = community_request.add_response(item)
+
+        self.assertIsNone(result)
+        self.assertEqual(community_request.responses.count(), 0)
+
+    def test_add_response_raises_when_requester_tries_to_fulfill_own_request(
         self,
     ) -> None:
         community_request = self._make_request()
         own_item = self._make_item(self.requester)
 
         with self.assertRaises(CannotActOnOwnRequestException):
-            community_request.link_response_item(own_item)
+            community_request.add_response(own_item)
 
-        community_request.refresh_from_db()
-        self.assertIsNone(community_request.fulfilled_by_item)
+        self.assertEqual(community_request.responses.count(), 0)
 
-    def test_link_response_item_is_a_no_op_on_a_cancelled_request(self) -> None:
+    def test_add_response_is_a_no_op_on_a_cancelled_request(self) -> None:
         community_request = self._make_request()
         community_request.cancel()
         item = self._make_item(self.lender)
 
-        linked = community_request.link_response_item(item)
+        result = community_request.add_response(item)
 
-        self.assertFalse(linked)
-        community_request.refresh_from_db()
-        self.assertIsNone(community_request.fulfilled_by_item)
+        self.assertIsNone(result)
+        self.assertEqual(community_request.responses.count(), 0)
 
 
 class DismissForTests(CommunityRequestActionsTestBase):
@@ -271,18 +295,58 @@ class DismissedRequestVisibilityTests(CommunityRequestActionsTestBase):
         )
 
 
-class FulfilledRequestIndicatorTests(CommunityRequestActionsTestBase):
-    def test_fulfilled_request_shows_indicator_on_other_users_cards(self) -> None:
+class ResponseCountIndicatorTests(CommunityRequestActionsTestBase):
+    def test_request_with_one_response_shows_singular_count_on_other_users_cards(
+        self,
+    ) -> None:
         community_request = self._make_request()
         item = self._make_item(self.lender)
-        community_request.link_response_item(item)
+        community_request.add_response(item)
 
         self.client.force_login(self.other_lender)
         response = self.client.get(reverse("community-request-list"))
 
-        self.assertContains(response, "Someone's already responded")
-        self.assertContains(
-            response, 'data-testid="community-request-fulfilled-indicator"'
+        self.assertContains(response, "1 person has responded")
+        self.assertContains(response, 'data-testid="community-request-response-count"')
+
+    def test_request_with_multiple_responses_shows_plural_count(self) -> None:
+        community_request = self._make_request()
+        community_request.add_response(self._make_item(self.lender, name="First"))
+        community_request.add_response(
+            self._make_item(self.other_lender, name="Second")
+        )
+
+        # A third, unrelated user with no group ties to either lender's
+        # item, just sharing the requester's group.
+        third_lender = BorrowdUser.objects.create_user(
+            username="third_lender", email="third_lender@example.com", password="pw"
+        )
+        self.group.add_user(third_lender)
+        self.client.force_login(third_lender)
+
+        response = self.client.get(reverse("community-request-list"))
+
+        self.assertContains(response, "2 people have responded")
+
+    def test_request_with_no_responses_shows_no_count(self) -> None:
+        self._make_request()
+
+        self.client.force_login(self.lender)
+        response = self.client.get(reverse("community-request-list"))
+
+        self.assertNotContains(
+            response, 'data-testid="community-request-response-count"'
+        )
+
+    def test_response_count_is_not_shown_on_the_requesters_own_card(self) -> None:
+        community_request = self._make_request()
+        community_request.add_response(self._make_item(self.lender))
+
+        self.client.force_login(self.requester)
+        response = self.client.get(f"{reverse('community-request-list')}?tab=mine")
+
+        self.assertNotContains(
+            response, 'data-testid="community-request-response-count"'
         )
 
 
@@ -327,10 +391,10 @@ class CommunityRequestCancelViewTests(CommunityRequestActionsTestBase):
 
         self.assertEqual(response.status_code, 404)
 
-    def test_cancel_404s_for_a_lender_who_fulfilled_the_request(self) -> None:
+    def test_cancel_404s_for_a_lender_who_responded_to_the_request(self) -> None:
         community_request = self._make_request()
         item = self._make_item(self.lender)
-        community_request.link_response_item(item)
+        community_request.add_response(item)
         self.client.force_login(self.lender)
 
         response = self.client.post(

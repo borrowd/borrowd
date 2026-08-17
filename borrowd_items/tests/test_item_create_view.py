@@ -111,8 +111,7 @@ class ItemCreateViewFulfillsRequestTests(ItemCreateViewTestBase):
 
         self.assertEqual(response.status_code, 302)
         item = Item.objects.get(name="Drill")
-        self.community_request.refresh_from_db()
-        self.assertEqual(self.community_request.fulfilled_by_item, item)
+        self.assertTrue(self.community_request.responses.filter(item=item).exists())
 
     def test_successful_link_flashes_success_message(self) -> None:
         self.client.force_login(self.lender)
@@ -128,7 +127,10 @@ class ItemCreateViewFulfillsRequestTests(ItemCreateViewTestBase):
             "Your item has been linked to the community request.", messages_list
         )
 
-    def test_second_lenders_item_does_not_overwrite_an_existing_link(self) -> None:
+    def test_second_lenders_item_creates_a_second_response(self) -> None:
+        """Multiple lenders may respond to the same request -- the second
+        lender's item creates a second response rather than being blocked
+        by the first."""
         self.client.force_login(self.lender)
         self.client.post(
             reverse("item-create"),
@@ -145,11 +147,13 @@ class ItemCreateViewFulfillsRequestTests(ItemCreateViewTestBase):
                 name="Second drill", fulfills_request=str(self.community_request.pk)
             ),
         )
+        second_item = Item.objects.get(name="Second drill")
 
-        self.community_request.refresh_from_db()
-        self.assertEqual(self.community_request.fulfilled_by_item, first_item)
-        # The second lender's item is still created — only the link is a no-op.
-        self.assertTrue(Item.objects.filter(name="Second drill").exists())
+        self.assertEqual(self.community_request.responses.count(), 2)
+        self.assertEqual(
+            set(self.community_request.responses.values_list("item", flat=True)),
+            {first_item.pk, second_item.pk},
+        )
 
     def test_requester_cannot_fulfill_own_request(self) -> None:
         self.client.force_login(self.requester)
@@ -160,8 +164,7 @@ class ItemCreateViewFulfillsRequestTests(ItemCreateViewTestBase):
             follow=True,
         )
 
-        self.community_request.refresh_from_db()
-        self.assertIsNone(self.community_request.fulfilled_by_item)
+        self.assertEqual(self.community_request.responses.count(), 0)
         messages_list = [str(m) for m in response.context["messages"]]
         self.assertIn("You can't fulfill your own request.", messages_list)
         # The item creation itself still succeeds — only the link is rejected.
@@ -203,10 +206,10 @@ class ItemCreateViewFulfillsRequestTests(ItemCreateViewTestBase):
 
         self.assertEqual(response.status_code, 302)
         # The item is still created — only the link to the cancelled
-        # request is a no-op, matching the already-fulfilled case.
+        # request is a no-op.
         self.assertTrue(Item.objects.filter(name="Drill").exists())
+        self.assertEqual(self.community_request.responses.count(), 0)
         self.community_request.refresh_from_db()
-        self.assertIsNone(self.community_request.fulfilled_by_item)
         self.assertEqual(
             self.community_request.status, CommunityRequestStatus.CANCELLED
         )

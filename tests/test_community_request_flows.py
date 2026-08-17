@@ -228,8 +228,9 @@ class CommunityRequestEndToEndFlowTest(SimpleTestCase):
         type(self).item = Item.objects.get(
             name=self.community_request.item_name, owner=self.lender
         )
-        self.community_request.refresh_from_db()
-        self.assertEqual(self.community_request.fulfilled_by_item, self.item)
+        self.assertTrue(
+            self.community_request.responses.filter(item=self.item).exists()
+        )
         messages_list = [str(m) for m in response.context["messages"]]
         self.assertIn(
             "Your item has been linked to the community request.", messages_list
