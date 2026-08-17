@@ -22,7 +22,7 @@ from django.utils import timezone
 from notifications.models import Notification
 from notifications.signals import notify
 
-from borrowd_community_requests.models import CommunityRequest
+from borrowd_community_requests.models import CommunityRequest, CommunityRequestResponse
 from borrowd_groups.models import BorrowdGroup, Membership, MembershipStatus
 from borrowd_items.models import (
     AvailabilitySubscription,
@@ -426,49 +426,38 @@ def _send_community_request_posted_notifications(instance: CommunityRequest) -> 
         )
 
 
-@receiver(pre_save, sender=CommunityRequest)
-def capture_community_request_previous_fulfilled_by_item_id(
-    sender: type[CommunityRequest], instance: CommunityRequest, **kwargs: Any
-) -> None:
-    """Store the pre-save fulfilled_by_item_id so post_save can tell a
-    genuine first fulfillment (via the atomic link_response_item()) apart
-    from a later unrelated save to the same request, e.g. cancel().
-    """
-    if instance.pk:
-        try:
-            instance._previous_fulfilled_by_item_id = (
-                CommunityRequest.objects.values_list(
-                    "fulfilled_by_item_id", flat=True
-                ).get(pk=instance.pk)
-            )
-        except CommunityRequest.DoesNotExist:
-            instance._previous_fulfilled_by_item_id = None
-    else:
-        instance._previous_fulfilled_by_item_id = None
-
-
 @receiver(post_save, sender=CommunityRequest)
-def send_community_request_notifications(
+def send_community_request_posted_notification(
     sender: type[CommunityRequest],
     instance: CommunityRequest,
     created: bool,
     **kwargs: Any,
 ) -> None:
-    """Send notifications for community-request lifecycle events."""
+    """Send COMMUNITY_REQUEST_POSTED when a new request is created."""
     if created:
         _send_community_request_posted_notifications(instance)
+
+
+@receiver(post_save, sender=CommunityRequestResponse)
+def send_community_request_fulfilled_notification(
+    sender: type[CommunityRequestResponse],
+    instance: CommunityRequestResponse,
+    created: bool,
+    **kwargs: Any,
+) -> None:
+    """Send COMMUNITY_REQUEST_FULFILLED when a lender responds. A freshly
+    inserted response row is always a genuine, one-shot event — unlike
+    CommunityRequest's own saves (e.g. cancel()), there's no unrelated-save
+    ambiguity to guard against here.
+    """
+    if not created:
         return
 
-    previous_fulfilled_by_item_id = getattr(
-        instance, "_previous_fulfilled_by_item_id", None
+    notify.send(
+        instance.item.owner,
+        recipient=[instance.request.requester],
+        verb=NotificationType.COMMUNITY_REQUEST_FULFILLED.value,
+        action_object=instance.item,
+        target=instance.request,
+        description=f"Someone responded to your request for {instance.request.item_name}",
     )
-    fulfilled_item = instance.fulfilled_by_item
-    if fulfilled_item is not None and previous_fulfilled_by_item_id is None:
-        notify.send(
-            fulfilled_item.owner,
-            recipient=[instance.requester],
-            verb=NotificationType.COMMUNITY_REQUEST_FULFILLED.value,
-            action_object=fulfilled_item,
-            target=instance,
-            description=f"Someone responded to your request for {instance.item_name}",
-        )
