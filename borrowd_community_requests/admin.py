@@ -2,17 +2,25 @@ from typing import TYPE_CHECKING, TypeAlias
 
 from django.contrib import admin
 
-from .models import CommunityRequest, CommunityRequestDismissal
+from .models import (
+    CommunityRequest,
+    CommunityRequestDismissal,
+    CommunityRequestResponse,
+)
 
 # ModelAdmin isn't generic at runtime, but mypy expects type parameters.
 # Using a TYPE_CHECKING alias so Django and mypy are both happy.
 if TYPE_CHECKING:
     CommunityRequestModelAdmin: TypeAlias = admin.ModelAdmin[CommunityRequest]
+    CommunityRequestResponseModelAdmin: TypeAlias = admin.ModelAdmin[
+        CommunityRequestResponse
+    ]
     CommunityRequestDismissalModelAdmin: TypeAlias = admin.ModelAdmin[
         CommunityRequestDismissal
     ]
 else:
     CommunityRequestModelAdmin = admin.ModelAdmin
+    CommunityRequestResponseModelAdmin = admin.ModelAdmin
     CommunityRequestDismissalModelAdmin = admin.ModelAdmin
 
 
@@ -21,6 +29,12 @@ class CommunityRequestAdmin(CommunityRequestModelAdmin):
     list_display = ("item_name", "category", "requester", "status", "created_at")
     list_filter = ("status", "category", "created_at")
     search_fields = ("item_name", "description", "requester__email")
+
+
+@admin.register(CommunityRequestResponse)
+class CommunityRequestResponseAdmin(CommunityRequestResponseModelAdmin):
+    list_display = ("request", "item", "created_at")
+    search_fields = ("request__item_name", "item__name")
 
 
 @admin.register(CommunityRequestDismissal)

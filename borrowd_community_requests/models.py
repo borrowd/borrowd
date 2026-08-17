@@ -3,7 +3,6 @@ from django.db import models, transaction
 from django.db.models import (
     CASCADE,
     PROTECT,
-    SET_NULL,
     CharField,
     DateTimeField,
     ForeignKey,
@@ -75,22 +74,8 @@ class CommunityRequest(Model):
         choices=CommunityRequestStatus.choices,
         default=CommunityRequestStatus.OPEN,
     )
-    fulfilled_by_item: ForeignKey[Item | None] = ForeignKey(
-        Item,
-        on_delete=SET_NULL,
-        null=True,
-        blank=True,
-        related_name="fulfilled_community_requests",
-    )
     created_at = DateTimeField(auto_now_add=True)
     updated_at = DateTimeField(auto_now=True)
-
-    # Scratch attribute stashed by borrowd_notifications' pre_save receiver so
-    # its post_save counterpart can tell a genuine first fulfillment apart
-    # from a later unrelated save (e.g. cancel()). Declared here (mirroring
-    # Item._previous_status / Membership._previous_status) so mypy --strict
-    # accepts the signal handler's assignment.
-    _previous_fulfilled_by_item_id: int | None = None
 
     objects = CommunityRequestQuerySet.as_manager()
 
@@ -131,41 +116,30 @@ class CommunityRequest(Model):
         self.status = CommunityRequestStatus.CANCELLED
         self.save(update_fields=["status", "updated_at"])
 
-    def link_response_item(self, item: Item) -> bool:
+    def add_response(self, item: Item) -> "CommunityRequestResponse | None":
         if item.owner_id == self.requester_id:
             raise CannotActOnOwnRequestException("You can't fulfill your own request.")
 
-        # Keep the request open so multiple lenders can respond. Locking the
-        # row (rather than a check-then-save on self) avoids a race between
-        # two lenders linking an item to the same request at once: only the
-        # first caller to lock the row and find fulfilled_by_item still null
-        # wins, and the status==OPEN recheck races safely against cancel()
-        # the same way — a request cancelled concurrently with a
-        # fulfillment attempt can't be fulfilled after the fact.
-        #
-        # This re-fetches and saves through the ORM (rather than a plain
-        # .filter().update()) so the write still goes through Model.save()
-        # and fires pre_save/post_save signals — borrowd_notifications relies
-        # on that to detect a genuine first fulfillment and send exactly one
-        # COMMUNITY_REQUEST_FULFILLED notification.
+        # The request stays OPEN so any number of lenders can respond —
+        # locking the row only guards against a response racing a
+        # concurrent close (cancel(), or a future mark_fulfilled()), not
+        # against other responses. get_or_create() runs inside the same
+        # lock/transaction so a lender accidentally double-submitting the
+        # same item is idempotent rather than creating a duplicate row.
         #
         # select_for_update() is a no-op-with-warning on SQLite (used for
         # local/CI unit tests) but genuinely locks the row on PostgreSQL
-        # (used by the CI Django-test job); the check-then-save inside the
+        # (used by the CI Django-test job); the check-then-create inside the
         # same transaction is still race-safe either way, since every caller
         # re-reads the row fresh before deciding whether to write.
         with transaction.atomic():
             locked = CommunityRequest.objects.select_for_update().get(pk=self.pk)
-            if (
-                locked.status != CommunityRequestStatus.OPEN
-                or locked.fulfilled_by_item_id is not None
-            ):
-                return False
-            locked.fulfilled_by_item = item
-            locked.save(update_fields=["fulfilled_by_item", "updated_at"])
-
-        self.fulfilled_by_item = item
-        return True
+            if locked.status != CommunityRequestStatus.OPEN:
+                return None
+            response, _ = CommunityRequestResponse.objects.get_or_create(
+                request=self, item=item
+            )
+            return response
 
     def dismiss_for(self, user: BorrowdUser) -> None:
         if user.id == self.requester_id:
@@ -182,6 +156,27 @@ class CommunityRequest(Model):
                 name="unique_open_community_request_per_item",
             )
         ]
+
+
+class CommunityRequestResponse(Model):
+    """A lender's item offered in response to a community request. A
+    request can have any number of responses — the PRD explicitly allows
+    multiple lenders to respond to the same request."""
+
+    request: ForeignKey[CommunityRequest] = ForeignKey(
+        CommunityRequest,
+        on_delete=CASCADE,
+        related_name="responses",
+    )
+    item: ForeignKey[Item] = ForeignKey(
+        Item,
+        on_delete=CASCADE,
+        related_name="community_request_responses",
+    )
+    created_at = DateTimeField(auto_now_add=True)
+
+    def __str__(self) -> str:
+        return f"{self.item} responds to {self.request}"
 
 
 class CommunityRequestDismissal(Model):
