@@ -17,10 +17,8 @@
         </p>
 
         <ul id="chat-messages" class="mt-4 flex flex-col gap-1">
-            {% for message in chat_messages %}
-                {% include "messaging/_message.html" with message=message viewer=user %}
+            {% include "messaging/_messages.html" with chat_messages=chat_messages viewer=user %}
 
-            {% endfor %}
         </ul>
 
         {% if not chat_thread.is_archived %}

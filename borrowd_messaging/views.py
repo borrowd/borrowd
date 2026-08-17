@@ -1,7 +1,7 @@
 from typing import Any
 
 from django.db.models import QuerySet
-from django.http import HttpRequest, HttpResponse
+from django.http import HttpRequest, HttpResponse, HttpResponseBadRequest
 from django.shortcuts import render
 from django.views.generic import DetailView, View
 from django.views.generic.detail import SingleObjectMixin
@@ -81,4 +81,45 @@ class ChatThreadSendView(
             request,
             "messaging/_message.html",
             {"message": message, "viewer": sender},
+        )
+
+
+class ChatThreadPollView(
+    MessagingEnabledMixin,
+    LoginOr404PermissionMixin,
+    SingleObjectMixin[ChatThread],
+    View,
+):
+    """
+    Hand back whatever has been said since the reader's newest message.
+
+    `?after=` is the id of the last bubble already on their screen. The
+    auto-increment id doubles as the running order and the cursor, so the
+    lookup rides the (thread, id) index and never re-sends what they have.
+    """
+
+    model = ChatThread
+    permission_required = ChatThreadOLP.VIEW
+
+    def get(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
+        try:
+            after = int(request.GET.get("after", 0))
+        except ValueError:
+            return HttpResponseBadRequest("`after` must be a message id.")
+
+        newer = (
+            self.get_object()
+            .messages.filter(id__gt=after)
+            .select_related("sender__profile")
+            .order_by("id")
+        )
+        if not newer:
+            # htmx does not swap on a 204, so a quiet thread leaves the page
+            # untouched. This is the common case, once every poll interval.
+            # https://htmx.org/docs/#requests
+            return HttpResponse(status=204)
+        return render(
+            request,
+            "messaging/_messages.html",
+            {"chat_messages": newer, "viewer": get_authenticated_user(request)},
         )
