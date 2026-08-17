@@ -13,13 +13,15 @@ to draw the whole conversation.
         </time>
     </li>
 {% else %}
-    <!--
-`viewer` is the logged-in user, and it determines the side the bubble sits on:
+    {# Django comment, not an HTML one: the example tag below is real syntax, and
+    `<!-- -->` would leave it live, so this file would include itself forever.
+
+    `viewer` is the logged-in user, and it determines the side the bubble sits on:
     your own messages (message.sender_id == viewer.pk) go right,
     the other person's go left.
-`viewer` should be passed in by the parent template/component e.g.:
-`{% include "messaging/_message.html" with message=message viewer=user %}.`
--->
+    `viewer` should be passed in by the parent template/component e.g.:
+    `{% include "messaging/_message.html" with message=message viewer=user %}.`
+    #}
     <li id="message-{{ message.pk }}"
         class="chat {% if message.sender_id == viewer.pk %}chat-end{% else %}chat-start{% endif %}">
         <div class="chat-image">
