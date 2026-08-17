@@ -65,6 +65,14 @@ class ChatThreadDetailViewTests(MessagingTestCase):
         self.assertNotContains(response, "chat-bubble")
         self.assertNotContains(response, "ui-avatars.com")
 
+    def test_header_names_the_item(self) -> None:
+        self.client.force_login(self.borrower)
+
+        response = self.client.get(self.url)
+
+        self.assertContains(response, self.item.name)
+        self.assertNotContains(response, "no longer available")
+
     def test_lender_sees_the_thread(self) -> None:
         self.client.force_login(self.lender)
 
@@ -164,3 +172,31 @@ class ChatThreadSendViewTests(MessagingTestCase):
         self.client.force_login(self.borrower)
 
         self.assertEqual(self.client.get(self.url).status_code, 405)
+
+
+@override_settings(MESSAGING_ENABLED=True)
+class ChatThreadComposerTests(MessagingTestCase):
+    def setUp(self) -> None:
+        super().setUp()
+        self.thread = self.make_thread()
+        self.url = reverse("chat-thread-detail", args=[self.thread.pk])
+
+    def test_active_thread_offers_a_composer(self) -> None:
+        self.client.force_login(self.borrower)
+
+        response = self.client.get(self.url)
+
+        self.assertContains(
+            response, reverse("chat-thread-send", args=[self.thread.pk])
+        )
+        self.assertContains(response, 'name="body"')
+        self.assertContains(response, f'maxlength="{MESSAGE_BODY_MAX_LENGTH}"')
+
+    def test_archived_thread_has_no_composer(self) -> None:
+        MessagingService.archive_thread(self.thread, ArchiveReason.CLOSED)
+        self.client.force_login(self.borrower)
+
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'name="body"')

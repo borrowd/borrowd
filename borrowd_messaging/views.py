@@ -13,7 +13,7 @@ from borrowd_users.request import get_authenticated_user
 
 from .exceptions import InvalidMessageBody, ThreadNotWritable
 from .mixins import MessagingEnabledMixin
-from .models import ChatThread
+from .models import MESSAGE_BODY_MAX_LENGTH, ChatThread
 from .services import MessagingService
 
 
@@ -24,7 +24,7 @@ class ChatThreadDetailView(
     DetailView[ChatThread],
 ):
     model = ChatThread
-    context_object_name = "thread"
+    context_object_name = "chat_thread"
     permission_required = ChatThreadOLP.VIEW
 
     def get_queryset(self) -> QuerySet[ChatThread]:
@@ -44,6 +44,7 @@ class ChatThreadDetailView(
         context["chat_messages"] = chat_thread.messages.select_related(
             "sender__profile"
         ).order_by("id")
+        context["message_body_max_length"] = MESSAGE_BODY_MAX_LENGTH
         return context
 
 
