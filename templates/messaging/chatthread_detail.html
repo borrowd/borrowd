@@ -1,0 +1,27 @@
+{% extends "layouts/default.html" %}
+
+{% block head_title %}
+    Conversation
+{% endblock %}
+{% block content %}
+    <div class="w-full max-w-3xl self-start px-4">
+        <c-h1 class="font-normal text-[24px]">
+            {% if thread.item %}
+                {{ thread.item.name }}
+            {% else %}
+                This item is no longer available.
+            {% endif %}
+        </c-h1>
+        <p class="text-sm opacity-70">
+            {{ other_party.profile.full_name }}
+        </p>
+
+        <ul id="chat-messages">
+            {% for message in chat_messages %}
+                <li>
+                    {{ message.sender.profile.full_name }}: {{ message.body }}
+                </li>
+            {% endfor %}
+        </ul>
+    </div>
+{% endblock %}
