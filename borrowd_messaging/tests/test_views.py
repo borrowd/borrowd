@@ -2,6 +2,7 @@ from django.test import override_settings
 from django.urls import reverse
 
 from borrowd_messaging.models import Message
+from borrowd_messaging.services import MessagingService
 
 from .base import MessagingTestCase
 
@@ -49,6 +50,16 @@ class ChatThreadDetailViewTests(MessagingTestCase):
         self.client.force_login(self.borrower)
 
         self.assertContains(self.client.get(self.url), "chat-end")
+
+    def test_system_notice_renders_without_a_bubble_or_avatar(self) -> None:
+        MessagingService.post_system_message(self.thread, "This item was returned.")
+        self.client.force_login(self.borrower)
+
+        response = self.client.get(self.url)
+
+        self.assertContains(response, "This item was returned.")
+        self.assertNotContains(response, "chat-bubble")
+        self.assertNotContains(response, "ui-avatars.com")
 
     def test_lender_sees_the_thread(self) -> None:
         self.client.force_login(self.lender)
