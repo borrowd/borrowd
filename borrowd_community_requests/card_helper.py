@@ -13,7 +13,7 @@ def build_commmunity_request_card(
     request: CommunityRequest, viewing_user: BorrowdUser
 ) -> dict[str, Any]:
     user_whose_name_should_be_shown_in_banner = request.requester
-    time_ago = timesince(request.updated_at).split(",")[0]
+    time_ago = timesince(request.created_at).split(",")[0]
 
     banner_type = "requested"
 
