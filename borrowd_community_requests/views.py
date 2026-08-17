@@ -9,6 +9,7 @@ from django.views.generic import CreateView, DetailView, TemplateView, View
 from guardian.mixins import LoginRequiredMixin
 
 from borrowd.util import BorrowdTemplateFinderMixin
+from borrowd_community_requests.card_helper import build_commmunity_request_card
 from borrowd_users.models import BorrowdUser
 from borrowd_users.request import get_authenticated_user
 
@@ -93,14 +94,24 @@ class CommunityRequestListView(
             active_tab = "all"
 
         if active_tab == "mine":
-            community_requests = CommunityRequest.objects.owned_by(user).open()
+            community_requests = (
+                CommunityRequest.objects.select_related("requester")
+                .owned_by(user)
+                .open()
+            )
         else:
-            community_requests = CommunityRequest.objects.visible_to(user).exclude(
-                requester=user
+            community_requests = (
+                CommunityRequest.objects.select_related("requester")
+                .visible_to(user)
+                .exclude(requester=user)
             )
 
+        requests_cards_context = [
+            build_commmunity_request_card(request, viewing_user=user)
+            for request in community_requests
+        ]
         context["active_tab"] = active_tab
-        context["community_requests"] = community_requests
+        context["community_requests"] = requests_cards_context
         context["page_title"] = "Community requests"
         return context
 

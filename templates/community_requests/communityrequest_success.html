@@ -6,15 +6,7 @@
 
 {% block layout %}
     <main class="flex-1 w-full max-w-xs mx-auto px-4 py-4">
-        <div class="flex items-center gap-4 mb-6">
-            <a href="{% url 'item-list' %}"
-               class="btn btn-ghost btn-sm btn-square text-2xl">
-                ←
-            </a>
-            <h1 class="text-2xl font-serif text-base-content">
-                Item request
-            </h1>
-        </div>
+        <c-page-header title="Item request" />
 
         <section class="card bg-base-100 shadow-sm overflow-hidden">
             <div class="bg-warning/10 text-warning px-4 py-3 text-sm font-medium">

@@ -11,56 +11,62 @@ Parameters:
 {% endcomment %}
 {% load time_filters %}
 
-<div class="bg-base-100 rounded-lg shadow-sm overflow-hidden w-full flex flex-col p-3 gap-2">
-    <div class="flex items-center justify-between gap-2">
-        <span class="badge badge-outline badge-sm">{{ community_request.category.name }}</span>
-        <span class="text-xs text-base-content/60">{{ community_request.created_at|timesince|first_unit }} ago</span>
-    </div>
+<div class="bg-white rounded-2xl shadow-md overflow-hidden w-full flex flex-col">
+    {% if card_context %}
+        {% include "components/items/item_card_header.html" with banner_type=card_context.banner_type banner_bg=card_context.banner_bg banner_text=card_context.banner_text banner_icon=card_context.banner_icon person_name=card_context.person_name person_url=card_context.person_url time_ago=card_context.time_ago %}
 
-    <p class="text-sm font-semibold text-base-content line-clamp-2 break-words">
-        {{ community_request.item_name }}
-    </p>
-
-    {% if community_request.description %}
-        <p class="text-sm text-base-content line-clamp-3 break-words">
-            {{ community_request.description }}
-        </p>
     {% endif %}
 
-    <p class="text-xs text-base-content/70">
-        Requested by
-        {{ community_request.requester.first_name|capfirst|default:community_request.requester.username }}
-    </p>
+    <div class="flex flex-col gap-3 p-3 {% if is_removed %}opacity-60 grayscale pointer-events-none{% endif %}">
 
-    {% if community_request.fulfilled_by_item_id %}
-        <span class="badge badge-info badge-sm w-fit"
-              data-testid="community-request-fulfilled-indicator">
-            Someone's already responded
-        </span>
-    {% endif %}
+        <!-- Content -->
+        <div class="flex flex-row w-full min-w-0 justify-between">
+            <div class="flex flex-col">
+                <h3 class="text-base sm:text-xl md:text-2xl font-semibold text-gray-900 line-clamp-2 wrap-break-word">
+                    {{ community_request.item_name }}
+                </h3>
 
-    {% if community_request.requester_id != user.id %}
-        <div class="flex items-center gap-2 pt-1">
-            <c-button-nav url="{% url 'item-create' %}?name={{ community_request.item_name|urlencode }}&category={{ community_request.category_id }}&fulfills_request={{ community_request.pk }}"
-                          class="btn btn-primary btn-xs">
-                Add Item
-            </c-button-nav>
-
-            <form method="post"
-                  action="{% url 'community-request-dismiss' community_request.pk %}">
-                {% csrf_token %}
-                <button type="submit" class="btn btn-ghost btn-xs">
-                    Hide Request
-                </button>
-            </form>
+                <p class="text-sm sm:text-base text-gray-900 line-clamp-5 md:line-clamp-11 mt-2 wrap-break-word">
+                    {{ community_request.description|default:"No description Available" }}
+                </p>
+            </div>
+            {% if card_context.is_yours %}
+                <div class="rounded-4xl h-xs max-w-xs w-fit p-1 pl-2 pr-2 bg-gray-100 border-solid border-2 border-gray-200 mt-1 mb-3 sm:mb-4">
+                    <span class="text-sm text-gray-900 text-center">Yours</span>
+                </div>
+            {% endif %}
         </div>
-    {% else %}
-        <div class="flex items-center gap-2 pt-1">
-            <button type="button"
-                    class="btn btn-ghost btn-xs text-error"
-                    onclick="showModal('community-request-cancel-modal-{{ community_request.pk }}')">
-                Cancel
-            </button>
+
+        {% if community_request.fulfilled_by_item_id %}
+            <span class="badge badge-info badge-sm w-fit"
+                  data-testid="community-request-fulfilled-indicator">
+                Someone's already responded
+            </span>
+        {% endif %}
+
+        <div class="flex items-center gap-2">
+            {% if community_request.requester_id != user.id %}
+                <form method="post"
+                      action="{% url 'community-request-dismiss' community_request.pk %}"
+                      class="flex-1">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-soft btn-error btn-sm md:btn-md w-full">
+                        Dismiss request
+                    </button>
+                </form>
+
+                <c-button-nav url="{% url 'item-create' %}?name={{ community_request.item_name|urlencode }}&category={{ community_request.category_id }}&fulfills_request={{ community_request.pk }}"
+                              class="flex-1 btn btn-soft btn-success btn-sm md:btn-md w-full">
+                    I have the item
+                </c-button-nav>
+            {% else %}
+                <button type="button"
+                        class="btn text-error flex-1"
+                        onclick="showModal('community-request-cancel-modal-{{ community_request.pk }}')">
+                    Cancel
+                </button>
+
+            {% endif %}
         </div>
 
         <form id="community-request-cancel-form-{{ community_request.pk }}"
@@ -70,7 +76,9 @@ Parameters:
             {% csrf_token %}
         </form>
 
-        {% include "components/modal.html" with modal_id="community-request-cancel-modal-"|add:community_request.pk modal_title="Cancel request" modal_content_template="community_requests/_cancel_request_modal_content.html" cancel_button_text="No, keep it" confirm_button_text="Yes, cancel request" confirm_submit_form_id="community-request-cancel-form-"|add:community_request.pk confirm_button_class="btn btn-md btn-error btn-soft rounded-sm" %}
+        {% with pk_str=community_request.pk|stringformat:"s" %}
+            {% include "components/modal.html" with modal_id="community-request-cancel-modal-"|add:pk_str modal_title="Cancel request" modal_content_template="community_requests/_cancel_request_modal_content.html" cancel_button_text="No, keep it" confirm_button_text="Yes, cancel request" confirm_submit_form_id="community-request-cancel-form-"|add:pk_str confirm_button_class="btn btn-md btn-error btn-soft rounded-sm" %}
 
-    {% endif %}
+        {% endwith %}
+    </div>
 </div>

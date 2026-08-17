@@ -1,53 +1,81 @@
 {% extends "layouts/default.html" %}
 
+{% load static %}
+
 {% block head_title %}
     Community requests
 {% endblock %}
 
 {% block content %}
-    <div class="w-full max-w-5xl self-start px-4">
-        <div class="flex flex-col gap-4">
-            <div class="flex items-center justify-between gap-4">
-                <c-h2>
-                    Community requests
-                </c-h2>
-                <c-button-nav url="{% url 'community-request-create' %}"
-                              class="btn btn-primary btn-sm">
-                    Add Community Request
-                </c-button-nav>
-            </div>
+    <div class="w-full max-w-5xl self-start px-4" x-data="{ yourRequests:
+        {% if active_tab == 'mine' %}
+            true
+        {% else %}
+            false
+        {% endif %}
+        }">
 
-            <div class="tabs tabs-boxed w-fit" role="tablist">
-                <a href="?tab=all"
-                   role="tab"
-                   class="tab {% if active_tab == 'all' %}tab-active{% endif %}">
-                    Requests
-                </a>
-                <a href="?tab=mine"
-                   role="tab"
-                   class="tab {% if active_tab == 'mine' %}tab-active{% endif %}">
-                    Your requests
-                </a>
-            </div>
+        <!-- Page Header -->
+        <c-page-header title="Community Requests" />
 
-            <c-divider />
+        <!-- Toggle Row -->
+        <div class="flex items-center justify-between mb-6">
+            <label class="flex items-center gap-3 cursor-pointer">
+                <input type="checkbox"
+                       class="toggle toggle-base"
+                       x-model="yourRequests"
+                       @change="window.location = '{% url 'community-request-list' %}?tab=' + (yourRequests ? 'mine' : 'all')"
+                       role="switch"
+                       :aria-checked="yourRequests.toString()" />
+                <span class="text-sm font-medium">Your requests</span>
+            </label>
+            <a href="{% url 'community-request-create' %}"
+               class="btn btn-soft text-primary btn-sm">
+                Request item
+            </a>
+        </div>
+
+        <!-- aria-live tells screen readers to announce when content changes.-->
+
+        <div class="flex flex-col gap-4" aria-live="polite">
 
             {% if not community_requests %}
-                <div class="flex flex-col gap-5 items-center py-16 px-4">
-                    <p class="text-base text-base-content text-center leading-normal">
-                        There are no community requests right now.
+
+                <div class="flex flex-col items-center justify-center py-12 px-4">
+                    <img src="{% static 'community_requests/group_without_line.png' %}"
+                         alt="A picture of a watering can with flowers"
+                         class="w-64 h-40 mb-6">
+
+                    <template x-if="yourRequests">
+                        <p class="text-gray-800 text-xl text-center font-semibold mb-2">
+                            You have no community requests yet.
+                        </p>
+                    </template>
+
+                    <template x-if="!yourRequests">
+                        <p class="text-gray-800 text-xl text-center font-semibold mb-2">
+                            There are no community requests right now.
+                        </p>
+                    </template>
+
+                    <p class="text-gray-600 text-center mb-6">
+                        Add a request to start sharing.
                     </p>
+                    <a href="{% url 'community-request-create' %}" class="btn btn-primary">
+                        Request an item
+                    </a>
                 </div>
+
             {% else %}
                 <div class="hidden md:grid md:grid-cols-2 gap-4">
-                    {% for community_request in community_requests %}
-                        {% include "community_requests/_community_request_card.html" with community_request=community_request %}
+                    {% for request_context in community_requests %}
+                        {% include "community_requests/_community_request_card.html" with card_context=request_context community_request=request_context.request %}
 
                     {% endfor %}
                 </div>
                 <div class="md:hidden flex flex-col gap-3">
-                    {% for community_request in community_requests %}
-                        {% include "community_requests/_community_request_card.html" with community_request=community_request %}
+                    {% for request_context in community_requests %}
+                        {% include "community_requests/_community_request_card.html" with card_context=request_context community_request=request_context.request %}
 
                     {% endfor %}
                 </div>
