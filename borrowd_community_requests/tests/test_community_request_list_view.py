@@ -1,3 +1,5 @@
+from typing import Any
+
 from django.test import RequestFactory, TestCase
 from django.urls import reverse
 
@@ -6,6 +8,10 @@ from borrowd_community_requests.models import CommunityRequest, CommunityRequest
 from borrowd_groups.models import BorrowdGroup
 from borrowd_items.models import ItemCategory
 from borrowd_users.models import BorrowdUser
+
+
+def _requests(cards: list[dict[str, Any]]) -> list[CommunityRequest]:
+    return [card["request"] for card in cards]
 
 
 class CommunityRequestListViewTestBase(TestCase):
@@ -51,7 +57,7 @@ class CommunityRequestListViewTabTests(CommunityRequestListViewTestBase):
         response = self.client.get(reverse("community-request-list"))
 
         self.assertEqual(response.context["active_tab"], "all")
-        self.assertIn(request, response.context["community_requests"])
+        self.assertIn(request, _requests(response.context["community_requests"]))
 
     def test_all_tab_shows_requests_visible_to_the_user(self) -> None:
         request = CommunityRequest.objects.create(
@@ -62,7 +68,7 @@ class CommunityRequestListViewTabTests(CommunityRequestListViewTestBase):
 
         response = self.client.get(reverse("community-request-list"), {"tab": "all"})
 
-        self.assertIn(request, response.context["community_requests"])
+        self.assertIn(request, _requests(response.context["community_requests"]))
 
     def test_all_tab_excludes_the_viewers_own_requests(self) -> None:
         own_request = CommunityRequest.objects.create(
@@ -73,7 +79,7 @@ class CommunityRequestListViewTabTests(CommunityRequestListViewTestBase):
 
         response = self.client.get(reverse("community-request-list"), {"tab": "all"})
 
-        self.assertNotIn(own_request, response.context["community_requests"])
+        self.assertNotIn(own_request, _requests(response.context["community_requests"]))
 
     def test_mine_tab_shows_only_the_viewers_own_requests(self) -> None:
         own_request = CommunityRequest.objects.create(
@@ -90,8 +96,9 @@ class CommunityRequestListViewTabTests(CommunityRequestListViewTestBase):
         response = self.client.get(reverse("community-request-list"), {"tab": "mine"})
 
         self.assertEqual(response.context["active_tab"], "mine")
-        self.assertIn(own_request, response.context["community_requests"])
-        self.assertNotIn(other_request, response.context["community_requests"])
+        requests = _requests(response.context["community_requests"])
+        self.assertIn(own_request, requests)
+        self.assertNotIn(other_request, requests)
 
     def test_mine_tab_excludes_cancelled_requests(self) -> None:
         cancelled_request = CommunityRequest.objects.create(
@@ -103,7 +110,9 @@ class CommunityRequestListViewTabTests(CommunityRequestListViewTestBase):
 
         response = self.client.get(reverse("community-request-list"), {"tab": "mine"})
 
-        self.assertNotIn(cancelled_request, response.context["community_requests"])
+        self.assertNotIn(
+            cancelled_request, _requests(response.context["community_requests"])
+        )
 
     def test_unrecognized_tab_value_falls_back_to_all(self) -> None:
         request = CommunityRequest.objects.create(
@@ -115,7 +124,7 @@ class CommunityRequestListViewTabTests(CommunityRequestListViewTestBase):
         response = self.client.get(reverse("community-request-list"), {"tab": "bogus"})
 
         self.assertEqual(response.context["active_tab"], "all")
-        self.assertIn(request, response.context["community_requests"])
+        self.assertIn(request, _requests(response.context["community_requests"]))
 
 
 class CommunityRequestListViewVisibilityTests(CommunityRequestListViewTestBase):
@@ -141,7 +150,7 @@ class CommunityRequestListViewVisibilityTests(CommunityRequestListViewTestBase):
         self.client.force_login(self.group_member)
         response = self.client.get(reverse("community-request-list"))
 
-        self.assertIn(request, response.context["community_requests"])
+        self.assertIn(request, _requests(response.context["community_requests"]))
 
     def test_a_user_who_dismissed_a_request_does_not_see_it_again(self) -> None:
         request = CommunityRequest.objects.create(
@@ -154,7 +163,7 @@ class CommunityRequestListViewVisibilityTests(CommunityRequestListViewTestBase):
         self.client.force_login(self.group_member)
         response = self.client.get(reverse("community-request-list"))
 
-        self.assertNotIn(request, response.context["community_requests"])
+        self.assertNotIn(request, _requests(response.context["community_requests"]))
 
 
 class CommunityRequestListViewOrderingTests(CommunityRequestListViewTestBase):
@@ -175,7 +184,7 @@ class CommunityRequestListViewOrderingTests(CommunityRequestListViewTestBase):
 
         response = self.client.get(reverse("community-request-list"), {"tab": "all"})
 
-        community_requests = list(response.context["community_requests"])
+        community_requests = _requests(response.context["community_requests"])
         self.assertEqual(community_requests, [newer, older])
 
     def test_mine_tab_is_ordered_newest_first(self) -> None:
@@ -193,7 +202,7 @@ class CommunityRequestListViewOrderingTests(CommunityRequestListViewTestBase):
 
         response = self.client.get(reverse("community-request-list"), {"tab": "mine"})
 
-        community_requests = list(response.context["community_requests"])
+        community_requests = _requests(response.context["community_requests"])
         self.assertEqual(community_requests, [newer, older])
 
 

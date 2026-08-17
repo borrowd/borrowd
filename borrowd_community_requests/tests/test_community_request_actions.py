@@ -1,3 +1,5 @@
+from typing import Any
+
 from django.test import TestCase
 from django.urls import reverse
 
@@ -6,6 +8,10 @@ from borrowd_community_requests.models import CommunityRequest, CommunityRequest
 from borrowd_groups.models import BorrowdGroup
 from borrowd_items.models import Item, ItemCategory
 from borrowd_users.models import BorrowdUser
+
+
+def _requests(cards: list[dict[str, Any]]) -> list[CommunityRequest]:
+    return [card["request"] for card in cards]
 
 
 class CommunityRequestActionsTestBase(TestCase):
@@ -246,7 +252,9 @@ class DismissedRequestVisibilityTests(CommunityRequestActionsTestBase):
 
         response = self.client.get(reverse("community-request-list"))
 
-        self.assertNotIn(community_request, response.context["community_requests"])
+        self.assertNotIn(
+            community_request, _requests(response.context["community_requests"])
+        )
 
     def test_dismissed_request_remains_visible_to_other_users(self) -> None:
         community_request = self._make_request()
@@ -258,7 +266,9 @@ class DismissedRequestVisibilityTests(CommunityRequestActionsTestBase):
         self.client.force_login(self.other_lender)
         response = self.client.get(reverse("community-request-list"))
 
-        self.assertIn(community_request, response.context["community_requests"])
+        self.assertIn(
+            community_request, _requests(response.context["community_requests"])
+        )
 
 
 class FulfilledRequestIndicatorTests(CommunityRequestActionsTestBase):
@@ -356,7 +366,9 @@ class CancelledRequestVisibilityAndActionsTests(CommunityRequestActionsTestBase)
 
         response = self.client.get(f"{reverse('community-request-list')}?tab=mine")
 
-        self.assertNotIn(community_request, response.context["community_requests"])
+        self.assertNotIn(
+            community_request, _requests(response.context["community_requests"])
+        )
 
     def test_cancelled_request_disappears_from_other_users_requests_tab(self) -> None:
         community_request = self._make_request()
@@ -365,7 +377,9 @@ class CancelledRequestVisibilityAndActionsTests(CommunityRequestActionsTestBase)
 
         response = self.client.get(f"{reverse('community-request-list')}?tab=all")
 
-        self.assertNotIn(community_request, response.context["community_requests"])
+        self.assertNotIn(
+            community_request, _requests(response.context["community_requests"])
+        )
 
     def test_cancelled_request_cannot_be_dismissed(self) -> None:
         community_request = self._make_request()

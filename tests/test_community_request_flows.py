@@ -164,7 +164,10 @@ class CommunityRequestEndToEndFlowTest(SimpleTestCase):
         response = self.client.get(reverse("community-request-list"))
 
         self.assertEqual(response.context["active_tab"], "all")
-        self.assertIn(self.community_request, response.context["community_requests"])
+        self.assertIn(
+            self.community_request,
+            [card["request"] for card in response.context["community_requests"]],
+        )
         self.assertContains(response, self.SEARCH_TERM)
 
     def test_060_lender_receives_a_posted_notification(self) -> None:
@@ -281,7 +284,10 @@ class CommunityRequestEndToEndFlowTest(SimpleTestCase):
 
         response = self.client.get(reverse("community-request-list"))
 
-        self.assertIn(self.second_request, response.context["community_requests"])
+        self.assertIn(
+            self.second_request,
+            [card["request"] for card in response.context["community_requests"]],
+        )
 
     def test_120_requester_cancels_the_second_request(self) -> None:
         """Cancelling redirects to the requester's own "Your requests" tab
@@ -307,7 +313,8 @@ class CommunityRequestEndToEndFlowTest(SimpleTestCase):
             reverse("community-request-list"), {"tab": "mine"}
         )
         self.assertNotIn(
-            self.second_request, mine_response.context["community_requests"]
+            self.second_request,
+            [card["request"] for card in mine_response.context["community_requests"]],
         )
 
         self.client.force_login(self.lender)
@@ -315,5 +322,6 @@ class CommunityRequestEndToEndFlowTest(SimpleTestCase):
             reverse("community-request-list"), {"tab": "all"}
         )
         self.assertNotIn(
-            self.second_request, all_response.context["community_requests"]
+            self.second_request,
+            [card["request"] for card in all_response.context["community_requests"]],
         )
