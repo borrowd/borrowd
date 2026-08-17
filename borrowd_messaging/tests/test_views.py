@@ -7,6 +7,7 @@ from borrowd_messaging.models import (
     Message,
 )
 from borrowd_messaging.services import MessagingService
+from borrowd_users.models import BorrowdUser
 
 from .base import MessagingTestCase
 
@@ -200,3 +201,87 @@ class ChatThreadComposerTests(MessagingTestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, 'name="body"')
+
+
+@override_settings(MESSAGING_ENABLED=True)
+class ChatThreadPollViewTests(MessagingTestCase):
+    def setUp(self) -> None:
+        super().setUp()
+        self.thread = self.make_thread()
+        self.url = reverse("chat-thread-poll", args=[self.thread.pk])
+
+    def send(self, sender: BorrowdUser, body: str) -> Message:
+        return Message.objects.create(thread=self.thread, sender=sender, body=body)
+
+    def test_nothing_new_returns_204(self) -> None:
+        latest = self.send(self.borrower, "Free Saturday?")
+        self.client.force_login(self.borrower)
+
+        response = self.client.get(self.url, {"after": latest.pk})
+
+        self.assertEqual(response.status_code, 204)
+        self.assertFalse(response.content)
+
+    def test_returns_only_messages_after_the_cursor(self) -> None:
+        seen = self.send(self.borrower, "Free Saturday?")
+        fresh = self.send(self.lender, "Saturday works.")
+        self.client.force_login(self.borrower)
+
+        response = self.client.get(self.url, {"after": seen.pk})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Saturday works.")
+        self.assertNotContains(response, "Free Saturday?")
+        self.assertContains(response, f'id="message-{fresh.pk}"')
+
+    def test_no_cursor_returns_the_whole_thread(self) -> None:
+        self.send(self.borrower, "Free Saturday?")
+        self.send(self.lender, "Saturday works.")
+        self.client.force_login(self.borrower)
+
+        response = self.client.get(self.url)
+
+        self.assertContains(response, "Free Saturday?")
+        self.assertContains(response, "Saturday works.")
+
+    def test_messages_come_back_in_order(self) -> None:
+        self.send(self.borrower, "First")
+        self.send(self.lender, "Second")
+        self.client.force_login(self.borrower)
+
+        body = self.client.get(self.url).content.decode()
+
+        self.assertLess(body.index("First"), body.index("Second"))
+
+    def test_bubbles_are_sided_for_the_reader(self) -> None:
+        self.send(self.lender, "Saturday works.")
+        self.client.force_login(self.borrower)
+
+        # The borrower is reading the lender's message, so it sits on the left.
+        self.assertContains(self.client.get(self.url), "chat-start")
+
+    def test_archived_thread_still_polls(self) -> None:
+        self.send(self.borrower, "Free Saturday?")
+        MessagingService.archive_thread(self.thread, ArchiveReason.CLOSED)
+        self.client.force_login(self.borrower)
+
+        response = self.client.get(self.url)
+
+        self.assertContains(response, "This conversation was closed.")
+
+    def test_junk_cursor_is_rejected(self) -> None:
+        self.client.force_login(self.borrower)
+
+        self.assertEqual(self.client.get(self.url, {"after": "abc"}).status_code, 400)
+
+    def test_non_participant_gets_a_404(self) -> None:
+        self.send(self.borrower, "Free Saturday?")
+        self.client.force_login(self.make_user("stranger"))
+
+        self.assertEqual(self.client.get(self.url).status_code, 404)
+
+    @override_settings(MESSAGING_ENABLED=False)
+    def test_polling_is_hidden_while_the_feature_flag_is_off(self) -> None:
+        self.client.force_login(self.borrower)
+
+        self.assertEqual(self.client.get(self.url).status_code, 404)

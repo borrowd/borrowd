@@ -13,9 +13,7 @@ to draw the whole conversation.
         </time>
     </li>
 {% else %}
-    {# Django comment, not an HTML one: the example tag below is real syntax, and
-    `<!-- -->` would leave it live, so this file would include itself forever.
-
+    {#
     `viewer` is the logged-in user, and it determines the side the bubble sits on:
     your own messages (message.sender_id == viewer.pk) go right,
     the other person's go left.
