@@ -24,6 +24,32 @@ class ChatThreadDetailViewTests(MessagingTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Free Saturday?")
 
+    def test_bubble_carries_sender_avatar_name_and_timestamp(self) -> None:
+        self.lender.first_name = "Lena"
+        self.lender.last_name = "Derr"
+        self.lender.save()
+        message = Message.objects.create(
+            thread=self.thread, sender=self.lender, body="Yes, come by at ten."
+        )
+        self.client.force_login(self.borrower)
+
+        response = self.client.get(self.url)
+
+        self.assertContains(response, f'id="message-{message.pk}"')
+        self.assertContains(response, "Lena Derr")
+        self.assertContains(response, message.created_at.strftime("%b %-d"))
+        self.assertContains(response, "ui-avatars.com")
+        # The borrower is reading the lender's message, so it sits on the left.
+        self.assertContains(response, "chat-start")
+
+    def test_own_messages_are_aligned_to_the_viewer(self) -> None:
+        Message.objects.create(
+            thread=self.thread, sender=self.borrower, body="Free Saturday?"
+        )
+        self.client.force_login(self.borrower)
+
+        self.assertContains(self.client.get(self.url), "chat-end")
+
     def test_lender_sees_the_thread(self) -> None:
         self.client.force_login(self.lender)
 

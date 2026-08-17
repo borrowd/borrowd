@@ -35,7 +35,8 @@ class ChatThreadDetailView(
             else chat_thread.lender
         )
         # Not "messages": that name belongs to the django.contrib.messages context processor.
+        # sender__profile: every bubble reads the sender's avatar and full name.
         context["chat_messages"] = chat_thread.messages.select_related(
-            "sender"
+            "sender__profile"
         ).order_by("id")
         return context

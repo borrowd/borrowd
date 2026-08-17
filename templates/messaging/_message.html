@@ -1,7 +1,12 @@
-{# Rendered three ways: in the thread page loop, as the send endpoint's reply,
-and in the poll endpoint's fragment list. Keep it standalone -- `viewer` is
-passed in rather than read off the request, so the endpoints can render it
-without a page around it. #}
+{# One chat message. templates/messaging/chatthread_detail.html loops over this
+to draw the whole conversation.
+
+`viewer` is the logged-in user, and it determines the side the bubble sits on:
+    your own messages go right,
+    the other person's go left.
+`viewer` is passed in by the parent template/component e.g.:
+`{% include "messaging/_message.html" with message=message viewer=user %}.`
+#}
 
 <li id="message-{{ message.pk }}"
     class="chat {% if message.sender_id == viewer.pk %}chat-end{% else %}chat-start{% endif %}">
