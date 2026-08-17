@@ -260,14 +260,28 @@ class ChatThreadPollViewTests(MessagingTestCase):
         # The borrower is reading the lender's message, so it sits on the left.
         self.assertContains(self.client.get(self.url), "chat-start")
 
-    def test_archived_thread_still_polls(self) -> None:
-        self.send(self.borrower, "Free Saturday?")
+    def test_archiving_delivers_the_notice_and_stops_the_poller(self) -> None:
+        seen = self.send(self.borrower, "Free Saturday?")
         MessagingService.archive_thread(self.thread, ArchiveReason.CLOSED)
         self.client.force_login(self.borrower)
 
-        response = self.client.get(self.url)
+        response = self.client.get(self.url, {"after": seen.pk})
 
-        self.assertContains(response, "This conversation was closed.")
+        # 286 swaps the closing notice in, then cancels the poll.
+        self.assertEqual(response.status_code, 286)
+        self.assertContains(response, "This conversation was closed.", status_code=286)
+
+    def test_settled_archived_thread_stops_the_poller_with_nothing_to_add(self) -> None:
+        self.send(self.borrower, "Free Saturday?")
+        MessagingService.archive_thread(self.thread, ArchiveReason.CLOSED)
+        latest = Message.objects.filter(thread=self.thread).order_by("id").last()
+        assert latest is not None
+        self.client.force_login(self.borrower)
+
+        response = self.client.get(self.url, {"after": latest.pk})
+
+        self.assertEqual(response.status_code, 286)
+        self.assertNotContains(response, "chat-bubble", status_code=286)
 
     def test_junk_cursor_is_rejected(self) -> None:
         self.client.force_login(self.borrower)
@@ -285,3 +299,80 @@ class ChatThreadPollViewTests(MessagingTestCase):
         self.client.force_login(self.borrower)
 
         self.assertEqual(self.client.get(self.url).status_code, 404)
+
+
+@override_settings(MESSAGING_ENABLED=True)
+class ChatThreadPollWiringTests(MessagingTestCase):
+    def setUp(self) -> None:
+        super().setUp()
+        self.thread = self.make_thread()
+        self.url = reverse("chat-thread-detail", args=[self.thread.pk])
+
+    def test_active_thread_polls(self) -> None:
+        self.client.force_login(self.borrower)
+
+        response = self.client.get(self.url)
+
+        self.assertContains(
+            response, reverse("chat-thread-poll", args=[self.thread.pk])
+        )
+        self.assertContains(response, 'hx-trigger="every 4s"')
+
+    def test_archived_thread_does_not_poll(self) -> None:
+        MessagingService.archive_thread(self.thread, ArchiveReason.CLOSED)
+        self.client.force_login(self.borrower)
+
+        response = self.client.get(self.url)
+
+        self.assertNotContains(
+            response, reverse("chat-thread-poll", args=[self.thread.pk])
+        )
+
+
+@override_settings(MESSAGING_ENABLED=True)
+class ArchivedThreadReadOnlyTests(MessagingTestCase):
+    def setUp(self) -> None:
+        super().setUp()
+        self.thread = self.make_thread()
+
+    def test_archived_page_shows_the_notice_instead_of_the_box(self) -> None:
+        MessagingService.archive_thread(self.thread, ArchiveReason.CLOSED)
+        self.client.force_login(self.borrower)
+
+        response = self.client.get(reverse("chat-thread-detail", args=[self.thread.pk]))
+
+        self.assertContains(response, "This conversation is archived.")
+        self.assertNotContains(response, 'name="body"')
+        # Nothing to replace on a fresh page, so no out-of-band marker.
+        self.assertNotContains(response, "hx-swap-oob")
+
+    def test_poll_swaps_the_box_out_when_a_thread_closes_mid_read(self) -> None:
+        seen = Message.objects.create(
+            thread=self.thread, sender=self.borrower, body="Free Saturday?"
+        )
+        MessagingService.archive_thread(self.thread, ArchiveReason.CLOSED)
+        self.client.force_login(self.borrower)
+
+        response = self.client.get(
+            reverse("chat-thread-poll", args=[self.thread.pk]), {"after": seen.pk}
+        )
+
+        self.assertEqual(response.status_code, 286)
+        self.assertContains(response, 'id="chat-composer"', status_code=286)
+        self.assertContains(response, 'hx-swap-oob="true"', status_code=286)
+
+    def test_active_poll_leaves_the_box_alone(self) -> None:
+        seen = Message.objects.create(
+            thread=self.thread, sender=self.borrower, body="Free Saturday?"
+        )
+        Message.objects.create(
+            thread=self.thread, sender=self.lender, body="Saturday works."
+        )
+        self.client.force_login(self.borrower)
+
+        response = self.client.get(
+            reverse("chat-thread-poll", args=[self.thread.pk]), {"after": seen.pk}
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "hx-swap-oob")

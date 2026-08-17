@@ -22,25 +22,24 @@
         </ul>
 
         {% if not chat_thread.is_archived %}
-            {# The reply lands at the end of the list above. On a win, empty the
-            box and tell the character counter, which only listens for input. #}
-            <form class="mt-4"
-                  hx-post="{% url 'chat-thread-send' chat_thread.pk %}"
-                  hx-target="#chat-messages"
-                  hx-swap="beforeend"
-                  hx-on::after-request="if (event.detail.successful) { this.reset(); this.querySelector('textarea').dispatchEvent(new Event('input')); }">
-                {% csrf_token %}
-                <c-form.textarea name="body"
-                                 id="chat-composer-body"
-                                 label="Message"
-                                 rows="2"
-                                 max_length="{{ message_body_max_length }}"
-                                 required="true"
-                                 placeholder="Write a message" />
-                <c-button type="submit">
-                    Send
-                </c-button>
-            </form>
+            {# Every 4 seconds, ask the server what has been said since the
+            last bubble on screen, and stick the answer on the end of the list.
+            https://htmx.org/docs/#polling
+            https://htmx.org/attributes/hx-vals/ #}
+            <div hx-get="{% url 'chat-thread-poll' chat_thread.pk %}"
+                 hx-trigger="every 4s"
+                 hx-target="#chat-messages"
+                 hx-swap="beforeend"
+                 hx-vals='js:{after: document.querySelector("#chat-messages li:last-child")?.id.replace("message-", "") || 0}'>
+            </div>
+        {% endif %}
+
+        {% if chat_thread.is_archived %}
+            {% include "messaging/_composer_archived.html" %}
+
+        {% else %}
+            {% include "messaging/_composer.html" %}
+
         {% endif %}
     </div>
 {% endblock %}
