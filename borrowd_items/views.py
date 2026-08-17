@@ -253,14 +253,14 @@ class ItemCreateView(
             return
 
         try:
-            linked = community_request.link_response_item(item)
+            response = community_request.add_response(item)
         except CannotActOnOwnRequestException:
             _add_message_safe(
                 self.request, messages.ERROR, "You can't fulfill your own request."
             )
             return
 
-        if linked:
+        if response is not None:
             _add_message_safe(
                 self.request,
                 messages.SUCCESS,
