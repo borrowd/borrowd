@@ -6,8 +6,8 @@
 {% block content %}
     <div class="w-full max-w-3xl self-start px-4">
         <c-h1 class="font-normal text-[24px]">
-            {% if thread.item %}
-                {{ thread.item.name }}
+            {% if chat_thread.item %}
+                {{ chat_thread.item.name }}
             {% else %}
                 This item is no longer available.
             {% endif %}
@@ -16,11 +16,10 @@
             {{ other_party.profile.full_name }}
         </p>
 
-        <ul id="chat-messages">
+        <ul id="chat-messages" class="mt-4 flex flex-col gap-1">
             {% for message in chat_messages %}
-                <li>
-                    {{ message.sender.profile.full_name }}: {{ message.body }}
-                </li>
+                {% include "messaging/_message.html" with message=message viewer=user %}
+
             {% endfor %}
         </ul>
     </div>

@@ -1,0 +1,23 @@
+{# Rendered three ways: in the thread page loop, as the send endpoint's reply,
+and in the poll endpoint's fragment list. Keep it standalone -- `viewer` is
+passed in rather than read off the request, so the endpoints can render it
+without a page around it. #}
+
+<li id="message-{{ message.pk }}"
+    class="chat {% if message.sender_id == viewer.pk %}chat-end{% else %}chat-start{% endif %}">
+    <div class="chat-image">
+        <c-avatar class="w-10 h-10 rounded-full"
+                  src="{% if message.sender.profile.image %}{{ message.sender.profile.image.url }}{% endif %}"
+                  name="{{ message.sender.get_full_name }}"
+                  alt="{{ message.sender.get_full_name }}" />
+    </div>
+    <div class="chat-header text-xs font-normal opacity-60">
+        {{ message.sender.profile.full_name }}
+        <time class="ml-1" datetime="{{ message.created_at|date:'c' }}">
+            {{ message.created_at|date:"M j, g:i A" }}
+        </time>
+    </div>
+    <div class="chat-bubble">
+        {{ message.body }}
+    </div>
+</li>
