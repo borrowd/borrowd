@@ -101,6 +101,17 @@ TODO: Transfer over all to daisy */
     --btn-bg: rgb(156 163 175 / 0.25);
   }
 
+  /* Header notification bell: flat grey disc, no border/depth ring.
+     Setting --btn-color (not --btn-bg) keeps daisyUI's hover/active
+     shades derived from our grey rather than from base-200. */
+  .btn-notification-bell {
+    --btn-color: var(--color-borrowd-light-gray);
+    --btn-fg: var(--color-borrowd-indigo-600);
+    --btn-shadow: "";
+    --btn-noise: none;
+    border: 0;
+  }
+
   .notification-card.notification-card-reading {
     background-color: var(--color-primary-content);
   }
