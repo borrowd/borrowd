@@ -4,11 +4,7 @@ from django.test import TestCase
 from django.urls import reverse
 
 from borrowd_community_requests.exceptions import CannotActOnOwnRequestException
-from borrowd_community_requests.models import (
-    CommunityRequest,
-    CommunityRequestResponse,
-    CommunityRequestStatus,
-)
+from borrowd_community_requests.models import CommunityRequest, CommunityRequestStatus
 from borrowd_groups.models import BorrowdGroup
 from borrowd_items.models import Item, ItemCategory
 from borrowd_users.models import BorrowdUser
