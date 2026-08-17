@@ -107,19 +107,31 @@ class ChatThreadPollView(
         except ValueError:
             return HttpResponseBadRequest("`after` must be a message id.")
 
+        chat_thread = self.get_object()
         newer = (
-            self.get_object()
-            .messages.filter(id__gt=after)
+            chat_thread.messages.filter(id__gt=after)
             .select_related("sender__profile")
             .order_by("id")
         )
-        if not newer:
-            # htmx does not swap on a 204, so a quiet thread leaves the page
-            # untouched. This is the common case, once every poll interval.
-            # https://htmx.org/docs/#requests
+
+        # The quiet case, once every interval: htmx does not swap on a 204.
+        # https://htmx.org/docs/#requests
+        if not newer and not chat_thread.is_archived:
             return HttpResponse(status=204)
+
+        # An archived thread is finished: nobody can write to it again, so hand
+        # over whatever the reader is missing and shut the poller down.
+        # 286 swaps the body and then cancels polling, so one reply does both.
+        # The reply also carries a replacement for the typing box; see
+        # templates/messaging/_composer_archived.html.
+        # https://htmx.org/docs/#polling
         return render(
             request,
-            "messaging/_messages.html",
-            {"chat_messages": newer, "viewer": get_authenticated_user(request)},
+            "messaging/_poll.html",
+            {
+                "chat_thread": chat_thread,
+                "chat_messages": newer,
+                "viewer": get_authenticated_user(request),
+            },
+            status=286 if chat_thread.is_archived else 200,
         )

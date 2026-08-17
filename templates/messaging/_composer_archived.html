@@ -1,0 +1,13 @@
+{# What sits where the typing box was, once a chat is closed for good.
+
+Set `oob` (out-of-band) when the poll endpoint sends this back mid-conversation.
+Left off when the page is drawn fresh, since there is nothing to replace yet.
+https://htmx.org/docs/#oob_swaps #}
+
+<div id="chat-composer"
+     class="mt-4"
+     {% if oob %}hx-swap-oob="true"{% endif %}>
+    <p class="text-sm opacity-60">
+        This conversation is archived. You can still read it.
+    </p>
+</div>
