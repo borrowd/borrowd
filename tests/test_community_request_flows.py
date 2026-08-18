@@ -19,8 +19,14 @@ class CommunityRequestEndToEndFlowTest(SimpleTestCase):
     search with no groups shows no CTA; joining a group unlocks the CTA;
     creating a request notifies shared-group members; a lender adds an
     item from the request card and the requester is notified with a
-    working item link; and cancelling a second, separate request removes
-    it from both parties' views.
+    working item link; cancelling a second, separate request removes
+    it from both parties' views; a second, different lender can respond
+    to the same (already-responded-to) request, coexisting with the
+    first response and triggering its own independent notification; the
+    requester then explicitly marks the request as fulfilled, which
+    removes it from both parties' views the same way cancellation does;
+    and a further response attempt against that now-closed request is
+    rejected (no new response row, no notification).
 
     See RejectedFlowTest in tests/test_borrowing_flows.py for why this is
     structured as a sequence of numbered test_NNN methods sharing
@@ -37,11 +43,14 @@ class CommunityRequestEndToEndFlowTest(SimpleTestCase):
 
     requester: BorrowdUser
     lender: BorrowdUser
+    second_lender: BorrowdUser
+    third_lender: BorrowdUser
     category: ItemCategory
     group: BorrowdGroup
     community_request: CommunityRequest
     second_request: CommunityRequest
     item: Item
+    second_item: Item
     # SimpleTestCase expects no database access;
     # setting this class attribute makes it allowed again.
     databases = "__all__"
@@ -64,6 +73,18 @@ class CommunityRequestEndToEndFlowTest(SimpleTestCase):
             password="password",
             first_name="Bob",
         )
+        cls.second_lender = BorrowdUser.objects.create_user(
+            username="cr_flow_second_lender",
+            email="cr_flow_second_lender@example.com",
+            password="password",
+            first_name="Carol",
+        )
+        cls.third_lender = BorrowdUser.objects.create_user(
+            username="cr_flow_third_lender",
+            email="cr_flow_third_lender@example.com",
+            password="password",
+            first_name="Dave",
+        )
         cls.category = ItemCategory.objects.create(name="Cr Flow Tools")
         # Only the lender belongs to this group at first -- the requester
         # joins it in test_020, which is what unlocks the CTA in test_030.
@@ -76,11 +97,14 @@ class CommunityRequestEndToEndFlowTest(SimpleTestCase):
 
     @classmethod
     def tearDownClass(cls) -> None:
-        if hasattr(cls, "item"):
-            cls.item.delete()
+        Item.objects.filter(
+            owner__in=[cls.lender, cls.second_lender, cls.third_lender]
+        ).delete()
         cls.group.delete()
         cls.requester.delete()
         cls.lender.delete()
+        cls.second_lender.delete()
+        cls.third_lender.delete()
         cls.category.delete()
         super().tearDownClass()
 
@@ -325,4 +349,154 @@ class CommunityRequestEndToEndFlowTest(SimpleTestCase):
         self.assertNotIn(
             self.second_request,
             [card["request"] for card in all_response.context["community_requests"]],
+        )
+
+    def test_140_a_second_lender_responds_to_the_same_request(self) -> None:
+        """A different lender can respond to the first request even though
+        it already has a response from test_080 -- the PRD explicitly
+        allows multiple lenders to respond to the same request, and both
+        responses must coexist."""
+        self.group.add_user(self.second_lender)
+        self.client.force_login(self.second_lender)
+
+        response = self.client.post(
+            reverse("item-create"),
+            {
+                "name": self.community_request.item_name,
+                "description": "A slightly nicer cordless drill.",
+                "categories": [self.category.pk],
+                "listing_type": ListingType.LEND,
+                "share_with_all_groups": "on",
+                "fulfills_request": str(self.community_request.pk),
+            },
+            follow=True,
+        )
+
+        type(self).second_item = Item.objects.get(
+            name=self.community_request.item_name, owner=self.second_lender
+        )
+        self.assertEqual(self.community_request.responses.count(), 2)
+        self.assertTrue(
+            self.community_request.responses.filter(item=self.item).exists()
+        )
+        self.assertTrue(
+            self.community_request.responses.filter(item=self.second_item).exists()
+        )
+        messages_list = [str(m) for m in response.context["messages"]]
+        self.assertIn(
+            "Your item has been linked to the community request.", messages_list
+        )
+
+    def test_150_requester_receives_a_second_fulfilled_notification_with_a_working_link(
+        self,
+    ) -> None:
+        """The second lender's response fires its own, independent
+        COMMUNITY_REQUEST_FULFILLED notification -- the requester now has
+        two -- and its action link resolves to the second lender's item,
+        not the first."""
+        fulfilled_notifications = Notification.objects.filter(
+            recipient=self.requester,
+            verb=NotificationType.COMMUNITY_REQUEST_FULFILLED.value,
+        ).order_by("id")
+        self.assertEqual(fulfilled_notifications.count(), 2)
+
+        first_notification, second_notification = fulfilled_notifications
+        self.assertEqual(first_notification.action_object, self.item)
+        self.assertEqual(second_notification.action_object, self.second_item)
+        self.assertEqual(second_notification.target, self.community_request)
+
+        self.client.force_login(self.requester)
+        response = self.client.post(
+            reverse("notification-open", args=[second_notification.pk]), follow=True
+        )
+
+        self.assertRedirects(
+            response, reverse("item-detail", args=[self.second_item.pk])
+        )
+        self.assertContains(response, self.second_item.name)
+
+    def test_160_requester_marks_the_request_as_fulfilled(self) -> None:
+        """The requester can explicitly close out the request once they've
+        borrowed an item, independent of cancellation."""
+        self.client.force_login(self.requester)
+
+        response = self.client.post(
+            reverse(
+                "community-request-mark-fulfilled", args=[self.community_request.pk]
+            ),
+            follow=True,
+        )
+
+        self.assertRedirects(response, f"{reverse('community-request-list')}?tab=mine")
+        self.community_request.refresh_from_db()
+        self.assertEqual(
+            self.community_request.status, CommunityRequestStatus.FULFILLED
+        )
+        messages_list = [str(m) for m in response.context["messages"]]
+        self.assertIn("Your request has been marked as fulfilled.", messages_list)
+
+    def test_170_fulfilled_request_disappears_from_both_parties_views(self) -> None:
+        """A FULFILLED request drops out of both the requester's own "Your
+        requests" tab and the lender's "Requests" tab, the same way a
+        CANCELLED request already does."""
+        self.client.force_login(self.requester)
+        mine_response = self.client.get(
+            reverse("community-request-list"), {"tab": "mine"}
+        )
+        self.assertNotIn(
+            self.community_request, mine_response.context["community_requests"]
+        )
+
+        self.client.force_login(self.lender)
+        all_response = self.client.get(
+            reverse("community-request-list"), {"tab": "all"}
+        )
+        self.assertNotIn(
+            self.community_request, all_response.context["community_requests"]
+        )
+
+    def test_180_a_response_to_a_now_fulfilled_request_is_rejected(self) -> None:
+        """A third lender trying to respond after the request has been
+        marked fulfilled still gets their item created (an ordinary,
+        unlinked item), but the response itself is rejected: no new
+        CommunityRequestResponse row, no new notification, and no "linked"
+        flash message -- matching add_response()'s status != OPEN guard."""
+        responses_before = self.community_request.responses.count()
+        notifications_before = Notification.objects.filter(
+            recipient=self.requester,
+            verb=NotificationType.COMMUNITY_REQUEST_FULFILLED.value,
+        ).count()
+
+        self.group.add_user(self.third_lender)
+        self.client.force_login(self.third_lender)
+
+        response = self.client.post(
+            reverse("item-create"),
+            {
+                "name": self.community_request.item_name,
+                "description": "Too late to help, but still a nice drill.",
+                "categories": [self.category.pk],
+                "listing_type": ListingType.LEND,
+                "share_with_all_groups": "on",
+                "fulfills_request": str(self.community_request.pk),
+            },
+            follow=True,
+        )
+
+        self.assertTrue(
+            Item.objects.filter(
+                name=self.community_request.item_name, owner=self.third_lender
+            ).exists()
+        )
+        self.assertEqual(self.community_request.responses.count(), responses_before)
+        self.assertEqual(
+            Notification.objects.filter(
+                recipient=self.requester,
+                verb=NotificationType.COMMUNITY_REQUEST_FULFILLED.value,
+            ).count(),
+            notifications_before,
+        )
+        messages_list = [str(m) for m in response.context["messages"]]
+        self.assertNotIn(
+            "Your item has been linked to the community request.", messages_list
         )
