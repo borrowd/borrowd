@@ -9,6 +9,7 @@ from django.views.generic import DetailView, View
 from django.views.generic.detail import SingleObjectMixin
 
 from borrowd.util import BorrowdTemplateFinderMixin
+from borrowd_items.models import TransactionStatus
 from borrowd_permissions.mixins import LoginOr404PermissionMixin
 from borrowd_permissions.models import ChatThreadOLP
 from borrowd_users.request import get_authenticated_user
@@ -30,7 +31,11 @@ class ChatThreadDetailView(
     permission_required = ChatThreadOLP.VIEW
 
     def get_queryset(self) -> QuerySet[ChatThread]:
-        return super().get_queryset().select_related("item", "lender", "borrower")
+        return (
+            super()
+            .get_queryset()
+            .select_related("item", "lender", "borrower", "transaction")
+        )
 
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
@@ -47,6 +52,12 @@ class ChatThreadDetailView(
             "sender__profile"
         ).order_by("id")
         context["message_body_max_length"] = MESSAGE_BODY_MAX_LENGTH
+        # A disputed thread stays writable, so the badge is the only sign in the
+        # page furniture that something has gone wrong.
+        transaction = chat_thread.transaction
+        context["is_disputed"] = (
+            transaction is not None and transaction.status == TransactionStatus.DISPUTED
+        )
         return context
 
 
