@@ -1191,6 +1191,10 @@ class CommunityRequestNotificationEmailTests(TestCase):
         email = mail.outbox[0]
         self.assertEqual(email.to, [self.requester.email])
         self.assertIn("DeWalt Drill", email.body)
+        # The CTA nudges the requester straight into the borrow flow rather
+        # than a generic "view item" link.
+        self.assertIn("request to borrow", email.body)
+        self.assertIn(item.get_absolute_url(), email.body)
 
 
 class CommunityRequestNotificationCategoryTests(TestCase):

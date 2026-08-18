@@ -46,6 +46,30 @@ Parameters:
                     </span>
                 {% endif %}
             {% endwith %}
+        {% else %}
+            {% with responses=community_request.responses.all %}
+                {% if responses %}
+                    <div class="flex flex-col gap-1"
+                         data-testid="community-request-response-list">
+                        {% for response in responses %}
+                            <div class="flex items-center justify-between gap-2 text-sm">
+                                <span class="truncate">
+                                    {{ response.item.name }}
+                                    {% with category=response.item.categories.first %}
+                                        {% if category %}
+                                            <span class="text-base-content/60">({{ category }})</span>
+                                        {% endif %}
+                                    {% endwith %}
+                                </span>
+                                <a href="{% url 'item-detail' response.item.pk %}"
+                                   class="link link-primary text-xs whitespace-nowrap">
+                                    View &amp; request to borrow
+                                </a>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
         {% endif %}
 
         <div class="flex items-center gap-2">

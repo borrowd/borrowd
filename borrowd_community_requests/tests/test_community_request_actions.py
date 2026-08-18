@@ -346,6 +346,47 @@ class ResponseCountIndicatorTests(CommunityRequestActionsTestBase):
         )
 
 
+class ResponseListOnRequestersOwnCardTests(CommunityRequestActionsTestBase):
+    def test_own_card_lists_each_response_with_a_link_to_the_items_detail_page(
+        self,
+    ) -> None:
+        community_request = self._make_request()
+        item = self._make_item(self.lender, name="Drill")
+        community_request.add_response(item)
+
+        self.client.force_login(self.requester)
+        response = self.client.get(f"{reverse('community-request-list')}?tab=mine")
+
+        self.assertContains(response, 'data-testid="community-request-response-list"')
+        self.assertContains(response, reverse("item-detail", args=[item.pk]))
+        self.assertContains(response, "View &amp; request to borrow")
+
+    def test_own_card_lists_every_response_when_multiple_lenders_respond(
+        self,
+    ) -> None:
+        community_request = self._make_request()
+        first_item = self._make_item(self.lender, name="First drill")
+        second_item = self._make_item(self.other_lender, name="Second drill")
+        community_request.add_response(first_item)
+        community_request.add_response(second_item)
+
+        self.client.force_login(self.requester)
+        response = self.client.get(f"{reverse('community-request-list')}?tab=mine")
+
+        self.assertContains(response, reverse("item-detail", args=[first_item.pk]))
+        self.assertContains(response, reverse("item-detail", args=[second_item.pk]))
+
+    def test_own_card_shows_no_response_list_when_no_responses_exist(self) -> None:
+        self._make_request()
+
+        self.client.force_login(self.requester)
+        response = self.client.get(f"{reverse('community-request-list')}?tab=mine")
+
+        self.assertNotContains(
+            response, 'data-testid="community-request-response-list"'
+        )
+
+
 class CommunityRequestCancelViewTests(CommunityRequestActionsTestBase):
     def test_cancel_transitions_status_and_redirects_with_success_message(
         self,
