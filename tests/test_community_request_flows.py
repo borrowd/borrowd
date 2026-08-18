@@ -444,7 +444,8 @@ class CommunityRequestEndToEndFlowTest(SimpleTestCase):
             reverse("community-request-list"), {"tab": "mine"}
         )
         self.assertNotIn(
-            self.community_request, mine_response.context["community_requests"]
+            self.community_request,
+            [card["request"] for card in mine_response.context["community_requests"]],
         )
 
         self.client.force_login(self.lender)
@@ -452,7 +453,8 @@ class CommunityRequestEndToEndFlowTest(SimpleTestCase):
             reverse("community-request-list"), {"tab": "all"}
         )
         self.assertNotIn(
-            self.community_request, all_response.context["community_requests"]
+            self.community_request,
+            [card["request"] for card in all_response.context["community_requests"]],
         )
 
     def test_180_a_response_to_a_now_fulfilled_request_is_rejected(self) -> None:

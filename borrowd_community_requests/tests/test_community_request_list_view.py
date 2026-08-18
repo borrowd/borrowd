@@ -124,7 +124,9 @@ class CommunityRequestListViewTabTests(CommunityRequestListViewTestBase):
 
         response = self.client.get(reverse("community-request-list"), {"tab": "mine"})
 
-        self.assertNotIn(fulfilled_request, response.context["community_requests"])
+        self.assertNotIn(
+            fulfilled_request, _requests(response.context["community_requests"])
+        )
 
     def test_unrecognized_tab_value_falls_back_to_all(self) -> None:
         request = CommunityRequest.objects.create(

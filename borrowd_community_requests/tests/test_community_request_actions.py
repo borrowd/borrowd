@@ -584,7 +584,9 @@ class FulfilledRequestVisibilityAndActionsTests(CommunityRequestActionsTestBase)
 
         response = self.client.get(f"{reverse('community-request-list')}?tab=mine")
 
-        self.assertNotIn(community_request, response.context["community_requests"])
+        self.assertNotIn(
+            community_request, _requests(response.context["community_requests"])
+        )
 
     def test_fulfilled_request_disappears_from_other_users_requests_tab(self) -> None:
         community_request = self._make_request()
@@ -593,7 +595,9 @@ class FulfilledRequestVisibilityAndActionsTests(CommunityRequestActionsTestBase)
 
         response = self.client.get(f"{reverse('community-request-list')}?tab=all")
 
-        self.assertNotIn(community_request, response.context["community_requests"])
+        self.assertNotIn(
+            community_request, _requests(response.context["community_requests"])
+        )
 
     def test_fulfilled_request_is_excluded_from_the_badge_count(self) -> None:
         community_request = self._make_request()

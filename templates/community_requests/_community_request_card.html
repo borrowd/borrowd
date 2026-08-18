@@ -78,7 +78,9 @@ Parameters:
                       action="{% url 'community-request-dismiss' community_request.pk %}"
                       class="flex-1">
                     {% csrf_token %}
-                    <button type="submit" class="btn btn-soft btn-error btn-sm md:btn-md w-full">Dismiss request</button>
+                    <button type="submit" class="btn btn-soft btn-error btn-sm md:btn-md w-full">
+                        Dismiss request
+                    </button>
                 </form>
 
                 <c-button-nav url="{% url 'item-create' %}?name={{ community_request.item_name|urlencode }}&category={{ community_request.category_id }}&fulfills_request={{ community_request.pk }}"
