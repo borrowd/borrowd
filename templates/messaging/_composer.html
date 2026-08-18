@@ -36,4 +36,18 @@ thing out for the archived notice the moment the chat closes. See
             Send
         </c-button>
     </form>
+
+    {# Only a chat that never became a request can be closed, and closing is
+    final, so `danger` puts a confirm box in front of it. Once a request exists
+    the transaction owns the thread's fate and ends it on its own. #}
+    {% if not chat_thread.transaction_id %}
+        <form class="mt-2"
+              method="post"
+              action="{% url 'chat-thread-close' chat_thread.pk %}">
+            {% csrf_token %}
+            <c-button danger type="submit">
+                Close conversation
+            </c-button>
+        </form>
+    {% endif %}
 </div>

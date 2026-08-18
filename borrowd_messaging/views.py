@@ -1,8 +1,10 @@
 from typing import Any
 
+from django.contrib import messages
+from django.core.exceptions import PermissionDenied
 from django.db.models import QuerySet
 from django.http import HttpRequest, HttpResponse, HttpResponseBadRequest
-from django.shortcuts import render
+from django.shortcuts import redirect, render
 from django.views.generic import DetailView, View
 from django.views.generic.detail import SingleObjectMixin
 
@@ -135,3 +137,34 @@ class ChatThreadPollView(
             },
             status=286 if chat_thread.is_archived else 200,
         )
+
+
+class ChatThreadCloseView(
+    MessagingEnabledMixin,
+    LoginOr404PermissionMixin,
+    SingleObjectMixin[ChatThread],
+    View,
+):
+    """
+    End a pre-request chat that never turned into a request. Either party may do it,
+    the thread archives and becomes read-only.
+    """
+
+    model = ChatThread
+    permission_required = ChatThreadOLP.VIEW
+
+    def post(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
+        chat_thread = self.get_object()
+        try:
+            MessagingService.close_prerequest_thread(
+                chat_thread, get_authenticated_user(request)
+            )
+        except ThreadNotWritable:
+            # Both parties hit close, or the transaction archived it first.
+            messages.info(request, "This conversation is already closed.")
+        except PermissionDenied:
+            # The item was requested between rendering the button and pressing it.
+            messages.info(
+                request, "This conversation belongs to a request now, so it stays open."
+            )
+        return redirect("chat-thread-detail", pk=chat_thread.pk)
