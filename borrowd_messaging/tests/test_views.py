@@ -1,6 +1,7 @@
 from django.test import override_settings
 from django.urls import reverse
 
+from borrowd_items.models import TransactionStatus
 from borrowd_messaging.models import (
     MESSAGE_BODY_MAX_LENGTH,
     ArchiveReason,
@@ -486,3 +487,46 @@ class ChatThreadCloseButtonTests(MessagingTestCase):
             self.client.get(self.url),
             reverse("chat-thread-close", args=[self.thread.pk]),
         )
+
+
+@override_settings(MESSAGING_ENABLED=True)
+class DisputeBadgeTests(MessagingTestCase):
+    def setUp(self) -> None:
+        super().setUp()
+        self.thread = self.make_thread()
+        self.url = reverse("chat-thread-detail", args=[self.thread.pk])
+
+    def dispute(self) -> None:
+        transaction = self.make_transaction()
+        transaction.status = TransactionStatus.DISPUTED
+        transaction.save()
+        self.thread.refresh_from_db()
+
+    def test_disputed_thread_shows_the_badge(self) -> None:
+        self.dispute()
+        self.client.force_login(self.borrower)
+
+        self.assertContains(self.client.get(self.url), "Disputed")
+
+    def test_disputed_thread_stays_writable(self) -> None:
+        self.dispute()
+        self.client.force_login(self.borrower)
+
+        response = self.client.post(
+            reverse("chat-thread-send", args=[self.thread.pk]),
+            {"body": "Let us sort this out."},
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+    def test_prerequest_thread_has_no_badge(self) -> None:
+        self.client.force_login(self.borrower)
+
+        self.assertNotContains(self.client.get(self.url), "Disputed")
+
+    def test_ordinary_transaction_has_no_badge(self) -> None:
+        self.make_transaction()
+        self.thread.refresh_from_db()
+        self.client.force_login(self.borrower)
+
+        self.assertNotContains(self.client.get(self.url), "Disputed")
