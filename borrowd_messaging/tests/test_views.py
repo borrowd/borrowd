@@ -376,3 +376,113 @@ class ArchivedThreadReadOnlyTests(MessagingTestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, "hx-swap-oob")
+
+
+@override_settings(MESSAGING_ENABLED=True)
+class ChatThreadCloseViewTests(MessagingTestCase):
+    def setUp(self) -> None:
+        super().setUp()
+        self.thread = self.make_thread()
+        self.url = reverse("chat-thread-close", args=[self.thread.pk])
+
+    def test_borrower_closes_the_conversation(self) -> None:
+        self.client.force_login(self.borrower)
+
+        response = self.client.post(self.url)
+
+        self.assertRedirects(
+            response, reverse("chat-thread-detail", args=[self.thread.pk])
+        )
+        self.thread.refresh_from_db()
+        self.assertTrue(self.thread.is_archived)
+        self.assertEqual(self.thread.archive_reason, ArchiveReason.CLOSED)
+        self.assertEqual(self.thread.updated_by, self.borrower)
+
+    def test_lender_can_close_it_too(self) -> None:
+        self.client.force_login(self.lender)
+
+        self.client.post(self.url)
+
+        self.thread.refresh_from_db()
+        self.assertTrue(self.thread.is_archived)
+
+    def test_closing_posts_the_notice(self) -> None:
+        self.client.force_login(self.borrower)
+
+        self.client.post(self.url)
+
+        notice = Message.objects.get(thread=self.thread, is_system=True)
+        self.assertEqual(notice.body, "This conversation was closed.")
+
+    def test_closing_twice_posts_one_notice(self) -> None:
+        self.client.force_login(self.borrower)
+
+        self.client.post(self.url)
+        self.client.post(self.url)
+
+        self.assertEqual(
+            Message.objects.filter(thread=self.thread, is_system=True).count(), 1
+        )
+
+    def test_a_thread_with_a_transaction_stays_open(self) -> None:
+        self.thread.transaction = self.make_transaction()
+        self.thread.save()
+        self.client.force_login(self.borrower)
+
+        self.client.post(self.url)
+
+        self.thread.refresh_from_db()
+        self.assertFalse(self.thread.is_archived)
+
+    def test_non_participant_gets_a_404(self) -> None:
+        self.client.force_login(self.make_user("stranger"))
+
+        self.assertEqual(self.client.post(self.url).status_code, 404)
+        self.thread.refresh_from_db()
+        self.assertFalse(self.thread.is_archived)
+
+    @override_settings(MESSAGING_ENABLED=False)
+    def test_closing_is_hidden_while_the_feature_flag_is_off(self) -> None:
+        self.client.force_login(self.borrower)
+
+        self.assertEqual(self.client.post(self.url).status_code, 404)
+
+    def test_get_is_not_allowed(self) -> None:
+        self.client.force_login(self.borrower)
+
+        self.assertEqual(self.client.get(self.url).status_code, 405)
+
+
+@override_settings(MESSAGING_ENABLED=True)
+class ChatThreadCloseButtonTests(MessagingTestCase):
+    def setUp(self) -> None:
+        super().setUp()
+        self.thread = self.make_thread()
+        self.url = reverse("chat-thread-detail", args=[self.thread.pk])
+
+    def test_prerequest_thread_offers_the_close_button(self) -> None:
+        self.client.force_login(self.borrower)
+
+        self.assertContains(
+            self.client.get(self.url),
+            reverse("chat-thread-close", args=[self.thread.pk]),
+        )
+
+    def test_thread_with_a_transaction_has_no_close_button(self) -> None:
+        self.thread.transaction = self.make_transaction()
+        self.thread.save()
+        self.client.force_login(self.borrower)
+
+        self.assertNotContains(
+            self.client.get(self.url),
+            reverse("chat-thread-close", args=[self.thread.pk]),
+        )
+
+    def test_archived_thread_has_no_close_button(self) -> None:
+        MessagingService.archive_thread(self.thread, ArchiveReason.CLOSED)
+        self.client.force_login(self.borrower)
+
+        self.assertNotContains(
+            self.client.get(self.url),
+            reverse("chat-thread-close", args=[self.thread.pk]),
+        )
