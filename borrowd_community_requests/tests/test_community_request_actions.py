@@ -451,3 +451,136 @@ class CancelledRequestVisibilityAndActionsTests(CommunityRequestActionsTestBase)
         )
 
         self.assertEqual(response.status_code, 404)
+
+
+class MarkFulfilledTests(CommunityRequestActionsTestBase):
+    def test_mark_fulfilled_transitions_status(self) -> None:
+        community_request = self._make_request()
+
+        community_request.mark_fulfilled()
+
+        self.assertEqual(community_request.status, CommunityRequestStatus.FULFILLED)
+
+    def test_mark_fulfilled_does_not_require_any_responses(self) -> None:
+        """The requester may have borrowed the item off-platform, or from a
+        response not tracked in-app — mark_fulfilled() doesn't require
+        picking a specific CommunityRequestResponse."""
+        community_request = self._make_request()
+        self.assertEqual(community_request.responses.count(), 0)
+
+        community_request.mark_fulfilled()
+
+        self.assertEqual(community_request.status, CommunityRequestStatus.FULFILLED)
+
+
+class CommunityRequestMarkFulfilledViewTests(CommunityRequestActionsTestBase):
+    def test_mark_fulfilled_transitions_status_and_redirects_with_success_message(
+        self,
+    ) -> None:
+        community_request = self._make_request()
+        self.client.force_login(self.requester)
+
+        response = self.client.post(
+            reverse("community-request-mark-fulfilled", args=[community_request.pk]),
+            follow=True,
+        )
+
+        self.assertRedirects(response, f"{reverse('community-request-list')}?tab=mine")
+        community_request.refresh_from_db()
+        self.assertEqual(community_request.status, CommunityRequestStatus.FULFILLED)
+        messages_list = [str(m) for m in response.context["messages"]]
+        self.assertIn("Your request has been marked as fulfilled.", messages_list)
+
+    def test_mark_fulfilled_404s_for_a_non_owner(self) -> None:
+        community_request = self._make_request()
+        self.client.force_login(self.lender)
+
+        response = self.client.post(
+            reverse("community-request-mark-fulfilled", args=[community_request.pk])
+        )
+
+        self.assertEqual(response.status_code, 404)
+        community_request.refresh_from_db()
+        self.assertEqual(community_request.status, CommunityRequestStatus.OPEN)
+
+    def test_mark_fulfilled_404s_for_an_already_cancelled_request(self) -> None:
+        community_request = self._make_request()
+        community_request.cancel()
+        self.client.force_login(self.requester)
+
+        response = self.client.post(
+            reverse("community-request-mark-fulfilled", args=[community_request.pk])
+        )
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_mark_fulfilled_404s_for_an_already_fulfilled_request(self) -> None:
+        community_request = self._make_request()
+        community_request.mark_fulfilled()
+        self.client.force_login(self.requester)
+
+        response = self.client.post(
+            reverse("community-request-mark-fulfilled", args=[community_request.pk])
+        )
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_mark_fulfilled_404s_for_a_nonexistent_pk(self) -> None:
+        self.client.force_login(self.requester)
+
+        response = self.client.post(
+            reverse("community-request-mark-fulfilled", args=[999999])
+        )
+
+        self.assertEqual(response.status_code, 404)
+
+
+class FulfilledRequestVisibilityAndActionsTests(CommunityRequestActionsTestBase):
+    def test_fulfilled_request_disappears_from_requesters_mine_tab(self) -> None:
+        community_request = self._make_request()
+        community_request.mark_fulfilled()
+        self.client.force_login(self.requester)
+
+        response = self.client.get(f"{reverse('community-request-list')}?tab=mine")
+
+        self.assertNotIn(community_request, response.context["community_requests"])
+
+    def test_fulfilled_request_disappears_from_other_users_requests_tab(self) -> None:
+        community_request = self._make_request()
+        community_request.mark_fulfilled()
+        self.client.force_login(self.lender)
+
+        response = self.client.get(f"{reverse('community-request-list')}?tab=all")
+
+        self.assertNotIn(community_request, response.context["community_requests"])
+
+    def test_fulfilled_request_is_excluded_from_the_badge_count(self) -> None:
+        community_request = self._make_request()
+        community_request.mark_fulfilled()
+
+        count = CommunityRequest.objects.visible_to(self.lender).exclude(
+            requester=self.lender
+        )
+
+        self.assertNotIn(community_request, count)
+
+    def test_fulfilled_request_cannot_be_dismissed(self) -> None:
+        community_request = self._make_request()
+        community_request.mark_fulfilled()
+        self.client.force_login(self.lender)
+
+        response = self.client.post(
+            reverse("community-request-dismiss", args=[community_request.pk])
+        )
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_fulfilled_request_cannot_receive_new_responses(self) -> None:
+        community_request = self._make_request()
+        community_request.mark_fulfilled()
+        item = self._make_item(self.lender)
+
+        result = community_request.add_response(item)
+
+        self.assertIsNone(result)
+        self.assertEqual(community_request.responses.count(), 0)

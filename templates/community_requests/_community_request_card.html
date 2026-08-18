@@ -63,13 +63,24 @@ Parameters:
                 </c-button-nav>
             {% else %}
                 <button type="button"
-                        class="btn text-error flex-1"
+                        class="flex-1 btn btn-soft btn-success btn-sm md:btn-md w-full"
+                        onclick="showModal('community-request-mark-fulfilled-modal-{{ community_request.pk }}')">
+                    Mark as Fulfilled
+                </button>
+                <button type="button"
+                        class="flex-1 btn btn-soft btn-error btn-sm md:btn-md w-full"
                         onclick="showModal('community-request-cancel-modal-{{ community_request.pk }}')">
                     Cancel
                 </button>
-
             {% endif %}
         </div>
+
+        <form id="community-request-mark-fulfilled-form-{{ community_request.pk }}"
+              method="post"
+              action="{% url 'community-request-mark-fulfilled' community_request.pk %}"
+              class="hidden">
+            {% csrf_token %}
+        </form>
 
         <form id="community-request-cancel-form-{{ community_request.pk }}"
               method="post"
@@ -79,6 +90,8 @@ Parameters:
         </form>
 
         {% with pk_str=community_request.pk|stringformat:"s" %}
+            {% include "components/modal.html" with modal_id="community-request-mark-fulfilled-modal-"|add:pk_str modal_title="Mark as fulfilled" modal_content_template="community_requests/_mark_fulfilled_modal_content.html" cancel_button_text="No, keep it open" confirm_button_text="Yes, mark as fulfilled" confirm_submit_form_id="community-request-mark-fulfilled-form-"|add:pk_str confirm_button_class="btn btn-md btn-success btn-soft rounded-sm" %}
+
             {% include "components/modal.html" with modal_id="community-request-cancel-modal-"|add:pk_str modal_title="Cancel request" modal_content_template="community_requests/_cancel_request_modal_content.html" cancel_button_text="No, keep it" confirm_button_text="Yes, cancel request" confirm_submit_form_id="community-request-cancel-form-"|add:pk_str confirm_button_class="btn btn-md btn-error btn-soft rounded-sm" %}
 
         {% endwith %}

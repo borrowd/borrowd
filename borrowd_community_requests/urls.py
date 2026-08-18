@@ -5,6 +5,7 @@ from .views import (
     CommunityRequestCreateView,
     CommunityRequestDismissView,
     CommunityRequestListView,
+    CommunityRequestMarkFulfilledView,
     CommunityRequestSuccessView,
 )
 
@@ -27,5 +28,10 @@ urlpatterns = [
         "<int:pk>/cancel/",
         CommunityRequestCancelView.as_view(),
         name="community-request-cancel",
+    ),
+    path(
+        "<int:pk>/mark-fulfilled/",
+        CommunityRequestMarkFulfilledView.as_view(),
+        name="community-request-mark-fulfilled",
     ),
 ]

@@ -114,6 +114,18 @@ class CommunityRequestListViewTabTests(CommunityRequestListViewTestBase):
             cancelled_request, _requests(response.context["community_requests"])
         )
 
+    def test_mine_tab_excludes_fulfilled_requests(self) -> None:
+        fulfilled_request = CommunityRequest.objects.create(
+            requester=self.group_member,
+            category=self.category_tools,
+            item_name="Ladder",
+            status=CommunityRequestStatus.FULFILLED,
+        )
+
+        response = self.client.get(reverse("community-request-list"), {"tab": "mine"})
+
+        self.assertNotIn(fulfilled_request, response.context["community_requests"])
+
     def test_unrecognized_tab_value_falls_back_to_all(self) -> None:
         request = CommunityRequest.objects.create(
             requester=self.requester,
@@ -300,5 +312,20 @@ class CommunityRequestCountContextProcessorTests(CommunityRequestListViewTestBas
         self.assertEqual(community_request_count(request)["community_request_count"], 1)
 
         community_request.cancel()
+
+        self.assertEqual(community_request_count(request)["community_request_count"], 0)
+
+    def test_count_updates_after_mark_fulfilled(self) -> None:
+        community_request = CommunityRequest.objects.create(
+            requester=self.requester,
+            category=self.category_tools,
+            item_name="Drill",
+        )
+
+        request = self.factory.get("/")
+        request.user = self.group_member
+        self.assertEqual(community_request_count(request)["community_request_count"], 1)
+
+        community_request.mark_fulfilled()
 
         self.assertEqual(community_request_count(request)["community_request_count"], 0)

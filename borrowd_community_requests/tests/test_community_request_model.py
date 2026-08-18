@@ -110,6 +110,26 @@ class CommunityRequestCleanTests(CommunityRequestModelTestBase):
         # Should not raise: cancelled requests don't count toward the cap.
         under_the_cap.clean()
 
+    def test_clean_ignores_fulfilled_requests_when_counting_the_cap(self) -> None:
+        self._make_group_with_active_membership(self.requester)
+
+        for i in range(MAX_ACTIVE_REQUESTS_PER_USER):
+            CommunityRequest.objects.create(
+                requester=self.requester,
+                category=self.category_tools,
+                item_name=f"Fulfilled item {i}",
+                status=CommunityRequestStatus.FULFILLED,
+            )
+
+        under_the_cap = CommunityRequest(
+            requester=self.requester,
+            category=self.category_tools,
+            item_name="Still allowed",
+        )
+
+        # Should not raise: fulfilled requests don't count toward the cap.
+        under_the_cap.clean()
+
     def test_clean_excludes_own_pk_when_re_validating_an_existing_request(
         self,
     ) -> None:
@@ -164,6 +184,22 @@ class CommunityRequestUniqueConstraintTests(CommunityRequestModelTestBase):
             category=self.category_tools,
             item_name="Drill",
             status=CommunityRequestStatus.CANCELLED,
+        )
+
+    def test_duplicate_fulfilled_request_does_not_violate_db_constraint(self) -> None:
+        CommunityRequest.objects.create(
+            requester=self.requester,
+            category=self.category_tools,
+            item_name="Drill",
+            status=CommunityRequestStatus.FULFILLED,
+        )
+
+        # Should not raise: the unique constraint only applies to OPEN requests.
+        CommunityRequest.objects.create(
+            requester=self.requester,
+            category=self.category_tools,
+            item_name="Drill",
+            status=CommunityRequestStatus.FULFILLED,
         )
 
     def test_same_item_name_different_category_does_not_violate_constraint(
@@ -260,6 +296,18 @@ class CommunityRequestVisibleToTests(CommunityRequestModelTestBase):
 
         self.assertNotIn(request, visible)
 
+    def test_visible_to_excludes_fulfilled_requests(self) -> None:
+        request = CommunityRequest.objects.create(
+            requester=self.requester,
+            category=self.category_tools,
+            item_name="Drill",
+            status=CommunityRequestStatus.FULFILLED,
+        )
+
+        visible = CommunityRequest.objects.visible_to(self.other_member)
+
+        self.assertNotIn(request, visible)
+
     def test_visible_to_excludes_requests_from_a_group_the_viewer_left(self) -> None:
         request = CommunityRequest.objects.create(
             requester=self.requester,
@@ -305,7 +353,15 @@ class CommunityRequestOwnedByTests(CommunityRequestModelTestBase):
             status=CommunityRequestStatus.CANCELLED,
         )
 
+        fulfilled_request = CommunityRequest.objects.create(
+            requester=self.requester,
+            category=self.category_electronics,
+            item_name="Saw",
+            status=CommunityRequestStatus.FULFILLED,
+        )
+
         owned = CommunityRequest.objects.owned_by(self.requester)
 
         self.assertIn(open_request, owned)
         self.assertIn(cancelled_request, owned)
+        self.assertIn(fulfilled_request, owned)

@@ -131,6 +131,22 @@ class CommunityRequestCancelView(LoginRequiredMixin, View):
         return redirect(f"{reverse('community-request-list')}?tab=mine")
 
 
+class CommunityRequestMarkFulfilledView(LoginRequiredMixin, View):
+    """
+    Let the requester explicitly mark their own open community request as
+    fulfilled, distinct from cancelling it.
+    """
+
+    def post(self, request: HttpRequest, pk: int) -> HttpResponse:
+        user = get_authenticated_user(request)
+        community_request = get_object_or_404(
+            CommunityRequest.objects.owned_by(user).open(), pk=pk
+        )
+        community_request.mark_fulfilled()
+        messages.success(request, "Your request has been marked as fulfilled.")
+        return redirect(f"{reverse('community-request-list')}?tab=mine")
+
+
 class CommunityRequestDismissView(LoginRequiredMixin, View):
     """
     Hide an open community request from the current user's "Requests" tab,

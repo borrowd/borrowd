@@ -26,6 +26,7 @@ MAX_ACTIVE_REQUESTS_PER_USER = 3
 class CommunityRequestStatus(models.TextChoices):
     OPEN = "OPEN", "Open"
     CANCELLED = "CANCELLED", "Cancelled"
+    FULFILLED = "FULFILLED", "Fulfilled"
 
 
 class CommunityRequestQuerySet(QuerySet["CommunityRequest"]):
@@ -114,6 +115,14 @@ class CommunityRequest(Model):
 
     def cancel(self) -> None:
         self.status = CommunityRequestStatus.CANCELLED
+        self.save(update_fields=["status", "updated_at"])
+
+    def mark_fulfilled(self) -> None:
+        # Callable regardless of whether any CommunityRequestResponse rows
+        # exist — the requester may have borrowed the item off-platform, or
+        # from a response not tracked in-app, so no specific response needs
+        # to be picked.
+        self.status = CommunityRequestStatus.FULFILLED
         self.save(update_fields=["status", "updated_at"])
 
     def add_response(self, item: Item) -> "CommunityRequestResponse | None":
