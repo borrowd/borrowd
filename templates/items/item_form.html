@@ -27,6 +27,10 @@
               @submit="submitForm($event)">
             {% csrf_token %}
 
+            {% if fulfills_request %}
+                <input type="hidden" name="fulfills_request" value="{{ fulfills_request }}">
+            {% endif %}
+
             {% for field in form %}
 
                 {# name and description use self-contained components that render their own <fieldset> #}
@@ -105,8 +109,7 @@
                                         </template>
                                         <template x-if="selectedIds.length > 2">
                                             <span class="inline-flex items-center justify-center h-[18px] px-[5px] py-px rounded-full border border-base-300 bg-base-100 text-base-content text-[10px] font-medium whitespace-nowrap shrink-0"
-                                                  x-text="'+ ' + (selectedIds.length - 2)">
-                                            </span>
+                                                  x-text="'+ ' + (selectedIds.length - 2)"></span>
                                         </template>
                                     </span>
                                     {% heroicon_micro "chevron-down" class="size-3 text-base-content/60 shrink-0 ml-1" %}
@@ -191,8 +194,7 @@
                                         </template>
                                         <template x-if="!shareWithAll && selectedGroupIds.length > 2">
                                             <span class="inline-flex items-center justify-center h-[18px] px-[5px] py-px rounded-full border border-base-300 bg-base-100 text-base-content text-[10px] font-medium whitespace-nowrap shrink-0"
-                                                  x-text="'+ ' + (selectedGroupIds.length - 2)">
-                                            </span>
+                                                  x-text="'+ ' + (selectedGroupIds.length - 2)"></span>
                                         </template>
                                     </span>
                                     {% heroicon_micro "chevron-down" class="size-3 text-base-content/60 shrink-0 ml-1" %}

@@ -15,9 +15,11 @@ from django.urls import reverse
 # from .base.models import AbstractNotification
 from notifications.models import Notification
 
+from borrowd_community_requests.models import CommunityRequest
 from borrowd_groups.models import BorrowdGroup, Membership
 from borrowd_items.models import (
     AvailabilitySubscription,
+    Item,
     Transaction,
     TransactionStatus,
 )
@@ -241,6 +243,17 @@ class NotificationType(models.TextChoices):
                         ),
                     }
                 )
+            elif notification.verb == NotificationType.COMMUNITY_REQUEST_POSTED.value:
+                community_request: CommunityRequest = notification.action_object
+                context.update(
+                    {
+                        "group_name": notification.target.name,
+                        "item_name": community_request.item_name,
+                        "requester_name": community_request.requester.first_name,
+                        "requests_url": settings.BASE_URL
+                        + reverse("community-request-list"),
+                    }
+                )
             else:
                 membership: Membership = notification.action_object
                 context.update(
@@ -250,6 +263,15 @@ class NotificationType(models.TextChoices):
                         "group_name": membership.group.name,
                     }
                 )
+        elif isinstance(notification.target, CommunityRequest):
+            fulfilled_item: Item = notification.action_object
+            context.update(
+                {
+                    "item_name": fulfilled_item.name,
+                    "item_url": settings.BASE_URL
+                    + reverse("item-detail", args=[fulfilled_item.pk]),
+                }
+            )
         elif isinstance(notification.target, AvailabilitySubscription):
             subscription: AvailabilitySubscription = notification.target
             base_url = settings.BASE_URL.rstrip("/")
@@ -291,7 +313,7 @@ _MESSAGE_TEMPLATES: dict[NotificationType, str] = {
     NotificationType.MEMBERSHIP_PENDING: "{new_member_name} has requested to join {group_name}",
     NotificationType.MEMBERSHIP_APPROVED: "{group_name} approved your membership",
     NotificationType.COMMUNITY_REQUEST_POSTED: "A new community request was posted in {group_name}",
-    NotificationType.COMMUNITY_REQUEST_FULFILLED: "A community request in {group_name} was fulfilled",
+    NotificationType.COMMUNITY_REQUEST_FULFILLED: "Someone responded to your request for {item_name}",
     NotificationType.REQUEST_CANCELLED_BORROWER_LEFT: "{actor_name}'s borrow request for {item_name} was cancelled",
     NotificationType.REQUEST_CANCELLED_OWNER_LEFT: "{actor_name} left — your request for {item_name} was cancelled",
     NotificationType.LOAN_ENDED_OWNER_LEFT: "{actor_name} left — your loan of {item_name} has ended",

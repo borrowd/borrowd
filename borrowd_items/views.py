@@ -16,13 +16,15 @@ from django_filters.views import FilterView
 from guardian.mixins import LoginRequiredMixin
 
 from borrowd.util import BorrowdTemplateFinderMixin, resolve_back_url
+from borrowd_community_requests.exceptions import CannotActOnOwnRequestException
+from borrowd_community_requests.models import CommunityRequest
 from borrowd_groups.models import Membership, MembershipStatus
 from borrowd_permissions.mixins import (
     LoginOr403PermissionMixin,
     LoginOr404PermissionMixin,
 )
 from borrowd_permissions.models import ItemOLP
-from borrowd_users.models import SearchTarget, SearchTerm
+from borrowd_users.models import BorrowdUser, SearchTarget, SearchTerm
 from borrowd_users.request import get_authenticated_user
 
 from .card_helpers import (
@@ -194,10 +196,33 @@ class ItemCreateView(
         kwargs["user"] = get_authenticated_user(self.request)
         return kwargs
 
+    def get_initial(self) -> dict[str, Any]:
+        initial = super().get_initial()
+
+        name = self.request.GET.get("name")
+        if name:
+            # Matches Item.name's widget maxlength (see ItemForm.Meta.widgets).
+            initial["name"] = name[:40]
+
+        category_id = self.request.GET.get("category")
+        if category_id and category_id.isdigit():
+            initial["categories"] = [int(category_id)]
+
+        return initial
+
     def get_context_data(self, **kwargs: str) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
         context["page_title"] = "Add item"
+        context["fulfills_request"] = self._get_fulfills_request_param()
         return context
+
+    def _get_fulfills_request_param(self) -> str | None:
+        # A hidden form field carries this across a validation-error
+        # round-trip (POST), while a fresh page load reads it from the
+        # "Add Item" link's query string (GET).
+        return self.request.POST.get("fulfills_request") or self.request.GET.get(
+            "fulfills_request"
+        )
 
     def form_valid(self, form: ItemCreateWithPhotoForm) -> HttpResponse:
         user = get_authenticated_user(self.request)
@@ -213,7 +238,36 @@ class ItemCreateView(
                 created_by=user,
                 updated_by=user,
             )
+
+        self._link_fulfilled_request(form.instance, user)
+
         return response
+
+    def _link_fulfilled_request(self, item: Item, user: BorrowdUser) -> None:
+        request_pk = self._get_fulfills_request_param()
+        if not request_pk or not request_pk.isdigit():
+            return
+
+        community_request = (
+            CommunityRequest.objects.visible_to(user).filter(pk=int(request_pk)).first()
+        )
+        if community_request is None:
+            return
+
+        try:
+            response = community_request.add_response(item)
+        except CannotActOnOwnRequestException:
+            _add_message_safe(
+                self.request, messages.ERROR, "You can't fulfill your own request."
+            )
+            return
+
+        if response is not None:
+            _add_message_safe(
+                self.request,
+                messages.SUCCESS,
+                "Your item has been linked to the community request.",
+            )
 
     def get_success_url(self) -> str:
         if self.object is None:
@@ -342,11 +396,15 @@ class ItemListView(
         context["item_cards"] = build_item_cards_for_items(items, user, "search")
         context["user_has_items"] = Item.objects.filter(
             owner=user,
-        ).exists
+        ).exists()
         context["user_has_groups"] = Membership.objects.filter(
             user=user,
             status=MembershipStatus.ACTIVE,
         ).exists()
+
+        search_term = self.request.GET.get("search", "").strip()
+        context["search_term"] = search_term
+        context["is_empty_search"] = bool(search_term) and not context["item_cards"]
 
         return context
 

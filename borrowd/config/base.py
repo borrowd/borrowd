@@ -71,6 +71,7 @@ INSTALLED_APPS = [
     "borrowd_items",
     "borrowd_groups",
     "borrowd_messaging",
+    "borrowd_community_requests",
     "notifications",  # Must be below apps that send notifications and above borrowd_notifications
     "borrowd_notifications",
     "django_filters",
@@ -109,6 +110,7 @@ TEMPLATES = [
                 "borrowd_beta.context_processors.beta_status",
                 "borrowd_groups.context_processors.groups_needing_moderator",
                 "borrowd_notifications.context_processors.unread_notification_count",
+                "borrowd_community_requests.context_processors.community_request_count",
             ],
         },
     },

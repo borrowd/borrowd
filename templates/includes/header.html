@@ -66,6 +66,22 @@
                         </a>
                     </li>
                     <li>
+                        <a href="{% url 'community-request-list' %}"
+                           class="flex items-center justify-between py-3">
+                            <div class="flex items-center gap-3">
+                                {% heroicon_outline "megaphone" class="size-5" %}
+                                <span>Community requests</span>
+                            </div>
+
+                            {% if community_request_count %}
+                                <span class="badge badge-primary badge-xs"
+                                      data-testid="nav-community-request-count-indicator">
+                                    {{ community_request_count }}
+                                </span>
+                            {% endif %}
+                        </a>
+                    </li>
+                    <li>
                         <a href="{% url 'profile-inventory' %}"
                            class="flex items-center gap-3 py-3">
                             {% heroicon_outline "archive-box" class="size-5" %}

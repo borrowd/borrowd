@@ -1,3 +1,4 @@
+import importlib
 import json
 from datetime import timedelta
 from typing import Any
@@ -8,15 +9,18 @@ from django.core import mail
 from django.http import HttpResponseBase
 from django.templatetags.static import static
 from django.test import TestCase, TransactionTestCase, override_settings
+from django.urls import reverse
 from django.utils import timezone
 from notifications.models import Notification
 from pywebpush import WebPushException
 
+from borrowd_community_requests.models import CommunityRequest
 from borrowd_groups.models import BorrowdGroup, Membership
 from borrowd_items.models import (
     AvailabilitySubscription,
     AvailabilitySubscriptionStatus,
     Item,
+    ItemCategory,
     ItemStatus,
     Transaction,
     TransactionStatus,
@@ -39,7 +43,11 @@ from .models import (
     NotificationType,
     PushSubscription,
 )
-from .views import _notification_action_url
+from .views import (
+    NOTIFICATION_CATEGORIES,
+    _notification_action_url,
+    _notification_avatar_content,
+)
 
 
 class GroupMemberJoinedNotificationTests(TestCase):
@@ -843,6 +851,562 @@ class GiveawayRequestNotificationTests(TestCase):
         message = ntype.message_template.format(**context)
         self.assertIn(self.requester.first_name, message)
         self.assertIn(self.item.name, message)
+
+
+class CommunityRequestPostedNotificationTests(TestCase):
+    """Tests for COMMUNITY_REQUEST_POSTED, fired by CommunityRequest's
+    post_save signal on creation -- one notification per group the
+    requester shares with other active members."""
+
+    def setUp(self) -> None:
+        self.requester = BorrowdUser.objects.create_user(
+            username="requester",
+            email="requester@example.com",
+            password="password",
+            first_name="Riya",
+        )
+        self.member_a = BorrowdUser.objects.create_user(
+            username="member_a", email="member_a@example.com", password="password"
+        )
+        self.member_b = BorrowdUser.objects.create_user(
+            username="member_b", email="member_b@example.com", password="password"
+        )
+        self.category = ItemCategory.objects.create(name="Tools")
+
+        self.group1 = BorrowdGroup.objects.create_group(
+            name="Group One",
+            created_by=self.requester,
+            updated_by=self.requester,
+            membership_requires_approval=False,
+        )
+        self.group2 = BorrowdGroup.objects.create_group(
+            name="Group Two",
+            created_by=self.requester,
+            updated_by=self.requester,
+            membership_requires_approval=False,
+        )
+        # member_a shares both groups with the requester; member_b shares
+        # only group1.
+        self.group1.add_user(self.member_a)
+        self.group2.add_user(self.member_a)
+        self.group1.add_user(self.member_b)
+
+        # Clear the GROUP_MEMBER_JOINED notifications from the setup above.
+        Notification.objects.all().delete()
+
+    def _create_request(self) -> CommunityRequest:
+        return CommunityRequest.objects.create(
+            requester=self.requester, category=self.category, item_name="Drill"
+        )
+
+    def test_posted_notifies_shared_group_members_and_excludes_requester(
+        self,
+    ) -> None:
+        self._create_request()
+
+        recipients = set(
+            Notification.objects.filter(
+                verb=NotificationType.COMMUNITY_REQUEST_POSTED.value
+            ).values_list("recipient_id", flat=True)
+        )
+        self.assertIn(self.member_a.id, recipients)
+        self.assertIn(self.member_b.id, recipients)
+        self.assertNotIn(self.requester.id, recipients)
+
+    def test_posted_fans_out_once_per_shared_group(self) -> None:
+        """member_a shares two groups with the requester and must receive
+        one notification per shared group -- not deduplicated, mirroring
+        GROUP_MEMBER_JOINED's existing fan-out. This is deliberate, not a
+        bug: a regression here should fail loudly rather than silently
+        collapsing to one notification."""
+        self._create_request()
+
+        member_a_notifications = Notification.objects.filter(
+            recipient=self.member_a,
+            verb=NotificationType.COMMUNITY_REQUEST_POSTED.value,
+        )
+        self.assertEqual(member_a_notifications.count(), 2)
+        self.assertEqual(
+            {n.target for n in member_a_notifications},
+            {self.group1, self.group2},
+        )
+
+    def test_posted_notifies_a_member_of_only_one_shared_group_once(self) -> None:
+        self._create_request()
+
+        member_b_notifications = Notification.objects.filter(
+            recipient=self.member_b,
+            verb=NotificationType.COMMUNITY_REQUEST_POSTED.value,
+        )
+        self.assertEqual(member_b_notifications.count(), 1)
+        self.assertEqual(member_b_notifications.first().target, self.group1)
+
+    def test_posted_action_object_is_the_community_request(self) -> None:
+        community_request = self._create_request()
+
+        notification = Notification.objects.filter(
+            recipient=self.member_b,
+            verb=NotificationType.COMMUNITY_REQUEST_POSTED.value,
+        ).get()
+        self.assertEqual(notification.action_object, community_request)
+
+    def test_get_template_context_for_posted_returns_expected_keys(self) -> None:
+        """Regression test for the sequencing fix: COMMUNITY_REQUEST_POSTED
+        must be its own elif checked before the BorrowdGroup-target branch's
+        Membership-assuming catch-all else, or this crashes trying to treat
+        the CommunityRequest action_object as a Membership."""
+        community_request = self._create_request()
+        notification = Notification.objects.filter(
+            recipient=self.member_b,
+            verb=NotificationType.COMMUNITY_REQUEST_POSTED.value,
+        ).get()
+
+        context = NotificationType._get_template_context_for(notification)
+
+        self.assertEqual(context["item_name"], community_request.item_name)
+        self.assertEqual(context["requester_name"], self.requester.first_name)
+        self.assertEqual(context["group_name"], self.group1.name)
+        self.assertEqual(
+            context["requests_url"],
+            settings.BASE_URL + reverse("community-request-list"),
+        )
+
+    def test_posted_in_app_copy_renders(self) -> None:
+        self._create_request()
+        notification = Notification.objects.filter(
+            recipient=self.member_b,
+            verb=NotificationType.COMMUNITY_REQUEST_POSTED.value,
+        ).get()
+
+        ntype = NotificationType(notification.verb)
+        context = NotificationType._get_template_context_for(notification)
+        message = ntype.message_template.format(**context)
+        self.assertIn(self.group1.name, message)
+
+
+class CommunityRequestFulfilledNotificationTests(TestCase):
+    """Tests for COMMUNITY_REQUEST_FULFILLED, fired from
+    CommunityRequestResponse's post_save signal. Each newly-created response
+    is its own one-shot event -- there's no "unrelated save" ambiguity to
+    guard against the way CommunityRequest's own saves (e.g. cancel())
+    needed a previous-value comparison for the old single-FK design."""
+
+    def setUp(self) -> None:
+        self.requester = BorrowdUser.objects.create_user(
+            username="requester", email="requester@example.com", password="password"
+        )
+        self.lender = BorrowdUser.objects.create_user(
+            username="lender", email="lender@example.com", password="password"
+        )
+        self.other_lender = BorrowdUser.objects.create_user(
+            username="other_lender",
+            email="other_lender@example.com",
+            password="password",
+        )
+        self.category = ItemCategory.objects.create(name="Tools")
+        self.group = BorrowdGroup.objects.create_group(
+            name="Shared Group",
+            created_by=self.requester,
+            updated_by=self.requester,
+            membership_requires_approval=False,
+        )
+        self.group.add_user(self.lender)
+        self.group.add_user(self.other_lender)
+        self.community_request = CommunityRequest.objects.create(
+            requester=self.requester, category=self.category, item_name="Drill"
+        )
+        # Clear the POSTED notifications from the creation above.
+        Notification.objects.all().delete()
+
+    def _make_item(self, owner: BorrowdUser, name: str = "Drill") -> Item:
+        item = Item.objects.create(
+            name=name,
+            description="A description",
+            owner=owner,
+            created_by=owner,
+            updated_by=owner,
+        )
+        item.categories.add(self.category)
+        return item
+
+    def test_fulfilled_fires_exactly_once_on_first_fulfillment(self) -> None:
+        item = self._make_item(self.lender)
+
+        self.community_request.add_response(item)
+
+        notifications = Notification.objects.filter(
+            recipient=self.requester,
+            verb=NotificationType.COMMUNITY_REQUEST_FULFILLED.value,
+        )
+        self.assertEqual(notifications.count(), 1)
+        notification = notifications.get()
+        self.assertEqual(notification.action_object, item)
+        self.assertEqual(notification.target, self.community_request)
+        self.assertEqual(notification.actor, self.lender)
+
+    def test_fulfilled_fires_once_per_response_for_multiple_lenders(self) -> None:
+        """Multiple lenders may respond to the same request -- each
+        CommunityRequestResponse is its own event, so the requester gets a
+        separate FULFILLED notification for each one."""
+        first_item = self._make_item(self.lender, name="First drill")
+        second_item = self._make_item(self.other_lender, name="Second drill")
+
+        self.community_request.add_response(first_item)
+        self.community_request.add_response(second_item)
+
+        notifications = Notification.objects.filter(
+            recipient=self.requester,
+            verb=NotificationType.COMMUNITY_REQUEST_FULFILLED.value,
+        )
+        self.assertEqual(notifications.count(), 2)
+        self.assertEqual(
+            set(notifications.values_list("action_object_object_id", flat=True)),
+            {str(first_item.pk), str(second_item.pk)},
+        )
+
+    def test_add_response_after_close_fires_no_notification(self) -> None:
+        """A response rejected because the request is no longer OPEN (e.g.
+        cancelled first) never creates a CommunityRequestResponse row, so
+        there's nothing to trigger a notification."""
+        self.community_request.cancel()
+        item = self._make_item(self.lender)
+
+        result = self.community_request.add_response(item)
+
+        self.assertIsNone(result)
+        self.assertEqual(
+            Notification.objects.filter(
+                verb=NotificationType.COMMUNITY_REQUEST_FULFILLED.value
+            ).count(),
+            0,
+        )
+
+    def test_creating_a_request_does_not_fire_fulfilled(self) -> None:
+        """Creation goes through the same post_save signal as fulfillment;
+        the `created` branch must short-circuit before the fulfillment
+        check runs."""
+        CommunityRequest.objects.create(
+            requester=self.requester, category=self.category, item_name="Ladder"
+        )
+
+        self.assertEqual(
+            Notification.objects.filter(
+                verb=NotificationType.COMMUNITY_REQUEST_FULFILLED.value
+            ).count(),
+            0,
+        )
+
+    def test_get_template_context_for_fulfilled_returns_item_name_and_url(
+        self,
+    ) -> None:
+        item = self._make_item(self.lender)
+        self.community_request.add_response(item)
+        notification = Notification.objects.get(
+            verb=NotificationType.COMMUNITY_REQUEST_FULFILLED.value
+        )
+
+        context = NotificationType._get_template_context_for(notification)
+
+        self.assertEqual(context["item_name"], item.name)
+        self.assertEqual(
+            context["item_url"],
+            settings.BASE_URL + reverse("item-detail", args=[item.pk]),
+        )
+
+    def test_message_template_formats_against_the_real_context_without_keyerror(
+        self,
+    ) -> None:
+        """Reconciliation regression test: the FULFILLED entry in
+        _MESSAGE_TEMPLATES used to reference {group_name}, which the context
+        this phase builds never provides -- .format() would KeyError and the
+        intended templated text would never actually render."""
+        item = self._make_item(self.lender)
+        self.community_request.add_response(item)
+        notification = Notification.objects.get(
+            verb=NotificationType.COMMUNITY_REQUEST_FULFILLED.value
+        )
+
+        context = NotificationType._get_template_context_for(notification)
+        message = NotificationType(notification.verb).message_template.format(**context)
+
+        self.assertIn(item.name, message)
+
+
+class CommunityRequestNotificationEmailTests(TestCase):
+    """Both COMMUNITY_REQUEST_POSTED and COMMUNITY_REQUEST_FULFILLED must
+    render real subject/body via EmailNotificationStrategy without template
+    errors -- exercising the actual .html/.txt templates, not just the
+    in-app message template."""
+
+    def setUp(self) -> None:
+        self.requester = BorrowdUser.objects.create_user(
+            username="requester",
+            email="requester@example.com",
+            password="password",
+            first_name="Riya",
+        )
+        self.lender = BorrowdUser.objects.create_user(
+            username="lender", email="lender@example.com", password="password"
+        )
+        self.category = ItemCategory.objects.create(name="Tools")
+        self.group = BorrowdGroup.objects.create_group(
+            name="Shared Group",
+            created_by=self.requester,
+            updated_by=self.requester,
+            membership_requires_approval=False,
+        )
+        self.group.add_user(self.lender)
+
+    def test_posted_email_renders_without_error(self) -> None:
+        with self.captureOnCommitCallbacks(execute=True):
+            CommunityRequest.objects.create(
+                requester=self.requester, category=self.category, item_name="Drill"
+            )
+
+        self.assertEqual(len(mail.outbox), 1)
+        email = mail.outbox[0]
+        self.assertEqual(email.to, [self.lender.email])
+        self.assertIn("Drill", email.body)
+
+    def test_fulfilled_email_renders_without_error(self) -> None:
+        with self.captureOnCommitCallbacks(execute=True):
+            community_request = CommunityRequest.objects.create(
+                requester=self.requester, category=self.category, item_name="Drill"
+            )
+        mail.outbox.clear()
+
+        item = Item.objects.create(
+            name="DeWalt Drill",
+            description="A description",
+            owner=self.lender,
+            created_by=self.lender,
+            updated_by=self.lender,
+        )
+        item.categories.add(self.category)
+
+        with self.captureOnCommitCallbacks(execute=True):
+            community_request.add_response(item)
+
+        self.assertEqual(len(mail.outbox), 1)
+        email = mail.outbox[0]
+        self.assertEqual(email.to, [self.requester.email])
+        self.assertIn("DeWalt Drill", email.body)
+        # The CTA nudges the requester straight into the borrow flow rather
+        # than a generic "view item" link.
+        self.assertIn("request to borrow", email.body)
+        self.assertIn(item.get_absolute_url(), email.body)
+
+
+class CommunityRequestNotificationCategoryTests(TestCase):
+    """Both new types must be user-toggleable on the preferences page --
+    the safety valve that makes wiring up the previously-"out of scope"
+    POSTED notification acceptable."""
+
+    def test_both_types_are_listed_in_a_dedicated_category(self) -> None:
+        community_requests_category = next(
+            cat
+            for cat in NOTIFICATION_CATEGORIES
+            if cat["slug"] == "community_requests"
+        )
+        types = [ntype for ntype, _ in community_requests_category["types"]]
+        self.assertIn(NotificationType.COMMUNITY_REQUEST_POSTED, types)
+        self.assertIn(NotificationType.COMMUNITY_REQUEST_FULFILLED, types)
+
+    def test_preferences_page_includes_the_category(self) -> None:
+        user = BorrowdUser.objects.create_user(
+            username="user", email="user@example.com", password="password"
+        )
+        self.client.force_login(user)
+
+        response = self.client.get(reverse("notification-preferences"))
+
+        self.assertContains(response, "Community Requests")
+
+
+class CommunityRequestActionUrlAndAvatarTests(TestCase):
+    """In-app inbox action-url/avatar resolution for both verbs:
+    COMMUNITY_REQUEST_POSTED (action_object=CommunityRequest) and
+    COMMUNITY_REQUEST_FULFILLED (action_object=Item, which already has full
+    inbox support with zero extra wiring)."""
+
+    def setUp(self) -> None:
+        self.requester = BorrowdUser.objects.create_user(
+            username="requester", email="requester@example.com", password="password"
+        )
+        self.lender = BorrowdUser.objects.create_user(
+            username="lender", email="lender@example.com", password="password"
+        )
+        self.category = ItemCategory.objects.create(name="Tools")
+        self.group = BorrowdGroup.objects.create_group(
+            name="Shared Group",
+            created_by=self.requester,
+            updated_by=self.requester,
+            membership_requires_approval=False,
+        )
+        self.group.add_user(self.lender)
+
+    def test_posted_action_url_resolves_to_the_requests_list(self) -> None:
+        CommunityRequest.objects.create(
+            requester=self.requester, category=self.category, item_name="Drill"
+        )
+        notification = Notification.objects.get(
+            recipient=self.lender,
+            verb=NotificationType.COMMUNITY_REQUEST_POSTED.value,
+        )
+
+        self.assertEqual(
+            _notification_action_url(notification),
+            reverse("community-request-list"),
+        )
+
+    def test_posted_avatar_resolves_to_none_without_error(self) -> None:
+        """CommunityRequest has no avatar image of its own -- this must
+        resolve to None gracefully rather than raising."""
+        CommunityRequest.objects.create(
+            requester=self.requester, category=self.category, item_name="Drill"
+        )
+        notification = Notification.objects.get(
+            recipient=self.lender,
+            verb=NotificationType.COMMUNITY_REQUEST_POSTED.value,
+        )
+
+        self.assertIsNone(_notification_avatar_content(notification))
+
+    def test_fulfilled_action_url_resolves_to_the_item_detail_page(self) -> None:
+        community_request = CommunityRequest.objects.create(
+            requester=self.requester, category=self.category, item_name="Drill"
+        )
+        item = Item.objects.create(
+            name="Drill",
+            description="A description",
+            owner=self.lender,
+            created_by=self.lender,
+            updated_by=self.lender,
+        )
+        item.categories.add(self.category)
+        community_request.add_response(item)
+        notification = Notification.objects.get(
+            recipient=self.requester,
+            verb=NotificationType.COMMUNITY_REQUEST_FULFILLED.value,
+        )
+
+        self.assertEqual(
+            _notification_action_url(notification),
+            reverse("item-detail", kwargs={"pk": item.pk}),
+        )
+
+
+class CommunityRequestPreferenceSeedMigrationTests(TestCase):
+    """The 0006 migration backfills an enabled preference row for every
+    existing user for both new community-request notification types --
+    without it, _build_preferences_context() would show the toggle as off
+    for every user who signed up before this phase shipped, even though
+    they'd actually receive the notification the first time one fires.
+
+    Runs the migration's RunPython function directly against the live apps
+    registry (equivalent here to the historical StateApps the real
+    migration runner passes in, since the function only does a plain
+    values_list/bulk_create untouched by any later schema change) rather
+    than exercising the full migration executor, to keep this fast.
+    """
+
+    def test_seeds_both_types_enabled_for_an_existing_user(self) -> None:
+        from django.apps import apps as live_apps
+
+        user = BorrowdUser.objects.create_user(
+            username="veteran", email="veteran@example.com", password="password"
+        )
+        # Simulate a user who signed up before this migration existed: their
+        # preference rows for the two new types are missing.
+        NotificationPreference.objects.filter(
+            user=user,
+            notification_type__in=[
+                NotificationType.COMMUNITY_REQUEST_POSTED.value,
+                NotificationType.COMMUNITY_REQUEST_FULFILLED.value,
+            ],
+        ).delete()
+
+        migration_module = importlib.import_module(
+            "borrowd_notifications.migrations.0006_seed_community_request_preferences"
+        )
+        migration_module.seed_community_request_preferences(live_apps, None)
+
+        for ntype in (
+            NotificationType.COMMUNITY_REQUEST_POSTED,
+            NotificationType.COMMUNITY_REQUEST_FULFILLED,
+        ):
+            pref = NotificationPreference.objects.get(
+                user=user, notification_type=ntype.value
+            )
+            self.assertTrue(pref.in_app_enabled)
+            self.assertTrue(pref.email_enabled)
+
+    def test_is_idempotent_against_existing_rows(self) -> None:
+        from django.apps import apps as live_apps
+
+        user = BorrowdUser.objects.create_user(
+            username="veteran", email="veteran@example.com", password="password"
+        )
+
+        migration_module = importlib.import_module(
+            "borrowd_notifications.migrations.0006_seed_community_request_preferences"
+        )
+        # init_new_user_preferences already created rows for this user; the
+        # migration's ignore_conflicts=True bulk_create must not error or
+        # duplicate them.
+        migration_module.seed_community_request_preferences(live_apps, None)
+
+        self.assertEqual(
+            NotificationPreference.objects.filter(
+                user=user,
+                notification_type=NotificationType.COMMUNITY_REQUEST_POSTED.value,
+            ).count(),
+            1,
+        )
+
+
+@override_settings(
+    VAPID_PRIVATE_KEY="test-private-key", VAPID_PUBLIC_KEY="test-public-key"
+)
+class PushRequestsUrlFallbackTests(TransactionTestCase):
+    """The push payload's deep-link URL must resolve to `requests_url` for
+    COMMUNITY_REQUEST_POSTED -- none of the existing fallback chain's other
+    context keys (respond_url/item_url/group_url) exist in that context, so
+    without this the push would silently deep-link to the generic inbox
+    instead of the community requests list."""
+
+    def setUp(self) -> None:
+        self.user = BorrowdUser.objects.create_user(
+            username="user", email="user@example.com", password="password"
+        )
+        PushSubscription.objects.create(
+            user=self.user,
+            endpoint="https://fcm.googleapis.com/fcm/send/test-device",
+            p256dh="test-p256dh",
+            auth="test-auth",
+        )
+
+    def test_requests_url_used_as_the_push_deep_link_for_posted(self) -> None:
+        notification = Notification(
+            recipient=self.user,
+            verb=NotificationType.COMMUNITY_REQUEST_POSTED.value,
+            description="test",
+        )
+        expected_url = settings.BASE_URL + reverse("community-request-list")
+        payload = NotificationPayload(
+            notification=notification,
+            notification_type=NotificationType.COMMUNITY_REQUEST_POSTED,
+            template_name=str(NotificationType.COMMUNITY_REQUEST_POSTED),
+            data=NotificationData.create(
+                {"requests_url": expected_url}, {ChannelType.PUSH}
+            ),
+        )
+
+        with patch("borrowd_notifications.channels.webpush") as mock_webpush:
+            PUSHNotificationStrategy().send(payload)
+
+        sent_data = json.loads(mock_webpush.call_args.kwargs["data"])
+        self.assertEqual(sent_data["url"], expected_url)
 
 
 @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
