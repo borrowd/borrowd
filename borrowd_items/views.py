@@ -24,7 +24,7 @@ from borrowd_permissions.mixins import (
     LoginOr404PermissionMixin,
 )
 from borrowd_permissions.models import ItemOLP
-from borrowd_users.models import SearchTarget, SearchTerm
+from borrowd_users.models import BorrowdUser, SearchTarget, SearchTerm
 from borrowd_users.request import get_authenticated_user
 
 from .card_helpers import (
@@ -239,16 +239,18 @@ class ItemCreateView(
                 updated_by=user,
             )
 
-        self._link_fulfilled_request(form.instance)
+        self._link_fulfilled_request(form.instance, user)
 
         return response
 
-    def _link_fulfilled_request(self, item: Item) -> None:
+    def _link_fulfilled_request(self, item: Item, user: BorrowdUser) -> None:
         request_pk = self._get_fulfills_request_param()
         if not request_pk or not request_pk.isdigit():
             return
 
-        community_request = CommunityRequest.objects.filter(pk=int(request_pk)).first()
+        community_request = (
+            CommunityRequest.objects.visible_to(user).filter(pk=int(request_pk)).first()
+        )
         if community_request is None:
             return
 

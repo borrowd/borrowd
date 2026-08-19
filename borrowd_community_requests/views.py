@@ -155,7 +155,9 @@ class CommunityRequestDismissView(LoginRequiredMixin, View):
 
     def post(self, request: HttpRequest, pk: int) -> HttpResponse:
         user = get_authenticated_user(request)
-        community_request = get_object_or_404(CommunityRequest.objects.open(), pk=pk)
+        community_request = get_object_or_404(
+            CommunityRequest.objects.visible_to(user), pk=pk
+        )
 
         try:
             community_request.dismiss_for(user)

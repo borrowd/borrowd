@@ -243,6 +243,22 @@ class CommunityRequestDismissViewTests(CommunityRequestActionsTestBase):
 
         self.assertEqual(response.status_code, 404)
 
+    def test_dismiss_404s_for_a_user_outside_the_requesters_shared_groups(
+        self,
+    ) -> None:
+        community_request = self._make_request()
+        outsider = BorrowdUser.objects.create_user(
+            username="outsider", email="outsider@example.com", password="password"
+        )
+        self.client.force_login(outsider)
+
+        response = self.client.post(
+            reverse("community-request-dismiss", args=[community_request.pk])
+        )
+
+        self.assertEqual(response.status_code, 404)
+        self.assertFalse(community_request.dismissals.filter(user=outsider).exists())
+
     def test_dismiss_handles_self_dismissal_without_a_500(self) -> None:
         community_request = self._make_request()
         self.client.force_login(self.requester)

@@ -195,6 +195,25 @@ class ItemCreateViewFulfillsRequestTests(ItemCreateViewTestBase):
         self.assertEqual(response.status_code, 302)
         self.assertTrue(Item.objects.filter(name="Drill").exists())
 
+    def test_user_outside_requesters_shared_groups_cannot_link_the_request(
+        self,
+    ) -> None:
+        outsider = BorrowdUser.objects.create_user(
+            username="outsider", email="outsider@example.com", password="password"
+        )
+        self.client.force_login(outsider)
+
+        response = self.client.post(
+            reverse("item-create"),
+            self._valid_post_data(fulfills_request=str(self.community_request.pk)),
+        )
+
+        self.assertEqual(response.status_code, 302)
+        # The item is still created — only the link to the out-of-group
+        # request is a no-op, same as an unrecognized pk.
+        self.assertTrue(Item.objects.filter(name="Drill", owner=outsider).exists())
+        self.assertEqual(self.community_request.responses.count(), 0)
+
     def test_cancelled_request_cannot_be_fulfilled_via_add_item_flow(self) -> None:
         self.community_request.cancel()
         self.client.force_login(self.lender)
