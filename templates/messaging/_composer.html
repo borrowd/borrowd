@@ -1,0 +1,53 @@
+{# The box for typing a new message.
+
+Wrapped in an element with a fixed id so the poll reply can swap the whole
+thing out for the archived notice the moment the chat closes. See
+`templates/messaging/_composer_archived.html.` #}
+
+<div id="chat-composer" class="mt-4">
+    {#
+    hx-post     send the typed text to POST /messages/<pk>/send/ at borrowd_messaging/views.py:ChatThreadSendView
+    hx-target    #chat-messages, the message list
+    hx-swap      beforeend, so the reply joins the bottom of it
+    hx-on::after-request    runs once the reply is back
+
+    User sends message ->
+    the server stores the message and replies with the finished bubble ->
+    that bubble is appended to the msg list (#chat-messages)
+
+    Once sent, clear the box.
+    Refused (empty, too long, chat closed): leave the text alone so nobody loses what they wrote.
+    Clearing takes two steps, because reset() fires no `input` event
+    and the character counter only recounts on an `input` event.
+    See templates/components/form/textarea.html. #}
+    <form hx-post="{% url 'chat-thread-send' chat_thread.pk %}"
+          hx-target="#chat-messages"
+          hx-swap="beforeend"
+          hx-on::after-request="if (event.detail.successful) { this.reset(); this.querySelector('textarea').dispatchEvent(new Event('input')); }">
+        {% csrf_token %}
+        <c-form.textarea name="body"
+                         id="chat-composer-body"
+                         label="Message"
+                         rows="2"
+                         max_length="{{ message_body_max_length }}"
+                         required="true"
+                         placeholder="Write a message" />
+        <c-button type="submit">
+            Send
+        </c-button>
+    </form>
+
+    {# Only a chat that never became a request can be closed, and closing is
+    final, so `danger` puts a confirm box in front of it. Once a request exists
+    the transaction owns the thread's fate and ends it on its own. #}
+    {% if not chat_thread.transaction_id %}
+        <form class="mt-2"
+              method="post"
+              action="{% url 'chat-thread-close' chat_thread.pk %}">
+            {% csrf_token %}
+            <c-button danger type="submit">
+                Close conversation
+            </c-button>
+        </form>
+    {% endif %}
+</div>

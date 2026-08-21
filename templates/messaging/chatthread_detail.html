@@ -1,0 +1,54 @@
+{% extends "layouts/default.html" %}
+
+{% block head_title %}
+    Conversation
+{% endblock %}
+{% block content %}
+    {% load heroicons %}
+
+    <div class="w-full max-w-3xl self-start px-4">
+        <c-h1 class="font-normal text-[24px]">
+            {% if chat_thread.item %}
+                {{ chat_thread.item.name }}
+            {% else %}
+                This item is no longer available.
+            {% endif %}
+        </c-h1>
+        <p class="text-sm opacity-70">
+            {{ other_party.profile.full_name }}
+        </p>
+
+        {% if is_disputed %}
+            <p class="badge badge-warning mt-2 gap-1">
+                {% heroicon_outline "exclamation-triangle" class="size-4" %}
+                Disputed
+            </p>
+        {% endif %}
+
+        <ul id="chat-messages" class="mt-4 flex flex-col gap-1">
+            {% include "messaging/_messages.html" with chat_messages=chat_messages viewer=user %}
+
+        </ul>
+
+        {% if not chat_thread.is_archived %}
+            {# Every 4 seconds, ask the server what has been said since the
+            last bubble on screen, and stick the answer on the end of the list.
+            https://htmx.org/docs/#polling
+            https://htmx.org/attributes/hx-vals/ #}
+            <div hx-get="{% url 'chat-thread-poll' chat_thread.pk %}"
+                 hx-trigger="every 4s"
+                 hx-target="#chat-messages"
+                 hx-swap="beforeend"
+                 hx-vals='js:{after: document.querySelector("#chat-messages li:last-child")?.id.replace("message-", "") || 0}'>
+            </div>
+        {% endif %}
+
+        {% if chat_thread.is_archived %}
+            {% include "messaging/_composer_archived.html" %}
+
+        {% else %}
+            {% include "messaging/_composer.html" %}
+
+        {% endif %}
+    </div>
+{% endblock %}

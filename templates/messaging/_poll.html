@@ -1,0 +1,9 @@
+{# The poll endpoint's reply: any bubbles the reader has not seen, plus a
+replacement for the typing box if the chat has closed since they opened it. #}
+
+{% include "messaging/_messages.html" with chat_messages=chat_messages viewer=viewer %}
+
+{% if chat_thread.is_archived %}
+    {% include "messaging/_composer_archived.html" with oob=True %}
+
+{% endif %}

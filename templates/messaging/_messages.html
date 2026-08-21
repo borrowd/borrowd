@@ -1,0 +1,7 @@
+{# A run of chat bubbles. The thread page uses it for the whole conversation,
+the poll endpoint for whatever has arrived since the reader's last message. #}
+
+{% for message in chat_messages %}
+    {% include "messaging/_message.html" with message=message viewer=viewer %}
+
+{% endfor %}
