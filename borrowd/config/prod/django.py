@@ -10,6 +10,11 @@ from ..env import env
 
 DEBUG = False
 
+# HTTPS is the only way in (platform.sh's router), so it's safe to mark
+# every cookie Secure-only — see https://github.com/borrowd/borrowd/issues/374
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
+
 # Beta settings
 BETA_COOKIE_DOMAIN = "app.borrowd.org"
 BETA_SECURE_COOKIE = True
