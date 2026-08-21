@@ -15,11 +15,11 @@
                 {% if is_empty_search %}
                     {% if user_has_groups %}
                         <p class="text-base text-base-content text-center leading-normal">
-                            We couldn't find any {{ search_term }}. Would you like to make a Community Request?
+                            We couldn't find any {{ search_term }}. Would you like to make a community request?
                         </p>
                         <c-button-nav url="{% url 'community-request-create' %}?item_name={{ search_term|urlencode }}"
                                       class="btn btn-primary btn-lg">
-                            Request Item
+                            Request item
                         </c-button-nav>
                     {% else %}
                         <p class="text-base text-base-content text-center leading-normal">
