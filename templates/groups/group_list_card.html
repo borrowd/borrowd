@@ -70,7 +70,7 @@
                     </span>
                 {% endif %}
 
-                {% if membership.group.needs_moderator and not membership.is_moderator and membership.status == "ACTIVE" %}
+                {% if membership.group_needs_moderator and not membership.is_moderator and membership.status == "ACTIVE" %}
                     <span class="inline-flex items-center justify-center w-5 h-5 shrink-0 text-warning"
                           title="This group needs a moderator"
                           aria-label="This group needs a moderator"

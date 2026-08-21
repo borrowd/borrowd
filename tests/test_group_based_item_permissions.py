@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 from django.contrib.auth.models import Group
 from django.test import TestCase
 from guardian.shortcuts import get_perms
@@ -356,6 +358,33 @@ class GroupBasedItemPermissionsTests(TestCase):
 
         # Assert
         self.assertNotIn(ItemOLP.VIEW, get_perms(perms_group, item))
+
+    def test_item_visibility_recompute_bulk_removes_group_perms(self) -> None:
+        # Arrange
+        owner = self.owner
+        for index in range(3):
+            BorrowdGroup.objects.create_group(
+                name=f"Test Group {index}",
+                created_by=owner,
+                updated_by=owner,
+                membership_requires_approval=False,
+            )
+        item = Item.objects.create(
+            name="Test Item",
+            owner=owner,
+            created_by=owner,
+            updated_by=owner,
+        )
+
+        # Act
+        with patch("guardian.shortcuts.remove_perm") as remove_perm_mock:
+            item.recompute_group_visibility()
+
+        # Assert
+        remove_perm_mock.assert_called_once()
+        self.assertEqual(remove_perm_mock.call_args.args[0], ItemOLP.VIEW)
+        self.assertIs(remove_perm_mock.call_args.args[1].model, Group)
+        self.assertEqual(remove_perm_mock.call_args.args[2], item)
 
     def test_item_visibility_granted_when_sharing_expanded(self) -> None:
         # Arrange
