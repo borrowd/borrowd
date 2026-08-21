@@ -9,11 +9,13 @@ from .views import (
     profile_view,
     public_profile_view,
     search_terms_export_view,
+    upload_profile_photo_view,
 )
 
 urlpatterns = [
     path("", profile_view, name="profile"),
     path("delete-photo/", delete_profile_photo_view, name="profile-delete-photo"),
+    path("upload-photo/", upload_profile_photo_view, name="profile-upload-photo"),
     path("profile-deleted/", profile_deleted_view, name="profile-deleted"),
     path("search-terms/export/", search_terms_export_view, name="search-terms-export"),
     path("signup/", CustomSignupView.as_view(), name="custom_signup"),

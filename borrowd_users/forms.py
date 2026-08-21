@@ -6,6 +6,9 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
+from django.core.files.uploadedfile import UploadedFile
+from django.core.validators import FileExtensionValidator
+from django.template.defaultfilters import filesizeformat
 
 from .models import BorrowdUser, Profile
 
@@ -13,6 +16,21 @@ User = get_user_model()
 
 # Common field styles
 INPUT_CLASSES = "input w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-borrowd-indigo-500 focus:border-borrowd-indigo-500"
+
+MAX_PROFILE_PHOTO_SIZE_BYTES = 5 * 1024 * 1024  # 5MB
+ALLOWED_PROFILE_IMAGE_EXTENSIONS = ["jpg", "jpeg", "png", "webp"]
+ALLOWED_PROFILE_IMAGE_ACCEPT = ",".join(
+    f".{ext}" for ext in ALLOWED_PROFILE_IMAGE_EXTENSIONS
+)
+
+
+def validate_profile_photo_size(image: UploadedFile) -> None:
+    """Validate that an uploaded profile photo doesn't exceed the maximum file size."""
+    if image.size and image.size > MAX_PROFILE_PHOTO_SIZE_BYTES:
+        raise forms.ValidationError(
+            f"File size must be under {filesizeformat(MAX_PROFILE_PHOTO_SIZE_BYTES)}. "
+            f"Your file is {filesizeformat(image.size)}."
+        )
 
 
 # Factory functions for creating form fields with consistent styling
@@ -169,21 +187,32 @@ class ProfileUpdateForm(forms.ModelForm[Profile]):
     first_name = create_first_name_field()
     last_name = create_last_name_field()
 
+    image = forms.ImageField(
+        required=False,
+        validators=[
+            FileExtensionValidator(allowed_extensions=ALLOWED_PROFILE_IMAGE_EXTENSIONS)
+        ],
+        widget=forms.FileInput(
+            attrs={
+                "class": "file-input file-input-bordered w-full sr-only",
+                "id": "id_image",
+                "accept": ALLOWED_PROFILE_IMAGE_ACCEPT,
+            }
+        ),
+    )
+
     class Meta:
         model = Profile
         fields = ["image", "bio"]
-        widgets = {
-            "image": forms.FileInput(
-                attrs={
-                    "class": "file-input file-input-bordered w-full sr-only",
-                    "id": "id_image",
-                    "accept": "image/*",
-                }
-            ),
-        }
 
     email = create_email_field()
     bio = create_bio_field()
+
+    def clean_image(self) -> UploadedFile | None:
+        image: UploadedFile | None = self.cleaned_data.get("image")
+        if image:
+            validate_profile_photo_size(image)
+        return image
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
@@ -232,6 +261,23 @@ class ProfileUpdateForm(forms.ModelForm[Profile]):
             profile.save()
 
         return profile
+
+
+class ProfilePhotoUploadForm(forms.Form):
+    """Validates a single profile photo upload, independent of the rest of
+    ProfileUpdateForm's fields, for the auto-save-on-select upload endpoint."""
+
+    image = forms.ImageField(
+        required=True,
+        validators=[
+            FileExtensionValidator(allowed_extensions=ALLOWED_PROFILE_IMAGE_EXTENSIONS)
+        ],
+    )
+
+    def clean_image(self) -> UploadedFile:
+        image: UploadedFile = self.cleaned_data["image"]
+        validate_profile_photo_size(image)
+        return image
 
 
 class ChangePasswordForm(SetPasswordForm):
