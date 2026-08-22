@@ -1,0 +1,281 @@
+{% extends "layouts/default.html" %}
+
+{% load i18n %}
+
+{% block head_title %}
+    {% trans "FAQ" %}
+{% endblock %}
+
+{% block content %}
+    <div class="flex flex-col w-full max-w-2xl mx-auto px-4 py-4 gap-6">
+        <div class="flex flex-col gap-1">
+            <h1 class="text-xl font-semibold">
+                {% trans "Frequently Asked Questions" %}
+            </h1>
+            <p class="text-sm text-base-content/60">
+                We'd love to hear from you — whether things are working well or not. Email us anytime at
+                <a href="mailto:info@borrowd.org" class="link link-primary">info@borrowd.org</a>
+                and we'll be happy to help.
+            </p>
+        </div>
+
+        <div class="flex flex-col gap-2">
+            <p class="text-xs font-semibold text-base-content uppercase tracking-wide px-1">
+                Groups and trust
+            </p>
+            <div class="flex flex-col gap-2">
+                <div class="collapse collapse-arrow bg-primary-content border border-gray-200 rounded-md">
+                    <input type="checkbox" />
+                    <div class="collapse-title text-sm font-medium">
+                        Who can see my items?
+                    </div>
+                    <div class="collapse-content text-sm text-base-content/80">
+                        <p>
+                            Only people in the groups you've joined can see or request to borrow your items.
+                        </p>
+                    </div>
+                </div>
+                <div class="collapse collapse-arrow bg-primary-content border border-gray-200 rounded-md">
+                    <input type="checkbox" />
+                    <div class="collapse-title text-sm font-medium">
+                        Who owns the item I want to borrow?
+                    </div>
+                    <div class="collapse-content text-sm text-base-content/80 flex flex-col gap-2">
+                        <p>
+                            Borrow'd doesn't show item owners while you're browsing. You'll only see who owns an item after they approve your request.
+                        </p>
+                        <p>
+                            This keeps browsing simple, reduces social pressure, and ensures sharing is always opt-in and consent-based.
+                        </p>
+                    </div>
+                </div>
+                <div class="collapse collapse-arrow bg-primary-content border border-gray-200 rounded-md">
+                    <input type="checkbox" />
+                    <div class="collapse-title text-sm font-medium">
+                        How are items shared with groups?
+                    </div>
+                    <div class="collapse-content text-sm text-base-content/80 flex flex-col gap-2">
+                        <p>
+                            When you add an item to Borrow'd, you can choose whether you share it with all your groups, or just specific ones.
+                        </p>
+                        <p>
+                            You can always change which groups an item is shown to - the choice is yours!
+                        </p>
+                    </div>
+                </div>
+                <div class="collapse collapse-arrow bg-primary-content border border-gray-200 rounded-md">
+                    <input type="checkbox" />
+                    <div class="collapse-title text-sm font-medium">
+                        Can I belong to more than one group?
+                    </div>
+                    <div class="collapse-content text-sm text-base-content/80">
+                        <p>
+                            Yes. You can join or create as many groups as you like. Each group has its own members and trust settings.
+                        </p>
+                    </div>
+                </div>
+                <div class="collapse collapse-arrow bg-primary-content border border-gray-200 rounded-md">
+                    <input type="checkbox" />
+                    <div class="collapse-title text-sm font-medium">
+                        What happens if someone new joins a group?
+                    </div>
+                    <div class="collapse-content text-sm text-base-content/80 flex flex-col gap-2">
+                        <p>
+                            You'll get an email letting you know someone new has joined.
+                        </p>
+                        <p>
+                            That way, you always know who can see and request your items.
+                        </p>
+                    </div>
+                </div>
+                <div class="collapse collapse-arrow bg-primary-content border border-gray-200 rounded-md">
+                    <input type="checkbox" />
+                    <div class="collapse-title text-sm font-medium">
+                        Can I remove someone from my group?
+                    </div>
+                    <div class="collapse-content text-sm text-base-content/80">
+                        <p>
+                            Yes. The person who created a group can remove members from that group at any time.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex flex-col gap-2">
+            <p class="text-xs font-semibold text-base-content uppercase tracking-wide px-1">
+                Borrowing and lending
+            </p>
+            <div class="flex flex-col gap-2">
+                <div class="collapse collapse-arrow bg-primary-content border border-gray-200 rounded-md">
+                    <input type="checkbox" />
+                    <div class="collapse-title text-sm font-medium">
+                        How do I find something to borrow?
+                    </div>
+                    <div class="collapse-content text-sm text-base-content/80 flex flex-col gap-2">
+                        <p>
+                            Go to the item search page and use search or filters to browse what's available.
+                        </p>
+                        <p>
+                            If you see something you would like to borrow, click on the item and request it.
+                        </p>
+                    </div>
+                </div>
+                <div class="collapse collapse-arrow bg-primary-content border border-gray-200 rounded-md">
+                    <input type="checkbox" />
+                    <div class="collapse-title text-sm font-medium">
+                        How do I pick up an item?
+                    </div>
+                    <div class="collapse-content text-sm text-base-content/80 flex flex-col gap-2">
+                        <p>
+                            Once your request is approved, you and the lender coordinate pickup by email.
+                        </p>
+                        <p>
+                            They'll let you know where and when to get the item.
+                        </p>
+                    </div>
+                </div>
+                <div class="collapse collapse-arrow bg-primary-content border border-gray-200 rounded-md">
+                    <input type="checkbox" />
+                    <div class="collapse-title text-sm font-medium">
+                        What happens if something gets damaged or lost?
+                    </div>
+                    <div class="collapse-content text-sm text-base-content/80 flex flex-col gap-2">
+                        <p>
+                            Borrowers and Lenders agree to the Borrow'd
+                            <a href="https://borrowd.org/code-of-conduct/"
+                               target="_blank"
+                               rel="noopener noreferrer"
+                               class="link link-primary">Code of Conduct</a>
+                            and
+                            <a href="https://borrowd.org/borrower-lender-agreement/"
+                               target="_blank"
+                               rel="noopener noreferrer"
+                               class="link link-primary">Borrower-Lender Agreement</a>
+                            if they use the platform to share.
+                        </p>
+                        <p>
+                            Borrow'd doesn't mediate disputes, so we encourage honest communication.
+                        </p>
+                        <p>
+                            Talk with the lender, explain what happened, and work together on a fair solution.
+                        </p>
+                    </div>
+                </div>
+                <div class="collapse collapse-arrow bg-primary-content border border-gray-200 rounded-md">
+                    <input type="checkbox" />
+                    <div class="collapse-title text-sm font-medium">
+                        What kind of things can I lend?
+                    </div>
+                    <div class="collapse-content text-sm text-base-content/80 flex flex-col gap-2">
+                        <p>
+                            Most everyday items can be listed on the Borrow'd platform.
+                        </p>
+                        <p>
+                            A small number of items are prohibited for safety or legal reasons — check our
+                            <a href="https://borrowd.org/terms-of-use/"
+                               target="_blank"
+                               rel="noopener noreferrer"
+                               class="link link-primary">Prohibited Items List</a>
+                            before adding something new.
+                        </p>
+                    </div>
+                </div>
+                <div class="collapse collapse-arrow bg-primary-content border border-gray-200 rounded-md">
+                    <input type="checkbox" />
+                    <div class="collapse-title text-sm font-medium">
+                        Who can I lend my items to?
+                    </div>
+                    <div class="collapse-content text-sm text-base-content/80">
+                        <p>
+                            You should only lend your items to people you know and trust in real life. Borrow'd is designed for sharing within your own trusted groups.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex flex-col gap-2">
+            <p class="text-xs font-semibold text-base-content uppercase tracking-wide px-1">
+                Notifications and communication
+            </p>
+            <div class="flex flex-col gap-2">
+                <div class="collapse collapse-arrow bg-primary-content border border-gray-200 rounded-md">
+                    <input type="checkbox" />
+                    <div class="collapse-title text-sm font-medium">
+                        How will I know if someone requests my item?
+                    </div>
+                    <div class="collapse-content text-sm text-base-content/80 flex flex-col gap-2">
+                        <p>
+                            You'll get an email and in-app notification.
+                        </p>
+                        <p>
+                            In the application, your item card will also show a request so you can accept or reject it.
+                        </p>
+                    </div>
+                </div>
+                <div class="collapse collapse-arrow bg-primary-content border border-gray-200 rounded-md">
+                    <input type="checkbox" />
+                    <div class="collapse-title text-sm font-medium">
+                        How do I message someone about an item?
+                    </div>
+                    <div class="collapse-content text-sm text-base-content/80 flex flex-col gap-2">
+                        <p>
+                            All communication happens by email.
+                        </p>
+                        <p>
+                            When you request or accept an item, your email address is shared with the other user so you can coordinate directly.
+                        </p>
+                    </div>
+                </div>
+                <div class="collapse collapse-arrow bg-primary-content border border-gray-200 rounded-md">
+                    <input type="checkbox" />
+                    <div class="collapse-title text-sm font-medium">
+                        Is my address or contact information visible to others?
+                    </div>
+                    <div class="collapse-content text-sm text-base-content/80 flex flex-col gap-2">
+                        <p>
+                            Borrow'd never shows your address.
+                        </p>
+                        <p>
+                            Your email is shared only when needed:
+                        </p>
+                        <ul class="list-disc list-inside">
+                            <li>
+                                As a borrower, when you request an item.
+                            </li>
+                            <li>
+                                As a lender, when you accept a request.
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex flex-col gap-2">
+            <p class="text-xs font-semibold text-base-content uppercase tracking-wide px-1">
+                Impact
+            </p>
+            <div class="flex flex-col gap-2">
+                <div class="collapse collapse-arrow bg-primary-content border border-gray-200 rounded-md">
+                    <input type="checkbox" />
+                    <div class="collapse-title text-sm font-medium">
+                        How does Borrow'd reduce waste?
+                    </div>
+                    <div class="collapse-content text-sm text-base-content/80 flex flex-col gap-2">
+                        <p>
+                            Borrow'd helps reduce waste by keeping useful items in circulation longer, so fewer new products need to be manufactured and shipped. But the impact doesn't stop with one borrowed drill or tent — it grows with every group that chooses to share instead of buy.
+                        </p>
+                        <p>
+                            When communities begin treating access as more valuable than ownership, it creates a cultural shift. We buy less, use what we already have more fully, and rely on each other instead of the global supply chain.
+                        </p>
+                        <p>
+                            One household sharing a few items makes a small difference. Hundreds of households sharing thousands of items makes a meaningful one. And as more people take part, Borrow'd becomes a model for how communities can reduce waste, lower emissions, and build a more sustainable culture together.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
