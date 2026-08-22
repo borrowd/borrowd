@@ -16,13 +16,12 @@ from django.test import RequestFactory, TestCase
 from django.utils.datastructures import MultiValueDict
 from PIL import Image
 
-from borrowd_items.forms import (
+from borrowd.validators import (
     ALLOWED_IMAGE_EXTENSIONS,
     MAX_PHOTO_SIZE_BYTES,
-    ItemCreateWithPhotoForm,
-    ItemPhotoForm,
     validate_image_size,
 )
+from borrowd_items.forms import ItemCreateWithPhotoForm, ItemPhotoForm
 from borrowd_items.models import Item, ItemCategory, ListingType
 from borrowd_items.views import ItemUpdateView
 from borrowd_users.models import BorrowdUser

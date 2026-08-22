@@ -6,6 +6,14 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
+from django.core.files.uploadedfile import UploadedFile
+from django.core.validators import FileExtensionValidator
+
+from borrowd.validators import (
+    ALLOWED_IMAGE_ACCEPT,
+    ALLOWED_IMAGE_EXTENSIONS,
+    validate_image_size,
+)
 
 from .models import BorrowdUser, Profile
 
@@ -169,18 +177,23 @@ class ProfileUpdateForm(forms.ModelForm[Profile]):
     first_name = create_first_name_field()
     last_name = create_last_name_field()
 
+    image = forms.ImageField(
+        required=False,
+        validators=[
+            FileExtensionValidator(allowed_extensions=ALLOWED_IMAGE_EXTENSIONS)
+        ],
+        widget=forms.FileInput(
+            attrs={
+                "class": "file-input file-input-bordered w-full sr-only",
+                "id": "id_image",
+                "accept": ALLOWED_IMAGE_ACCEPT,
+            }
+        ),
+    )
+
     class Meta:
         model = Profile
         fields = ["image", "bio"]
-        widgets = {
-            "image": forms.FileInput(
-                attrs={
-                    "class": "file-input file-input-bordered w-full sr-only",
-                    "id": "id_image",
-                    "accept": "image/*",
-                }
-            ),
-        }
 
     email = create_email_field()
     bio = create_bio_field()
@@ -193,6 +206,12 @@ class ProfileUpdateForm(forms.ModelForm[Profile]):
             self.fields["last_name"].initial = self.instance.user.last_name
             self.fields["email"].initial = self.instance.user.email
         self.fields["bio"].initial = self.instance.bio
+
+    def clean_image(self) -> UploadedFile | None:
+        image: UploadedFile | None = self.cleaned_data.get("image")
+        if image:
+            validate_image_size(image)
+        return image
 
     def clean_first_name(self) -> str:
         first_name: str | None = self.cleaned_data.get("first_name")
