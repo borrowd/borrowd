@@ -39,6 +39,7 @@
                  hx-trigger="every 4s"
                  hx-target="#chat-messages"
                  hx-swap="beforeend"
+                 hx-sync="#chat-messages:queue all"
                  hx-vals='js:{after: document.querySelector("#chat-messages li:last-child")?.id.replace("message-", "") || 0}'>
             </div>
         {% endif %}

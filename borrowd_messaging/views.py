@@ -69,8 +69,7 @@ class ChatThreadSendView(
     View,
 ):
     """
-    Take one typed message and hand back the bubble for it,
-    so the sender's own message appears the same way the other party will see it.
+    Store one message and return message bubbles after the cursor through to the new message.
     """
 
     model = ChatThread
@@ -79,8 +78,25 @@ class ChatThreadSendView(
     def post(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
         sender = get_authenticated_user(request)
         try:
+            after = int(request.POST["after"])
+        except (KeyError, ValueError):
+            return HttpResponseBadRequest(
+                "`after` must be a message id from this conversation."
+            )
+        if after < 0:
+            return HttpResponseBadRequest(
+                "`after` must be a message id from this conversation."
+            )
+
+        chat_thread = self.get_object()
+        if after != 0 and not chat_thread.messages.filter(pk=after).exists():
+            return HttpResponseBadRequest(
+                "`after` must be a message id from this conversation."
+            )
+
+        try:
             message = MessagingService.send_message(
-                self.get_object(), sender, request.POST.get("body", "")
+                chat_thread, sender, request.POST.get("body", "")
             )
         except InvalidMessageBody as exc:
             # Show services.py:MessagingService.send_message wording
@@ -91,10 +107,16 @@ class ChatThreadSendView(
             return HttpResponse(
                 "This conversation is archived.", status=409, content_type="text/plain"
             )
+
+        chat_messages = (
+            chat_thread.messages.filter(id__gt=after, id__lte=message.pk)
+            .select_related("sender__profile")
+            .order_by("id")
+        )
         return render(
             request,
-            "messaging/_message.html",
-            {"message": message, "viewer": sender},
+            "messaging/_messages.html",
+            {"chat_messages": chat_messages, "viewer": sender},
         )
 
 
