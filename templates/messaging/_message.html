@@ -20,8 +20,8 @@ messaging/_messages.html uses this template for initial page loads and send/poll
         <div class="chat-image">
             <c-avatar class="w-10 h-10 rounded-full"
                       src="{% if message.sender.profile.image %}{{ message.sender.profile.image.url }}{% endif %}"
-                      name="{{ message.sender.get_full_name }}"
-                      alt="{{ message.sender.get_full_name }}" />
+                      name="{{ message.sender.profile.full_name }}"
+                      alt="{{ message.sender.profile.full_name }}" />
         </div>
         <div class="chat-header text-xs font-normal opacity-60">
             {{ message.sender.profile.full_name }}
