@@ -44,9 +44,22 @@ def _parse_cursor(raw_cursor: str | None, chat_thread: ChatThread) -> int:
     return cursor
 
 
+class _CachedChatThreadMixin(SingleObjectMixin[ChatThread]):
+    """Reuse the ChatThread resolved during the object-permission check."""
+
+    object: ChatThread
+
+    def get_object(self, queryset: QuerySet[ChatThread] | None = None) -> ChatThread:
+        if hasattr(self, "object"):
+            return self.object
+        self.object = super().get_object(queryset)
+        return self.object
+
+
 class ChatThreadDetailView(
     MessagingEnabledMixin,
     LoginOr404PermissionMixin,
+    _CachedChatThreadMixin,
     BorrowdTemplateFinderMixin,
     DetailView[ChatThread],
 ):
@@ -58,7 +71,12 @@ class ChatThreadDetailView(
         return (
             super()
             .get_queryset()
-            .select_related("item", "lender", "borrower", "transaction")
+            .select_related(
+                "item",
+                "lender__profile",
+                "borrower__profile",
+                "transaction",
+            )
         )
 
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
@@ -88,7 +106,7 @@ class ChatThreadDetailView(
 class ChatThreadSendView(
     MessagingEnabledMixin,
     LoginOr404PermissionMixin,
-    SingleObjectMixin[ChatThread],
+    _CachedChatThreadMixin,
     View,
 ):
     """
@@ -135,7 +153,7 @@ class ChatThreadSendView(
 class ChatThreadPollView(
     MessagingEnabledMixin,
     LoginOr404PermissionMixin,
-    SingleObjectMixin[ChatThread],
+    _CachedChatThreadMixin,
     View,
 ):
     """
@@ -187,7 +205,7 @@ class ChatThreadPollView(
 class ChatThreadCloseView(
     MessagingEnabledMixin,
     LoginOr404PermissionMixin,
-    SingleObjectMixin[ChatThread],
+    _CachedChatThreadMixin,
     View,
 ):
     """

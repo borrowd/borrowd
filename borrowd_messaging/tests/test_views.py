@@ -13,6 +13,12 @@ from borrowd_messaging.models import (
     Message,
 )
 from borrowd_messaging.services import MessagingService
+from borrowd_messaging.views import (
+    ChatThreadCloseView,
+    ChatThreadDetailView,
+    ChatThreadPollView,
+    ChatThreadSendView,
+)
 from borrowd_users.models import BorrowdUser
 
 from .base import MessagingTestCase
@@ -54,6 +60,18 @@ class ChatThreadDetailViewTests(MessagingTestCase):
         # The borrower is reading the lender's message, so it sits on the left.
         self.assertContains(response, "chat-start")
 
+    def test_thread_participants_and_profiles_are_loaded_together(self) -> None:
+        view = ChatThreadDetailView()
+        view.kwargs = {"pk": self.thread.pk}
+
+        with self.assertNumQueries(1):
+            chat_thread = view.get_object()
+            lender_name = chat_thread.lender.profile.full_name()
+            borrower_name = chat_thread.borrower.profile.full_name()
+
+        self.assertEqual(lender_name, self.lender.profile.full_name())
+        self.assertEqual(borrower_name, self.borrower.profile.full_name())
+
     def test_system_notice_renders_without_a_bubble_or_avatar(self) -> None:
         MessagingService.post_system_message(self.thread, "This item was returned.")
         self.client.force_login(self.borrower)
@@ -93,6 +111,28 @@ class ChatThreadDetailViewTests(MessagingTestCase):
         self.client.force_login(self.borrower)
 
         self.assertEqual(self.client.get(self.url).status_code, 404)
+
+
+class ChatThreadObjectLookupTests(MessagingTestCase):
+    def test_thread_lookup_is_cached_for_permission_and_request_handling(self) -> None:
+        thread = self.make_thread()
+        view_classes = (
+            ChatThreadDetailView,
+            ChatThreadSendView,
+            ChatThreadPollView,
+            ChatThreadCloseView,
+        )
+
+        for view_class in view_classes:
+            with self.subTest(view=view_class.__name__):
+                view = view_class()
+                view.kwargs = {"pk": thread.pk}
+
+                with self.assertNumQueries(1):
+                    first_lookup = view.get_object()
+                    second_lookup = view.get_object()
+
+                self.assertIs(first_lookup, second_lookup)
 
 
 @override_settings(MESSAGING_ENABLED=True)
