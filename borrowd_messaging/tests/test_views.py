@@ -284,16 +284,6 @@ class ChatThreadSendViewTests(MessagingTestCase):
         self.client.force_login(self.borrower)
 
         self.assertEqual(self.client.get(self.url).status_code, 405)
-
-
-@override_settings(MESSAGING_ENABLED=True)
-class ChatThreadActivePageTests(MessagingTestCase):
-    def setUp(self) -> None:
-        super().setUp()
-        self.thread = self.make_thread()
-        self.url = reverse("chat-thread-detail", args=[self.thread.pk])
-
-    def test_active_prerequest_page_has_composer_poller_and_close_action(self) -> None:
         self.client.force_login(self.borrower)
 
         response = self.client.get(self.url)
@@ -306,6 +296,7 @@ class ChatThreadActivePageTests(MessagingTestCase):
         self.assertContains(response, "hx-vals=", count=2)
         self.assertContains(response, 'hx-sync="#chat-messages:queue all"', count=1)
         self.assertContains(response, 'hx-sync="#chat-messages:drop"', count=1)
+
         self.assertContains(
             response, reverse("chat-thread-poll", args=[self.thread.pk])
         )
