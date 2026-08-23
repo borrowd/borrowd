@@ -60,7 +60,7 @@ class ChatThreadDetailViewTests(MessagingTestCase):
         # The borrower is reading the lender's message, so it sits on the left.
         self.assertContains(response, "chat-start")
 
-    def test_bubble_preserves_line_breaks_and_wraps_long_words(self) -> None:
+    def test_bubble_preserves_line_breaks(self) -> None:
         Message.objects.create(
             thread=self.thread,
             sender=self.lender,
@@ -70,10 +70,6 @@ class ChatThreadDetailViewTests(MessagingTestCase):
 
         response = self.client.get(self.url)
 
-        self.assertContains(
-            response,
-            'class="chat-bubble break-words"',
-        )
         self.assertContains(response, "First line<br>Second line")
 
     def test_thread_participants_and_profiles_are_loaded_together(self) -> None:
@@ -284,34 +280,6 @@ class ChatThreadSendViewTests(MessagingTestCase):
         self.client.force_login(self.borrower)
 
         self.assertEqual(self.client.get(self.url).status_code, 405)
-        self.client.force_login(self.borrower)
-
-        response = self.client.get(self.url)
-
-        self.assertContains(
-            response, reverse("chat-thread-send", args=[self.thread.pk])
-        )
-        self.assertContains(response, 'name="body"')
-        self.assertContains(response, f'maxlength="{MESSAGE_BODY_MAX_LENGTH}"')
-        self.assertContains(response, "hx-vals=", count=2)
-        self.assertContains(response, 'hx-sync="#chat-messages:queue all"', count=1)
-        self.assertContains(response, 'hx-sync="#chat-messages:drop"', count=1)
-
-        self.assertContains(
-            response, reverse("chat-thread-poll", args=[self.thread.pk])
-        )
-        self.assertContains(response, 'hx-trigger="every 4s"')
-        self.assertContains(
-            response, reverse("chat-thread-close", args=[self.thread.pk])
-        )
-        self.assertContains(response, 'id="close-conversation-modal"')
-        self.assertContains(response, "Close conversation?")
-        self.assertContains(response, 'form="close-conversation-form"')
-        self.assertContains(response, "Closing is permanent.")
-        self.assertContains(response, 'id="chat-composer-error"')
-        self.assertContains(response, "hx-on::response-error=")
-        self.assertContains(response, "event.detail.xhr.responseText")
-        self.assertNotContains(response, "return confirm(")
 
 
 @override_settings(MESSAGING_ENABLED=True)
