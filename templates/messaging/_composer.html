@@ -32,13 +32,28 @@ See messaging/_poll.html and messaging/_composer_archived.html. #}
     {# Only pre-request threads may be closed manually. Transaction lifecycle
     handling archives linked threads. See borrowd_messaging.signals. #}
     {% if not chat_thread.transaction_id %}
-        <form class="mt-2"
+        <button type="button"
+                class="btn btn-error btn-soft mt-2"
+                onclick="showModal('close-conversation-modal')">
+            Close conversation
+        </button>
+
+        <form id="close-conversation-form"
+              class="hidden"
               method="post"
               action="{% url 'chat-thread-close' chat_thread.pk %}">
             {% csrf_token %}
-            <c-button danger type="submit">
-                Close conversation
-            </c-button>
         </form>
+
+        <c-modal modal_id="close-conversation-modal"
+                 modal_title="Close conversation?"
+                 cancel_button_text="Cancel"
+                 confirm_button_text="Close conversation"
+                 confirm_submit_form_id="close-conversation-form"
+                 confirm_button_class="btn btn-error btn-soft font-semibold">
+            <p>
+                Closing is permanent. Neither person can send more messages, but both can still read the conversation.
+            </p>
+        </c-modal>
     {% endif %}
 </div>

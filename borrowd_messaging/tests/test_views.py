@@ -245,6 +245,11 @@ class ChatThreadActivePageTests(MessagingTestCase):
         self.assertContains(
             response, reverse("chat-thread-close", args=[self.thread.pk])
         )
+        self.assertContains(response, 'id="close-conversation-modal"')
+        self.assertContains(response, "Close conversation?")
+        self.assertContains(response, 'form="close-conversation-form"')
+        self.assertContains(response, "Closing is permanent.")
+        self.assertNotContains(response, "return confirm(")
 
 
 @override_settings(MESSAGING_ENABLED=True)
