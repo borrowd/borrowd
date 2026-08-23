@@ -69,6 +69,7 @@ urlpatterns: List[URLPattern | URLResolver] = [
     path("settings/", include("borrowd_notifications.urls")),
     path("push/", include("borrowd_notifications.push_urls")),
     path("sw.js", service_worker, name="service-worker"),
+    path("community-requests/", include("borrowd_community_requests.urls")),
     path("favicon.ico", favicon, name="favicon"),
     path("", include("borrowd_web.urls")),
 ]

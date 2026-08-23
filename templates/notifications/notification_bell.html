@@ -7,14 +7,13 @@
          focus doesn't race it and fires on click too. -->
     <div tabindex="0"
          role="button"
-         class="btn btn-ghost text-borrowd-indigo-600 btn-circle md:mr-6"
+         class="btn btn-circle btn-notification-bell relative md:mr-6"
          aria-label="{% trans 'Notifications' %}"
          hx-get="{% url 'notification-popup' %}"
          hx-trigger="focus"
          hx-target="#notification-popup-content"
          hx-swap="innerHTML">
         <div id="notification-indicator"
-             class="indicator"
              hx-get="{% url 'notification-bell-count' %}"
              hx-trigger="load, every 30s"
              hx-target="this"

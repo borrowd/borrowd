@@ -3,7 +3,7 @@
 {% if unread_notification_count %}
     {% heroicon_solid "bell" class="h-5 w-5" %}
     <span id="nav-unread-count"
-          class="indicator-item badge badge-primary badge-xs">
+          class="badge badge-primary absolute top-0 right-0 translate-x-[15%] -translate-y-[15%] h-4 min-w-4 px-1 rounded-full border-0 text-[0.625rem] leading-none font-semibold">
         {{ unread_notification_count }}
     </span>
 {% else %}

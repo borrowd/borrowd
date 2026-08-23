@@ -12,7 +12,21 @@
         <c-divider />
         {% if not item_cards %}
             <div class="flex flex-col gap-5 items-center py-16 px-4">
-                {% if user_has_items and not user_has_groups %}
+                {% if is_empty_search %}
+                    {% if user_has_groups %}
+                        <p class="text-base text-base-content text-center leading-normal">
+                            We couldn't find any {{ search_term }}. Would you like to make a Community Request?
+                        </p>
+                        <c-button-nav url="{% url 'community-request-create' %}?item_name={{ search_term|urlencode }}"
+                                      class="btn btn-primary btn-lg">
+                            Request Item
+                        </c-button-nav>
+                    {% else %}
+                        <p class="text-base text-base-content text-center leading-normal">
+                            We couldn't find any {{ search_term }}.
+                        </p>
+                    {% endif %}
+                {% elif user_has_items and not user_has_groups %}
                     <img src="{% static 'items/no_groups.PNG' %}"
                          alt="No groups yet"
                          class="max-w-40 h-auto" />
