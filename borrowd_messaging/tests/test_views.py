@@ -23,7 +23,7 @@ class ChatThreadDetailViewTests(MessagingTestCase):
         self.thread = self.make_thread()
         self.url = reverse("chat-thread-detail", args=[self.thread.pk])
 
-    def test_borrower_sees_the_thread(self) -> None:
+    def test_borrower_sees_their_message_on_the_right(self) -> None:
         Message.objects.create(
             thread=self.thread, sender=self.borrower, body="Free Saturday?"
         )
@@ -31,8 +31,8 @@ class ChatThreadDetailViewTests(MessagingTestCase):
 
         response = self.client.get(self.url)
 
-        self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Free Saturday?")
+        self.assertContains(response, "chat-end")
 
     def test_bubble_carries_sender_avatar_name_and_timestamp(self) -> None:
         self.lender.first_name = "Lena"
@@ -51,14 +51,6 @@ class ChatThreadDetailViewTests(MessagingTestCase):
         self.assertContains(response, "ui-avatars.com")
         # The borrower is reading the lender's message, so it sits on the left.
         self.assertContains(response, "chat-start")
-
-    def test_own_messages_are_aligned_to_the_viewer(self) -> None:
-        Message.objects.create(
-            thread=self.thread, sender=self.borrower, body="Free Saturday?"
-        )
-        self.client.force_login(self.borrower)
-
-        self.assertContains(self.client.get(self.url), "chat-end")
 
     def test_system_notice_renders_without_a_bubble_or_avatar(self) -> None:
         MessagingService.post_system_message(self.thread, "This item was returned.")
@@ -145,7 +137,7 @@ class ChatThreadSendViewTests(MessagingTestCase):
             response.content.index(f'id="message-{sent.pk}"'.encode()),
         )
 
-    def test_sending_rejects_a_cursor_from_another_conversation(self) -> None:
+    def test_sending_rejects_invalid_cursors(self) -> None:
         other_thread = self.make_thread(
             item=self.make_item(owner=self.lender, name="Ladder")
         )
@@ -154,20 +146,21 @@ class ChatThreadSendViewTests(MessagingTestCase):
         )
         self.client.force_login(self.borrower)
 
-        response = self.client.post(
-            self.url, {"body": "Do not store this.", "after": foreign_message.pk}
-        )
+        cases = {
+            "missing": {"body": "Do not store this."},
+            "nonnumeric": {"body": "Do not store this.", "after": "abc"},
+            "negative": {"body": "Do not store this.", "after": -1},
+            "another conversation": {
+                "body": "Do not store this.",
+                "after": foreign_message.pk,
+            },
+        }
+        for label, data in cases.items():
+            with self.subTest(cursor=label):
+                response = self.client.post(self.url, data)
 
-        self.assertEqual(response.status_code, 400)
-        self.assertFalse(Message.objects.filter(thread=self.thread).exists())
-
-    def test_sending_requires_a_cursor(self) -> None:
-        self.client.force_login(self.borrower)
-
-        response = self.client.post(self.url, {"body": "Do not store this."})
-
-        self.assertEqual(response.status_code, 400)
-        self.assertFalse(Message.objects.filter(thread=self.thread).exists())
+                self.assertEqual(response.status_code, 400)
+                self.assertFalse(Message.objects.filter(thread=self.thread).exists())
 
     def test_lender_can_reply(self) -> None:
         self.client.force_login(self.lender)
@@ -178,23 +171,19 @@ class ChatThreadSendViewTests(MessagingTestCase):
         )
         self.assertEqual(Message.objects.get(thread=self.thread).sender, self.lender)
 
-    def test_empty_body_is_rejected(self) -> None:
+    def test_invalid_body_is_rejected(self) -> None:
         self.client.force_login(self.borrower)
 
-        response = self.client.post(self.url, {"body": "   ", "after": 0})
+        cases = {
+            "blank": "   ",
+            "overlong": "x" * (MESSAGE_BODY_MAX_LENGTH + 1),
+        }
+        for label, body in cases.items():
+            with self.subTest(body=label):
+                response = self.client.post(self.url, {"body": body, "after": 0})
 
-        self.assertEqual(response.status_code, 400)
-        self.assertFalse(Message.objects.filter(thread=self.thread).exists())
-
-    def test_overlong_body_is_rejected(self) -> None:
-        self.client.force_login(self.borrower)
-
-        response = self.client.post(
-            self.url, {"body": "x" * (MESSAGE_BODY_MAX_LENGTH + 1), "after": 0}
-        )
-
-        self.assertEqual(response.status_code, 400)
-        self.assertFalse(Message.objects.filter(thread=self.thread).exists())
+                self.assertEqual(response.status_code, 400)
+                self.assertFalse(Message.objects.filter(thread=self.thread).exists())
 
     def test_archived_thread_refuses_the_message(self) -> None:
         MessagingService.archive_thread(self.thread, ArchiveReason.CLOSED)
@@ -231,13 +220,13 @@ class ChatThreadSendViewTests(MessagingTestCase):
 
 
 @override_settings(MESSAGING_ENABLED=True)
-class ChatThreadComposerTests(MessagingTestCase):
+class ChatThreadActivePageTests(MessagingTestCase):
     def setUp(self) -> None:
         super().setUp()
         self.thread = self.make_thread()
         self.url = reverse("chat-thread-detail", args=[self.thread.pk])
 
-    def test_active_thread_offers_a_composer(self) -> None:
+    def test_active_prerequest_page_has_composer_poller_and_close_action(self) -> None:
         self.client.force_login(self.borrower)
 
         response = self.client.get(self.url)
@@ -249,15 +238,13 @@ class ChatThreadComposerTests(MessagingTestCase):
         self.assertContains(response, f'maxlength="{MESSAGE_BODY_MAX_LENGTH}"')
         self.assertContains(response, "hx-vals=", count=2)
         self.assertContains(response, 'hx-sync="#chat-messages:queue all"', count=2)
-
-    def test_archived_thread_has_no_composer(self) -> None:
-        MessagingService.archive_thread(self.thread, ArchiveReason.CLOSED)
-        self.client.force_login(self.borrower)
-
-        response = self.client.get(self.url)
-
-        self.assertEqual(response.status_code, 200)
-        self.assertNotContains(response, 'name="body"')
+        self.assertContains(
+            response, reverse("chat-thread-poll", args=[self.thread.pk])
+        )
+        self.assertContains(response, 'hx-trigger="every 4s"')
+        self.assertContains(
+            response, reverse("chat-thread-close", args=[self.thread.pk])
+        )
 
 
 @override_settings(MESSAGING_ENABLED=True)
@@ -317,7 +304,9 @@ class ChatThreadPollViewTests(MessagingTestCase):
         # The borrower is reading the lender's message, so it sits on the left.
         self.assertContains(self.client.get(self.url), "chat-start")
 
-    def test_archiving_delivers_the_notice_and_stops_the_poller(self) -> None:
+    def test_archiving_delivers_notice_replaces_composer_and_stops_poller(
+        self,
+    ) -> None:
         seen = self.send(self.borrower, "Free Saturday?")
         MessagingService.archive_thread(self.thread, ArchiveReason.CLOSED)
         self.client.force_login(self.borrower)
@@ -327,6 +316,8 @@ class ChatThreadPollViewTests(MessagingTestCase):
         # 286 swaps the closing notice in, then cancels the poll.
         self.assertEqual(response.status_code, 286)
         self.assertContains(response, "This conversation was closed.", status_code=286)
+        self.assertContains(response, 'id="chat-composer"', status_code=286)
+        self.assertContains(response, 'hx-swap-oob="true"', status_code=286)
 
     def test_settled_archived_thread_stops_the_poller_with_nothing_to_add(self) -> None:
         self.send(self.borrower, "Free Saturday?")
@@ -359,40 +350,12 @@ class ChatThreadPollViewTests(MessagingTestCase):
 
 
 @override_settings(MESSAGING_ENABLED=True)
-class ChatThreadPollWiringTests(MessagingTestCase):
-    def setUp(self) -> None:
-        super().setUp()
-        self.thread = self.make_thread()
-        self.url = reverse("chat-thread-detail", args=[self.thread.pk])
-
-    def test_active_thread_polls(self) -> None:
-        self.client.force_login(self.borrower)
-
-        response = self.client.get(self.url)
-
-        self.assertContains(
-            response, reverse("chat-thread-poll", args=[self.thread.pk])
-        )
-        self.assertContains(response, 'hx-trigger="every 4s"')
-
-    def test_archived_thread_does_not_poll(self) -> None:
-        MessagingService.archive_thread(self.thread, ArchiveReason.CLOSED)
-        self.client.force_login(self.borrower)
-
-        response = self.client.get(self.url)
-
-        self.assertNotContains(
-            response, reverse("chat-thread-poll", args=[self.thread.pk])
-        )
-
-
-@override_settings(MESSAGING_ENABLED=True)
 class ArchivedThreadReadOnlyTests(MessagingTestCase):
     def setUp(self) -> None:
         super().setUp()
         self.thread = self.make_thread()
 
-    def test_archived_page_shows_the_notice_instead_of_the_box(self) -> None:
+    def test_archived_page_is_read_only_and_does_not_poll(self) -> None:
         MessagingService.archive_thread(self.thread, ArchiveReason.CLOSED)
         self.client.force_login(self.borrower)
 
@@ -402,21 +365,12 @@ class ArchivedThreadReadOnlyTests(MessagingTestCase):
         self.assertNotContains(response, 'name="body"')
         # Nothing to replace on a fresh page, so no out-of-band marker.
         self.assertNotContains(response, "hx-swap-oob")
-
-    def test_poll_swaps_the_box_out_when_a_thread_closes_mid_read(self) -> None:
-        seen = Message.objects.create(
-            thread=self.thread, sender=self.borrower, body="Free Saturday?"
+        self.assertNotContains(
+            response, reverse("chat-thread-poll", args=[self.thread.pk])
         )
-        MessagingService.archive_thread(self.thread, ArchiveReason.CLOSED)
-        self.client.force_login(self.borrower)
-
-        response = self.client.get(
-            reverse("chat-thread-poll", args=[self.thread.pk]), {"after": seen.pk}
+        self.assertNotContains(
+            response, reverse("chat-thread-close", args=[self.thread.pk])
         )
-
-        self.assertEqual(response.status_code, 286)
-        self.assertContains(response, 'id="chat-composer"', status_code=286)
-        self.assertContains(response, 'hx-swap-oob="true"', status_code=286)
 
     def test_active_poll_leaves_the_box_alone(self) -> None:
         seen = Message.objects.create(
@@ -517,26 +471,9 @@ class ChatThreadCloseButtonTests(MessagingTestCase):
         self.thread = self.make_thread()
         self.url = reverse("chat-thread-detail", args=[self.thread.pk])
 
-    def test_prerequest_thread_offers_the_close_button(self) -> None:
-        self.client.force_login(self.borrower)
-
-        self.assertContains(
-            self.client.get(self.url),
-            reverse("chat-thread-close", args=[self.thread.pk]),
-        )
-
     def test_thread_with_a_transaction_has_no_close_button(self) -> None:
         self.thread.transaction = self.make_transaction()
         self.thread.save()
-        self.client.force_login(self.borrower)
-
-        self.assertNotContains(
-            self.client.get(self.url),
-            reverse("chat-thread-close", args=[self.thread.pk]),
-        )
-
-    def test_archived_thread_has_no_close_button(self) -> None:
-        MessagingService.archive_thread(self.thread, ArchiveReason.CLOSED)
         self.client.force_login(self.borrower)
 
         self.assertNotContains(
