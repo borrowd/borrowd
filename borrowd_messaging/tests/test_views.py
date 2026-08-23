@@ -1,5 +1,8 @@
+from datetime import timedelta
+
 from django.test import override_settings
 from django.urls import reverse
+from django.utils import timezone
 
 from borrowd_items.models import TransactionStatus
 from borrowd_messaging.models import (
@@ -619,7 +622,7 @@ class ChatThreadListViewTests(MessagingTestCase):
             reverse("chat-thread-detail", args=[thread.pk]),
         )
 
-    def test_busiest_thread_comes_first(self) -> None:
+    def test_thread_with_newest_message_comes_first(self) -> None:
         quiet = self.make_thread(item=self.make_item(name="Ladder"))
         chatty = self.make_thread(item=self.make_item(name="Projector"))
         Message.objects.create(thread=quiet, sender=self.borrower, body="One")
@@ -631,6 +634,24 @@ class ChatThreadListViewTests(MessagingTestCase):
         self.assertLess(
             body.index(reverse("chat-thread-detail", args=[chatty.pk])),
             body.index(reverse("chat-thread-detail", args=[quiet.pk])),
+        )
+
+    def test_new_empty_thread_comes_before_an_older_message_thread(self) -> None:
+        older = self.make_thread(item=self.make_item(name="Ladder"))
+        old_message = Message.objects.create(
+            thread=older, sender=self.borrower, body="One"
+        )
+        Message.objects.filter(pk=old_message.pk).update(
+            created_at=timezone.now() - timedelta(days=1)
+        )
+        newer = self.make_thread(item=self.make_item(name="Projector"))
+        self.client.force_login(self.borrower)
+
+        body = self.client.get(self.url).content.decode()
+
+        self.assertLess(
+            body.index(reverse("chat-thread-detail", args=[newer.pk])),
+            body.index(reverse("chat-thread-detail", args=[older.pk])),
         )
 
     def test_empty_state(self) -> None:

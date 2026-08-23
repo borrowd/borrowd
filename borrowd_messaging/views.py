@@ -3,7 +3,8 @@ from typing import Any
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied
-from django.db.models import F, Max, Q, QuerySet
+from django.db.models import Max, Q, QuerySet
+from django.db.models.functions import Coalesce
 from django.http import HttpRequest, HttpResponse, HttpResponseBadRequest
 from django.shortcuts import redirect, render
 from django.views.generic import DetailView, ListView, View
@@ -226,6 +227,8 @@ class ChatThreadListView(
             .select_related("item", "lender__profile", "borrower__profile")
             # Sort on the last message, falling back to creation for threads
             # nobody has said anything in yet.
-            .annotate(last_message_id=Max("messages__id"))
-            .order_by(F("last_message_id").desc(nulls_last=True), "-created_at")
+            .annotate(
+                last_activity_at=Coalesce(Max("messages__created_at"), "created_at")
+            )
+            .order_by("-last_activity_at", "-pk")
         )
