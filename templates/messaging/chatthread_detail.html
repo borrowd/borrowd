@@ -32,14 +32,15 @@
 
         {% if not chat_thread.is_archived %}
             {# Poll for messages after the last rendered id. Responses append
-            to #chat-messages, and the shared `hx-sync` queue keeps poll and
-            send responses in order.
+            to #chat-messages. The shared `hx-sync` lock keeps poll and send
+            responses in order; a poll tick is dropped when that lock is busy
+            because the next tick catches up from the latest rendered cursor.
             https://htmx.org/docs/#polling #}
             <div hx-get="{% url 'chat-thread-poll' chat_thread.pk %}"
                  hx-trigger="every 4s"
                  hx-target="#chat-messages"
                  hx-swap="beforeend"
-                 hx-sync="#chat-messages:queue all"
+                 hx-sync="#chat-messages:drop"
                  hx-vals='js:{after: document.querySelector("#chat-messages li:last-child")?.id.replace("message-", "") || 0}'>
             </div>
         {% endif %}

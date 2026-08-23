@@ -246,7 +246,8 @@ class ChatThreadActivePageTests(MessagingTestCase):
         self.assertContains(response, 'name="body"')
         self.assertContains(response, f'maxlength="{MESSAGE_BODY_MAX_LENGTH}"')
         self.assertContains(response, "hx-vals=", count=2)
-        self.assertContains(response, 'hx-sync="#chat-messages:queue all"', count=2)
+        self.assertContains(response, 'hx-sync="#chat-messages:queue all"', count=1)
+        self.assertContains(response, 'hx-sync="#chat-messages:drop"', count=1)
         self.assertContains(
             response, reverse("chat-thread-poll", args=[self.thread.pk])
         )
