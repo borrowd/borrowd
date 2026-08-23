@@ -21,6 +21,28 @@ from .mixins import MessagingEnabledMixin
 from .models import MESSAGE_BODY_MAX_LENGTH, ChatThread
 from .services import MessagingService
 
+_INVALID_CURSOR_MESSAGE = "`after` must be a message id from this conversation."
+
+
+class _InvalidCursor(ValueError):
+    pass
+
+
+def _parse_cursor(raw_cursor: str | None, chat_thread: ChatThread) -> int:
+    if raw_cursor is None:
+        raise _InvalidCursor(_INVALID_CURSOR_MESSAGE)
+
+    try:
+        cursor = int(raw_cursor)
+    except ValueError as exc:
+        raise _InvalidCursor(_INVALID_CURSOR_MESSAGE) from exc
+
+    if cursor < 0 or (
+        cursor != 0 and not chat_thread.messages.filter(pk=cursor).exists()
+    ):
+        raise _InvalidCursor(_INVALID_CURSOR_MESSAGE)
+    return cursor
+
 
 class ChatThreadDetailView(
     MessagingEnabledMixin,
@@ -78,22 +100,11 @@ class ChatThreadSendView(
 
     def post(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
         sender = get_authenticated_user(request)
-        try:
-            after = int(request.POST["after"])
-        except (KeyError, ValueError):
-            return HttpResponseBadRequest(
-                "`after` must be a message id from this conversation."
-            )
-        if after < 0:
-            return HttpResponseBadRequest(
-                "`after` must be a message id from this conversation."
-            )
-
         chat_thread = self.get_object()
-        if after != 0 and not chat_thread.messages.filter(pk=after).exists():
-            return HttpResponseBadRequest(
-                "`after` must be a message id from this conversation."
-            )
+        try:
+            after = _parse_cursor(request.POST.get("after"), chat_thread)
+        except _InvalidCursor as exc:
+            return HttpResponseBadRequest(str(exc))
 
         try:
             message = MessagingService.send_message(
@@ -138,12 +149,12 @@ class ChatThreadPollView(
     permission_required = ChatThreadOLP.VIEW
 
     def get(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
-        try:
-            after = int(request.GET.get("after", 0))
-        except ValueError:
-            return HttpResponseBadRequest("`after` must be a message id.")
-
         chat_thread = self.get_object()
+        try:
+            after = _parse_cursor(request.GET.get("after"), chat_thread)
+        except _InvalidCursor as exc:
+            return HttpResponseBadRequest(str(exc))
+
         newer = (
             chat_thread.messages.filter(id__gt=after)
             .select_related("sender__profile")

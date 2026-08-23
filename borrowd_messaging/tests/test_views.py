@@ -298,12 +298,12 @@ class ChatThreadPollViewTests(MessagingTestCase):
         self.assertNotContains(response, "Free Saturday?")
         self.assertContains(response, f'id="message-{fresh.pk}"')
 
-    def test_no_cursor_returns_the_whole_thread(self) -> None:
+    def test_zero_cursor_returns_the_whole_thread(self) -> None:
         self.send(self.borrower, "Free Saturday?")
         self.send(self.lender, "Saturday works.")
         self.client.force_login(self.borrower)
 
-        response = self.client.get(self.url)
+        response = self.client.get(self.url, {"after": 0})
 
         self.assertContains(response, "Free Saturday?")
         self.assertContains(response, "Saturday works.")
@@ -313,7 +313,7 @@ class ChatThreadPollViewTests(MessagingTestCase):
         self.send(self.lender, "Second")
         self.client.force_login(self.borrower)
 
-        body = self.client.get(self.url).content.decode()
+        body = self.client.get(self.url, {"after": 0}).content.decode()
 
         self.assertLess(body.index("First"), body.index("Second"))
 
@@ -322,7 +322,7 @@ class ChatThreadPollViewTests(MessagingTestCase):
         self.client.force_login(self.borrower)
 
         # The borrower is reading the lender's message, so it sits on the left.
-        self.assertContains(self.client.get(self.url), "chat-start")
+        self.assertContains(self.client.get(self.url, {"after": 0}), "chat-start")
 
     def test_archiving_delivers_notice_replaces_composer_and_stops_poller(
         self,
@@ -351,10 +351,33 @@ class ChatThreadPollViewTests(MessagingTestCase):
         self.assertEqual(response.status_code, 286)
         self.assertNotContains(response, "chat-bubble", status_code=286)
 
-    def test_junk_cursor_is_rejected(self) -> None:
+    def test_invalid_cursors_are_rejected(self) -> None:
+        other_thread = self.make_thread(
+            item=self.make_item(owner=self.lender, name="Ladder")
+        )
+        foreign_message = Message.objects.create(
+            thread=other_thread,
+            sender=self.borrower,
+            body="Wrong conversation",
+        )
         self.client.force_login(self.borrower)
 
-        self.assertEqual(self.client.get(self.url, {"after": "abc"}).status_code, 400)
+        cases: dict[str, dict[str, str | int]] = {
+            "missing": {},
+            "nonnumeric": {"after": "abc"},
+            "negative": {"after": -1},
+            "another conversation": {"after": foreign_message.pk},
+        }
+        for label, data in cases.items():
+            with self.subTest(cursor=label):
+                response = self.client.get(self.url, data)
+
+                self.assertEqual(response.status_code, 400)
+                self.assertContains(
+                    response,
+                    "`after` must be a message id from this conversation.",
+                    status_code=400,
+                )
 
     def test_non_participant_gets_a_404(self) -> None:
         self.send(self.borrower, "Free Saturday?")
