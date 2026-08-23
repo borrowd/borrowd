@@ -1,0 +1,47 @@
+{% extends "layouts/default.html" %}
+
+{% block head_title %}
+    Messages
+{% endblock %}
+{% block content %}
+    <div class="w-full max-w-3xl self-start px-4">
+        <c-h1 class="font-normal text-[24px]">
+            Messages
+        </c-h1>
+
+        {% if chat_threads %}
+            <ul class="mt-4 divide-y divide-base-300">
+                {% for chat_thread in chat_threads %}
+                    <li>
+                        <a class="flex items-center justify-between gap-3 py-3 hover:underline"
+                           href="{% url 'chat-thread-detail' chat_thread.pk %}">
+                            <span class="min-w-0">
+                                <span class="block truncate">
+                                    {% if chat_thread.item %}
+                                        {{ chat_thread.item.name }}
+                                    {% else %}
+                                        Item no longer available
+                                    {% endif %}
+                                </span>
+                                <span class="block text-sm opacity-70">
+                                    {% if chat_thread.lender_id == user.pk %}
+                                        {{ chat_thread.borrower.profile.full_name }}
+                                    {% else %}
+                                        {{ chat_thread.lender.profile.full_name }}
+                                    {% endif %}
+                                </span>
+                            </span>
+                            {% if chat_thread.is_archived %}
+                                <span class="badge badge-ghost shrink-0">Archived</span>
+                            {% endif %}
+                        </a>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p class="mt-4 text-sm opacity-70">
+                You have no conversations yet.
+            </p>
+        {% endif %}
+    </div>
+{% endblock %}

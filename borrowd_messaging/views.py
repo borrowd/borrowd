@@ -1,11 +1,12 @@
 from typing import Any
 
 from django.contrib import messages
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied
-from django.db.models import QuerySet
+from django.db.models import F, Max, Q, QuerySet
 from django.http import HttpRequest, HttpResponse, HttpResponseBadRequest
 from django.shortcuts import redirect, render
-from django.views.generic import DetailView, View
+from django.views.generic import DetailView, ListView, View
 from django.views.generic.detail import SingleObjectMixin
 
 from borrowd.util import BorrowdTemplateFinderMixin
@@ -179,3 +180,30 @@ class ChatThreadCloseView(
                 request, "This conversation belongs to a request now, so it stays open."
             )
         return redirect("chat-thread-detail", pk=chat_thread.pk)
+
+
+class ChatThreadListView(
+    MessagingEnabledMixin,
+    LoginRequiredMixin,
+    ListView[ChatThread],
+):
+    """
+    Every conversation this user is part of, newest first.
+
+    Deliberately plain: no unread counts, no grouping, no filters, no paging.
+    F2 (#536) replaces this with the real Messages page.
+    """
+
+    template_name = "messaging/chatthread_list.html"
+    context_object_name = "chat_threads"
+
+    def get_queryset(self) -> QuerySet[ChatThread]:
+        user = get_authenticated_user(self.request)
+        return (
+            ChatThread.objects.filter(Q(lender=user) | Q(borrower=user))
+            .select_related("item", "lender__profile", "borrower__profile")
+            # Sort on the last message, falling back to creation for threads
+            # nobody has said anything in yet.
+            .annotate(last_message_id=Max("messages__id"))
+            .order_by(F("last_message_id").desc(nulls_last=True), "-created_at")
+        )

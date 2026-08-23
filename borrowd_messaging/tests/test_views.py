@@ -530,3 +530,79 @@ class DisputeBadgeTests(MessagingTestCase):
         self.client.force_login(self.borrower)
 
         self.assertNotContains(self.client.get(self.url), "Disputed")
+
+
+@override_settings(MESSAGING_ENABLED=True)
+class ChatThreadListViewTests(MessagingTestCase):
+    def setUp(self) -> None:
+        super().setUp()
+        self.url = reverse("chat-thread-list")
+
+    def test_lists_the_threads_you_are_in(self) -> None:
+        thread = self.make_thread()
+        self.client.force_login(self.borrower)
+
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, reverse("chat-thread-detail", args=[thread.pk]))
+
+    def test_leaves_out_other_peoples_threads(self) -> None:
+        stranger = self.make_user("stranger")
+        theirs = self.make_thread(borrower=stranger)
+        self.client.force_login(self.borrower)
+
+        self.assertNotContains(
+            self.client.get(self.url),
+            reverse("chat-thread-detail", args=[theirs.pk]),
+        )
+
+    def test_lender_sees_their_side_too(self) -> None:
+        thread = self.make_thread()
+        self.client.force_login(self.lender)
+
+        self.assertContains(
+            self.client.get(self.url),
+            reverse("chat-thread-detail", args=[thread.pk]),
+        )
+
+    def test_busiest_thread_comes_first(self) -> None:
+        quiet = self.make_thread(item=self.make_item(name="Ladder"))
+        chatty = self.make_thread(item=self.make_item(name="Projector"))
+        Message.objects.create(thread=quiet, sender=self.borrower, body="One")
+        Message.objects.create(thread=chatty, sender=self.borrower, body="Two")
+        self.client.force_login(self.borrower)
+
+        body = self.client.get(self.url).content.decode()
+
+        self.assertLess(
+            body.index(reverse("chat-thread-detail", args=[chatty.pk])),
+            body.index(reverse("chat-thread-detail", args=[quiet.pk])),
+        )
+
+    def test_empty_state(self) -> None:
+        self.client.force_login(self.borrower)
+
+        self.assertContains(self.client.get(self.url), "no conversations yet")
+
+    def test_anonymous_user_is_sent_to_login(self) -> None:
+        self.assertEqual(self.client.get(self.url).status_code, 302)
+
+    @override_settings(MESSAGING_ENABLED=False)
+    def test_list_is_hidden_while_the_feature_flag_is_off(self) -> None:
+        self.client.force_login(self.borrower)
+
+        self.assertEqual(self.client.get(self.url).status_code, 404)
+
+    def test_sidebar_links_to_messages(self) -> None:
+        self.client.force_login(self.borrower)
+
+        self.assertContains(self.client.get(self.url), reverse("chat-thread-list"))
+
+    @override_settings(MESSAGING_ENABLED=False)
+    def test_sidebar_hides_messages_while_the_feature_flag_is_off(self) -> None:
+        self.client.force_login(self.borrower)
+
+        self.assertNotContains(
+            self.client.get(reverse("item-list")), reverse("chat-thread-list")
+        )
