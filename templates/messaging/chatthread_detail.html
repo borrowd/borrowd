@@ -27,7 +27,10 @@
 
         </ul>
 
-        {% if not chat_thread.is_archived %}
+        {% if chat_thread.is_archived %}
+            {% include "messaging/_composer_archived.html" %}
+
+        {% else %}
             {# Poll for messages after the last rendered id. Responses append
             to #chat-messages. The shared `hx-sync` lock keeps poll and send
             responses in order; a poll tick is dropped when that lock is busy
@@ -40,12 +43,6 @@
                  hx-sync="#chat-messages:drop"
                  hx-vals='js:{after: document.querySelector("#chat-messages li:last-child")?.id.replace("message-", "") || 0}'>
             </div>
-        {% endif %}
-
-        {% if chat_thread.is_archived %}
-            {% include "messaging/_composer_archived.html" %}
-
-        {% else %}
             {% include "messaging/_composer.html" %}
 
         {% endif %}
