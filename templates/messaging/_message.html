@@ -29,8 +29,8 @@ messaging/_messages.html uses this template for initial page loads and send/poll
                 {{ message.created_at|date:"M j, g:i A" }}
             </time>
         </div>
-        <div class="chat-bubble">
-            {{ message.body }}
+        <div class="chat-bubble wrap-break-word">
+            {{ message.body|linebreaksbr }}
         </div>
     </li>
 {% endif %}

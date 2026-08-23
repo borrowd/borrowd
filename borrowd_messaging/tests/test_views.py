@@ -60,6 +60,22 @@ class ChatThreadDetailViewTests(MessagingTestCase):
         # The borrower is reading the lender's message, so it sits on the left.
         self.assertContains(response, "chat-start")
 
+    def test_bubble_preserves_line_breaks_and_wraps_long_words(self) -> None:
+        Message.objects.create(
+            thread=self.thread,
+            sender=self.lender,
+            body="First line\nSecond line",
+        )
+        self.client.force_login(self.borrower)
+
+        response = self.client.get(self.url)
+
+        self.assertContains(
+            response,
+            'class="chat-bubble break-words"',
+        )
+        self.assertContains(response, "First line<br>Second line")
+
     def test_thread_participants_and_profiles_are_loaded_together(self) -> None:
         view = ChatThreadDetailView()
         view.kwargs = {"pk": self.thread.pk}
