@@ -1,34 +1,21 @@
-{# The box for typing a new message.
-
-Wrapped in an element with a fixed id so the poll reply can swap the whole
-thing out for the archived notice the moment the chat closes. See
-`templates/messaging/_composer_archived.html.` #}
+{# Active-thread controls: message composer (typing box) and pre-request close button.
+The fixed `chat-composer` id lets an archived poll response replace this block.
+See messaging/_poll.html and messaging/_composer_archived.html. #}
 
 <div id="chat-composer" class="mt-4">
-    {#
-    hx-post     send the typed text to POST /messages/<pk>/send/ at borrowd_messaging/views.py:ChatThreadSendView
-    hx-target    #chat-messages, the message list
-    hx-swap      beforeend, so the reply joins the bottom of it
-    hx-vals      the newest bubble already rendered
-    hx-sync      serialize sends and polls so their replies cannot overlap
-    hx-on::after-request    runs once the reply is back
-
-    User sends message ->
-    the server stores the message and replies with every bubble after hx-vals,
-    including the newly stored one ->
-    those bubbles are appended to the msg list (#chat-messages)
-
-    Once sent, clear the box.
-    Refused (empty, too long, chat closed): leave the text alone so nobody loses what they wrote.
-    Clearing takes two steps, because reset() fires no `input` event
-    and the character counter only recounts on an `input` event.
-    See templates/components/form/textarea.html. #}
+    {# Send the last rendered message id as `after` like ?after=123.
+    ChatThreadSendView returns every message after that id through the newly stored message.
+    `hx-sync` keeps send and poll responses in order.
+    See borrowd_messaging.views.ChatThreadSendView and https://htmx.org/attributes/hx-sync/ #}
     <form hx-post="{% url 'chat-thread-send' chat_thread.pk %}"
           hx-target="#chat-messages"
           hx-swap="beforeend"
           hx-sync="#chat-messages:queue all"
           hx-vals='js:{after: document.querySelector("#chat-messages li:last-child")?.id.replace("message-", "") || 0}'
           hx-on::after-request="if (event.detail.successful) { this.reset(); this.querySelector('textarea').dispatchEvent(new Event('input')); }">
+        {# A successful send clears the textarea and refreshes its character
+        counter. A failed send keeps the text so it can be corrected.
+        See components/form/textarea.html. #}
         {% csrf_token %}
         <c-form.textarea name="body"
                          id="chat-composer-body"
@@ -42,9 +29,8 @@ thing out for the archived notice the moment the chat closes. See
         </c-button>
     </form>
 
-    {# Only a chat that never became a request can be closed, and closing is
-    final, so `danger` puts a confirm box in front of it. Once a request exists
-    the transaction owns the thread's fate and ends it on its own. #}
+    {# Only pre-request threads may be closed manually. Transaction lifecycle
+    handling archives linked threads. See borrowd_messaging.signals. #}
     {% if not chat_thread.transaction_id %}
         <form class="mt-2"
               method="post"

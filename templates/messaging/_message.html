@@ -1,10 +1,8 @@
-{# One chat message. templates/messaging/chatthread_detail.html loops over this
-to draw the whole conversation.
-#}
+{# Render one Message.
+messaging/_messages.html uses this template for initial page loads and send/poll responses. #}
 
 {% if message.is_system %}
-    {# System messages, ("This item has been returned. Chat is now archived.", etc),
-    sit centered between the user chat bubbles. #}
+    {# System notices are centered and do not show a participant avatar. #}
     <li id="message-{{ message.pk }}"
         class="my-2 self-center text-center text-xs opacity-60">
         {{ message.body }}
@@ -13,13 +11,10 @@ to draw the whole conversation.
         </time>
     </li>
 {% else %}
-    {#
-    `viewer` is the logged-in user, and it determines the side the bubble sits on:
-    your own messages (message.sender_id == viewer.pk) go right,
-    the other person's go left.
+    {# `viewer` controls alignment:
+    the viewer's messages go right and the other participant's messages go left.
     `viewer` should be passed in by the parent template/component e.g.:
-    `{% include "messaging/_message.html" with message=message viewer=user %}.`
-    #}
+    `include "messaging/_message.html" with message=message viewer=user.`#}
     <li id="message-{{ message.pk }}"
         class="chat {% if message.sender_id == viewer.pk %}chat-end{% else %}chat-start{% endif %}">
         <div class="chat-image">

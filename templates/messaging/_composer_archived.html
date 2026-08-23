@@ -1,8 +1,7 @@
-{# What sits where the typing box was, once a chat is closed for good.
-
-Set `oob` (out-of-band) when the poll endpoint sends this back mid-conversation.
-Left off when the page is drawn fresh, since there is nothing to replace yet.
-https://htmx.org/docs/#oob_swaps #}
+{# Archived composer (typing box). An already archived thread renders this block in place.
+If an open thread becomes archived, a poll passes `oob=True` to replace
+#chat-composer without reloading the page.
+https://htmx.org/attributes/hx-swap-oob/ #}
 
 <div id="chat-composer"
      class="mt-4"

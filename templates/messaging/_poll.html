@@ -1,5 +1,6 @@
-{# The poll endpoint's reply: any bubbles the reader has not seen, plus a
-replacement for the typing box if the chat has closed since they opened it. #}
+{# The poll endpoint's (ChatThreadPollView) response:
+    first append unseen messages,
+then replace the composer out of band if the thread became archived. #}
 
 {% include "messaging/_messages.html" with chat_messages=chat_messages viewer=viewer %}
 

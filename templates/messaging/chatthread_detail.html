@@ -31,10 +31,10 @@
         </ul>
 
         {% if not chat_thread.is_archived %}
-            {# Every 4 seconds, ask the server what has been said since the
-            last bubble on screen, and stick the answer on the end of the list.
-            https://htmx.org/docs/#polling
-            https://htmx.org/attributes/hx-vals/ #}
+            {# Poll for messages after the last rendered id. Responses append
+            to #chat-messages, and the shared `hx-sync` queue keeps poll and
+            send responses in order.
+            https://htmx.org/docs/#polling #}
             <div hx-get="{% url 'chat-thread-poll' chat_thread.pk %}"
                  hx-trigger="every 4s"
                  hx-target="#chat-messages"

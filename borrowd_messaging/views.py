@@ -48,15 +48,15 @@ class ChatThreadDetailView(
             if user.pk == chat_thread.lender_id
             else chat_thread.lender
         )
-        # Not "messages": that name belongs to the django.contrib.messages context processor.
+        # "messages" collides with django.contrib.messages context processor (for toast). Hence, "chat_messages"
+        # See: https://docs.djangoproject.com/en/5.2/ref/contrib/messages/
         # sender__profile: every bubble reads the sender's avatar and full name.
         context["chat_messages"] = chat_thread.messages.select_related(
             "sender__profile"
         ).order_by("id")
         context["message_body_max_length"] = MESSAGE_BODY_MAX_LENGTH
-        # A disputed thread stays writable, so the badge is the only sign in the
-        # page furniture that something has gone wrong.
         transaction = chat_thread.transaction
+        # to show a disputed badge or some other visual
         context["is_disputed"] = (
             transaction is not None and transaction.status == TransactionStatus.DISPUTED
         )
@@ -130,9 +130,8 @@ class ChatThreadPollView(
     """
     Hand back whatever has been said since the reader's newest message.
 
-    `?after=` is the id of the last bubble already on their screen. The
-    auto-increment id doubles as the running order and the cursor, so the
-    lookup rides the (thread, id) index and never re-sends what they have.
+    `?after=` is the id of the last bubble currently on the sender's screen.
+    `after` is used as the cursor.
     """
 
     model = ChatThread
@@ -151,16 +150,16 @@ class ChatThreadPollView(
             .order_by("id")
         )
 
-        # The quiet case, once every interval: htmx does not swap on a 204.
+        # No new messages since last poll? send 204. htmx does not re-render/swap on a 204.
         # https://htmx.org/docs/#requests
         if not newer and not chat_thread.is_archived:
             return HttpResponse(status=204)
 
-        # An archived thread is finished: nobody can write to it again, so hand
+        # An archived thread is finished; nobody can write to it again, so hand
         # over whatever the reader is missing and shut the poller down.
-        # 286 swaps the body and then cancels polling, so one reply does both.
-        # The reply also carries a replacement for the typing box; see
-        # templates/messaging/_composer_archived.html.
+        # 286 swaps the body one last time and then cancels polling.
+        # The reply also carries a replacement for the typing box
+        # see templates/messaging/_composer_archived.html.
         # https://htmx.org/docs/#polling
         return render(
             request,
@@ -181,8 +180,8 @@ class ChatThreadCloseView(
     View,
 ):
     """
-    End a pre-request chat that never turned into a request. Either party may do it,
-    the thread archives and becomes read-only.
+    End a pre-request chat that never turned into a request. The thread archives.
+    Either party may do this.
     """
 
     model = ChatThread
@@ -195,7 +194,7 @@ class ChatThreadCloseView(
                 chat_thread, get_authenticated_user(request)
             )
         except ThreadNotWritable:
-            # Both parties hit close, or the transaction archived it first.
+            # Both parties hit close, or the transaction archived the thread first.
             messages.info(request, "This conversation is already closed.")
         except PermissionDenied:
             # The item was requested between rendering the button and pressing it.
@@ -212,9 +211,8 @@ class ChatThreadListView(
 ):
     """
     Every conversation this user is part of, newest first.
-
-    Deliberately plain: no unread counts, no grouping, no filters, no paging.
-    F2 (#536) replaces this with the real Messages page.
+    Deliberately bare bones.
+    TODO: update in future pr per #536
     """
 
     template_name = "messaging/chatthread_list.html"
@@ -225,8 +223,7 @@ class ChatThreadListView(
         return (
             ChatThread.objects.filter(Q(lender=user) | Q(borrower=user))
             .select_related("item", "lender__profile", "borrower__profile")
-            # Sort on the last message, falling back to creation for threads
-            # nobody has said anything in yet.
+            # Sort on the last message, falling back to creation for threads with no msgs
             .annotate(
                 last_activity_at=Coalesce(Max("messages__created_at"), "created_at")
             )
