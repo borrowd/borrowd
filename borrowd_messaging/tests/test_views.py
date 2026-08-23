@@ -175,14 +175,18 @@ class ChatThreadSendViewTests(MessagingTestCase):
         self.client.force_login(self.borrower)
 
         cases = {
-            "blank": "   ",
-            "overlong": "x" * (MESSAGE_BODY_MAX_LENGTH + 1),
+            "blank": ("   ", "Message body cannot be empty."),
+            "overlong": (
+                "x" * (MESSAGE_BODY_MAX_LENGTH + 1),
+                f"Message body cannot exceed {MESSAGE_BODY_MAX_LENGTH} characters.",
+            ),
         }
-        for label, body in cases.items():
+        for label, (body, error) in cases.items():
             with self.subTest(body=label):
                 response = self.client.post(self.url, {"body": body, "after": 0})
 
                 self.assertEqual(response.status_code, 400)
+                self.assertContains(response, error, status_code=400)
                 self.assertFalse(Message.objects.filter(thread=self.thread).exists())
 
     def test_archived_thread_refuses_the_message(self) -> None:
@@ -192,6 +196,11 @@ class ChatThreadSendViewTests(MessagingTestCase):
         response = self.client.post(self.url, {"body": "Still there?", "after": 0})
 
         self.assertEqual(response.status_code, 409)
+        self.assertContains(
+            response,
+            "This conversation is archived.",
+            status_code=409,
+        )
         self.assertFalse(
             Message.objects.filter(thread=self.thread, is_system=False).exists()
         )
@@ -249,6 +258,9 @@ class ChatThreadActivePageTests(MessagingTestCase):
         self.assertContains(response, "Close conversation?")
         self.assertContains(response, 'form="close-conversation-form"')
         self.assertContains(response, "Closing is permanent.")
+        self.assertContains(response, 'id="chat-composer-error"')
+        self.assertContains(response, "hx-on::response-error=")
+        self.assertContains(response, "event.detail.xhr.responseText")
         self.assertNotContains(response, "return confirm(")
 
 

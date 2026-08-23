@@ -12,9 +12,11 @@ See messaging/_poll.html and messaging/_composer_archived.html. #}
           hx-swap="beforeend"
           hx-sync="#chat-messages:queue all"
           hx-vals='js:{after: document.querySelector("#chat-messages li:last-child")?.id.replace("message-", "") || 0}'
-          hx-on::after-request="if (event.detail.successful) { this.reset(); this.querySelector('textarea').dispatchEvent(new Event('input')); }">
+          hx-on::before-request="this.querySelector('#chat-composer-error').textContent = ''"
+          hx-on::after-request="if (event.detail.successful) { this.reset(); this.querySelector('textarea').dispatchEvent(new Event('input')); }"
+          hx-on::response-error="this.querySelector('#chat-composer-error').textContent = event.detail.xhr.responseText">
         {# A successful send clears the textarea and refreshes its character
-        counter. A failed send keeps the text so it can be corrected.
+        counter. A failed send keeps the text and shows the server's explanation.
         See components/form/textarea.html. #}
         {% csrf_token %}
         <c-form.textarea name="body"
@@ -27,6 +29,11 @@ See messaging/_poll.html and messaging/_composer_archived.html. #}
         <c-button type="submit">
             Send
         </c-button>
+        <p id="chat-composer-error"
+           class="mt-2 text-error text-sm"
+           role="alert"
+           aria-live="polite">
+        </p>
     </form>
 
     {# Only pre-request threads may be closed manually. Transaction lifecycle
