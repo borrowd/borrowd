@@ -16,9 +16,9 @@ from borrowd_messaging.models import (
 )
 from borrowd_messaging.services import MessagingService
 from borrowd_messaging.views import (
-    ChatThreadCloseView,
     ChatThreadDetailView,
     ChatThreadPollView,
+    ChatThreadPreRequestCloseView,
     ChatThreadSendView,
 )
 from borrowd_users.models import BorrowdUser
@@ -162,7 +162,7 @@ class ChatThreadObjectLookupTests(MessagingTestCase):
             ChatThreadDetailView,
             ChatThreadSendView,
             ChatThreadPollView,
-            ChatThreadCloseView,
+            ChatThreadPreRequestCloseView,
         )
 
         for view_class in view_classes:
@@ -198,7 +198,7 @@ class MessagingViewFeatureFlagTests(MessagingTestCase):
                 reverse("chat-thread-poll", args=[self.thread.pk]), {"after": 0}
             ),
             "close": self.client.post(
-                reverse("chat-thread-close", args=[self.thread.pk])
+                reverse("chat-thread-pre-request-close", args=[self.thread.pk])
             ),
         }
 
@@ -498,16 +498,16 @@ class ArchivedThreadReadOnlyTests(MessagingTestCase):
             response, reverse("chat-thread-poll", args=[self.thread.pk])
         )
         self.assertNotContains(
-            response, reverse("chat-thread-close", args=[self.thread.pk])
+            response, reverse("chat-thread-pre-request-close", args=[self.thread.pk])
         )
 
 
 @override_settings(MESSAGING_ENABLED=True)
-class ChatThreadCloseViewTests(MessagingTestCase):
+class ChatThreadPreRequestCloseViewTests(MessagingTestCase):
     def setUp(self) -> None:
         super().setUp()
         self.thread = self.make_thread()
-        self.url = reverse("chat-thread-close", args=[self.thread.pk])
+        self.url = reverse("chat-thread-pre-request-close", args=[self.thread.pk])
 
     def test_borrower_closes_the_conversation(self) -> None:
         self.client.force_login(self.borrower)
@@ -599,7 +599,7 @@ class ChatThreadCloseButtonTests(MessagingTestCase):
 
         self.assertNotContains(
             self.client.get(self.url),
-            reverse("chat-thread-close", args=[self.thread.pk]),
+            reverse("chat-thread-pre-request-close", args=[self.thread.pk]),
         )
 
 

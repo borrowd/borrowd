@@ -50,7 +50,7 @@ See messaging/_poll.html and messaging/_composer_archived.html. #}
         <form id="close-conversation-form"
               class="hidden"
               method="post"
-              action="{% url 'chat-thread-close' chat_thread.pk %}">
+              action="{% url 'chat-thread-pre-request-close' chat_thread.pk %}">
             {% csrf_token %}
         </form>
 

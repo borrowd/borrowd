@@ -208,7 +208,7 @@ class ChatThreadPollView(
         )
 
 
-class ChatThreadCloseView(
+class ChatThreadPreRequestCloseView(
     MessagingEnabledMixin,
     LoginOr404PermissionMixin,
     _CachedChatThreadMixin,
