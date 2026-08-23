@@ -102,6 +102,15 @@ class ChatThreadDetailViewTests(MessagingTestCase):
         self.assertContains(response, self.item.name)
         self.assertNotContains(response, "no longer available")
 
+    def test_header_handles_an_item_that_is_no_longer_available(self) -> None:
+        self.thread.item = None
+        self.thread.save(update_fields=["item"])
+        self.client.force_login(self.borrower)
+
+        response = self.client.get(self.url)
+
+        self.assertContains(response, "This item is no longer available.")
+
     def test_lender_sees_the_thread(self) -> None:
         self.client.force_login(self.lender)
 
@@ -669,6 +678,24 @@ class ChatThreadListViewTests(MessagingTestCase):
             self.client.get(self.url),
             reverse("chat-thread-detail", args=[thread.pk]),
         )
+
+    def test_lists_a_thread_whose_item_is_no_longer_available(self) -> None:
+        thread = self.make_thread()
+        thread.item = None
+        thread.save(update_fields=["item"])
+        self.client.force_login(self.borrower)
+
+        response = self.client.get(self.url)
+
+        self.assertContains(response, "Item no longer available")
+        self.assertContains(response, reverse("chat-thread-detail", args=[thread.pk]))
+
+    def test_labels_an_archived_thread(self) -> None:
+        thread = self.make_thread()
+        MessagingService.archive_thread(thread, ArchiveReason.CLOSED)
+        self.client.force_login(self.borrower)
+
+        self.assertContains(self.client.get(self.url), "Archived")
 
     def test_thread_with_newest_message_comes_first(self) -> None:
         quiet = self.make_thread(item=self.make_item(name="Ladder"))
