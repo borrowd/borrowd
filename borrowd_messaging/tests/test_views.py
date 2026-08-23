@@ -1,5 +1,7 @@
 from datetime import timedelta
+from unittest.mock import patch
 
+from django.core.exceptions import PermissionDenied
 from django.test import override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -434,6 +436,21 @@ class ChatThreadCloseViewTests(MessagingTestCase):
 
         self.thread.refresh_from_db()
         self.assertTrue(self.thread.is_archived)
+
+    def test_authentication_failure_is_not_treated_as_a_transaction_race(
+        self,
+    ) -> None:
+        self.client.force_login(self.borrower)
+
+        with patch(
+            "borrowd_messaging.views.get_authenticated_user",
+            side_effect=PermissionDenied,
+        ):
+            response = self.client.post(self.url)
+
+        self.assertEqual(response.status_code, 403)
+        self.thread.refresh_from_db()
+        self.assertFalse(self.thread.is_archived)
 
     def test_closing_posts_the_notice(self) -> None:
         self.client.force_login(self.borrower)

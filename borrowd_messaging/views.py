@@ -189,10 +189,9 @@ class ChatThreadCloseView(
 
     def post(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
         chat_thread = self.get_object()
+        closed_by = get_authenticated_user(request)
         try:
-            MessagingService.close_prerequest_thread(
-                chat_thread, get_authenticated_user(request)
-            )
+            MessagingService.close_prerequest_thread(chat_thread, closed_by)
         except ThreadNotWritable:
             # Both parties hit close, or the transaction archived the thread first.
             messages.info(request, "This conversation is already closed.")
