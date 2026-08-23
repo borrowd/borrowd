@@ -96,7 +96,6 @@ class ChatThreadDetailView(
         ).order_by("id")
         context["message_body_max_length"] = MESSAGE_BODY_MAX_LENGTH
         transaction = chat_thread.transaction
-        # to show a disputed badge or some other visual
         context["is_disputed"] = (
             transaction is not None and transaction.status == TransactionStatus.DISPUTED
         )
@@ -184,6 +183,12 @@ class ChatThreadPollView(
         if not newer and not chat_thread.is_archived:
             return HttpResponse(status=204)
 
+        # The transaction state may have changed after the permission lookup.
+        is_disputed = ChatThread.objects.filter(
+            pk=chat_thread.pk,
+            transaction__status=TransactionStatus.DISPUTED,
+        ).exists()
+
         # An archived thread is finished; nobody can write to it again, so hand
         # over whatever the reader is missing and shut the poller down.
         # 286 swaps the body one last time and then cancels polling.
@@ -196,6 +201,7 @@ class ChatThreadPollView(
             {
                 "chat_thread": chat_thread,
                 "chat_messages": newer,
+                "is_disputed": is_disputed,
                 "viewer": get_authenticated_user(request),
             },
             status=286 if chat_thread.is_archived else 200,

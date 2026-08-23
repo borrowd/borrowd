@@ -6,7 +6,7 @@ from django.test import override_settings
 from django.urls import reverse
 from django.utils import timezone
 
-from borrowd_items.models import TransactionStatus
+from borrowd_items.models import Transaction, TransactionStatus
 from borrowd_messaging.models import (
     MESSAGE_BODY_MAX_LENGTH,
     ArchiveReason,
@@ -292,6 +292,13 @@ class ChatThreadPollViewTests(MessagingTestCase):
     def send(self, sender: BorrowdUser, body: str) -> Message:
         return Message.objects.create(thread=self.thread, sender=sender, body=body)
 
+    def dispute(self) -> Transaction:
+        transaction = self.make_transaction()
+        transaction.status = TransactionStatus.DISPUTED
+        transaction.save()
+        self.thread.refresh_from_db()
+        return transaction
+
     def test_nothing_new_returns_204(self) -> None:
         latest = self.send(self.borrower, "Free Saturday?")
         self.client.force_login(self.borrower)
@@ -338,6 +345,37 @@ class ChatThreadPollViewTests(MessagingTestCase):
 
         # The borrower is reading the lender's message, so it sits on the left.
         self.assertContains(self.client.get(self.url, {"after": 0}), "chat-start")
+
+    def test_poll_adds_the_dispute_badge(self) -> None:
+        seen = self.send(self.borrower, "Free Saturday?")
+        self.dispute()
+        self.client.force_login(self.borrower)
+
+        response = self.client.get(self.url, {"after": seen.pk})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Disputed")
+        self.assertContains(response, 'id="chat-dispute-indicator"')
+        self.assertContains(response, 'hx-swap-oob="true"')
+
+    def test_final_poll_removes_the_dispute_badge(self) -> None:
+        transaction = self.dispute()
+        dispute_notice = Message.objects.filter(thread=self.thread).latest("pk")
+        transaction.status = TransactionStatus.RETURNED
+        transaction.save()
+        self.thread.refresh_from_db()
+        self.client.force_login(self.borrower)
+
+        response = self.client.get(self.url, {"after": dispute_notice.pk})
+
+        self.assertEqual(response.status_code, 286)
+        self.assertContains(
+            response,
+            '<div id="chat-dispute-indicator" hx-swap-oob="true"></div>',
+            html=True,
+            status_code=286,
+        )
+        self.assertNotContains(response, "Disputed", status_code=286)
 
     def test_archiving_delivers_notice_replaces_composer_and_stops_poller(
         self,
@@ -430,7 +468,7 @@ class ArchivedThreadReadOnlyTests(MessagingTestCase):
             response, reverse("chat-thread-close", args=[self.thread.pk])
         )
 
-    def test_active_poll_leaves_the_box_alone(self) -> None:
+    def test_active_poll_leaves_the_composer_alone(self) -> None:
         seen = Message.objects.create(
             thread=self.thread, sender=self.borrower, body="Free Saturday?"
         )
@@ -444,7 +482,7 @@ class ArchivedThreadReadOnlyTests(MessagingTestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertNotContains(response, "hx-swap-oob")
+        self.assertNotContains(response, 'id="chat-composer"')
 
 
 @override_settings(MESSAGING_ENABLED=True)

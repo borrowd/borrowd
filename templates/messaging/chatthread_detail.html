@@ -4,8 +4,6 @@
     Conversation
 {% endblock %}
 {% block content %}
-    {% load heroicons %}
-
     <div class="w-full max-w-3xl self-start px-4"
          x-init="$nextTick(() => requestAnimationFrame(() => window.scrollTo(0, document.documentElement.scrollHeight)))">
         <div class="sticky top-16 z-30 -mx-4 bg-base-200 px-4 pb-3">
@@ -20,12 +18,8 @@
                 {{ other_party.profile.full_name }}
             </p>
 
-            {% if is_disputed %}
-                <p class="badge badge-warning mt-2 gap-1">
-                    {% heroicon_outline "exclamation-triangle" class="size-4" %}
-                    Disputed
-                </p>
-            {% endif %}
+            {% include "messaging/_dispute_badge.html" %}
+
         </div>
 
         <ul id="chat-messages" class="mt-4 flex flex-col gap-1">

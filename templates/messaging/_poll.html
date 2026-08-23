@@ -1,8 +1,9 @@
-{# The poll endpoint's (ChatThreadPollView) response:
-    first append unseen messages,
-then replace the composer out of band if the thread became archived. #}
+{# The poll endpoint's (ChatThreadPollView) response appends unseen messages,
+refreshes the dispute badge, and replaces the composer if the thread became archived. #}
 
 {% include "messaging/_messages.html" with chat_messages=chat_messages viewer=viewer %}
+
+{% include "messaging/_dispute_badge.html" with oob=True %}
 
 {% if chat_thread.is_archived %}
     {% include "messaging/_composer_archived.html" with oob=True %}
