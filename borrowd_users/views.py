@@ -196,6 +196,24 @@ def profile_view(request: HttpRequest) -> HttpResponse:
     )
     profile_context["vapid_public_key"] = settings.VAPID_PUBLIC_KEY
 
+    # Profile is a common redirect target after form submissions (password
+    # change, profile edit itself), so its back arrow can't just call
+    # history.back() -- that would send the user right back to the form they
+    # just submitted. See #469.
+    allowed_back_button_targets = {
+        "item-list",
+        "item-detail",
+        "group-list",
+        "group-detail",
+        "profile-inventory",
+        "index",
+    }
+    profile_context["back_url"] = resolve_back_url(
+        request,
+        fallback_url=reverse("index"),
+        allowed_url_names=allowed_back_button_targets,
+    )
+
     return render(
         request,
         "users/profile.html",
