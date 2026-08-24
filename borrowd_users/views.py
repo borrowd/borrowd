@@ -262,11 +262,14 @@ def upload_profile_photo_view(request: HttpRequest) -> JsonResponse:
         message = next(iter(form.errors.get("image", [])), "Invalid image.")
         return JsonResponse({"success": False, "message": message}, status=400)
 
-    if profile.image:
-        profile.image.delete(save=False)
+    # Assign and save the new image first, then let django-cleanup remove the
+    # old file once the save succeeds. Deleting the old file up front would
+    # leave the user with no photo at all if the save subsequently failed
+    # (e.g. ProcessedImageField's resize/re-encode step raising on a file
+    # that passed the lighter form-level validation).
     profile.image = form.cleaned_data["image"]
     profile.updated_by = user
-    profile.save()
+    profile.save(update_fields=["image", "updated_by", "updated_at"])
 
     return JsonResponse(
         {

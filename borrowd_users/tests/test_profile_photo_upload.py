@@ -9,6 +9,7 @@ Covers:
 
 from io import BytesIO
 
+from django.core.files.storage import default_storage
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
@@ -70,6 +71,24 @@ class UploadProfilePhotoViewTests(TestCase):
         self.user.profile.refresh_from_db()
         self.assertNotEqual(self.user.profile.image.name, first_image_name)
 
+    def test_upload_replaces_existing_image_removes_old_file_from_storage(
+        self,
+    ) -> None:
+        self.client.force_login(self.user)
+        self.client.post(self.url, {"image": create_test_image(filename="first.jpg")})
+        self.user.profile.refresh_from_db()
+        first_image_name = self.user.profile.image.name
+
+        # django-cleanup removes the replaced file via transaction.on_commit,
+        # which TestCase's wrapping transaction never fires on its own.
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post(
+                self.url, {"image": create_test_image(filename="second.jpg")}
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(default_storage.exists(first_image_name))
+
     def test_upload_rejects_disallowed_extension(self) -> None:
         self.client.force_login(self.user)
         bad_file = SimpleUploadedFile(
@@ -77,6 +96,22 @@ class UploadProfilePhotoViewTests(TestCase):
         )
 
         response = self.client.post(self.url, {"image": bad_file})
+
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(response.json()["success"])
+        self.user.profile.refresh_from_db()
+        self.assertFalse(self.user.profile.image)
+
+    def test_upload_rejects_non_image_content_with_allowed_extension(self) -> None:
+        """A file whose name carries an allowed extension but isn't actually
+        an image (e.g. renamed/corrupted) must still be rejected -- the
+        extension allowlist alone doesn't validate file content."""
+        self.client.force_login(self.user)
+        spoofed_file = SimpleUploadedFile(
+            "photo.jpg", b"not actually an image", content_type="image/jpeg"
+        )
+
+        response = self.client.post(self.url, {"image": spoofed_file})
 
         self.assertEqual(response.status_code, 400)
         self.assertFalse(response.json()["success"])
