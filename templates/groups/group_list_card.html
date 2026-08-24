@@ -46,6 +46,12 @@
 
                         {% if membership.status == "PENDING" %}
                             <span class="inline-block badge badge-warning badge-soft text-xs px-2 py-1 rounded font-semibold">Pending</span>
+                            <form method="post"
+                                  action="{% url 'borrowd_groups:cancel-membership-request' membership.group.pk %}"
+                                  onsubmit="return confirm('Cancel your request to join {{ membership.group.name|escapejs }}?');">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-ghost btn-xs text-yellow-700">Cancel</button>
+                            </form>
                         {% endif %}
                     </div>
                 </div>
@@ -64,7 +70,7 @@
                     </span>
                 {% endif %}
 
-                {% if membership.group.needs_moderator and not membership.is_moderator and membership.status == "ACTIVE" %}
+                {% if membership.group_needs_moderator and not membership.is_moderator and membership.status == "ACTIVE" %}
                     <span class="inline-flex items-center justify-center w-5 h-5 shrink-0 text-warning"
                           title="This group needs a moderator"
                           aria-label="This group needs a moderator"
@@ -81,9 +87,7 @@
             <img src="{% static 'groups/Groups_2.PNG' %}"
                  alt="Create a group"
                  class="w-72 h-auto" />
-            <p class="text-base text-base-content text-center leading-normal">
-                Add a group to start sharing and borrowing items
-            </p>
+            <p class="text-base text-base-content text-center leading-normal">Add a group to start sharing and borrowing items</p>
             <c-button-nav url="{% url 'borrowd_groups:group-create' %}"
                           class="btn btn-primary btn-lg">
                 Create a group

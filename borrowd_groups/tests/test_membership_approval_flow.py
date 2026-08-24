@@ -210,3 +210,97 @@ class MembershipApprovalFlowTests(TestCase):
 
         self.assertEqual(member_response.status_code, 200)
         self.assertNotIn("pending_members", member_response.context)
+
+
+class CancelMembershipRequestTests(TestCase):
+    def setUp(self) -> None:
+        self.moderator = BorrowdUser.objects.create_user(
+            username="cancel_moderator", password="password"
+        )
+        self.requester = BorrowdUser.objects.create_user(
+            username="cancel_requester", password="password"
+        )
+        self.group = BorrowdGroup.objects.create(
+            name="Cancel Group",
+            created_by=self.moderator,
+            updated_by=self.moderator,
+            membership_requires_approval=True,
+        )
+
+    def _cancel_url(self) -> str:
+        return reverse("borrowd_groups:cancel-membership-request", args=[self.group.pk])
+
+    def test_requester_can_cancel_their_own_pending_request(self) -> None:
+        membership = self.group.add_user(self.requester)
+        self.assertEqual(membership.status, MembershipStatus.PENDING)
+
+        self.client.force_login(self.requester)
+        response = self.client.post(self._cancel_url(), follow=True)
+
+        self.assertRedirects(response, reverse("borrowd_groups:group-list"))
+        self.assertFalse(Membership.objects.filter(pk=membership.pk).exists())
+        messages_list = [str(m) for m in response.context["messages"]]
+        self.assertIn("Your request has been cancelled.", messages_list)
+
+    def test_cancelling_does_not_affect_other_pending_requesters(self) -> None:
+        other_requester = BorrowdUser.objects.create_user(
+            username="cancel_other_requester", password="password"
+        )
+        membership = self.group.add_user(self.requester)
+        other_membership = self.group.add_user(other_requester)
+
+        self.client.force_login(self.requester)
+        self.client.post(self._cancel_url())
+
+        self.assertFalse(Membership.objects.filter(pk=membership.pk).exists())
+        other_membership.refresh_from_db()
+        self.assertEqual(other_membership.status, MembershipStatus.PENDING)
+
+    def test_cancel_requires_login(self) -> None:
+        self.group.add_user(self.requester)
+
+        response = self.client.post(self._cancel_url())
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(reverse("account_login"), response["Location"])
+
+    def test_cancel_404s_for_a_nonexistent_group(self) -> None:
+        self.client.force_login(self.requester)
+
+        response = self.client.post(
+            reverse("borrowd_groups:cancel-membership-request", args=[999999])
+        )
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_user_without_a_pending_request_gets_an_error_message(self) -> None:
+        self.client.force_login(self.requester)
+
+        response = self.client.post(self._cancel_url(), follow=True)
+
+        self.assertRedirects(response, reverse("borrowd_groups:group-list"))
+        messages_list = [str(m) for m in response.context["messages"]]
+        self.assertIn("You don't have a pending request for this group.", messages_list)
+
+    def test_active_member_cannot_cancel_their_active_membership_via_this_view(
+        self,
+    ) -> None:
+        active_member = BorrowdUser.objects.create_user(
+            username="cancel_active_member", password="password"
+        )
+        BorrowdGroup.objects.filter(pk=self.group.pk).update(
+            membership_requires_approval=False
+        )
+        self.group.refresh_from_db()
+        membership = self.group.add_user(active_member)
+        self.assertEqual(membership.status, MembershipStatus.ACTIVE)
+
+        self.client.force_login(active_member)
+        response = self.client.post(
+            reverse("borrowd_groups:cancel-membership-request", args=[self.group.pk]),
+            follow=True,
+        )
+
+        messages_list = [str(m) for m in response.context["messages"]]
+        self.assertIn("You don't have a pending request for this group.", messages_list)
+        self.assertTrue(Membership.objects.filter(pk=membership.pk).exists())
