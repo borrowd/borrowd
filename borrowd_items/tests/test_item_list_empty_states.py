@@ -34,13 +34,13 @@ class ItemListEmptyStateTests(TestCase):
         self.assertContains(
             response,
             "We couldn't find any Cordless drill. Would you like to make a "
-            "Community Request?",
+            "community request?",
         )
         expected_link = (
             f"{reverse('community-request-create')}?item_name={quote('Cordless drill')}"
         )
         self.assertContains(response, expected_link)
-        self.assertContains(response, "Request Item")
+        self.assertContains(response, "Request item")
 
     def test_zero_result_search_with_groups_url_encodes_special_characters(
         self,
@@ -74,8 +74,8 @@ class ItemListEmptyStateTests(TestCase):
         response = self.client.get(reverse("item-list"), {"search": "Cordless drill"})
 
         self.assertContains(response, "We couldn't find any Cordless drill.")
-        self.assertNotContains(response, "Community Request")
-        self.assertNotContains(response, "Request Item")
+        self.assertNotContains(response, "community request")
+        self.assertNotContains(response, "Request item")
         self.assertNotContains(response, reverse("community-request-create"))
 
     def test_no_search_and_no_items_shows_add_item_empty_state(self) -> None:

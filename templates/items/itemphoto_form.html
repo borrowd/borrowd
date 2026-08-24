@@ -11,7 +11,7 @@ Upload
 %}
 Edit
 {% endif %}
-Photo
+photo
 {% endblock %}
 
 {% block items_content %}
@@ -22,7 +22,7 @@ Upload
 {% else %}
 Edit
 {% endif %}
-Photo
+photo
 </c-h1>
 <form method="post" enctype="multipart/form-data" class="flex flex-col space-y-2" onsubmit="this.querySelector('button[type=submit]').disabled = true">
 {% csrf_token %}

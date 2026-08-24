@@ -2,7 +2,7 @@
     <button type="button"
             @click="selectAll()"
             :class="shareWithAll ? 'badge badge-neutral font-medium text-sm leading-6 cursor-pointer p-3' : 'badge badge-soft font-medium text-sm leading-6 cursor-pointer p-3'">
-        All Groups
+        All groups
     </button>
     <template x-for="group in groups" :key="group.id">
         <button type="button"
