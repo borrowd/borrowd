@@ -123,22 +123,33 @@ class PrecomputedItemState:
     requesting_user: Optional[BorrowdUser]
     current_transaction: Optional["Transaction"]
     has_active_subscription: bool = False
+    # Every non-terminal Transaction the caller loaded for this item, so
+    # current_transaction_for_user() can tell "not this user's transaction"
+    # apart from "more than one transaction matched this user".
+    candidate_transactions: tuple["Transaction", ...] = ()
 
     def current_transaction_for_user(
         self, user: BorrowdUser
     ) -> Optional["Transaction"]:
         """
-        Returns current_transaction if the given user is a party to it,
-        mirroring what Item.get_current_transaction_for_user() would query.
+        Returns the non-terminal Transaction on this item that the given
+        user is a party to, mirroring Item.get_current_transaction_for_user().
+
+        Raises Transaction.MultipleObjectsReturned if more than one matches,
+        for the same reason get_current_transaction_for_user() does: there
+        should only ever be one.
         """
-        if self.current_transaction is None:
-            return None
-        if (
-            self.current_transaction.party1_id == user.id
-            or self.current_transaction.party2_id == user.id
-        ):
-            return self.current_transaction
-        return None
+        matches = [
+            transaction
+            for transaction in self.candidate_transactions
+            if transaction.party1_id == user.id or transaction.party2_id == user.id
+        ]
+        if len(matches) > 1:
+            raise Transaction.MultipleObjectsReturned(
+                "current_transaction_for_user() matched more than one "
+                "non-terminal Transaction for this item and user."
+            )
+        return matches[0] if matches else None
 
 
 class ItemCategory(Model):
@@ -295,6 +306,25 @@ class Item(Model):
             current_borrower = self.get_current_borrower()
             requesting_user = self.get_requesting_user()
             current_tx = self.get_current_transaction_for_user(user)
+            needs_subscription_state = self.owner_id != user.id and (
+                current_tx is not None or self.status != ItemStatus.AVAILABLE
+            )
+            has_active_subscription = (
+                AvailabilitySubscription.objects.filter(
+                    item=self,
+                    user=user,
+                    status=AvailabilitySubscriptionStatus.ACTIVE,
+                ).exists()
+                if needs_subscription_state
+                else False
+            )
+            precomputed = PrecomputedItemState(
+                current_borrower=current_borrower,
+                requesting_user=requesting_user,
+                current_transaction=current_tx,
+                has_active_subscription=has_active_subscription,
+                candidate_transactions=(current_tx,) if current_tx is not None else (),
+            )
         actions = self.get_actions_for(user, precomputed=precomputed)
 
         # Generate status text based on user role and current actions/status
@@ -1130,6 +1160,9 @@ class ItemPhoto(Model):
         related_name="+",
         help_text="Who performed the soft-delete. NULL means active or unknown.",
     )
+
+    class Meta:
+        ordering = ["pk"]
 
     def __str__(self) -> str:
         # error: "_ST" has no attribute "name"  [attr-defined]

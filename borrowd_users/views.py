@@ -24,6 +24,7 @@ from django.views.generic import CreateView
 from borrowd.util import resolve_back_url
 from borrowd_groups.models import Membership
 from borrowd_items.card_helpers import (
+    active_subscription_item_ids,
     build_item_cards_for_items,
     build_item_cards_for_transactions,
     with_card_relations,
@@ -286,21 +287,55 @@ def inventory_view(request: HttpRequest) -> HttpResponse:
         Item.objects.filter(owner=user, status=ItemStatus.AVAILABLE)
     )
 
+    incoming_borrow_requests_list = list(incoming_borrow_requests)
+    outgoing_borrow_requests_list = list(outgoing_borrow_requests)
+    owned_items_lent_list = list(owned_items_lent)
+    borrowed_items_from_others_list = list(borrowed_items_from_others)
+    owned_items_available_list = list(owned_items_available)
+
+    # One subscription lookup covering every section's items, instead of
+    # each section querying it separately.
+    subscription_item_ids = active_subscription_item_ids(
+        [
+            transaction.item_id
+            for transaction in (
+                incoming_borrow_requests_list
+                + outgoing_borrow_requests_list
+                + owned_items_lent_list
+                + borrowed_items_from_others_list
+            )
+        ]
+        + [item.pk for item in owned_items_available_list],
+        user,
+    )
+
     # Build card context
     incoming_borrow_requests_cards = build_item_cards_for_transactions(
-        list(incoming_borrow_requests), user, "incoming-borrow-requests"
+        incoming_borrow_requests_list,
+        user,
+        "incoming-borrow-requests",
+        subscription_item_ids,
     )
     outgoing_borrow_requests_cards = build_item_cards_for_transactions(
-        list(outgoing_borrow_requests), user, "outgoing-borrow-requests"
+        outgoing_borrow_requests_list,
+        user,
+        "outgoing-borrow-requests",
+        subscription_item_ids,
     )
     owned_items_lent_cards = build_item_cards_for_transactions(
-        list(owned_items_lent), user, "owned-items-lent"
+        owned_items_lent_list, user, "owned-items-lent", subscription_item_ids
     )
     borrowed_items_from_others_cards = build_item_cards_for_transactions(
-        list(borrowed_items_from_others), user, "borrowed-items-from-others"
+        borrowed_items_from_others_list,
+        user,
+        "borrowed-items-from-others",
+        subscription_item_ids,
     )
     owned_items_available_cards = build_item_cards_for_items(
-        list(owned_items_available), user, "owned-items-available"
+        owned_items_available_list,
+        user,
+        "owned-items-available",
+        subscription_item_ids,
     )
 
     # Toggle empty states: "Your Items" shows owned sections, "All Items" adds borrowing activity

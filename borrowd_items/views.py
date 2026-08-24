@@ -262,8 +262,6 @@ class ItemDetailView(
         context = super().get_context_data(**kwargs)
         user = get_authenticated_user(self.request)
 
-        action_context = self.object.get_action_context_for(user=user)
-
         """
         build_item_card_context() returns the full template context for item
         cards, including ownership (is_yours), banner styling, action data, etc.
@@ -273,10 +271,12 @@ class ItemDetailView(
         also rely on this helper through `build_item_cards_for_items` and
         `build_item_cards_for_transactions`, so make sure to check those for
         compatability when updating the context helper.
+
+        Leaving action_context/precomputed unset here lets build_item_card_context
+        derive both from one shared state, instead of the detail page deriving
+        action context itself and forcing the banner to re-derive it separately.
         """
-        context = build_item_card_context(
-            self.object, user, "item-details", action_context
-        )
+        context = build_item_card_context(self.object, user, "item-details")
 
         # URL names (see urls.py) that are valid back-button targets
         allowed_back_button_targets = {
