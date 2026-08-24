@@ -336,6 +336,33 @@ class ChatThreadSendViewTests(MessagingTestCase):
 
 
 @override_settings(MESSAGING_ENABLED=True)
+class ChatThreadActivePageTests(MessagingTestCase):
+    def setUp(self) -> None:
+        super().setUp()
+        self.thread = self.make_thread()
+        self.url = reverse("chat-thread-detail", args=[self.thread.pk])
+
+    def test_active_prerequest_page_has_composer_poller_and_close_action(self) -> None:
+        self.client.force_login(self.borrower)
+
+        response = self.client.get(self.url)
+
+        self.assertContains(response, 'name="body"')
+        self.assertContains(
+            response, reverse("chat-thread-poll", args=[self.thread.pk])
+        )
+        self.assertContains(response, 'hx-trigger="every 4s"')
+        self.assertContains(
+            response,
+            reverse("chat-thread-pre-request-close", args=[self.thread.pk]),
+        )
+        self.assertContains(
+            response, "onclick=\"showModal('close-conversation-modal')\""
+        )
+        self.assertContains(response, 'id="close-conversation-modal"')
+
+
+@override_settings(MESSAGING_ENABLED=True)
 class ChatThreadPollViewTests(MessagingTestCase):
     def setUp(self) -> None:
         super().setUp()
