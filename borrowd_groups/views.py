@@ -635,6 +635,35 @@ class DenyMemberView(LoginRequiredMixin, View):
         return redirect("borrowd_groups:group-detail", pk=membership.group.pk)
 
 
+class CancelMembershipRequestView(LoginRequiredMixin, View):
+    """
+    Allows a user to cancel their own PENDING request to join a group.
+
+    A PENDING membership grants no group permissions (see
+    refresh_permissions_on_membership_update), so the requester can't reach
+    GroupDetailView / LeaveGroupView to back out -- this is their only way
+    to withdraw a request awaiting moderator approval.
+    """
+
+    def post(
+        self, request: HttpRequest, pk: int
+    ) -> HttpResponsePermanentRedirect | HttpResponseRedirect:
+        group = get_object_or_404(BorrowdGroup, pk=pk)
+        user = get_authenticated_user(request)
+
+        membership = Membership.objects.filter(
+            user=user, group=group, status=MembershipStatus.PENDING
+        ).first()
+
+        if membership is None:
+            messages.error(request, "You don't have a pending request for this group.")
+            return redirect("borrowd_groups:group-list")
+
+        membership.delete()
+        messages.success(request, "Your request has been cancelled.")
+        return redirect("borrowd_groups:group-list")
+
+
 class LeaveGroupView(LoginRequiredMixin, View):
     """
     Allow a group member to leave a group.
