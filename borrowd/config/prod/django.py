@@ -10,6 +10,10 @@ from ..env import env
 
 DEBUG = False
 
+# HTTPS is the only way in (platform.sh's router), so it's safe to mark
+# every cookie Secure-only — see https://github.com/borrowd/borrowd/issues/374
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
 # Platform.sh terminates TLS at its router and forwards to gunicorn over
 # plain HTTP, setting X-Forwarded-Proto — without this, request.is_secure()
 # is always False, which makes Django's CSRF Origin check compute
