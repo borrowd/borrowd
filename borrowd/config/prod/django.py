@@ -14,6 +14,11 @@ DEBUG = False
 # every cookie Secure-only — see https://github.com/borrowd/borrowd/issues/374
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
+# Platform.sh terminates TLS at its router and forwards to gunicorn over
+# plain HTTP, setting X-Forwarded-Proto — without this, request.is_secure()
+# is always False, which makes Django's CSRF Origin check compute
+# "http://..." as the expected origin and reject every real HTTPS POST.
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 # Beta settings
 BETA_COOKIE_DOMAIN = "app.borrowd.org"
