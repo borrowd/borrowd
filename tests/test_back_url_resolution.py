@@ -12,7 +12,7 @@ from borrowd.util import resolve_back_url
 # URLs that are OK for the Referer to point at
 # i.e. real pages that users might actually be coming from,
 # not forms or POST endpoints that would be weird to land back on.
-_ITEM_DETAIL_ALLOWED_BACK_URL_NAMES = {
+_ALLOWED_BACK_URL_NAMES = {
     "item-list",
     "item-detail",
     "profile-inventory",
@@ -31,7 +31,7 @@ class ResolveBackUrlTests(TestCase):
         return resolve_back_url(
             request,
             fallback_url=_TEST_FALLBACK_URL,
-            allowed_url_names=_ITEM_DETAIL_ALLOWED_BACK_URL_NAMES,
+            allowed_url_names=_ALLOWED_BACK_URL_NAMES,
         )
 
     # -- 1. `?next=` --------------------------------------------

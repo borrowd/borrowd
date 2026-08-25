@@ -15,7 +15,11 @@ from django.views.generic import CreateView, DeleteView, DetailView, UpdateView
 from django_filters.views import FilterView
 from guardian.mixins import LoginRequiredMixin
 
-from borrowd.util import BorrowdTemplateFinderMixin, resolve_back_url
+from borrowd.util import (
+    BROWSABLE_BACK_TARGETS,
+    BorrowdTemplateFinderMixin,
+    resolve_back_url,
+)
 from borrowd_community_requests.exceptions import CannotActOnOwnRequestException
 from borrowd_community_requests.models import CommunityRequest
 from borrowd_groups.models import Membership, MembershipStatus
@@ -331,17 +335,11 @@ class ItemDetailView(
             self.object, user, "item-details", action_context
         )
 
-        # URL names (see urls.py) that are valid back-button targets
-        allowed_back_button_targets = {
-            "item-list",
-            "profile-inventory",
-        }
-
         # Back arrow target. depends on how the user got here.
         context["back_url"] = resolve_back_url(
             self.request,
             fallback_url=reverse("item-list"),
-            allowed_url_names=allowed_back_button_targets,
+            allowed_url_names=BROWSABLE_BACK_TARGETS,
         )
 
         return context
