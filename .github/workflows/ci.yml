@@ -104,7 +104,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     continue-on-error: true
-    if: ${{ !inputs.skip_e2e }}
+    # E2E runs on manual dispatch only: run the workflow and untick "Skip E2E
+    # tests". `inputs` is empty on pull_request/push, so the event check is
+    # what keeps this job -- and the Allure jobs that need it -- off automatic
+    # runs.
+    if: ${{ github.event_name == 'workflow_dispatch' && !inputs.skip_e2e }}
     defaults:
       run:
         working-directory: e2e_tests
