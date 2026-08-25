@@ -10,15 +10,18 @@
  * unresized file if anything about the resize fails; upload should never be
  * blocked by this step.
  */
-window.resizeImageFile = async function resizeImageFile(
-  file,
-  maxWidth,
-  maxHeight,
-  quality = 0.85,
-) {
+/**
+ * Aspect-ratio-preserving scale factor to fit sourceWidth x sourceHeight
+ * within maxWidth x maxHeight, never upscaling (result is always <= 1).
+ */
+function computeFitScale(sourceWidth, sourceHeight, maxWidth, maxHeight) {
+  return Math.min(1, maxWidth / sourceWidth, maxHeight / sourceHeight);
+}
+
+async function resizeImageFile(file, maxWidth, maxHeight, quality = 0.85) {
   try {
     const bitmap = await createImageBitmap(file);
-    const scale = Math.min(1, maxWidth / bitmap.width, maxHeight / bitmap.height);
+    const scale = computeFitScale(bitmap.width, bitmap.height, maxWidth, maxHeight);
 
     if (scale >= 1) {
       bitmap.close();
@@ -32,6 +35,11 @@ window.resizeImageFile = async function resizeImageFile(
     canvas.width = targetWidth;
     canvas.height = targetHeight;
     const ctx = canvas.getContext('2d');
+    // JPEG has no alpha channel. Without an explicit fill, canvas composites
+    // transparent source pixels onto black, silently blackening any
+    // transparent background (e.g. a logo-style PNG) before upload.
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, targetWidth, targetHeight);
     ctx.drawImage(bitmap, 0, 0, targetWidth, targetHeight);
     bitmap.close();
 
@@ -48,4 +56,15 @@ window.resizeImageFile = async function resizeImageFile(
     console.warn('resizeImageFile: falling back to original file', err);
     return file;
   }
-};
+}
+
+if (typeof window !== 'undefined') {
+  window.resizeImageFile = resizeImageFile;
+}
+
+// Exposes the pure, DOM-free math to Node's built-in test runner
+// (static/js/image-resize.test.js) without affecting the browser bundle --
+// `module` is undefined there.
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = { computeFitScale };
+}
