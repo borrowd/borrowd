@@ -252,11 +252,7 @@ class ChatThreadListView(
     LoginRequiredMixin,
     ListView[ChatThread],
 ):
-    """
-    Every conversation this user is part of, newest first.
-    Deliberately bare bones.
-    TODO: update in future pr per #536
-    """
+    """List every conversation the user participates in, newest activity first."""
 
     template_name = "messaging/chatthread_list.html"
     context_object_name = "chat_threads"
