@@ -35,16 +35,26 @@ traffic far below this cap, it can be set purely based on what the deployment
 can survive, without worrying about rejecting legitimate photos.
 
 **Pillow-level hardening** (`borrowd/config/base.py`) sets
-`Image.MAX_IMAGE_PIXELS` to the same value as `MAX_IMAGE_PIXELS` and converts
-Pillow's decompression-bomb warning into a hard error. This is what protects
-paths that skip our form validators entirely -- notably Django admin, since
-`BorrowdGroup`, `Profile`, and `Item`/`ItemPhoto` are all registered with
-plain `admin.site.register(...)` (no custom form). The `banner` and `logo`
-model fields also carry `FileExtensionValidator` and `validate_image_size`
-directly (`borrowd_groups/models.py`), so admin uploads get the same
-extension/size checks as the normal form path. `logo` has no form field, view,
-or template upload control anywhere in the app today -- the only way to set
-it is admin or a shell/fixture -- so this is currently its only protection.
+`Image.MAX_IMAGE_PIXELS` to `PILLOW_HARD_LIMIT_PIXELS` (4x `MAX_IMAGE_PIXELS`,
+i.e. 32 megapixels) and converts Pillow's decompression-bomb warning into a
+hard error. This is what protects paths that skip our form validators
+entirely -- notably Django admin, since `BorrowdGroup`, `Profile`, and
+`Item`/`ItemPhoto` are all registered with plain `admin.site.register(...)`
+(no custom form). It's deliberately looser than `MAX_IMAGE_PIXELS`: Pillow's
+own decompression-bomb check runs the moment `Image.open()` parses the
+header, so if this global matched `MAX_IMAGE_PIXELS` exactly, it would fire
+*before* `validate_image_dimensions` ever got to read the image's
+dimensions and raise its own clean error -- making the function's real
+behavior secretly depend on this global setting rather than enforcing its
+cap on its own. Keeping the two decoupled means `validate_image_dimensions`
+still works correctly even if this settings patch is ever changed or
+removed; the Pillow-level setting exists purely as a coarser backstop for
+paths that skip that function entirely. The `banner` and `logo` model fields
+also carry `FileExtensionValidator` and `validate_image_size` directly
+(`borrowd_groups/models.py`), so admin uploads get the same extension/size
+checks as the normal form path. `logo` has no form field, view, or template
+upload control anywhere in the app today -- the only way to set it is admin
+or a shell/fixture -- so this is currently its only protection.
 
 ## How MAX_IMAGE_MEGAPIXELS (8) was derived
 
@@ -85,8 +95,9 @@ redo the math above with fresh numbers:
    container on this plan -- `/sys/fs/cgroup` and `/proc/meminfo` reflect the
    shared host, not the container's allocation).
 3. Update `MAX_IMAGE_MEGAPIXELS` in `borrowd/validators.py` -- it's the single
-   source of truth; the Pillow hardening in `borrowd/config/base.py` reads it
-   directly.
+   source of truth; `PILLOW_HARD_LIMIT_PIXELS` (the looser backstop the
+   Pillow hardening in `borrowd/config/base.py` actually reads) is derived
+   from it automatically.
 
 ## What this doesn't cover
 

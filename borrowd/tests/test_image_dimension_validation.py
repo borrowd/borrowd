@@ -2,10 +2,13 @@
 Tests for pixel-dimension validation and its Pillow-level backstop.
 
 Covers:
-- validate_image_dimensions function
+- validate_image_dimensions function, and that it's self-contained (doesn't
+  depend on the global Pillow hardening in settings to actually enforce
+  MAX_IMAGE_PIXELS)
 - Why a byte-size cap alone can't bound decode memory (decompression-bomb-shaped image)
 - The global Pillow hardening in settings, which protects paths that skip our
-  form validators entirely (e.g. Django admin)
+  form validators entirely (e.g. Django admin), at a deliberately looser
+  threshold than MAX_IMAGE_PIXELS
 """
 
 from io import BytesIO
@@ -18,6 +21,7 @@ from PIL import Image
 from borrowd.validators import (
     MAX_IMAGE_PIXELS,
     MAX_PHOTO_SIZE_BYTES,
+    PILLOW_HARD_LIMIT_PIXELS,
     validate_image_dimensions,
 )
 
@@ -64,6 +68,43 @@ class ValidateImageDimensionsFunctionTests(TestCase):
         with self.assertRaises(forms.ValidationError):
             validate_image_dimensions(uploaded_file)
 
+    def test_image_between_our_cap_and_pillow_backstop_raises_via_own_comparison(
+        self,
+    ) -> None:
+        """An image too large for MAX_IMAGE_PIXELS but still under Pillow's own
+        (looser) global threshold must still be rejected -- proving this
+        function's own comparison catches it, not Pillow's internal check."""
+        width, height = 4000, 4000  # 16,000,000px: > MAX_IMAGE_PIXELS (8M),
+        # comfortably under PILLOW_HARD_LIMIT_PIXELS (32M) and its 2x warning
+        # zone, so Pillow's own check does not fire here.
+        self.assertGreater(width * height, MAX_IMAGE_PIXELS)
+        self.assertLess(width * height, PILLOW_HARD_LIMIT_PIXELS)
+        image_data = create_test_image(width=width, height=height)
+        uploaded_file = SimpleUploadedFile(
+            name="between.png", content=image_data.read(), content_type="image/png"
+        )
+
+        with self.assertRaises(forms.ValidationError):
+            validate_image_dimensions(uploaded_file)
+
+    def test_self_contained_even_if_global_pillow_patch_is_absent(self) -> None:
+        """Simulates the settings patch never having run (or being reverted)
+        to prove validate_image_dimensions still enforces MAX_IMAGE_PIXELS on
+        its own, rather than silently relying on the global setting."""
+        original_max_image_pixels = Image.MAX_IMAGE_PIXELS
+        Image.MAX_IMAGE_PIXELS = None  # Pillow's own "no limit" sentinel
+        try:
+            width, height = 2501, 3200  # just over MAX_IMAGE_PIXELS
+            image_data = create_test_image(width=width, height=height)
+            uploaded_file = SimpleUploadedFile(
+                name="over.png", content=image_data.read(), content_type="image/png"
+            )
+
+            with self.assertRaises(forms.ValidationError):
+                validate_image_dimensions(uploaded_file)
+        finally:
+            Image.MAX_IMAGE_PIXELS = original_max_image_pixels
+
     def test_decompression_bomb_shaped_image_raises_despite_small_file_size(
         self,
     ) -> None:
@@ -102,17 +143,24 @@ class PillowDecompressionBombHardeningTests(TestCase):
 
     These exercise Pillow directly, bypassing validate_image_dimensions
     entirely, to prove the backstop holds for paths that skip our form
-    validators (e.g. Django admin).
+    validators (e.g. Django admin). This threshold is deliberately looser
+    than MAX_IMAGE_PIXELS -- see PillowDecompressionBombHardeningTests vs.
+    ValidateImageDimensionsFunctionTests.test_image_between_our_cap_and_pillow_backstop_raises_via_own_comparison
+    for why the two are decoupled.
     """
 
-    def test_pillow_max_image_pixels_matches_our_cap(self) -> None:
-        self.assertEqual(Image.MAX_IMAGE_PIXELS, MAX_IMAGE_PIXELS)
+    def test_pillow_max_image_pixels_matches_our_backstop(self) -> None:
+        self.assertEqual(Image.MAX_IMAGE_PIXELS, PILLOW_HARD_LIMIT_PIXELS)
+
+    def test_pillow_backstop_is_looser_than_our_functional_cap(self) -> None:
+        self.assertGreater(PILLOW_HARD_LIMIT_PIXELS, MAX_IMAGE_PIXELS)
 
     def test_decompression_bomb_warning_is_raised_as_error(self) -> None:
-        """Pillow only warns (doesn't raise) between 1x and 2x MAX_IMAGE_PIXELS
-        by default; our settings convert that warning into a hard error."""
-        pixels_in_warning_zone = int(MAX_IMAGE_PIXELS * 1.5)
-        width = 4000
+        """Pillow only warns (doesn't raise) between 1x and 2x
+        PILLOW_HARD_LIMIT_PIXELS by default; our settings convert that
+        warning into a hard error."""
+        pixels_in_warning_zone = int(PILLOW_HARD_LIMIT_PIXELS * 1.5)
+        width = 6000
         height = pixels_in_warning_zone // width
         image_data = create_test_image(width=width, height=height)
 
@@ -122,10 +170,10 @@ class PillowDecompressionBombHardeningTests(TestCase):
     def test_decompression_bomb_over_double_cap_raises_error_unconditionally(
         self,
     ) -> None:
-        """Above 2x MAX_IMAGE_PIXELS, Pillow raises unconditionally regardless
-        of warning filters."""
-        pixels_over_double_cap = int(MAX_IMAGE_PIXELS * 2.5)
-        width = 4000
+        """Above 2x PILLOW_HARD_LIMIT_PIXELS, Pillow raises unconditionally
+        regardless of warning filters."""
+        pixels_over_double_cap = int(PILLOW_HARD_LIMIT_PIXELS * 2.5)
+        width = 6000
         height = pixels_over_double_cap // width
         image_data = create_test_image(width=width, height=height)
 
