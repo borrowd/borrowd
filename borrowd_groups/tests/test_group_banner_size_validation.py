@@ -131,6 +131,31 @@ class GroupImageModelFieldValidatorTests(TestCase):
             username="modelfieldowner", email="modelfieldowner@example.com"
         )
 
+    def test_valid_logo_passes_full_clean(self) -> None:
+        """Baseline: full_clean() succeeds for a valid logo once the
+        always-blank perms_group field (only populated by
+        BorrowdGroupManager.create_group(), not exercised here) is excluded.
+        Without this baseline, the "rejected" tests below could pass for the
+        wrong reason -- full_clean() raises for *any* instance built this way,
+        regardless of the image field, because perms_group is required."""
+        image = Image.new("RGB", (100, 100), color="blue")
+        buffer = BytesIO()
+        image.save(buffer, format="JPEG")
+        buffer.seek(0)
+        uploaded_file = SimpleUploadedFile(
+            name="logo.jpg",
+            content=buffer.read(),
+            content_type="image/jpeg",
+        )
+        group = BorrowdGroup(
+            name="Model Field Test Group",
+            logo=uploaded_file,
+            created_by=self.owner,
+            updated_by=self.owner,
+        )
+
+        group.full_clean(exclude=["perms_group"])  # should not raise
+
     def test_oversized_logo_rejected_by_full_clean(self) -> None:
         image_data = create_test_image(MAX_PHOTO_SIZE_BYTES + 1)
         uploaded_file = SimpleUploadedFile(
@@ -145,13 +170,24 @@ class GroupImageModelFieldValidatorTests(TestCase):
             updated_by=self.owner,
         )
 
-        with self.assertRaises(ValidationError):
-            group.full_clean()
+        with self.assertRaises(ValidationError) as ctx:
+            group.full_clean(exclude=["perms_group"])
+        self.assertIn("logo", ctx.exception.message_dict)
 
     def test_disallowed_extension_logo_rejected_by_full_clean(self) -> None:
+        # A real, Pillow-valid image (not just garbage bytes) with a
+        # disallowed extension -- this is the scenario the model-field
+        # FileExtensionValidator actually protects against in Django admin:
+        # admin's auto ModelForm validates image *content* via
+        # forms.ImageField before this model-level check ever runs, so
+        # garbage bytes would already be rejected for an unrelated reason.
+        image = Image.new("RGB", (100, 100), color="blue")
+        buffer = BytesIO()
+        image.save(buffer, format="GIF")
+        buffer.seek(0)
         uploaded_file = SimpleUploadedFile(
             name="logo.gif",
-            content=b"not a real image",
+            content=buffer.read(),
             content_type="image/gif",
         )
         group = BorrowdGroup(
@@ -161,8 +197,9 @@ class GroupImageModelFieldValidatorTests(TestCase):
             updated_by=self.owner,
         )
 
-        with self.assertRaises(ValidationError):
-            group.full_clean()
+        with self.assertRaises(ValidationError) as ctx:
+            group.full_clean(exclude=["perms_group"])
+        self.assertIn("logo", ctx.exception.message_dict)
 
     def test_oversized_banner_rejected_by_full_clean(self) -> None:
         image_data = create_test_image(MAX_PHOTO_SIZE_BYTES + 1)
@@ -178,5 +215,6 @@ class GroupImageModelFieldValidatorTests(TestCase):
             updated_by=self.owner,
         )
 
-        with self.assertRaises(ValidationError):
-            group.full_clean()
+        with self.assertRaises(ValidationError) as ctx:
+            group.full_clean(exclude=["perms_group"])
+        self.assertIn("banner", ctx.exception.message_dict)
