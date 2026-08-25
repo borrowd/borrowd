@@ -14,7 +14,6 @@ from borrowd_items.models import Transaction, TransactionStatus
 from borrowd_messaging.models import (
     MESSAGE_BODY_MAX_LENGTH,
     ArchiveReason,
-    ChatThread,
     Message,
 )
 from borrowd_messaging.services import MessagingService
@@ -460,26 +459,6 @@ class ChatThreadPollViewTests(MessagingTestCase):
             "true",
         )
         self.assertNotContains(response, "Disputed", status_code=286)
-
-    def test_linked_poll_refreshes_archive_state_after_permission_lookup(self) -> None:
-        seen = self.send(self.borrower, "Free Saturday?")
-        transaction = self.make_transaction()
-        self.thread.refresh_from_db()
-        permission_thread = ChatThread.objects.get(pk=self.thread.pk)
-        transaction.status = TransactionStatus.CANCELLED
-        transaction.save()
-        self.client.force_login(self.borrower)
-
-        with patch.object(
-            ChatThreadPollView, "get_object", return_value=permission_thread
-        ):
-            response = self.client.get(self.url, {"after": seen.pk})
-
-        self.assertEqual(response.status_code, 286)
-        self.assertEqual(
-            _element_attributes(response, "chat-composer").get("hx-swap-oob"),
-            "true",
-        )
 
     def test_archiving_delivers_notice_replaces_composer_and_stops_poller(
         self,

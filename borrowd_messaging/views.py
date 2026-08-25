@@ -183,20 +183,13 @@ class ChatThreadPollView(
         if not newer and not chat_thread.is_archived:
             return HttpResponse(status=204)
 
-        if chat_thread.transaction_id is None:
-            is_disputed = False
-        else:
-            # Refresh linked transaction and archive state together.
-            chat_thread = (
-                ChatThread.objects.select_related("transaction")
-                .only("archived_at", "transaction__status")
-                .get(pk=chat_thread.pk)
-            )
-            transaction = chat_thread.transaction
-            is_disputed = (
-                transaction is not None
-                and transaction.status == TransactionStatus.DISPUTED
-            )
+        is_disputed = (
+            chat_thread.transaction_id is not None
+            and ChatThread.objects.filter(
+                pk=chat_thread.pk,
+                transaction__status=TransactionStatus.DISPUTED,
+            ).exists()
+        )
 
         # An archived thread is finished; nobody can write to it again, so hand
         # over whatever the reader is missing and shut the poller down.
