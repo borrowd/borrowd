@@ -169,7 +169,16 @@ def public_profile_view(
     )
 
     return render(
-        request, "users/public-profile.html", {"profile_context": profile_context}
+        request,
+        "users/public-profile.html",
+        {
+            "profile_context": profile_context,
+            "back_url": resolve_back_url(
+                request,
+                fallback_url=reverse("item-list"),
+                allowed_url_names=BROWSABLE_BACK_TARGETS,
+            ),
+        },
     )
 
 
