@@ -184,10 +184,13 @@ class ChatThreadPollView(
             return HttpResponse(status=204)
 
         # The transaction state may have changed after the permission lookup.
-        is_disputed = ChatThread.objects.filter(
-            pk=chat_thread.pk,
-            transaction__status=TransactionStatus.DISPUTED,
-        ).exists()
+        is_disputed = (
+            chat_thread.transaction_id is not None
+            and ChatThread.objects.filter(
+                pk=chat_thread.pk,
+                transaction__status=TransactionStatus.DISPUTED,
+            ).exists()
+        )
 
         # An archived thread is finished; nobody can write to it again, so hand
         # over whatever the reader is missing and shut the poller down.

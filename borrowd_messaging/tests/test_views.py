@@ -4,7 +4,9 @@ from typing import Protocol
 from unittest.mock import patch
 
 from django.core.exceptions import PermissionDenied
+from django.db import connection
 from django.test import override_settings
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
 
@@ -399,6 +401,21 @@ class ChatThreadPollViewTests(MessagingTestCase):
         self.assertNotContains(response, "Free Saturday?")
         self.assertContains(response, f'id="message-{fresh.pk}"')
         self.assertNotContains(response, 'id="chat-composer"')
+
+    def test_prerequest_poll_does_not_query_transaction_state(self) -> None:
+        self.send(self.lender, "Saturday works.")
+        self.client.force_login(self.borrower)
+
+        with CaptureQueriesContext(connection) as queries:
+            response = self.client.get(self.url, {"after": 0})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(
+            any(
+                "borrowd_items_transaction" in query["sql"]
+                for query in queries.captured_queries
+            )
+        )
 
     def test_zero_cursor_returns_the_whole_thread_in_order(self) -> None:
         self.send(self.borrower, "Free Saturday?")
