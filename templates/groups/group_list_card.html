@@ -50,7 +50,9 @@
                                   action="{% url 'borrowd_groups:cancel-membership-request' membership.group.pk %}"
                                   onsubmit="return confirm('Cancel your request to join {{ membership.group.name|escapejs }}?');">
                                 {% csrf_token %}
-                                <button type="submit" class="btn btn-ghost btn-xs text-yellow-700">Cancel</button>
+                                <button type="submit" class="btn btn-ghost btn-xs text-yellow-700">
+                                    Cancel
+                                </button>
                             </form>
                         {% endif %}
                     </div>
@@ -87,7 +89,9 @@
             <img src="{% static 'groups/Groups_2.PNG' %}"
                  alt="Create a group"
                  class="w-72 h-auto" />
-            <p class="text-base text-base-content text-center leading-normal">Add a group to start sharing and borrowing items</p>
+            <p class="text-base text-base-content text-center leading-normal">
+                Add a group to start sharing and borrowing items
+            </p>
             <c-button-nav url="{% url 'borrowd_groups:group-create' %}"
                           class="btn btn-primary btn-lg">
                 Create a group
