@@ -3,6 +3,7 @@ from django.urls import path
 from .views import (
     ApproveMemberView,
     BecomeModeratorView,
+    CancelMembershipRequestView,
     DenyMemberView,
     GroupCreateView,
     GroupDetailView,
@@ -41,6 +42,11 @@ urlpatterns = [
         "<int:pk>/leave/",
         LeaveGroupView.as_view(),
         name="leave-group",
+    ),
+    path(
+        "<int:pk>/cancel-request/",
+        CancelMembershipRequestView.as_view(),
+        name="cancel-membership-request",
     ),
     path(
         "<int:pk>/become-moderator/",

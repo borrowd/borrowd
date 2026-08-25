@@ -18,6 +18,11 @@ def index(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
+def faq(request: HttpRequest) -> HttpResponse:
+    return render(request, "web/faq.html")
+
+
+@login_required
 def onboarding_step1(request: HttpRequest) -> HttpResponse:
     return render(request, "onboarding/step1.html")
 

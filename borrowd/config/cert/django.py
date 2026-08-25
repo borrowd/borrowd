@@ -10,6 +10,15 @@ from ..env import env
 
 DEBUG = False
 
+# See borrowd/config/prod/django.py — same reasoning, cert is also
+# HTTPS-only behind platform.sh's router.
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
+BETA_SECURE_COOKIE = True
+# See borrowd/config/prod/django.py for why this is required behind
+# platform.sh's TLS-terminating router.
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
 #################################################################################
 # Platform.sh-specific configuration
 
