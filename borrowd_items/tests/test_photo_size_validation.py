@@ -18,6 +18,7 @@ from PIL import Image
 
 from borrowd.validators import (
     ALLOWED_IMAGE_EXTENSIONS,
+    MAX_IMAGE_PIXELS,
     MAX_PHOTO_SIZE_BYTES,
     validate_image_size,
 )
@@ -259,6 +260,30 @@ class ItemCreateWithPhotoFormSizeValidationTests(TestCase):
         self.assertFalse(form.is_valid())
         self.assertIn("image", form.errors)
 
+    def test_form_invalid_with_oversized_dimensions(self) -> None:
+        """A solid-color image that's tiny in bytes but decodes to far more
+        pixels than MAX_IMAGE_PIXELS -- the byte-size check alone would let
+        this through."""
+        width = 10000
+        height = (MAX_IMAGE_PIXELS * 3) // width
+        image_data = create_test_image(width=width, height=height, format="PNG")
+        content = image_data.read()
+        self.assertLess(len(content), MAX_PHOTO_SIZE_BYTES)
+
+        uploaded_file = SimpleUploadedFile(
+            name="bomb.png",
+            content=content,
+            content_type="image/png",
+        )
+
+        form = ItemCreateWithPhotoForm(
+            data=self.get_valid_form_data(),
+            files=make_files(uploaded_file),
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("image", form.errors)
+
 
 class ItemPhotoFormSizeValidationTests(TestCase):
     """Tests for photo size validation in ItemPhotoForm."""
@@ -358,6 +383,30 @@ class ItemPhotoFormSizeValidationTests(TestCase):
     def test_form_requires_image(self) -> None:
         """Form requires an image to be provided."""
         form = ItemPhotoForm(data={}, files=make_empty_files())
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("image", form.errors)
+
+    def test_form_invalid_with_oversized_dimensions(self) -> None:
+        """A solid-color image that's tiny in bytes but decodes to far more
+        pixels than MAX_IMAGE_PIXELS -- the byte-size check alone would let
+        this through."""
+        width = 10000
+        height = (MAX_IMAGE_PIXELS * 3) // width
+        image_data = create_test_image(width=width, height=height, format="PNG")
+        content = image_data.read()
+        self.assertLess(len(content), MAX_PHOTO_SIZE_BYTES)
+
+        uploaded_file = SimpleUploadedFile(
+            name="bomb.png",
+            content=content,
+            content_type="image/png",
+        )
+
+        form = ItemPhotoForm(
+            data={},
+            files=make_files(uploaded_file),
+        )
 
         self.assertFalse(form.is_valid())
         self.assertIn("image", form.errors)

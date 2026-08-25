@@ -7,6 +7,7 @@ from django.core.validators import FileExtensionValidator
 from borrowd.validators import (
     ALLOWED_IMAGE_ACCEPT,
     ALLOWED_IMAGE_EXTENSIONS,
+    validate_image_dimensions,
     validate_image_size,
 )
 from borrowd_groups.models import BorrowdGroup
@@ -82,6 +83,7 @@ class BorrowdGroupForm(forms.ModelForm[BorrowdGroup]):
         banner: UploadedFile | None = self.cleaned_data.get("banner")
         if banner:
             validate_image_size(banner)
+            validate_image_dimensions(banner)
         return banner
 
     def clean_name(self) -> str:

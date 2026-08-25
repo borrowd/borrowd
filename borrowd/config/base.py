@@ -12,13 +12,16 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 import os
 import sys
+import warnings
 from pathlib import Path
 from typing import cast
 
 import django_stubs_ext
 from django.urls import reverse_lazy
+from PIL import Image
 
 from borrowd.config.env import env
+from borrowd.validators import MAX_IMAGE_PIXELS
 
 # Make Django classes that django-stubs types as generic (CBVs, fields,
 # ModelForm, etc.) subscriptable at runtime so annotations can use them.
@@ -272,6 +275,14 @@ RETURN_DISPUTE_WAIT_DAYS = env.int("RETURN_DISPUTE_WAIT_DAYS", default=3)
 # tuning uploads settings
 DATA_UPLOAD_MAX_MEMORY_SIZE = 1024 * 1024  # 1MB
 FILE_UPLOAD_MAX_MEMORY_SIZE = 1024 * 1024  # 1MB
+
+# Backstop against decompression-bomb-style images, in addition to the
+# pixel-count check in borrowd.validators.validate_image_dimensions. This
+# applies to every Pillow decode in the process (including paths that skip
+# our form validators, e.g. Django admin), converting Pillow's default
+# warning into a hard error once MAX_IMAGE_PIXELS is exceeded.
+Image.MAX_IMAGE_PIXELS = MAX_IMAGE_PIXELS
+warnings.simplefilter("error", Image.DecompressionBombWarning)
 
 LOGGING = {
     "version": 1,

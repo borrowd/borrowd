@@ -12,6 +12,7 @@ from django.core.validators import FileExtensionValidator
 from borrowd.validators import (
     ALLOWED_IMAGE_ACCEPT,
     ALLOWED_IMAGE_EXTENSIONS,
+    validate_image_dimensions,
     validate_image_size,
 )
 
@@ -211,6 +212,7 @@ class ProfileUpdateForm(forms.ModelForm[Profile]):
         image: UploadedFile | None = self.cleaned_data.get("image")
         if image:
             validate_image_size(image)
+            validate_image_dimensions(image)
         return image
 
     def clean_first_name(self) -> str:

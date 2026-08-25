@@ -7,6 +7,7 @@ from django.core.validators import FileExtensionValidator
 from borrowd.validators import (
     ALLOWED_IMAGE_ACCEPT,
     ALLOWED_IMAGE_EXTENSIONS,
+    validate_image_dimensions,
     validate_image_size,
 )
 from borrowd_users.models import BorrowdUser
@@ -93,6 +94,7 @@ class ItemCreateWithPhotoForm(ItemForm):
         image: UploadedFile | None = self.cleaned_data.get("image")
         if image:
             validate_image_size(image)
+            validate_image_dimensions(image)
         return image
 
 
@@ -120,4 +122,5 @@ class ItemPhotoForm(forms.ModelForm[ItemPhoto]):
         image: UploadedFile | None = self.cleaned_data.get("image")
         if image:
             validate_image_size(image)
+            validate_image_dimensions(image)
         return image
