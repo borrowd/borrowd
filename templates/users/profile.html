@@ -428,15 +428,20 @@
   const avatarPreview = document.getElementById('avatar-preview');
   const deleteBtn = document.getElementById('delete-avatar-btn');
 
-  // Live preview on new file select
+  // Resize client-side, then live preview, on new file select
   if (imageInput) {
-    imageInput.addEventListener('change', function (e) {
+    imageInput.addEventListener('change', async function (e) {
       const file = e.target.files[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = function (e) { avatarPreview.src = e.target.result; };
-        reader.readAsDataURL(file);
-      }
+      if (!file) return;
+
+      const resized = await window.resizeImageFile(file, 1600, 1600);
+      const dt = new DataTransfer();
+      dt.items.add(resized);
+      imageInput.files = dt.files;
+
+      const reader = new FileReader();
+      reader.onload = function (e) { avatarPreview.src = e.target.result; };
+      reader.readAsDataURL(resized);
     });
   }
 

@@ -55,7 +55,8 @@
                                      errors="{{ field.errors }}" />
 
                 {% else %}
-                    <fieldset class="fieldset w-full gap-0">
+                    <fieldset class="fieldset w-full gap-0"
+                              {% if field.name == "image" %} x-data="{ async handleImageSelect(event) { const file = event.target.files[0]; if (!file) return; const resized = await window.resizeImageFile(file, 1600, 1600); const dt = new DataTransfer(); dt.items.add(resized); event.target.files = dt.files; } }" @change="handleImageSelect($event)" {% endif %}>
 
                         {% if field.name == "categories" %}
                             <!--
@@ -234,7 +235,7 @@
 
             {% if view.object.pk %}
                 <fieldset class="fieldset w-full gap-0"
-                          x-data="{ pendingFiles: [], pendingPreviews: [], existingCount: {{ view.object.photos.count }}, get remainingSlots() { return 5 - this.existingCount - this.pendingFiles.length; }, handleFileSelect(event) { const files = Array.from(event.target.files).slice(0, Math.max(0, this.remainingSlots)); files.forEach(file => { this.pendingFiles.push(file); this.pendingPreviews.push(URL.createObjectURL(file)); }); event.target.value = ''; this.syncSubmitInput(); }, removePending(index) { URL.revokeObjectURL(this.pendingPreviews[index]); this.pendingFiles.splice(index, 1); this.pendingPreviews.splice(index, 1); this.syncSubmitInput(); }, syncSubmitInput() { const dt = new DataTransfer(); this.pendingFiles.forEach(f => dt.items.add(f)); document.getElementById('new-photos-submit-input').files = dt.files; } }">
+                          x-data="{ pendingFiles: [], pendingPreviews: [], existingCount: {{ view.object.photos.count }}, get remainingSlots() { return 5 - this.existingCount - this.pendingFiles.length; }, async handleFileSelect(event) { const files = Array.from(event.target.files).slice(0, Math.max(0, this.remainingSlots)); event.target.value = ''; for (const file of files) { const resized = await window.resizeImageFile(file, 1600, 1600); this.pendingFiles.push(resized); this.pendingPreviews.push(URL.createObjectURL(resized)); } this.syncSubmitInput(); }, removePending(index) { URL.revokeObjectURL(this.pendingPreviews[index]); this.pendingFiles.splice(index, 1); this.pendingPreviews.splice(index, 1); this.syncSubmitInput(); }, syncSubmitInput() { const dt = new DataTransfer(); this.pendingFiles.forEach(f => dt.items.add(f)); document.getElementById('new-photos-submit-input').files = dt.files; } }">
                     <legend class="fieldset-legend text-xs text-base-content/60">
                         Photos
                     </legend>
