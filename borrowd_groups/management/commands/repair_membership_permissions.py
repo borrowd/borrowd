@@ -1,6 +1,7 @@
 from typing import Any
 
 from django.core.management.base import BaseCommand, CommandParser
+from django.db import transaction
 from django.db.models import F
 
 from borrowd_groups.models import Membership, MembershipStatus
@@ -35,29 +36,78 @@ class Command(BaseCommand):
             .select_related("group__perms_group", "user")
         )
 
-        count = 0
+        found_count = 0
+        repaired_count = 0
+        failed_count = 0
+
         for membership in drifted_memberships.iterator():
-            count += 1
+            found_count += 1
             self.stdout.write(
                 f"Drifted membership: user={membership.user} group={membership.group}"
             )
             if dry_run:
                 continue
+
             try:
-                sync_membership_permissions(membership)
-            except ValueError as e:
+                repaired = self._repair_membership(membership.pk)
+            except Exception as e:
+                failed_count += 1
                 self.stderr.write(
                     self.style.ERROR(
                         f"Failed to repair membership user={membership.user} "
                         f"group={membership.group}: {e}"
                     )
                 )
+                continue
+
+            if repaired:
+                repaired_count += 1
+            else:
+                self.stdout.write(
+                    f"  already resolved before repair, skipping: "
+                    f"user={membership.user} group={membership.group}"
+                )
 
         if dry_run:
             self.stdout.write(
-                self.style.WARNING(f"{count} drifted membership(s) found (dry run).")
+                self.style.WARNING(
+                    f"{found_count} drifted membership(s) found (dry run)."
+                )
+            )
+        elif failed_count:
+            self.stdout.write(
+                self.style.ERROR(
+                    f"{repaired_count} of {found_count} drifted membership(s) "
+                    f"repaired, {failed_count} failed."
+                )
             )
         else:
             self.stdout.write(
-                self.style.SUCCESS(f"{count} drifted membership(s) repaired.")
+                self.style.SUCCESS(
+                    f"{repaired_count} of {found_count} drifted membership(s) repaired."
+                )
             )
+
+    def _repair_membership(self, membership_id: int) -> bool:
+        """
+        Re-fetch and lock the membership immediately before repairing it,
+        and re-validate it's still drifted. Guards against a concurrent
+        status change (e.g. the user leaving the group) landing between
+        detection and repair during a long-running pass; returns False
+        without making changes if the drift was already resolved.
+        """
+        with transaction.atomic():
+            membership = (
+                Membership.objects.select_for_update()
+                .select_related("group__perms_group", "user")
+                .get(pk=membership_id)
+            )
+            perms_group = membership.group.perms_group
+            if (
+                membership.status != MembershipStatus.ACTIVE
+                or perms_group is None
+                or membership.user.groups.filter(pk=perms_group.pk).exists()
+            ):
+                return False
+            sync_membership_permissions(membership)
+            return True

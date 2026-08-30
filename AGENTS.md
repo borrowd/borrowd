@@ -158,6 +158,9 @@ Evergreen comments only — describe current state, not evolution. Don't referen
 ### Error Handling
 Domain-specific exceptions live in `<app>/exceptions.py`, all subclassing `BorrowdException` (`borrowd/exceptions.py`). Raise early on invalid state; surface user-facing failures via Django's messages framework.
 
+### Data Migrations
+A `RunPython` migration that calls `apps.get_model(...)` gets a frozen historical model class, not the live one. Calling `.save()` on an instance of it does **not** dispatch `post_save`/`pre_save` to receivers registered against the live model (Django's dispatcher matches `sender` by exact class identity) — this class of bug has silently broken permission enrollment before (`borrowd_groups/signals.py`'s `sync_membership_permissions`, backfilled via `repair_membership_permissions`). If a migration needs a live model's signal side effects or another live-only behavior (e.g. guardian's `isinstance` checks against `auth.Group`, see `0012_backfill_item_view_perms_for_members.py`), import and use the live class/function directly instead of going through `apps.get_model()`.
+
 ## Code Intelligence
 
 Prefer LSP over Grep/Glob/Read for code navigation:
