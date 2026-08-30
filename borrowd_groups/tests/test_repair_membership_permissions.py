@@ -7,7 +7,7 @@ from django.test import TestCase
 from borrowd_groups.management.commands.repair_membership_permissions import (
     Command,
 )
-from borrowd_groups.models import BorrowdGroup, Membership
+from borrowd_groups.models import BorrowdGroup, Membership, MembershipStatus
 from borrowd_groups.signals import sync_membership_permissions
 from borrowd_users.models import BorrowdUser
 
@@ -48,7 +48,8 @@ class RepairMembershipPermissionsTests(TestCase):
         out = StringIO()
         call_command("repair_membership_permissions", stdout=out)
 
-        self.assertIn("1 of 1 drifted membership(s) repaired", out.getvalue())
+        self.assertIn("Resynced 2 of 2 active membership(s)", out.getvalue())
+        self.assertIn("1 were missing perms_group enrollment", out.getvalue())
         self.assertTrue(self.member.groups.filter(pk=self.perms_group.pk).exists())
 
     def test_dry_run_reports_without_repairing(self) -> None:
@@ -57,14 +58,15 @@ class RepairMembershipPermissionsTests(TestCase):
         out = StringIO()
         call_command("repair_membership_permissions", "--dry-run", stdout=out)
 
-        self.assertIn("1 drifted membership(s) found", out.getvalue())
+        self.assertIn("1 of 2 active membership(s) missing", out.getvalue())
         self.assertFalse(self.member.groups.filter(pk=self.perms_group.pk).exists())
 
-    def test_healthy_data_is_a_no_op(self) -> None:
+    def test_healthy_data_is_resynced_with_no_drift_reported(self) -> None:
         out = StringIO()
         call_command("repair_membership_permissions", stdout=out)
 
-        self.assertIn("0 of 0 drifted membership(s) repaired", out.getvalue())
+        self.assertIn("Resynced 2 of 2 active membership(s)", out.getvalue())
+        self.assertIn("0 were missing perms_group enrollment", out.getvalue())
         self.assertTrue(self.member.groups.filter(pk=self.perms_group.pk).exists())
 
     def test_rerun_after_repair_is_idempotent(self) -> None:
@@ -74,8 +76,33 @@ class RepairMembershipPermissionsTests(TestCase):
         out = StringIO()
         call_command("repair_membership_permissions", stdout=out)
 
-        self.assertIn("0 of 0 drifted membership(s) repaired", out.getvalue())
+        self.assertIn("Resynced 2 of 2 active membership(s)", out.getvalue())
+        self.assertIn("0 were missing perms_group enrollment", out.getvalue())
         self.assertTrue(self.member.groups.filter(pk=self.perms_group.pk).exists())
+
+    def test_resyncs_stale_moderator_permissions_even_without_enrollment_drift(
+        self,
+    ) -> None:
+        """
+        A membership can be fully enrolled in perms_group yet still have
+        stale BorrowdGroupOLP moderator permissions (e.g. is_moderator was
+        toggled through a historical-model .save() that skipped the
+        signal). The narrow enrollment check alone would never flag or fix
+        this row; the unconditional resync must.
+        """
+        from guardian.shortcuts import get_perms
+
+        from borrowd_permissions.models import BorrowdGroupOLP
+
+        membership = self.group.membership_set.get(user=self.member)
+        Membership.objects.filter(pk=membership.pk).update(is_moderator=True)
+        self.assertNotIn(BorrowdGroupOLP.EDIT, get_perms(self.member, self.group))
+
+        out = StringIO()
+        call_command("repair_membership_permissions", stdout=out)
+
+        self.assertIn("0 were missing perms_group enrollment", out.getvalue())
+        self.assertIn(BorrowdGroupOLP.EDIT, get_perms(self.member, self.group))
 
     def test_summary_reflects_partial_failure_not_full_success(self) -> None:
         other_member = BorrowdUser.objects.create_user(
@@ -98,25 +125,27 @@ class RepairMembershipPermissionsTests(TestCase):
         ):
             call_command("repair_membership_permissions", stdout=out, stderr=StringIO())
 
-        # One of two drifted rows failed — the summary must not claim full success.
-        self.assertIn("1 of 2 drifted membership(s) repaired, 1 failed", out.getvalue())
+        # One of three active rows failed to resync — the summary must not
+        # claim full success, and the failed row must stay drifted.
+        self.assertIn("Resynced 2 of 3 active membership(s)", out.getvalue())
+        self.assertIn("1 failed", out.getvalue())
         self.assertTrue(self.member.groups.filter(pk=self.perms_group.pk).exists())
         self.assertFalse(other_member.groups.filter(pk=self.perms_group.pk).exists())
 
-    def test_repair_membership_skips_when_already_resolved(self) -> None:
+    def test_repair_membership_skips_when_no_longer_active(self) -> None:
         """
-        Directly exercises the lock-and-recheck guard: if the drift is
-        already resolved by the time _repair_membership acquires the row
-        lock (e.g. a concurrent process fixed it first), it must not
-        double-apply the sync and must report no repair took place.
+        Directly exercises the lock-and-recheck guard: if a membership's
+        status changed to non-ACTIVE between the initial scan and the
+        repair acquiring its row lock (e.g. the user left the group
+        concurrently), it must not re-apply ACTIVE-membership permissions.
         """
-        self._drift_membership()
         membership = self.group.membership_set.get(user=self.member)
 
-        # Simulate a concurrent fix landing before the repair's own lock.
-        self.member.groups.add(self.perms_group)
+        # Simulate a concurrent status change landing before the repair's own lock.
+        Membership.objects.filter(pk=membership.pk).update(
+            status=MembershipStatus.ENDED
+        )
 
-        repaired = Command()._repair_membership(membership.pk)
+        resynced = Command()._repair_membership(membership.pk)
 
-        self.assertFalse(repaired)
-        self.assertTrue(self.member.groups.filter(pk=self.perms_group.pk).exists())
+        self.assertFalse(resynced)

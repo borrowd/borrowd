@@ -148,10 +148,10 @@ def sync_membership_permissions(membership: Membership) -> None:
     Refresh the permissions of Items and Groups for the given Group
     when a User's Membership in the Group is updated.
 
-    Callable directly (not only via the post_save signal below) so that
-    one-off repair paths — e.g. a management command fixing membership
-    rows a migration's historical-model .save() silently failed to sync —
-    can invoke the exact same logic.
+    Idempotent and callable directly, outside the post_save signal below,
+    by any code path that needs to (re-)apply a membership's derived
+    permissions without re-dispatching the rest of Membership's post_save
+    receivers (e.g. membership-lifecycle notifications).
     """
     #
     # Handle Item permissions
