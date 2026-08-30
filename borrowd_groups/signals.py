@@ -143,21 +143,22 @@ def _raise_if_last_moderator(
             )
 
 
-@receiver(post_save, sender=Membership)
-def refresh_permissions_on_membership_update(
-    sender: Membership, instance: Membership, created: bool, **kwargs: str
-) -> None:
+def sync_membership_permissions(membership: Membership) -> None:
     """
     Refresh the permissions of Items and Groups for the given Group
     when a User's Membership in the Group is updated.
+
+    Callable directly (not only via the post_save signal below) so that
+    one-off repair paths — e.g. a management command fixing membership
+    rows a migration's historical-model .save() silently failed to sync —
+    can invoke the exact same logic.
     """
     #
     # Handle Item permissions
     #
-    membership = instance
     # error: "_ST" has no attribute "perms_group" / "groups"
-    user = instance.user
-    borrowd_group = instance.group
+    user = membership.user
+    borrowd_group = membership.group
     group = borrowd_group.perms_group
     if group is None:
         # This should never happen, but just in case...
@@ -200,6 +201,13 @@ def refresh_permissions_on_membership_update(
             remove_perm(group_perm, user, borrowd_group)
         for item_perm in [ItemOLP.VIEW]:  # will have more later
             remove_perm(item_perm, group, items_of_user)
+
+
+@receiver(post_save, sender=Membership)
+def refresh_permissions_on_membership_update(
+    sender: Membership, instance: Membership, created: bool, **kwargs: str
+) -> None:
+    sync_membership_permissions(instance)
 
 
 @receiver(pre_delete, sender=Membership)
