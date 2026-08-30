@@ -149,3 +149,18 @@ class RepairMembershipPermissionsTests(TestCase):
         resynced = Command()._repair_membership(membership.pk)
 
         self.assertFalse(resynced)
+
+    def test_repair_membership_skips_when_deleted_concurrently(self) -> None:
+        """
+        If a membership is hard-deleted (e.g. via the leave-group flow)
+        between the initial scan and the repair acquiring its row lock,
+        the benign DoesNotExist race must be treated as "nothing to
+        repair", not reported as a repair failure.
+        """
+        membership = self.group.membership_set.get(user=self.member)
+        membership_id = membership.pk
+        membership.delete()
+
+        resynced = Command()._repair_membership(membership_id)
+
+        self.assertFalse(resynced)

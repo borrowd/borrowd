@@ -2,10 +2,11 @@ from typing import Any
 
 from django.core.management.base import BaseCommand, CommandParser
 from django.db import transaction
-from django.db.models import F
+from django.db.models import Exists, OuterRef
 
 from borrowd_groups.models import Membership, MembershipStatus
 from borrowd_groups.signals import sync_membership_permissions
+from borrowd_users.models import BorrowdUser
 
 
 class Command(BaseCommand):
@@ -35,31 +36,41 @@ class Command(BaseCommand):
     def handle(self, *args: Any, **options: Any) -> None:
         dry_run = options["dry_run"]
 
-        active_memberships = Membership.objects.filter(
-            status=MembershipStatus.ACTIVE,
-            group__perms_group__isnull=False,
-        ).select_related("group__perms_group", "user")
-
-        # Missing perms_group enrollment is the loudest, most visible
-        # symptom of the drift this command fixes, so it's worth reporting
-        # on its own — but it is only used for reporting/scope-verification
-        # here. The repair pass below always resyncs every ACTIVE
-        # membership, since other permission facets (e.g. stale moderator
-        # perms) can be out of sync even when enrollment itself is fine.
-        enrollment_drifted_ids = set(
-            active_memberships.exclude(
-                user__groups=F("group__perms_group")
-            ).values_list("pk", flat=True)
+        # enrolled_in_perms_group is annotated (rather than computed via a
+        # second, separate query) so the scan is a single consistent
+        # snapshot: reporting and repair can't disagree about a row that
+        # changed between two independent queries.
+        active_memberships = (
+            Membership.objects.filter(
+                status=MembershipStatus.ACTIVE,
+                group__perms_group__isnull=False,
+            )
+            .select_related("group__perms_group", "user")
+            .annotate(
+                enrolled_in_perms_group=Exists(
+                    BorrowdUser.objects.filter(
+                        pk=OuterRef("user_id"),
+                        groups=OuterRef("group__perms_group_id"),
+                    )
+                )
+            )
         )
 
         scanned_count = 0
+        enrollment_drifted_count = 0
         repaired_count = 0
-        skipped_count = 0
         failed_count = 0
 
         for membership in active_memberships.iterator():
             scanned_count += 1
-            if membership.pk in enrollment_drifted_ids:
+            # Missing perms_group enrollment is the loudest, most visible
+            # symptom of the drift this command fixes, so it's worth
+            # reporting on its own — but the repair pass below always
+            # resyncs every ACTIVE membership regardless, since other
+            # permission facets (e.g. stale moderator perms) can be out of
+            # sync even when enrollment itself is fine.
+            if not membership.enrolled_in_perms_group:
+                enrollment_drifted_count += 1
                 self.stdout.write(
                     f"Missing perms_group enrollment: user={membership.user} "
                     f"group={membership.group}"
@@ -81,25 +92,27 @@ class Command(BaseCommand):
 
             if resynced:
                 repaired_count += 1
-            else:
-                skipped_count += 1
 
         if dry_run:
             self.stdout.write(
                 self.style.WARNING(
-                    f"{len(enrollment_drifted_ids)} of {scanned_count} active "
+                    f"{enrollment_drifted_count} of {scanned_count} active "
                     f"membership(s) missing perms_group enrollment (dry run)."
                 )
             )
             return
 
+        # Every scanned row lands in exactly one bucket: repaired, failed,
+        # or skipped (no longer eligible by repair time) — so skipped is
+        # derived rather than tracked as its own counter.
+        skipped_count = scanned_count - repaired_count - failed_count
         summary = (
             f"Resynced {repaired_count} of {scanned_count} active "
-            f"membership(s) ({len(enrollment_drifted_ids)} were missing "
+            f"membership(s) ({enrollment_drifted_count} were missing "
             f"perms_group enrollment)"
         )
         if skipped_count:
-            summary += f", {skipped_count} skipped (no longer active)"
+            summary += f", {skipped_count} skipped (no longer eligible)"
         if failed_count:
             summary += f", {failed_count} failed"
         summary += "."
@@ -111,10 +124,13 @@ class Command(BaseCommand):
         """
         Re-fetch and lock the membership immediately before resyncing its
         permissions, using freshly-locked state rather than the row read
-        during the initial scan. Guards against a concurrent status change
-        (e.g. the user leaving the group) landing between scan and repair
-        during a long-running pass; returns False without making changes
-        if the membership is no longer eligible.
+        during the initial scan. Guards against a concurrent change (the
+        user leaving the group, a status flip) landing between scan and
+        repair during a long-running pass; returns False without making
+        changes if the membership is no longer eligible, including having
+        been deleted outright in the meantime. Row locking only takes
+        effect on backends that support SELECT ... FOR UPDATE (PostgreSQL
+        in production); it's a silent no-op on SQLite.
 
         Deliberately calls sync_membership_permissions() rather than
         membership.save() — resyncing permissions during a backend data
@@ -122,11 +138,14 @@ class Command(BaseCommand):
         receivers (e.g. membership-lifecycle notifications).
         """
         with transaction.atomic():
-            membership = (
-                Membership.objects.select_for_update()
-                .select_related("group__perms_group", "user")
-                .get(pk=membership_id)
-            )
+            try:
+                membership = (
+                    Membership.objects.select_for_update()
+                    .select_related("group__perms_group", "user")
+                    .get(pk=membership_id)
+                )
+            except Membership.DoesNotExist:
+                return False
             if (
                 membership.status != MembershipStatus.ACTIVE
                 or membership.group.perms_group is None
