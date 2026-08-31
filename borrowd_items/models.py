@@ -119,8 +119,8 @@ class PrecomputedItemState:
     re-derive it independently.
     """
 
-    current_borrower: Optional[BorrowdUser]
-    requesting_user: Optional[BorrowdUser]
+    current_borrower: BorrowdUser | None
+    requesting_user: BorrowdUser | None
     current_transaction: Optional["Transaction"]
     has_active_subscription: bool = False
     # Every non-terminal Transaction the caller loaded for this item, so
@@ -287,7 +287,7 @@ class Item(Model):
     def get_action_context_for(
         self,
         user: BorrowdUser,
-        precomputed: Optional[PrecomputedItemState] = None,
+        precomputed: PrecomputedItemState | None = None,
     ) -> ItemActionContext:
         """
         Returns ItemActionContext containing ItemActions [e.g. REQUEST_ITEM, ACCEPT_REQUEST]
@@ -359,7 +359,7 @@ class Item(Model):
         current_borrower: BorrowdUser | None,
         requesting_user: BorrowdUser | None,
         current_tx: Optional["Transaction"] = None,
-        precomputed: Optional[PrecomputedItemState] = None,
+        precomputed: PrecomputedItemState | None = None,
     ) -> str:
         """Generate context-appropriate status text for the user."""
         # Determine user role
@@ -464,7 +464,7 @@ class Item(Model):
         self,
         actions: tuple[ItemAction, ...],
         user: BorrowdUser,
-        precomputed: Optional[PrecomputedItemState] = None,
+        precomputed: PrecomputedItemState | None = None,
     ) -> str:
         """Generate status text for users who are neither owner nor borrower."""
         if len(actions) == 1 and ItemAction.CANCEL_REQUEST in actions:
@@ -476,9 +476,7 @@ class Item(Model):
             return "Available to request!"
         elif ItemAction.REQUEST_GIVEAWAY in actions:
             return "Free to keep!"
-        elif precomputed is not None and precomputed.has_active_subscription:
-            return "You've requested to be notified when this item is available again."
-        elif (
+        elif precomputed is not None and precomputed.has_active_subscription or (
             precomputed is None
             and AvailabilitySubscription.get_active_subscription_for_user_and_item(
                 user=user, item=self
@@ -497,7 +495,7 @@ class Item(Model):
     def get_actions_for(
         self,
         user: BorrowdUser,
-        precomputed: Optional[PrecomputedItemState] = None,
+        precomputed: PrecomputedItemState | None = None,
     ) -> tuple[ItemAction, ...]:
         """
         Returns a tuple of ItemAction objects representing the
