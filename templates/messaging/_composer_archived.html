@@ -1,0 +1,12 @@
+{# Archived composer (typing box). An already archived thread renders this block in place.
+If an open thread becomes archived, a poll passes `oob=True` to replace
+#chat-composer without reloading the page.
+https://htmx.org/attributes/hx-swap-oob/ #}
+
+<div id="chat-composer"
+     class="mt-4"
+     {% if oob %}hx-swap-oob="true"{% endif %}>
+    <p class="text-sm opacity-60">
+        This conversation is archived. You can still read it.
+    </p>
+</div>

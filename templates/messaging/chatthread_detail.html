@@ -1,0 +1,50 @@
+{% extends "layouts/default.html" %}
+
+{% block head_title %}
+    Conversation
+{% endblock %}
+{% block content %}
+    <div class="w-full max-w-3xl self-start px-4"
+         x-init="$nextTick(() => requestAnimationFrame(() => window.scrollTo(0, document.documentElement.scrollHeight)))">
+        <div class="sticky top-16 z-30 -mx-4 bg-base-200 px-4 pb-3">
+            <c-h1 class="font-normal text-[24px]">
+                {% if chat_thread.item %}
+                    {{ chat_thread.item.name }}
+                {% else %}
+                    This item is no longer available.
+                {% endif %}
+            </c-h1>
+            <p class="text-sm opacity-70">
+                {{ other_party.profile.full_name }}
+            </p>
+
+            {% include "messaging/_dispute_badge.html" %}
+
+        </div>
+
+        <ul id="chat-messages" class="mt-4 flex flex-col gap-1">
+            {% include "messaging/_messages.html" with chat_messages=chat_messages viewer=user %}
+
+        </ul>
+
+        {% if chat_thread.is_archived %}
+            {% include "messaging/_composer_archived.html" %}
+
+        {% else %}
+            {# Poll for messages after the last rendered id. Responses append
+            to #chat-messages. The shared `hx-sync` lock keeps poll and send
+            responses in order; a poll tick is dropped when that lock is busy
+            because the next tick catches up from the latest rendered cursor.
+            https://htmx.org/docs/#polling #}
+            <div hx-get="{% url 'chat-thread-poll' chat_thread.pk %}"
+                 hx-trigger="every 4s"
+                 hx-target="#chat-messages"
+                 hx-swap="beforeend"
+                 hx-sync="#chat-messages:drop"
+                 hx-vals='js:{after: document.querySelector("#chat-messages li:last-child")?.id.replace("message-", "") || 0}'>
+            </div>
+            {% include "messaging/_composer.html" %}
+
+        {% endif %}
+    </div>
+{% endblock %}
