@@ -476,12 +476,16 @@ class Item(Model):
             return "Available to request!"
         elif ItemAction.REQUEST_GIVEAWAY in actions:
             return "Free to keep!"
-        elif precomputed is not None and precomputed.has_active_subscription or (
-            precomputed is None
-            and AvailabilitySubscription.get_active_subscription_for_user_and_item(
-                user=user, item=self
+        elif (
+            precomputed is not None
+            and precomputed.has_active_subscription
+            or (
+                precomputed is None
+                and AvailabilitySubscription.get_active_subscription_for_user_and_item(
+                    user=user, item=self
+                )
+                is not None
             )
-            is not None
         ):
             return "You've requested to be notified when this item is available again."
         elif precomputed is not None and precomputed.requesting_user is not None:
@@ -808,10 +812,8 @@ class Item(Model):
         valid_actions = self.get_actions_for(user=user)
         if action not in valid_actions:
             raise InvalidItemAction(
-                
-                    f"User '{user}' cannot perform action '{action}' on"
-                    f"Item '{self}' at this time."
-                
+                f"User '{user}' cannot perform action '{action}' on"
+                f"Item '{self}' at this time."
             )
 
         if action == ItemAction.REQUEST_ITEM:

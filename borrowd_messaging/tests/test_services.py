@@ -129,12 +129,13 @@ class GetOrCreatePreRequestThreadTests(MessagingTestCase):
     def test_an_integrity_error_with_no_racing_thread_is_reraised(self) -> None:
         self.make_thread()
 
-        with patch.object(
-            MessagingService, "_active_prerequest_thread", return_value=None
-        ), self.assertRaises(IntegrityError):
-            MessagingService.get_or_create_prerequest_thread(
-                self.borrower, self.item
-            )
+        with (
+            patch.object(
+                MessagingService, "_active_prerequest_thread", return_value=None
+            ),
+            self.assertRaises(IntegrityError),
+        ):
+            MessagingService.get_or_create_prerequest_thread(self.borrower, self.item)
 
 
 @override_settings(MESSAGING_ENABLED=True)

@@ -15,7 +15,6 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 
-
 from allauth.account.internal.stagekit import clear_login
 from django.conf import settings
 from django.conf.urls.static import static

@@ -67,7 +67,9 @@ def stash_perms_group_for_cleanup(
     BorrowdGroup cascade has completed.
     """
     perms_group = instance.perms_group
-    instance._perms_group_id_for_cleanup = perms_group.pk if perms_group is not None else None
+    instance._perms_group_id_for_cleanup = (
+        perms_group.pk if perms_group is not None else None
+    )
 
 
 @receiver(post_delete, sender=BorrowdGroup)
