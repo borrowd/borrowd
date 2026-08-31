@@ -1,7 +1,7 @@
 {% extends "items/layout.html" %}
 
 {% block head_title %}
-    View Item
+    View item
 {% endblock %}
 {% block items_content %}
 
@@ -35,7 +35,7 @@
                                     {% for photo in item.photos.all %}
                                         <div class="shrink-0 w-full">
                                             <img src="{{ photo.image.url }}"
-                                                 alt="{{ item.name }} Photo {{ forloop.counter }}"
+                                                 alt="{{ item.name }} photo {{ forloop.counter }}"
                                                  class="w-full h-[320px] md:h-[400px] object-contain rounded-xl bg-base-200" />
                                         </div>
                                     {% endfor %}
@@ -69,7 +69,7 @@
                     {% else %}
                         <div class="relative py-1 lg:py-0 h-[300px] md:h-[350px] lg:h-[400px]">
                             <img title="image_container"
-                                 class="w-full h-full  rounded-xl"
+                                 class="w-full h-full rounded-xl"
                                  src="{% static '/border-dashed.png' %}" />
 
                             {% if user.is_authenticated and item.owner == user %}

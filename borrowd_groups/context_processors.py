@@ -1,8 +1,10 @@
 from typing import Any
 
+from django.db.models import Exists, OuterRef
 from django.http import HttpRequest
 
 from borrowd_groups.models import Membership, MembershipStatus
+from borrowd_users.request import get_authenticated_user
 
 
 def groups_needing_moderator(
@@ -15,14 +17,21 @@ def groups_needing_moderator(
     if not request.user.is_authenticated:
         return {}
 
-    memberships = Membership.objects.filter(
-        user=request.user,
+    active_moderator_memberships = Membership.objects.filter(
+        group_id=OuterRef("group_id"),
         status=MembershipStatus.ACTIVE,
-        is_moderator=False,
-    ).select_related("group")
+        is_moderator=True,
+    )
 
-    has_groups_needing_moderator = any(
-        membership.group.needs_moderator for membership in memberships
+    has_groups_needing_moderator = (
+        Membership.objects.filter(
+            user=get_authenticated_user(request),
+            status=MembershipStatus.ACTIVE,
+            is_moderator=False,
+        )
+        .annotate(has_active_moderator=Exists(active_moderator_memberships))
+        .filter(has_active_moderator=False)
+        .exists()
     )
 
     return {"has_groups_needing_moderator": has_groups_needing_moderator}

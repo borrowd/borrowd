@@ -111,6 +111,47 @@ class ItemActionContext:
     waiting_text: Optional[str] = None
 
 
+@dataclass
+class PrecomputedItemState:
+    """
+    Item card state computed once by a caller that's about to ask for both
+    action context and banner info for the same item, so neither has to
+    re-derive it independently.
+    """
+
+    current_borrower: Optional[BorrowdUser]
+    requesting_user: Optional[BorrowdUser]
+    current_transaction: Optional["Transaction"]
+    has_active_subscription: bool = False
+    # Every non-terminal Transaction the caller loaded for this item, so
+    # current_transaction_for_user() can tell "not this user's transaction"
+    # apart from "more than one transaction matched this user".
+    candidate_transactions: tuple["Transaction", ...] = ()
+
+    def current_transaction_for_user(
+        self, user: BorrowdUser
+    ) -> Optional["Transaction"]:
+        """
+        Returns the non-terminal Transaction on this item that the given
+        user is a party to, mirroring Item.get_current_transaction_for_user().
+
+        Raises Transaction.MultipleObjectsReturned if more than one matches,
+        for the same reason get_current_transaction_for_user() does: there
+        should only ever be one.
+        """
+        matches = [
+            transaction
+            for transaction in self.candidate_transactions
+            if transaction.party1_id == user.id or transaction.party2_id == user.id
+        ]
+        if len(matches) > 1:
+            raise Transaction.MultipleObjectsReturned(
+                "current_transaction_for_user() matched more than one "
+                "non-terminal Transaction for this item and user."
+            )
+        return matches[0] if matches else None
+
+
 class ItemCategory(Model):
     name = CharField(max_length=50, null=False, blank=False)
     description = CharField(max_length=100, null=True, blank=True)
@@ -243,16 +284,48 @@ class Item(Model):
         self.deleted_by = deleted_by
         self.save()
 
-    def get_action_context_for(self, user: BorrowdUser) -> ItemActionContext:
+    def get_action_context_for(
+        self,
+        user: BorrowdUser,
+        precomputed: Optional[PrecomputedItemState] = None,
+    ) -> ItemActionContext:
         """
         Returns ItemActionContext containing ItemActions [e.g. REQUEST_ITEM, ACCEPT_REQUEST]
         and status information [e.g. "You are currently borrowing this item."] for the given user.
+
+        `precomputed`, if given, skips re-deriving current_borrower/
+        requesting_user for callers that already computed them (e.g. to
+        also build banner info for the same item without asking twice).
         """
 
-        current_borrower = self.get_current_borrower()
-        requesting_user = self.get_requesting_user()
-        current_tx = self.get_current_transaction_for_user(user)
-        actions = self.get_actions_for(user)
+        if precomputed is not None:
+            current_borrower = precomputed.current_borrower
+            requesting_user = precomputed.requesting_user
+            current_tx = precomputed.current_transaction_for_user(user)
+        else:
+            current_borrower = self.get_current_borrower()
+            requesting_user = self.get_requesting_user()
+            current_tx = self.get_current_transaction_for_user(user)
+            needs_subscription_state = self.owner_id != user.id and (
+                current_tx is not None or self.status != ItemStatus.AVAILABLE
+            )
+            has_active_subscription = (
+                AvailabilitySubscription.objects.filter(
+                    item=self,
+                    user=user,
+                    status=AvailabilitySubscriptionStatus.ACTIVE,
+                ).exists()
+                if needs_subscription_state
+                else False
+            )
+            precomputed = PrecomputedItemState(
+                current_borrower=current_borrower,
+                requesting_user=requesting_user,
+                current_transaction=current_tx,
+                has_active_subscription=has_active_subscription,
+                candidate_transactions=(current_tx,) if current_tx is not None else (),
+            )
+        actions = self.get_actions_for(user, precomputed=precomputed)
 
         # Generate status text based on user role and current actions/status
         status_text = self._get_status_text_for_user(
@@ -261,6 +334,7 @@ class Item(Model):
             current_borrower=current_borrower,
             requesting_user=requesting_user,
             current_tx=current_tx,
+            precomputed=precomputed,
         )
 
         # The borrower who asserted return of a requested item must wait for
@@ -270,7 +344,7 @@ class Item(Model):
             current_tx is not None
             and current_tx.status == TransactionStatus.RETURN_ASSERTED
             and current_tx.return_requested_at is not None
-            and current_tx.updated_by == user
+            and current_tx.updated_by_id == user.id
         ):
             waiting_text = "Waiting on confirmation from lender..."
 
@@ -285,10 +359,11 @@ class Item(Model):
         current_borrower: Optional[BorrowdUser],
         requesting_user: Optional[BorrowdUser],
         current_tx: Optional["Transaction"] = None,
+        precomputed: Optional[PrecomputedItemState] = None,
     ) -> str:
         """Generate context-appropriate status text for the user."""
         # Determine user role
-        is_owner = self.owner == user
+        is_owner = self.owner_id == user.id
         is_borrower = current_borrower and current_borrower == user
 
         # Get display names (with privacy considerations)
@@ -306,7 +381,7 @@ class Item(Model):
         elif is_borrower:
             return self._get_borrower_status_text(actions, current_tx)
         else:
-            return self._get_other_user_status_text(actions, user)
+            return self._get_other_user_status_text(actions, user, precomputed)
 
     def _get_owner_status_text(
         self,
@@ -386,7 +461,10 @@ class Item(Model):
             return "Not available for borrowing"
 
     def _get_other_user_status_text(
-        self, actions: tuple[ItemAction, ...], user: BorrowdUser
+        self,
+        actions: tuple[ItemAction, ...],
+        user: BorrowdUser,
+        precomputed: Optional[PrecomputedItemState] = None,
     ) -> str:
         """Generate status text for users who are neither owner nor borrower."""
         if len(actions) == 1 and ItemAction.CANCEL_REQUEST in actions:
@@ -398,20 +476,29 @@ class Item(Model):
             return "Available to request!"
         elif ItemAction.REQUEST_GIVEAWAY in actions:
             return "Free to keep!"
+        elif precomputed is not None and precomputed.has_active_subscription:
+            return "You've requested to be notified when this item is available again."
         elif (
-            AvailabilitySubscription.get_active_subscription_for_user_and_item(
+            precomputed is None
+            and AvailabilitySubscription.get_active_subscription_for_user_and_item(
                 user=user, item=self
             )
             is not None
         ):
             return "You've requested to be notified when this item is available again."
-        elif self.get_requesting_user() is not None:
+        elif precomputed is not None and precomputed.requesting_user is not None:
+            return "Item is reserved"
+        elif precomputed is None and self.get_requesting_user() is not None:
             # There's a pending request from another user
             return "Item is reserved"
         else:
             return "Not available for borrowing"
 
-    def get_actions_for(self, user: BorrowdUser) -> tuple[ItemAction, ...]:
+    def get_actions_for(
+        self,
+        user: BorrowdUser,
+        precomputed: Optional[PrecomputedItemState] = None,
+    ) -> tuple[ItemAction, ...]:
         """
         Returns a tuple of ItemAction objects representing the
         current valid actions that the given User may perform on this
@@ -424,7 +511,16 @@ class Item(Model):
         """
         # This may raise Transaction.MultipleObjectsReturned.
         # Let it propagate.
-        current_tx = self.get_current_transaction_for_user(user)
+        if precomputed is not None:
+            current_tx = precomputed.current_transaction_for_user(user)
+            current_borrower = precomputed.current_borrower
+            requesting_user = precomputed.requesting_user
+            has_active_subscription = precomputed.has_active_subscription
+        else:
+            current_tx = self.get_current_transaction_for_user(user)
+            current_borrower = self.get_current_borrower()
+            requesting_user = self.get_requesting_user()
+            has_active_subscription = None
 
         # IF there are no current Txns involving this user...
         if current_tx is None:
@@ -433,8 +529,8 @@ class Item(Model):
             #   AND there's no pending request from another user
             if (
                 self.status == ItemStatus.AVAILABLE
-                and self.owner != user
-                and self.get_requesting_user() is None
+                and self.owner_id != user.id
+                and requesting_user is None
             ):
                 # THEN
                 #   the User can Request the Item,
@@ -442,36 +538,43 @@ class Item(Model):
                 if self.listing_type == ListingType.GIVEAWAY:
                     return (ItemAction.REQUEST_GIVEAWAY,)
                 return (ItemAction.REQUEST_ITEM,)
-            elif (
-                not self.is_borrowable(user=user)
-                and AvailabilitySubscription.get_active_subscription_for_user_and_item(
-                    user=user, item=self
-                )
-                is None
-            ) and self.owner != user:
+            is_borrowable = (
+                self.status == ItemStatus.AVAILABLE
+                and current_borrower is None
+                and (requesting_user is None or requesting_user == user)
+            )
+            if not is_borrowable and self.owner_id != user.id:
+                if has_active_subscription is None:
+                    has_active_subscription = AvailabilitySubscription.objects.filter(
+                        user=user,
+                        item=self,
+                        status=AvailabilitySubscriptionStatus.ACTIVE,
+                    ).exists()
+            if (
+                not is_borrowable
+                and not has_active_subscription
+                and self.owner_id != user.id
+            ):
                 # If the item is currently BORROWED or RESERVED by another user,
                 # allow requesting notification for when it becomes available again
                 return (ItemAction.NOTIFY_WHEN_AVAILABLE,)
-            elif (
-                not self.is_borrowable(user=user)
-                and AvailabilitySubscription.get_active_subscription_for_user_and_item(
-                    user=user, item=self
-                )
-                is not None
-            ) and self.owner != user:
+            if (
+                not is_borrowable
+                and has_active_subscription
+                and self.owner_id != user.id
+            ):
                 # If the item is currently BORROWED or RESERVED by another user,
                 # but the current user has an active subscription, allow cancelling the subscription
                 return (ItemAction.CANCEL_NOTIFICATION_REQUEST,)
-            else:
-                # At this point, either:
-                # - the user is the owner of the item (and thus can't request to borrow their
-                # no Request can be initiated.
 
-                # NOTE Later we may want to allow new Requests on Items
-                # even when they're currently Borrowed; that will
-                # imply date-based borrowing bookings, which we're
-                # not tackling yet.
-                return tuple()
+            # At this point, either:
+            # - the user is the owner of the item (and thus can't request to borrow it), or
+            # - the item is not borrowable and no notify/cancel-notify action applies.
+            # NOTE Later we may want to allow new Requests on Items
+            # even when they're currently Borrowed; that will
+            # imply date-based borrowing bookings, which we're
+            # not tackling yet.
+            return tuple()
 
         # If we get here, we have exactly one Transaction involving
         # this Item and this User. Let's figure out what are the
@@ -496,7 +599,7 @@ class Item(Model):
                 return (ItemAction.RESOLVE_TRANSACTION,)
 
         if current_tx.status == TransactionStatus.REQUESTED:
-            if self.owner == user:
+            if self.owner_id == user.id:
                 # The User is the owner of the Item, and the current
                 # Transaction is a Request from another User.
                 # The owner can either Accept or Reject the Request.
@@ -511,7 +614,7 @@ class Item(Model):
                 # but may cancel.
                 return (ItemAction.CANCEL_REQUEST,)
         elif current_tx.status == TransactionStatus.GIVEAWAY_REQUESTED:
-            if self.owner == user:
+            if self.owner_id == user.id:
                 # The owner decides whether to hand the item over.
                 return (
                     ItemAction.DECLINE_GIVEAWAY_REQUEST,
@@ -527,7 +630,7 @@ class Item(Model):
             )
         elif current_tx.status == TransactionStatus.COLLECTION_ASSERTED:
             # Make sure the same person doesn't confirm the assertion
-            if current_tx.updated_by != user:
+            if current_tx.updated_by_id != user.id:
                 # TODO: What's the escape hatch if a dispute arises?
                 return (ItemAction.CONFIRM_COLLECTED,)
             else:
@@ -539,7 +642,7 @@ class Item(Model):
             # the borrower's is only an assertion pending the lender's
             # confirmation. The lender can also request the item back, or
             # give it away.
-            if self.owner == user:
+            if self.owner_id == user.id:
                 return (
                     ItemAction.CONFIRM_RETURNED,
                     ItemAction.REQUEST_RETURN,
@@ -549,11 +652,11 @@ class Item(Model):
         elif current_tx.status == TransactionStatus.GIVEAWAY_OFFERED:
             # The borrower decides whether to accept the gift.
             # The lender waits on that decision.
-            if self.owner == user:
+            if self.owner_id == user.id:
                 return tuple()
             return (ItemAction.ACCEPT_GIVEAWAY, ItemAction.DECLINE_GIVEAWAY)
         elif current_tx.status == TransactionStatus.RETURN_REQUESTED:
-            if self.owner == user:
+            if self.owner_id == user.id:
                 # The lender can escalate to a dispute only if the wait window has passed
                 if current_tx.dispute_wait_has_elapsed():
                     return (ItemAction.RAISE_DISPUTE, ItemAction.CONFIRM_RETURNED)
@@ -564,8 +667,8 @@ class Item(Model):
             # Reached only via the borrower's assertion -- the lender's
             # mark closes the loan directly without passing through this
             # status. Make sure the same person doesn't confirm the assertion.
-            if current_tx.updated_by != user:
-                if self.owner == user:
+            if current_tx.updated_by_id != user.id:
+                if self.owner_id == user.id:
                     # The lender can deny the borrower's return claim.
                     return (ItemAction.RAISE_DISPUTE, ItemAction.CONFIRM_RETURNED)
                 return (ItemAction.CONFIRM_RETURNED,)
@@ -573,7 +676,7 @@ class Item(Model):
                 # Otherwise, nothing to do but wait...
                 return tuple()
         elif current_tx.status == TransactionStatus.DISPUTED:
-            if self.owner == user:
+            if self.owner_id == user.id:
                 # The lender settles the dispute one way or the other.
                 return (
                     ItemAction.RESOLVE_DISPUTE_NOT_RETURNED,
@@ -592,13 +695,9 @@ class Item(Model):
         Returns the User with an open borrow or giveaway request on
         this Item, if any.
         """
-        pending_statuses = [
-            TransactionStatus.REQUESTED,
-            TransactionStatus.GIVEAWAY_REQUESTED,
-        ]
         try:
             transaction = Transaction.objects.get(
-                Q(item=self) & Q(status__in=pending_statuses)
+                Q(item=self) & Q(status__in=REQUEST_TRANSACTION_STATUSES)
             )
             # party2 is the requestor
             return transaction.party2
@@ -608,7 +707,7 @@ class Item(Model):
             # Return the most recent request (for now)
             txn: Optional["Transaction"] = (
                 Transaction.objects.filter(
-                    Q(item=self) & Q(status__in=pending_statuses)
+                    Q(item=self) & Q(status__in=REQUEST_TRANSACTION_STATUSES)
                 )
                 .order_by("-created_at")
                 .first()
@@ -622,18 +721,7 @@ class Item(Model):
         # Look for an active transaction where the item is borrowed or reserved
         try:
             transaction = Transaction.objects.get(
-                Q(item=self)
-                & Q(
-                    status__in=[
-                        TransactionStatus.ACCEPTED,
-                        TransactionStatus.COLLECTION_ASSERTED,
-                        TransactionStatus.COLLECTED,
-                        TransactionStatus.GIVEAWAY_OFFERED,
-                        TransactionStatus.RETURN_REQUESTED,
-                        TransactionStatus.RETURN_ASSERTED,
-                        TransactionStatus.DISPUTED,
-                    ]
-                )
+                Q(item=self) & Q(status__in=BORROWER_TRANSACTION_STATUSES)
             )
             # party2 is the borrower
             return transaction.party2
@@ -644,23 +732,33 @@ class Item(Model):
             # return the most recent one
             txn: Optional["Transaction"] = (
                 Transaction.objects.filter(
-                    Q(item=self)
-                    & Q(
-                        status__in=[
-                            TransactionStatus.ACCEPTED,
-                            TransactionStatus.COLLECTION_ASSERTED,
-                            TransactionStatus.COLLECTED,
-                            TransactionStatus.GIVEAWAY_OFFERED,
-                            TransactionStatus.RETURN_REQUESTED,
-                            TransactionStatus.RETURN_ASSERTED,
-                            TransactionStatus.DISPUTED,
-                        ]
-                    )
+                    Q(item=self) & Q(status__in=BORROWER_TRANSACTION_STATUSES)
                 )
                 .order_by("-updated_at")
                 .first()
             )
             return txn.party2 if txn else None
+
+    def get_current_transaction(self) -> Optional["Transaction"]:
+        """
+        Returns the transaction involving this item regardless of the user
+        """
+        try:
+            # Use `first()` so unexpected data issues (multiple non-terminal transactions)
+            # don't 500 the page; the most recent active transaction wins.
+            return (
+                Transaction.objects.select_related(
+                    "party1",
+                    "party1__profile",
+                    "party2",
+                    "party2__profile",
+                )
+                .filter(Q(item=self) & ~Q(status__in=TERMINAL_TRANSACTION_STATUSES))
+                .order_by("-created_at")
+                .first()
+            )
+        except Transaction.DoesNotExist:
+            return None
 
     def get_current_transaction_for_user(
         self, user: BorrowdUser
@@ -676,15 +774,7 @@ class Item(Model):
             return Transaction.objects.get(
                 Q(item=self)
                 & (Q(party1=user) | Q(party2=user))
-                & ~Q(
-                    status__in=[
-                        TransactionStatus.RETURNED,
-                        TransactionStatus.REJECTED,
-                        TransactionStatus.CANCELLED,
-                        TransactionStatus.RESOLVED,
-                        TransactionStatus.OWNERSHIP_TRANSFERRED,
-                    ]
-                )
+                & ~Q(status__in=TERMINAL_TRANSACTION_STATUSES)
             )
         except Transaction.DoesNotExist:
             return None
@@ -948,8 +1038,10 @@ class Item(Model):
         # guardian mis-types get_groups_with_perms as `Group | dict`; for the
         # default attach_perms=False it returns a QuerySet[Group].
         groups_that_can_view_item = cast("QuerySet[Group]", get_groups_with_perms(self))
-        for group in groups_that_can_view_item:
-            remove_perm(ItemOLP.VIEW, group, self)
+        # Pass the queryset straight through rather than looping: remove_perm
+        # dispatches a single bulk DELETE for a group queryset, vs. one DELETE
+        # round-trip per currently-permitted group in a Python loop.
+        remove_perm(ItemOLP.VIEW, groups_that_can_view_item, self)
 
         allowed_groups = Group.objects.filter(
             pk__in=self._groups_allowed_to_view().values_list("perms_group", flat=True)
@@ -1071,6 +1163,9 @@ class ItemPhoto(Model):
         help_text="Who performed the soft-delete. NULL means active or unknown.",
     )
 
+    class Meta:
+        ordering = ["pk"]
+
     def __str__(self) -> str:
         # error: "_ST" has no attribute "name"  [attr-defined]
         return f"Photo of {self.item.name}"
@@ -1099,6 +1194,36 @@ class TransactionStatus(IntegerChoices):
     CANCELLED = 80, "Cancelled"
     RESOLVED = 90, "Resolved"  # any force-resolved transaction, regardless of reason
     OWNERSHIP_TRANSFERRED = 95, "Ownership Transferred"
+
+
+# A transaction in one of these statuses is done; it no longer counts as the
+# item's current transaction.
+TERMINAL_TRANSACTION_STATUSES = (
+    TransactionStatus.RETURNED,
+    TransactionStatus.REJECTED,
+    TransactionStatus.CANCELLED,
+    TransactionStatus.RESOLVED,
+    TransactionStatus.OWNERSHIP_TRANSFERRED,
+)
+
+# A transaction in one of these statuses is an open borrow or giveaway
+# request awaiting the owner's decision.
+REQUEST_TRANSACTION_STATUSES = (
+    TransactionStatus.REQUESTED,
+    TransactionStatus.GIVEAWAY_REQUESTED,
+)
+
+# A transaction in one of these statuses has an assigned borrower (party2)
+# holding, or about to hold, the item.
+BORROWER_TRANSACTION_STATUSES = (
+    TransactionStatus.ACCEPTED,
+    TransactionStatus.COLLECTION_ASSERTED,
+    TransactionStatus.COLLECTED,
+    TransactionStatus.GIVEAWAY_OFFERED,
+    TransactionStatus.RETURN_REQUESTED,
+    TransactionStatus.RETURN_ASSERTED,
+    TransactionStatus.DISPUTED,
+)
 
 
 class ResolutionReason(TextChoices):

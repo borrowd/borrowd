@@ -298,7 +298,7 @@ def cleanup_e2e_items(browser: Browser, base_url, user_auth_state):
 
 
 def _delete_e2e_groups(page: Page, base_url: str, budget_seconds: float = 300) -> None:
-    """Leave (and thereby delete) generated 'E2E ... <timestamp or uuid>' groups via
+    """Leave (and thereby delete) generated 'E2E ... <timestamp>' groups via
     the UI so the environment's group list doesn't grow without bound across
     runs.
 
