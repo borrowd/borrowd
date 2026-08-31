@@ -401,7 +401,7 @@
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'X-CSRFToken': '{{ csrf_token }}',
+              'X-CSRFToken': window.getCsrfToken(),
             },
             body: JSON.stringify(sub.toJSON()),
           });
@@ -446,7 +446,7 @@
 
   function confirmDeleteAvatar() {
     const modal = document.getElementById('delete-avatar-modal');
-    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    const csrfToken = window.getCsrfToken();
 
     fetch('{% url "profile-delete-photo" %}', {
       method: 'POST',
