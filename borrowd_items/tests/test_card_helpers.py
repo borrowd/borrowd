@@ -5,6 +5,8 @@ Covers:
 - build_card_ids: Card ID generation
 - get_banner_info_for_item: Banner type determination
 - build_item_card_context: Full context building
+- build_item_cards_for_items: Batch card state, including the
+  multiple-non-terminal-transaction data-integrity case
 """
 
 from datetime import datetime
@@ -16,6 +18,7 @@ from django.utils import timezone
 from borrowd_items.card_helpers import (
     build_card_ids,
     build_item_card_context,
+    build_item_cards_for_items,
     get_banner_info_for_item,
 )
 from borrowd_items.models import (
@@ -414,3 +417,71 @@ class GiveawayBannerTests(TestCase):
         self._create_giveaway_request()
         info = get_banner_info_for_item(self.item, self.other_user)
         self.assertEqual(info, {"banner_type": "pending"})
+
+
+class BuildItemCardsForItemsMultipleTransactionsTests(TestCase):
+    """
+    Covers the data-integrity edge case of an item with more than one
+    non-terminal Transaction, which shouldn't happen with proper business
+    logic but is defended against elsewhere (e.g. Item.get_current_borrower()).
+    """
+
+    owner: BorrowdUser
+    borrower: BorrowdUser
+    other_user: BorrowdUser
+
+    @classmethod
+    def setUpTestData(cls) -> None:
+        cls.owner = BorrowdUser.objects.create(
+            username="mt_owner", email="mt_owner@example.com"
+        )
+        cls.borrower = BorrowdUser.objects.create(
+            username="mt_borrower", email="mt_borrower@example.com"
+        )
+        cls.other_user = BorrowdUser.objects.create(
+            username="mt_other", email="mt_other@example.com"
+        )
+
+    def setUp(self) -> None:
+        self.item = Item.objects.create(
+            name="Test Item",
+            description="Test description",
+            owner=self.owner,
+            created_by=self.owner,
+            updated_by=self.owner,
+            status=ItemStatus.RESERVED,
+        )
+        # Two non-terminal transactions for the same item and borrower --
+        # shouldn't happen with proper business logic, but simulates a
+        # data-integrity conflict rather than relying on it occurring
+        # naturally through the normal request/accept flow.
+        Transaction.objects.create(
+            item=self.item,
+            party1=self.owner,
+            party2=self.borrower,
+            status=TransactionStatus.ACCEPTED,
+            created_by=self.borrower,
+            updated_by=self.owner,
+        )
+        Transaction.objects.create(
+            item=self.item,
+            party1=self.owner,
+            party2=self.borrower,
+            status=TransactionStatus.COLLECTION_ASSERTED,
+            created_by=self.borrower,
+            updated_by=self.borrower,
+        )
+
+    def test_conflicting_transactions_raise_for_involved_user(self) -> None:
+        """
+        Rendering a card for a user with two non-terminal transactions on
+        the same item raises, surfacing the data conflict instead of
+        silently picking one -- mirroring Item.get_current_transaction_for_user().
+        """
+        with self.assertRaises(Transaction.MultipleObjectsReturned):
+            build_item_cards_for_items([self.item], self.borrower, "search")
+
+    def test_conflicting_transactions_dont_affect_uninvolved_viewer(self) -> None:
+        """An uninvolved viewer's card renders fine despite the conflict."""
+        cards = build_item_cards_for_items([self.item], self.other_user, "search")
+        self.assertEqual(len(cards), 1)
