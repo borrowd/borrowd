@@ -45,7 +45,7 @@ class AddNewItem:
             "button", name="Select categories"
         )
 
-        self.group_sharing_button = page.get_by_role("button", name="All Groups")
+        self.group_sharing_button = page.get_by_role("button", name="All groups")
         self.group_sharing_modal = page.locator("#item-group-sharing-modal")
         self.group_sharing_modal_apply_button = self.group_sharing_modal.get_by_role(
             "button", name="Apply"

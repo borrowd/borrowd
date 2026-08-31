@@ -33,6 +33,21 @@ uv run manage.py test borrowd_groups               # Run an app's tests
 ```
 Tests live both at the repo root (`tests/`, for cross-app flows) and inside individual app directories.
 
+By default this runs against SQLite (`borrowd/config/base.py`), but CI always
+runs against Postgres 17 — the two backends don't enforce the same
+constraints (e.g. SQLite silently no-ops `select_for_update()` and ignores
+`FOR UPDATE`-on-outer-join restrictions that Postgres rejects outright), so a
+green local run on SQLite is not proof a change is safe on Postgres. Before
+pushing a change that touches locking (`select_for_update`), raw SQL, or
+anything migration-related, run the suite against Postgres locally too:
+```bash
+docker compose up -d db                                                   # start local Postgres 17 (once)
+DJANGO_SETTINGS_MODULE=borrowd.config.ci.django uv run manage.py test     # run tests against it
+```
+This reuses `borrowd.config.ci.django` — the same settings module CI
+uses — so there's no separate local-Postgres settings file to maintain, and
+its `DB_*` env var defaults already match `docker-compose.yml`.
+
 ### Code Quality
 ```bash
 uvx ruff format                 # Format code
@@ -157,6 +172,9 @@ Evergreen comments only — describe current state, not evolution. Don't referen
 
 ### Error Handling
 Domain-specific exceptions live in `<app>/exceptions.py`, all subclassing `BorrowdException` (`borrowd/exceptions.py`). Raise early on invalid state; surface user-facing failures via Django's messages framework.
+
+### Data Migrations
+A `RunPython` migration that calls `apps.get_model(...)` gets a frozen historical model class, not the live one. Calling `.save()` on an instance of it does **not** dispatch `post_save`/`pre_save` to receivers registered against the live model (Django's dispatcher matches `sender` by exact class identity) — this class of bug has silently broken permission enrollment before (`borrowd_groups/signals.py`'s `sync_membership_permissions`, backfilled via `repair_membership_permissions`). If a migration needs a live model's signal side effects or another live-only behavior (e.g. guardian's `isinstance` checks against `auth.Group`, see `0012_backfill_item_view_perms_for_members.py`), import and use the live class/function directly instead of going through `apps.get_model()`.
 
 ## Code Intelligence
 

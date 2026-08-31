@@ -1,7 +1,7 @@
 {% extends "groups/layout.html" %}
 
 {% block head_title %}
-    Group Details{%
+    Group details{%
     endblock %}
     {% block groups_content %}
 
@@ -34,14 +34,14 @@
                 <div class="mb-4">
                     <!-- this to counteract automatic c-box padding -->
                     <img src="{{ object.banner.url }}"
-                         alt="Group Banner Image"
+                         alt="Group banner image"
                          class="w-full h-[120px] object-cover rounded-md md:h-[200px]" />
                 </div>
             {% endif %}
             <div class="flex flex-col h-full">
                 <div class="flex">
                     {% if object.logo %}
-                        <c-thumbnail src="{{ object.logo.url }}" alt="{{ object.name }} Logo" />
+                        <c-thumbnail src="{{ object.logo.url }}" alt="{{ object.name }} logo" />
                         <span class="pl-2 flex items-center">
                             <c-h1 class="text-base md:text-lg font-semibold line-clamp-2">
                                 {{ object.name }}
@@ -70,7 +70,7 @@
         {% if is_moderator and pending_members %}
             <c-box class="mt-4 bg-primary-content!">
                 <c-h2 class="border-b pb-4">
-                    Pending Approval ({{ pending_members|length }})
+                    Pending approval ({{ pending_members|length }})
                 </c-h2>
                 <div class="divide-y divide-gray-200">
                     {% for membership in pending_members %}

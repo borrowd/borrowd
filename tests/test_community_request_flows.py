@@ -144,13 +144,13 @@ class CommunityRequestEndToEndFlowTest(SimpleTestCase):
         self.assertContains(
             response,
             f"We couldn't find any {self.SEARCH_TERM}. Would you like to make a "
-            "Community Request?",
+            "community request?",
         )
         expected_link = (
             f"{reverse('community-request-create')}?item_name={quote(self.SEARCH_TERM)}"
         )
         self.assertContains(response, expected_link)
-        self.assertContains(response, "Request Item")
+        self.assertContains(response, "Request item")
 
     def test_040_requester_creates_a_community_request(self) -> None:
         """Submitting the CTA's create form creates an open request owned
