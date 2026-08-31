@@ -54,7 +54,7 @@ class AddNewItem:
         self.upload_photo_button = page.get_by_role("button", name="Choose File")
 
         self.add_item_button = page.get_by_role(
-            "button", name=re.compile(r"Add an item|Create New Item|Add item", re.I)
+            "button", name=re.compile(r"Add an item|Create New Item|Add item", re.IGNORECASE)
         )
 
     def expect_opened(self):

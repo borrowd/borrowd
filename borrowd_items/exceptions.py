@@ -7,5 +7,3 @@ class InvalidItemAction(BorrowdException):
 
 class ItemAlreadyRequested(InvalidItemAction):
     """Raised when a user tries to request an item that already has a pending request."""
-
-    pass

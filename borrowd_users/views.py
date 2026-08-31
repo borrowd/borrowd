@@ -34,7 +34,12 @@ from borrowd_items.models import Item, ItemStatus, Transaction
 from borrowd_notifications.models import NotificationPreference
 
 from .exceptions import AccountDeletionBlocked
-from .forms import ChangePasswordForm, CustomSignupForm, ProfileUpdateForm
+from .forms import (
+    ChangePasswordForm,
+    CustomSignupForm,
+    ProfilePhotoUploadForm,
+    ProfileUpdateForm,
+)
 from .models import BorrowdUser, SearchTarget, SearchTerm
 from .request import get_authenticated_user
 from .services import soft_delete_account
@@ -240,6 +245,41 @@ def delete_profile_photo_view(request: HttpRequest) -> JsonResponse:
     return JsonResponse(
         {"success": False, "message": "No profile picture to delete."},
         status=400,
+    )
+
+
+@login_required
+@require_POST
+def upload_profile_photo_view(request: HttpRequest) -> JsonResponse:
+    """
+    Save the user's profile photo via AJAX as soon as one is selected,
+    without affecting other form fields -- see delete_profile_photo_view
+    above for why this needs to be its own endpoint rather than part of
+    ProfileUpdateForm's regular submit.
+    """
+    user = get_authenticated_user(request)
+    profile = user.profile
+
+    form = ProfilePhotoUploadForm(request.POST, request.FILES)
+    if not form.is_valid():
+        message = next(iter(form.errors.get("image", [])), "Invalid image.")
+        return JsonResponse({"success": False, "message": message}, status=400)
+
+    # Assign and save the new image first, then let django-cleanup remove the
+    # old file once the save succeeds. Deleting the old file up front would
+    # leave the user with no photo at all if the save subsequently failed
+    # (e.g. ProcessedImageField's resize/re-encode step raising on a file
+    # that passed the lighter form-level validation).
+    profile.image = form.cleaned_data["image"]
+    profile.updated_by = user
+    profile.save(update_fields=["image", "updated_by", "updated_at"])
+
+    return JsonResponse(
+        {
+            "success": True,
+            "message": "Profile photo updated.",
+            "image_url": profile.image.url,
+        }
     )
 
 

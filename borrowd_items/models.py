@@ -108,7 +108,7 @@ class ItemActionContext:
     actions: tuple[ItemAction, ...]
     status_text: str
     # Non-interactive text to show in place of action buttons
-    waiting_text: Optional[str] = None
+    waiting_text: str | None = None
 
 
 @dataclass
@@ -119,8 +119,8 @@ class PrecomputedItemState:
     re-derive it independently.
     """
 
-    current_borrower: Optional[BorrowdUser]
-    requesting_user: Optional[BorrowdUser]
+    current_borrower: BorrowdUser | None
+    requesting_user: BorrowdUser | None
     current_transaction: Optional["Transaction"]
     has_active_subscription: bool = False
     # Every non-terminal Transaction the caller loaded for this item, so
@@ -287,7 +287,7 @@ class Item(Model):
     def get_action_context_for(
         self,
         user: BorrowdUser,
-        precomputed: Optional[PrecomputedItemState] = None,
+        precomputed: PrecomputedItemState | None = None,
     ) -> ItemActionContext:
         """
         Returns ItemActionContext containing ItemActions [e.g. REQUEST_ITEM, ACCEPT_REQUEST]
@@ -356,10 +356,10 @@ class Item(Model):
         self,
         user: BorrowdUser,
         actions: tuple[ItemAction, ...],
-        current_borrower: Optional[BorrowdUser],
-        requesting_user: Optional[BorrowdUser],
+        current_borrower: BorrowdUser | None,
+        requesting_user: BorrowdUser | None,
         current_tx: Optional["Transaction"] = None,
-        precomputed: Optional[PrecomputedItemState] = None,
+        precomputed: PrecomputedItemState | None = None,
     ) -> str:
         """Generate context-appropriate status text for the user."""
         # Determine user role
@@ -464,7 +464,7 @@ class Item(Model):
         self,
         actions: tuple[ItemAction, ...],
         user: BorrowdUser,
-        precomputed: Optional[PrecomputedItemState] = None,
+        precomputed: PrecomputedItemState | None = None,
     ) -> str:
         """Generate status text for users who are neither owner nor borrower."""
         if len(actions) == 1 and ItemAction.CANCEL_REQUEST in actions:
@@ -476,14 +476,16 @@ class Item(Model):
             return "Available to request!"
         elif ItemAction.REQUEST_GIVEAWAY in actions:
             return "Free to keep!"
-        elif precomputed is not None and precomputed.has_active_subscription:
-            return "You've requested to be notified when this item is available again."
         elif (
-            precomputed is None
-            and AvailabilitySubscription.get_active_subscription_for_user_and_item(
-                user=user, item=self
+            precomputed is not None
+            and precomputed.has_active_subscription
+            or (
+                precomputed is None
+                and AvailabilitySubscription.get_active_subscription_for_user_and_item(
+                    user=user, item=self
+                )
+                is not None
             )
-            is not None
         ):
             return "You've requested to be notified when this item is available again."
         elif precomputed is not None and precomputed.requesting_user is not None:
@@ -497,7 +499,7 @@ class Item(Model):
     def get_actions_for(
         self,
         user: BorrowdUser,
-        precomputed: Optional[PrecomputedItemState] = None,
+        precomputed: PrecomputedItemState | None = None,
     ) -> tuple[ItemAction, ...]:
         """
         Returns a tuple of ItemAction objects representing the
@@ -690,7 +692,7 @@ class Item(Model):
                 f"Unexpected Transaction status '{current_tx.status}' for Item '{self}' and User '{user}'"
             )
 
-    def get_requesting_user(self) -> Optional[BorrowdUser]:
+    def get_requesting_user(self) -> BorrowdUser | None:
         """
         Returns the User with an open borrow or giveaway request on
         this Item, if any.
@@ -705,7 +707,7 @@ class Item(Model):
             return None
         except Transaction.MultipleObjectsReturned:
             # Return the most recent request (for now)
-            txn: Optional["Transaction"] = (
+            txn: Transaction | None = (
                 Transaction.objects.filter(
                     Q(item=self) & Q(status__in=REQUEST_TRANSACTION_STATUSES)
                 )
@@ -714,7 +716,7 @@ class Item(Model):
             )
             return txn.party2 if txn else None
 
-    def get_current_borrower(self) -> Optional[BorrowdUser]:
+    def get_current_borrower(self) -> BorrowdUser | None:
         """
         Returns the User who is currently borrowing this Item, if any.
         """
@@ -730,7 +732,7 @@ class Item(Model):
         except Transaction.MultipleObjectsReturned:
             # This shouldn't happen with proper business logic, but just in case
             # return the most recent one
-            txn: Optional["Transaction"] = (
+            txn: Transaction | None = (
                 Transaction.objects.filter(
                     Q(item=self) & Q(status__in=BORROWER_TRANSACTION_STATUSES)
                 )
@@ -779,7 +781,7 @@ class Item(Model):
         except Transaction.DoesNotExist:
             return None
 
-    def is_borrowable(self, user: Optional[BorrowdUser] = None) -> bool:
+    def is_borrowable(self, user: BorrowdUser | None = None) -> bool:
         if self.status != ItemStatus.AVAILABLE:
             return False
 
@@ -810,10 +812,8 @@ class Item(Model):
         valid_actions = self.get_actions_for(user=user)
         if action not in valid_actions:
             raise InvalidItemAction(
-                (
-                    f"User '{user}' cannot perform action '{action}' on"
-                    f"Item '{self}' at this time."
-                )
+                f"User '{user}' cannot perform action '{action}' on"
+                f"Item '{self}' at this time."
             )
 
         if action == ItemAction.REQUEST_ITEM:

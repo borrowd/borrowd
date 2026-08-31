@@ -11,9 +11,8 @@ class ChatThreadModelTests(MessagingTestCase):
     def test_second_active_prerequest_thread_is_rejected(self) -> None:
         self.make_thread()
 
-        with self.assertRaises(IntegrityError):
-            with atomic():
-                self.make_thread()
+        with self.assertRaises(IntegrityError), atomic():
+            self.make_thread()
 
     def test_new_prerequest_thread_allowed_once_previous_has_transaction(self) -> None:
         first = self.make_thread()
@@ -47,14 +46,12 @@ class ChatThreadModelTests(MessagingTestCase):
         self.make_thread(transaction=txn)
 
         # A different borrower, so only the OneToOne can be what trips.
-        with self.assertRaises(IntegrityError):
-            with atomic():
-                self.make_thread(transaction=txn, borrower=self.make_user("other"))
+        with self.assertRaises(IntegrityError), atomic():
+            self.make_thread(transaction=txn, borrower=self.make_user("other"))
 
     def test_a_user_cannot_chat_with_themselves(self) -> None:
-        with self.assertRaises(IntegrityError):
-            with atomic():
-                self.make_thread(borrower=self.lender)
+        with self.assertRaises(IntegrityError), atomic():
+            self.make_thread(borrower=self.lender)
 
     def test_is_archived_reflects_archived_at(self) -> None:
         thread = self.make_thread()
@@ -111,13 +108,12 @@ class MessageModelTests(MessagingTestCase):
         self.thread = self.make_thread()
 
     def test_empty_body_is_rejected(self) -> None:
-        with self.assertRaises(IntegrityError):
-            with atomic():
-                Message.objects.create(
-                    thread=self.thread,
-                    sender=self.borrower,
-                    body="",
-                )
+        with self.assertRaises(IntegrityError), atomic():
+            Message.objects.create(
+                thread=self.thread,
+                sender=self.borrower,
+                body="",
+            )
 
     def test_messages_read_back_in_send_order_by_pk(self) -> None:
         first = Message.objects.create(

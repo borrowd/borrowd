@@ -14,7 +14,7 @@ class AuthFlow:
         self.email_input = page.get_by_role("textbox", name="Email")
         self.password_input = page.get_by_role("textbox", name="Password")
         self.submit_button = page.get_by_role(
-            "button", name=re.compile("sign in|log in|login", re.I)
+            "button", name=re.compile("sign in|log in|login", re.IGNORECASE)
         ).first
         self.hamburger_button = page.locator("label[for='main-drawer']").first
         self.logout_button = page.get_by_role("button", name="Logout")
@@ -50,7 +50,7 @@ class AuthFlow:
     def open_email_password_login(self):
         expect(self.sign_in_link).to_be_visible()
         close_sidebar = self.page.get_by_role(
-            "checkbox", name=re.compile("close sidebar", re.I)
+            "checkbox", name=re.compile("close sidebar", re.IGNORECASE)
         )
         if close_sidebar.is_visible():
             close_sidebar.click()

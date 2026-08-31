@@ -1,6 +1,6 @@
 import logging
 from datetime import datetime, timedelta
-from typing import Any, Type
+from typing import Any
 
 import sentry_sdk
 from django.conf import settings
@@ -35,7 +35,7 @@ _SUMMARY_DIGEST_DELAY = timedelta(hours=1)
 
 
 class NotificationService:
-    _backends: dict[ChannelType, Type[NotificationStrategy]] = {
+    _backends: dict[ChannelType, type[NotificationStrategy]] = {
         ChannelType.APP: AppNotificationStrategy,
         ChannelType.EMAIL: EmailNotificationStrategy,
         ChannelType.PUSH: PUSHNotificationStrategy,
