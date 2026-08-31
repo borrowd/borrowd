@@ -139,8 +139,14 @@ class Command(BaseCommand):
         """
         with transaction.atomic():
             try:
+                # of=("self",) restricts the row lock to the Membership
+                # table itself. group__perms_group is a nullable
+                # OneToOneField, so select_related joins it with a LEFT
+                # OUTER JOIN — and PostgreSQL rejects FOR UPDATE on the
+                # nullable side of an outer join unless the lock is scoped
+                # away from that joined table.
                 membership = (
-                    Membership.objects.select_for_update()
+                    Membership.objects.select_for_update(of=("self",))
                     .select_related("group__perms_group", "user")
                     .get(pk=membership_id)
                 )
