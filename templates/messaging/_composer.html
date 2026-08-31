@@ -1,0 +1,68 @@
+{# Active-thread controls: message composer (typing box) and pre-request close button.
+The fixed `chat-composer` id lets an archived poll response replace this block.
+See messaging/_poll.html and messaging/_composer_archived.html. #}
+
+<div id="chat-composer" class="mt-4">
+    {# Send the last rendered message id as `after` like ?after=123.
+    ChatThreadSendView returns every message after that id through the newly stored message.
+    `hx-sync` keeps send and poll responses in order.
+    See borrowd_messaging.views.ChatThreadSendView and https://htmx.org/attributes/hx-sync/ #}
+    <form hx-post="{% url 'chat-thread-send' chat_thread.pk %}"
+          data-draft-revision="0"
+          hx-target="#chat-messages"
+          hx-swap="beforeend"
+          hx-sync="#chat-messages:queue all"
+          hx-vals='js:{after: document.querySelector("#chat-messages li:last-child")?.id.replace("message-", "") || 0}'
+          hx-on:input="this.dataset.draftRevision = String(Number(this.dataset.draftRevision) + 1)"
+          hx-on::before-request="this.dataset.sentDraftRevision = this.dataset.draftRevision; this.querySelector('#chat-composer-error').textContent = ''"
+          hx-on::after-request="if (event.detail.successful &amp;&amp; this.dataset.sentDraftRevision === this.dataset.draftRevision) { const textarea = this.querySelector('textarea'); textarea.value = ''; textarea.dispatchEvent(new Event('input', { bubbles: true })); }"
+          hx-on::response-error="this.querySelector('#chat-composer-error').textContent = event.detail.xhr.responseText">
+        {# A successful send clears the textarea only when it has not changed
+        since that request began. A failed send keeps the text and shows the server's explanation.
+        See components/form/textarea.html. #}
+        {% csrf_token %}
+        <c-form.textarea name="body"
+                         id="chat-composer-body"
+                         label="Message"
+                         rows="2"
+                         max_length="{{ message_body_max_length }}"
+                         required="true"
+                         placeholder="Write a message" />
+        <c-button type="submit">
+            Send
+        </c-button>
+        <p id="chat-composer-error"
+           class="mt-2 text-error text-sm"
+           role="alert"
+           aria-live="polite">
+        </p>
+    </form>
+
+    {# Only pre-request threads may be closed manually. Transaction lifecycle
+    handling archives linked threads. See borrowd_messaging.signals. #}
+    {% if not chat_thread.transaction_id %}
+        <button type="button"
+                class="btn btn-error btn-soft mt-2"
+                onclick="showModal('close-conversation-modal')">
+            Close conversation
+        </button>
+
+        <form id="close-conversation-form"
+              class="hidden"
+              method="post"
+              action="{% url 'chat-thread-pre-request-close' chat_thread.pk %}">
+            {% csrf_token %}
+        </form>
+
+        <c-modal modal_id="close-conversation-modal"
+                 modal_title="Close conversation?"
+                 cancel_button_text="Cancel"
+                 confirm_button_text="Close conversation"
+                 confirm_submit_form_id="close-conversation-form"
+                 confirm_button_class="btn btn-error btn-soft font-semibold">
+            <p>
+                Closing is permanent. Neither person can send more messages, but both can still read the conversation.
+            </p>
+        </c-modal>
+    {% endif %}
+</div>
