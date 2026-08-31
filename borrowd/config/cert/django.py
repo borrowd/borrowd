@@ -5,7 +5,7 @@ from environ import ImproperlyConfigured
 
 from borrowd.util import decode, get_platformsh_base_url
 
-from ..base import *  # noqa: F403
+from ..base import *
 from ..env import env
 
 DEBUG = False
@@ -60,7 +60,7 @@ if env("PLATFORM_APPLICATION_NAME") is not None:
         }
 
     sentry_sdk.init(
-        dsn=SENTRY_DSN,  # noqa: F405
+        dsn=SENTRY_DSN,
         send_default_pii=True,
         environment="staging",
     )
@@ -96,6 +96,6 @@ STATIC_ROOT = os.path.join(env("PLATFORM_APP_DIR"), "staticfiles")
 DJANGO_VITE = {
     "default": {
         "dev_mode": False,
-        "manifest_path": BASE_DIR / "build" / "manifest.json",  # noqa: F405
+        "manifest_path": BASE_DIR / "build" / "manifest.json",
     }
 }

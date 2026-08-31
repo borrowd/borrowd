@@ -481,12 +481,7 @@ class GroupListView(LoginRequiredMixin, FilterView):  # type: ignore[misc]
         pending_action_group_ids = get_memberships_with_pending_actions(memberships)
 
         for membership in memberships:
-            setattr(
-                membership,
-                "has_pending_actions",
-                membership.is_moderator
-                and membership.group_id in pending_action_group_ids,
-            )
+            membership.has_pending_actions = membership.is_moderator and membership.group_id in pending_action_group_ids
 
         context["object_list"] = memberships
         context["has_groups"] = Membership.objects.filter(

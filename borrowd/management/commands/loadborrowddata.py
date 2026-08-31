@@ -1,4 +1,4 @@
-from typing import Sequence
+from collections.abc import Sequence
 
 from django.core.management.commands.loaddata import Command as BaseLoadDataCommand
 from django.db.models.signals import (

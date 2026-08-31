@@ -131,11 +131,10 @@ class GetOrCreatePreRequestThreadTests(MessagingTestCase):
 
         with patch.object(
             MessagingService, "_active_prerequest_thread", return_value=None
-        ):
-            with self.assertRaises(IntegrityError):
-                MessagingService.get_or_create_prerequest_thread(
-                    self.borrower, self.item
-                )
+        ), self.assertRaises(IntegrityError):
+            MessagingService.get_or_create_prerequest_thread(
+                self.borrower, self.item
+            )
 
 
 @override_settings(MESSAGING_ENABLED=True)
