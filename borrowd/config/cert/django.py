@@ -5,10 +5,19 @@ from environ import ImproperlyConfigured
 
 from borrowd.util import decode, get_platformsh_base_url
 
-from ..base import *  # noqa: F403
+from ..base import *
 from ..env import env
 
 DEBUG = False
+
+# See borrowd/config/prod/django.py — same reasoning, cert is also
+# HTTPS-only behind platform.sh's router.
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
+BETA_SECURE_COOKIE = True
+# See borrowd/config/prod/django.py for why this is required behind
+# platform.sh's TLS-terminating router.
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 #################################################################################
 # Platform.sh-specific configuration
@@ -60,7 +69,7 @@ if env("PLATFORM_APPLICATION_NAME") is not None:
         }
 
     sentry_sdk.init(
-        dsn=SENTRY_DSN,  # noqa: F405
+        dsn=SENTRY_DSN,
         send_default_pii=True,
         environment="staging",
     )
@@ -96,6 +105,6 @@ STATIC_ROOT = os.path.join(env("PLATFORM_APP_DIR"), "staticfiles")
 DJANGO_VITE = {
     "default": {
         "dev_mode": False,
-        "manifest_path": BASE_DIR / "build" / "manifest.json",  # noqa: F405
+        "manifest_path": BASE_DIR / "build" / "manifest.json",
     }
 }

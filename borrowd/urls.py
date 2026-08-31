@@ -15,8 +15,6 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 
-from typing import List
-
 from allauth.account.internal.stagekit import clear_login
 from django.conf import settings
 from django.conf.urls.static import static
@@ -45,7 +43,7 @@ def cancel_login_code(request: HttpRequest) -> HttpResponse:
     return redirect("account_login")
 
 
-urlpatterns: List[URLPattern | URLResolver] = [
+urlpatterns: list[URLPattern | URLResolver] = [
     path("admin/", admin.site.urls),
     # Custom signup view
     path("signup/", CustomSignupView.as_view(), name="custom_signup"),
@@ -64,6 +62,7 @@ urlpatterns: List[URLPattern | URLResolver] = [
     path("profile/", include("borrowd_users.urls")),
     path("items/", include("borrowd_items.urls")),
     path("groups/", include("borrowd_groups.urls")),
+    path("messages/", include("borrowd_messaging.urls")),
     path("notifications/", include("borrowd_notifications.inbox_urls")),
     path("settings/", include("borrowd_notifications.urls")),
     path("push/", include("borrowd_notifications.push_urls")),

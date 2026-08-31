@@ -88,6 +88,15 @@
                             <span>My inventory</span>
                         </a>
                     </li>
+                    {% if messaging_enabled %}
+                        <li>
+                            <a href="{% url 'chat-thread-list' %}"
+                               class="flex items-center gap-3 py-3">
+                                {% heroicon_outline "chat-bubble-left-right" class="size-5" %}
+                                <span>Messages</span>
+                            </a>
+                        </li>
+                    {% endif %}
                     <li>
                         <a href="{% url 'notification-inbox' %}"
                            class="flex items-center gap-3 py-3">
@@ -102,10 +111,7 @@
                         </a>
                     </li>
                     <li>
-                        <a href="https://borrowd.org/faq/"
-                           target="_blank"
-                           rel="noopener noreferrer"
-                           class="flex items-center gap-3 py-3">
+                        <a href="{% url 'faq' %}" class="flex items-center gap-3 py-3">
                             {% heroicon_outline "question-mark-circle" class="size-5" %}
                             <span>FAQ</span>
                         </a>

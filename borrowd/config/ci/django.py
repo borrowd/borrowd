@@ -1,13 +1,13 @@
 from borrowd.config.env import env
 
-from ..base import *  # noqa: F403
+from ..base import *
 
-STATIC_ROOT = BASE_DIR / "staticfiles"  # noqa: F405
+STATIC_ROOT = BASE_DIR / "staticfiles"
 
 DJANGO_VITE = {
     "default": {
         "dev_mode": False,
-        "manifest_path": BASE_DIR / "build" / "manifest.json",  # noqa: F405
+        "manifest_path": BASE_DIR / "build" / "manifest.json",
     }
 }
 

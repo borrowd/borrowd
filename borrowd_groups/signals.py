@@ -67,10 +67,8 @@ def stash_perms_group_for_cleanup(
     BorrowdGroup cascade has completed.
     """
     perms_group = instance.perms_group
-    setattr(
-        instance,
-        "_perms_group_id_for_cleanup",
-        perms_group.pk if perms_group is not None else None,
+    instance._perms_group_id_for_cleanup = (
+        perms_group.pk if perms_group is not None else None
     )
 
 
@@ -143,21 +141,22 @@ def _raise_if_last_moderator(
             )
 
 
-@receiver(post_save, sender=Membership)
-def refresh_permissions_on_membership_update(
-    sender: Membership, instance: Membership, created: bool, **kwargs: str
-) -> None:
+def sync_membership_permissions(membership: Membership) -> None:
     """
     Refresh the permissions of Items and Groups for the given Group
     when a User's Membership in the Group is updated.
+
+    Idempotent and callable directly, outside the post_save signal below,
+    by any code path that needs to (re-)apply a membership's derived
+    permissions without re-dispatching the rest of Membership's post_save
+    receivers (e.g. membership-lifecycle notifications).
     """
     #
     # Handle Item permissions
     #
-    membership = instance
     # error: "_ST" has no attribute "perms_group" / "groups"
-    user = instance.user
-    borrowd_group = instance.group
+    user = membership.user
+    borrowd_group = membership.group
     group = borrowd_group.perms_group
     if group is None:
         # This should never happen, but just in case...
@@ -200,6 +199,13 @@ def refresh_permissions_on_membership_update(
             remove_perm(group_perm, user, borrowd_group)
         for item_perm in [ItemOLP.VIEW]:  # will have more later
             remove_perm(item_perm, group, items_of_user)
+
+
+@receiver(post_save, sender=Membership)
+def refresh_permissions_on_membership_update(
+    sender: Membership, instance: Membership, created: bool, **kwargs: str
+) -> None:
+    sync_membership_permissions(instance)
 
 
 @receiver(pre_delete, sender=Membership)

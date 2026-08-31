@@ -13,7 +13,7 @@ class InventoryPage:
         # An empty inventory renders a second empty-state "Add item" CTA;
         # .first is the always-present header button.
         self.add_item_button = page.get_by_role(
-            "link", name=re.compile(r"Add an item|Create New Item|Add item", re.I)
+            "link", name=re.compile(r"Add an item|Create New Item|Add item", re.IGNORECASE)
         ).first
 
     def expect_opened(self):

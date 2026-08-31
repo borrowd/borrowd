@@ -36,6 +36,9 @@ dev = [
     "pyyaml>=6.0.2",
 ]
 
+[tool.ruff.lint.per-file-ignores]
+"borrowd/config/*/django.py" = ["F403", "F405"]
+
 [tool.djlint]
 # https://djlint.com/docs/configuration/
 profile = "django"

@@ -423,17 +423,72 @@
 
   const imageInput = document.getElementById('id_image');
   const avatarPreview = document.getElementById('avatar-preview');
+  const avatarPlaceholder = avatarPreview ? avatarPreview.nextElementSibling : null;
   const deleteBtn = document.getElementById('delete-avatar-btn');
 
-  // Live preview on new file select
+  // Assigns a new avatar src and re-arms the broken-image fallback. The
+  // inline onerror handler is one-shot (it nulls itself out once it fires
+  // and hides the <img> for good), so any code path that sets a new src
+  // after a prior failure must go through here to restore visibility and
+  // re-attach the handler -- otherwise a later successful image load stays
+  // hidden behind the placeholder icon.
+  function setAvatarSrc(src) {
+    if (!avatarPreview) return;
+    avatarPreview.style.display = '';
+    if (avatarPlaceholder) avatarPlaceholder.style.display = 'none';
+    avatarPreview.onerror = function () {
+      this.onerror = null;
+      this.style.display = 'none';
+      if (avatarPlaceholder) avatarPlaceholder.style.display = 'inline-flex';
+    };
+    avatarPreview.src = src;
+  }
+
+  // Live preview + auto-save on new file select
   if (imageInput) {
     imageInput.addEventListener('change', function (e) {
       const file = e.target.files[0];
-      if (file) {
+      if (!file) return;
+
+      const previousSrc = avatarPreview.src;
+      // Only preview files that look like images -- accept="image/*" is a
+      // picker hint the user can bypass, and feeding a non-image data URL
+      // into the <img> would trip its onerror fallback. Note file.type is
+      // derived from the filename extension by the browser, not the actual
+      // bytes, so a renamed/corrupted file can still slip through here;
+      // setAvatarSrc's re-armed onerror handler covers that case, and the
+      // upload's own error toast covers the server-side rejection either way.
+      if (file.type.startsWith('image/')) {
         const reader = new FileReader();
-        reader.onload = function (e) { avatarPreview.src = e.target.result; };
+        reader.onload = function (e) { setAvatarSrc(e.target.result); };
         reader.readAsDataURL(file);
       }
+
+      const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+      const formData = new FormData();
+      formData.append('image', file);
+
+      fetch('{% url "profile-upload-photo" %}', {
+        method: 'POST',
+        headers: { 'X-CSRFToken': csrfToken },
+        body: formData,
+      })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (data.success) {
+          setAvatarSrc(data.image_url);
+          if (deleteBtn) deleteBtn.disabled = false;
+          showToast(data.message);
+        } else {
+          setAvatarSrc(previousSrc);
+          showToast(data.message || 'An error occurred.', 'error');
+        }
+      })
+      .catch(function () {
+        setAvatarSrc(previousSrc);
+        showToast('An error occurred while uploading your profile picture.', 'error');
+      })
+      .finally(function () { imageInput.value = ''; });
     });
   }
 
@@ -456,15 +511,15 @@
     .then(function (r) { return r.json(); })
     .then(function (data) {
       if (data.success) {
-        avatarPreview.src = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(data.full_name) + '&background=random';
+        setAvatarSrc('https://ui-avatars.com/api/?name=' + encodeURIComponent(data.full_name) + '&background=random');
         if (deleteBtn) deleteBtn.disabled = true;
         if (imageInput) imageInput.value = '';
         showToast(data.message);
       } else {
-        showToast(data.message || 'An error occurred.');
+        showToast(data.message || 'An error occurred.', 'error');
       }
     })
-    .catch(function () { showToast('An error occurred while deleting your profile picture.'); })
+    .catch(function () { showToast('An error occurred while deleting your profile picture.', 'error'); })
     .finally(function () { modal.close(); });
   }
 

@@ -271,4 +271,4 @@ class MessagingService:
         TODO: this eventually will be where WS would come in.
         A no-op currently.
         """
-        return None
+        return

@@ -1,0 +1,10 @@
+{% load heroicons %}
+
+<div id="chat-dispute-indicator" {% if oob %}hx-swap-oob="true"{% endif %}>
+    {% if is_disputed %}
+        <p class="badge badge-warning mt-2 gap-1">
+            {% heroicon_outline "exclamation-triangle" class="size-4" %}
+            Disputed
+        </p>
+    {% endif %}
+</div>

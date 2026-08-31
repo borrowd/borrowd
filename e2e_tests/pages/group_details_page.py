@@ -8,12 +8,12 @@ class GroupDetails:
         self.page = page
 
         self.group_details_heading = page.get_by_role("heading", name="Group details")
-        self.banner_image = page.get_by_role("img", name="Group Banner Image")
+        self.banner_image = page.get_by_role("img", name="Group banner image")
 
         self.get_invite_link_button = page.get_by_role("link", name="Get invite link")
 
         self.members_heading = page.get_by_role(
-            "heading", name=re.compile("members", re.I)
+            "heading", name=re.compile("members", re.IGNORECASE)
         )
         self.user_role = page.get_by_text("Moderator", exact=True)
 

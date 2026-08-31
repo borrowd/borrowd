@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Dict
+from typing import Any
 
 from django.conf import settings
 from django.db import models
@@ -122,7 +122,7 @@ class NotificationType(models.TextChoices):
 
     # TODO simplify the logic to make it cleaner.
     @staticmethod
-    def _get_template_context_for(notification: Notification) -> Dict[str, Any]:
+    def _get_template_context_for(notification: Notification) -> dict[str, Any]:
         """Extract context from the notification's action_object."""
         context = {}
         if notification.verb in (

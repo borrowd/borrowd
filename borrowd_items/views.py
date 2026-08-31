@@ -34,6 +34,7 @@ from borrowd_users.request import get_authenticated_user
 from .card_helpers import (
     build_item_card_context,
     build_item_cards_for_items,
+    with_card_relations,
 )
 from .exceptions import InvalidItemAction, ItemAlreadyRequested
 from .filters import ItemFilter
@@ -319,8 +320,6 @@ class ItemDetailView(
         context = super().get_context_data(**kwargs)
         user = get_authenticated_user(self.request)
 
-        action_context = self.object.get_action_context_for(user=user)
-
         """
         build_item_card_context() returns the full template context for item
         cards, including ownership (is_yours), banner styling, action data, etc.
@@ -330,10 +329,12 @@ class ItemDetailView(
         also rely on this helper through `build_item_cards_for_items` and
         `build_item_cards_for_transactions`, so make sure to check those for
         compatability when updating the context helper.
+
+        Leaving action_context/precomputed unset here lets build_item_card_context
+        derive both from one shared state, instead of the detail page deriving
+        action context itself and forcing the banner to re-derive it separately.
         """
-        context = build_item_card_context(
-            self.object, user, "item-details", action_context
-        )
+        context = build_item_card_context(self.object, user, "item-details")
 
         # Back arrow target. depends on how the user got here.
         context["back_url"] = resolve_back_url(
@@ -383,7 +384,7 @@ class ItemListView(
 
     def get_queryset(self) -> QuerySet[Item]:
         queryset: QuerySet[Item] = super().get_queryset()
-        return queryset.prefetch_related("photos")
+        return with_card_relations(queryset)
 
     def get_context_data(self, **kwargs: str) -> dict[str, Any]:
         context: dict[str, Any] = super().get_context_data(**kwargs)

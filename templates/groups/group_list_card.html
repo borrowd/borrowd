@@ -5,14 +5,10 @@
     <!-- Header -->
     <div class="flex items-center gap-3 px-2.5 py-2.5 bg-white border-b border-gray-200">
         <div class="label flex-1">
-            <span class="text-xs font-semibold text-base-content-scale-70">
-                Group
-            </span>
+            <span class="text-xs font-semibold text-base-content-scale-70">Group</span>
         </div>
         <div class="label">
-            <span class="text-xs font-semibold text-base-content-scale-70">
-                Members
-            </span>
+            <span class="text-xs font-semibold text-base-content-scale-70">Members</span>
         </div>
     </div>
 
@@ -24,7 +20,7 @@
                 {% if membership.group.banner %}
                     <img class="w-full h-full object-cover"
                          src="{{ membership.group.banner.url }}"
-                         alt="{{ membership.group.name }} Banner" />
+                         alt="{{ membership.group.name }} banner" />
                 {% else %}
                     <div class="w-full h-full bg-gray-200 flex items-center justify-center">
                         {% heroicon_outline "user-group" class="w-6 h-6 text-gray-400" stroke_width=2 %}
@@ -49,9 +45,15 @@
                         {% endif %}
 
                         {% if membership.status == "PENDING" %}
-                            <span class="inline-block badge badge-warning badge-soft text-xs px-2 py-1 rounded font-semibold">
-                                Pending
-                            </span>
+                            <span class="inline-block badge badge-warning badge-soft text-xs px-2 py-1 rounded font-semibold">Pending</span>
+                            <form method="post"
+                                  action="{% url 'borrowd_groups:cancel-membership-request' membership.group.pk %}"
+                                  onsubmit="return confirm('Cancel your request to join {{ membership.group.name|escapejs }}?');">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-ghost btn-xs text-yellow-700">
+                                    Cancel
+                                </button>
+                            </form>
                         {% endif %}
                     </div>
                 </div>
@@ -70,7 +72,7 @@
                     </span>
                 {% endif %}
 
-                {% if membership.group.needs_moderator and not membership.is_moderator and membership.status == "ACTIVE" %}
+                {% if membership.group_needs_moderator and not membership.is_moderator and membership.status == "ACTIVE" %}
                     <span class="inline-flex items-center justify-center w-5 h-5 shrink-0 text-warning"
                           title="This group needs a moderator"
                           aria-label="This group needs a moderator"

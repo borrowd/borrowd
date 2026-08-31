@@ -2,7 +2,7 @@ import sentry_sdk
 
 from borrowd.config.env import env
 
-from ..base import *  # noqa: F403
+from ..base import *
 
 if env("DEBUG", cast=str, default="true").lower() in ("1", "t", "true", "yes", "y"):
     DEBUG = True
@@ -11,18 +11,18 @@ else:
     DEBUG = False
     ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
 
-STATIC_ROOT = BASE_DIR / "staticfiles"  # noqa: F405
+STATIC_ROOT = BASE_DIR / "staticfiles"
 INTERNAL_IPS = ["127.0.0.1"]
 DJANGO_VITE = {
     "default": {
         "dev_mode": DEBUG,
-        "manifest_path": BASE_DIR / "build" / "manifest.json",  # noqa: F405
+        "manifest_path": BASE_DIR / "build" / "manifest.json",
     }
 }
 
 if env.bool("LOCAL_SENTRY_ENABLED", default=False):
     sentry_sdk.init(
-        dsn=SENTRY_DSN,  # noqa: F405
+        dsn=SENTRY_DSN,
         send_default_pii=True,
         environment="local",
     )
