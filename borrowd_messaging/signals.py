@@ -1,11 +1,11 @@
 from typing import Any
 
 from django.conf import settings
-from django.db.models.signals import post_save
+from django.db.models.signals import post_save, pre_delete
 from django.dispatch import receiver
 from guardian.shortcuts import assign_perm
 
-from borrowd_items.models import Transaction, TransactionStatus
+from borrowd_items.models import Item, Transaction, TransactionStatus
 from borrowd_permissions.models import ChatThreadOLP
 
 from .models import ArchiveReason, ChatThread
@@ -39,6 +39,25 @@ def assign_chat_thread_permissions(
     if created:
         assign_perm(ChatThreadOLP.VIEW, instance.lender, instance)
         assign_perm(ChatThreadOLP.VIEW, instance.borrower, instance)
+
+
+@receiver(post_save, sender=Item)
+def archive_threads_for_soft_deleted_item(
+    sender: type[Item], instance: Item, **kwargs: Any
+) -> None:
+    """Archive open conversations after an Item is soft-deleted."""
+    if instance.deleted_at is not None:
+        MessagingService.archive_open_threads_for_item(
+            instance, ArchiveReason.ITEM_DELETED
+        )
+
+
+@receiver(pre_delete, sender=Item)
+def archive_threads_for_hard_deleted_item(
+    sender: type[Item], instance: Item, **kwargs: Any
+) -> None:
+    """Archive open conversations before an Item is hard-deleted."""
+    MessagingService.archive_open_threads_for_item(instance, ArchiveReason.ITEM_DELETED)
 
 
 @receiver(post_save, sender=Transaction)

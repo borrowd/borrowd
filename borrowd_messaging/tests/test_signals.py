@@ -23,6 +23,84 @@ class ChatThreadPermissionSignalTests(MessagingTestCase):
 
 
 @override_settings(MESSAGING_ENABLED=True)
+class ItemLifecycleTests(MessagingTestCase):
+    def test_saving_an_active_item_leaves_its_conversations_open(self) -> None:
+        thread = self.make_thread()
+
+        self.item.name = "Cordless Drill"
+        self.item.save(update_fields=["name"])
+
+        thread.refresh_from_db()
+        self.assertFalse(thread.is_archived)
+        self.assertEqual(thread.messages.count(), 0)
+
+    def test_soft_deletion_archives_every_open_item_conversation(self) -> None:
+        transaction_thread = self.make_thread()
+        transaction = self.make_transaction()
+        prerequest_thread = self.make_thread(borrower=self.make_user("onlooker"))
+
+        self.item.soft_delete(deleted_by=self.lender)
+
+        for thread in (transaction_thread, prerequest_thread):
+            thread.refresh_from_db()
+            self.assertEqual(thread.archive_reason, ArchiveReason.ITEM_DELETED)
+            self.assertEqual(thread.messages.count(), 1)
+            self.assertEqual(
+                thread.messages.get().body,
+                ARCHIVE_MESSAGES[ArchiveReason.ITEM_DELETED],
+            )
+        self.assertEqual(transaction_thread.transaction, transaction)
+
+    def test_hard_deletion_preserves_and_archives_a_conversation(self) -> None:
+        thread = self.make_thread()
+
+        self.item.delete()
+
+        thread.refresh_from_db()
+        self.assertIsNone(thread.item_id)
+        self.assertEqual(thread.archive_reason, ArchiveReason.ITEM_DELETED)
+        self.assertEqual(thread.messages.count(), 1)
+        self.assertTrue(self.lender.has_perm(ChatThreadOLP.VIEW, thread))
+        self.assertTrue(self.borrower.has_perm(ChatThreadOLP.VIEW, thread))
+
+    def test_resaving_a_soft_deleted_item_posts_one_notice(self) -> None:
+        thread = self.make_thread()
+        self.item.soft_delete(deleted_by=self.lender)
+
+        self.item.name = "Removed Drill"
+        self.item.save(update_fields=["name"])
+
+        thread.refresh_from_db()
+        self.assertEqual(thread.archive_reason, ArchiveReason.ITEM_DELETED)
+        self.assertEqual(thread.messages.count(), 1)
+
+    def test_hard_deleting_a_soft_deleted_item_posts_one_notice(self) -> None:
+        thread = self.make_thread()
+        self.item.soft_delete(deleted_by=self.lender)
+
+        self.item.delete()
+
+        thread.refresh_from_db()
+        self.assertIsNone(thread.item_id)
+        self.assertEqual(thread.archive_reason, ArchiveReason.ITEM_DELETED)
+        self.assertEqual(thread.messages.count(), 1)
+
+    @override_settings(MESSAGING_ENABLED=False)
+    def test_item_deletion_archival_ignores_the_feature_flag(self) -> None:
+        soft_delete_thread = self.make_thread()
+        hard_delete_item = self.make_item(name="Saw")
+        hard_delete_thread = self.make_thread(item=hard_delete_item)
+
+        self.item.soft_delete(deleted_by=self.lender)
+        hard_delete_item.delete()
+
+        for thread in (soft_delete_thread, hard_delete_thread):
+            thread.refresh_from_db()
+            self.assertEqual(thread.archive_reason, ArchiveReason.ITEM_DELETED)
+            self.assertEqual(thread.messages.count(), 1)
+
+
+@override_settings(MESSAGING_ENABLED=True)
 class TransactionLifecycleTests(MessagingTestCase):
     def test_a_new_transaction_gets_a_thread(self) -> None:
         transaction = self.make_transaction()
