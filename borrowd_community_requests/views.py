@@ -8,7 +8,11 @@ from django.urls import reverse
 from django.views.generic import CreateView, DetailView, TemplateView, View
 from guardian.mixins import LoginRequiredMixin
 
-from borrowd.util import BorrowdTemplateFinderMixin
+from borrowd.util import (
+    BROWSABLE_BACK_TARGETS,
+    BorrowdTemplateFinderMixin,
+    resolve_back_url,
+)
 from borrowd_community_requests.card_helper import build_commmunity_request_card
 from borrowd_users.models import BorrowdUser
 from borrowd_users.request import get_authenticated_user
@@ -71,6 +75,14 @@ class CommunityRequestSuccessView(
     def get_context_data(self, **kwargs: str) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
         context["page_title"] = "Item request"
+        # We land here straight after the create form is submitted, so
+        # history.back() would drop the user back into the form they just
+        # filled in. The request list is the sane place to go instead.
+        context["back_url"] = resolve_back_url(
+            self.request,
+            fallback_url=reverse("community-request-list"),
+            allowed_url_names=BROWSABLE_BACK_TARGETS,
+        )
         return context
 
 
@@ -113,6 +125,11 @@ class CommunityRequestListView(
         context["active_tab"] = active_tab
         context["community_requests"] = requests_cards_context
         context["page_title"] = "Community requests"
+        context["back_url"] = resolve_back_url(
+            self.request,
+            fallback_url=reverse("item-list"),
+            allowed_url_names=BROWSABLE_BACK_TARGETS,
+        )
         return context
 
 

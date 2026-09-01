@@ -2,6 +2,7 @@ import base64
 import json
 import logging
 import os
+from collections.abc import Set as AbstractSet
 from typing import Any
 from urllib.parse import urlparse
 
@@ -10,6 +11,31 @@ from django.http import HttpRequest
 from django.urls import Resolver404, resolve
 
 logger = logging.getLogger(__name__)
+
+
+# URL names (see urls.py) that are sane back-button targets: real pages a user
+# can browse to, not forms or POST-only endpoints that would be weird to land
+# back on. Most of these are reachable from the nav drawer on every
+# authenticated page, so almost any of them is a realistic Referer. Keep this
+# as the one list -- per-view copies drift, and a page missing from the list
+# fails silently by dumping the user on the fallback.
+#
+# `index` is deliberately absent: it redirects authenticated users to
+# `item-list`, so they can never be sitting on it to generate the Referer.
+BROWSABLE_BACK_TARGETS = frozenset(
+    {
+        "item-list",
+        "item-detail",
+        "group-list",
+        "group-detail",
+        "profile",
+        "profile-inventory",
+        "public-profile",
+        "community-request-list",
+        "notification-inbox",
+        "notification-preferences",
+    }
+)
 
 
 def is_safe_back_url(url: str, request: HttpRequest) -> bool:
@@ -40,7 +66,7 @@ def resolve_back_url(
     request: HttpRequest,
     *,
     fallback_url: str,
-    allowed_url_names: set[str],
+    allowed_url_names: AbstractSet[str],
 ) -> str:
     """
     Pick a back-button target for any page that wants a smart back arrow.

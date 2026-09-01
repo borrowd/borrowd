@@ -192,3 +192,25 @@ class CommunityRequestSuccessViewTests(CommunityRequestCreateViewTestBase):
         )
 
         self.assertEqual(response.status_code, 404)
+
+    def test_back_url_does_not_point_at_the_form_just_submitted(self) -> None:
+        """
+        We land here straight after submitting the create form, so its Referer
+        is that form. Sending the user back into it would be the same defect
+        the profile page's back arrow had.
+        """
+        request = CommunityRequest.objects.create(
+            requester=self.requester,
+            category=self.category_tools,
+            item_name="Drill",
+        )
+
+        response = self.client.get(
+            reverse("community-request-success", kwargs={"pk": request.pk}),
+            HTTP_REFERER="http://testserver" + reverse("community-request-create"),
+        )
+
+        self.assertEqual(
+            response.context["back_url"], reverse("community-request-list")
+        )
+        self.assertNotContains(response, "javascript:history.back()")
