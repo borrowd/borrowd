@@ -33,6 +33,7 @@
             <!-- todo: promote member to moderator logic -->
             <div x-ref="menu"
                  x-show="open"
+                 x-cloak
                  @click.away="open = false"
                  class="absolute right-0 w-48 bg-white rounded-md shadow-lg py-1 z-10"
                  :class="placement === 'top' ? 'bottom-full mb-2' : 'top-full mt-2'">
