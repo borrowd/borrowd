@@ -7,7 +7,10 @@
  * was rendered (e.g. django.contrib.auth.login() rotates it on login),
  * because a page left open in another tab or restored from bfcache still
  * carries the pre-rotation token — causing requests from that page to fail
- * CSRF validation. Reading the cookie live self-heals in those cases.
+ * CSRF validation. Reading the cookie live self-heals in those cases,
+ * including plain (non-htmx) `<form method="post">` submissions such as
+ * login and the login-by-code flow, whose hidden `csrfmiddlewaretoken`
+ * field is refreshed from the cookie on submit.
  *
  * Exposed on `window` so inline `fetch()` calls in templates can use it too,
  * since Vite loads this as a module and inline `<script>` tags can't `import`
@@ -33,5 +36,16 @@ document.body.addEventListener('htmx:configRequest', (event) => {
   event.detail.headers['X-CSRFToken'] = csrfToken;
   if ('csrfmiddlewaretoken' in event.detail.parameters) {
     event.detail.parameters['csrfmiddlewaretoken'] = csrfToken;
+  }
+});
+
+document.body.addEventListener('submit', (event) => {
+  const tokenField = event.target.querySelector('[name=csrfmiddlewaretoken]');
+  if (!tokenField) {
+    return;
+  }
+  const csrfToken = getCsrfToken();
+  if (csrfToken) {
+    tokenField.value = csrfToken;
   }
 });
