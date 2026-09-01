@@ -260,6 +260,16 @@ class MessagingService:
             cls.archive_thread(thread, reason)
 
     @classmethod
+    def archive_open_threads_for_item(cls, item: Item, reason: ArchiveReason) -> None:
+        """Archive every open conversation associated with an Item."""
+        threads = ChatThread.objects.filter(
+            item=item,
+            archived_at__isnull=True,
+        )
+        for thread in threads:
+            cls.archive_thread(thread, reason)
+
+    @classmethod
     def close_prerequest_thread(
         cls, thread: ChatThread, closed_by: BorrowdUser
     ) -> None:
