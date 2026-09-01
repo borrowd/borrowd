@@ -17,10 +17,10 @@
                            href="{% url 'chat-thread-detail' chat_thread.pk %}">
                             <span class="min-w-0">
                                 <span class="block truncate">
-                                    {% if chat_thread.item %}
+                                    {% if chat_thread.item and not chat_thread.item.deleted_at %}
                                         {{ chat_thread.item.name }}
                                     {% else %}
-                                        Item no longer available
+                                        This item is no longer available.
                                     {% endif %}
                                 </span>
                                 <span class="block text-sm opacity-70">

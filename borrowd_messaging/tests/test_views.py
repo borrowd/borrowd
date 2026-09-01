@@ -131,14 +131,27 @@ class ChatThreadDetailViewTests(MessagingTestCase):
 
         self.assertContains(response, self.item.name)
 
-    def test_header_handles_an_item_that_is_no_longer_available(self) -> None:
-        self.thread.item = None
-        self.thread.save(update_fields=["item"])
+    def test_header_handles_a_hard_deleted_item(self) -> None:
+        item_name = self.item.name
+        self.item.delete()
+        self.thread.refresh_from_db()
+        self.client.force_login(self.borrower)
+
+        response = self.client.get(self.url)
+
+        self.assertIsNone(self.thread.item_id)
+        self.assertContains(response, "This item is no longer available.")
+        self.assertNotContains(response, item_name)
+
+    def test_header_handles_a_soft_deleted_item(self) -> None:
+        item_name = self.item.name
+        self.item.soft_delete(deleted_by=self.lender)
         self.client.force_login(self.borrower)
 
         response = self.client.get(self.url)
 
         self.assertContains(response, "This item is no longer available.")
+        self.assertNotContains(response, item_name)
 
     def test_lender_sees_the_thread(self) -> None:
         self.client.force_login(self.lender)
@@ -719,15 +732,30 @@ class ChatThreadListViewTests(MessagingTestCase):
             reverse("chat-thread-detail", args=[thread.pk]),
         )
 
-    def test_lists_a_thread_whose_item_is_no_longer_available(self) -> None:
+    def test_lists_a_thread_for_a_hard_deleted_item(self) -> None:
         thread = self.make_thread()
-        thread.item = None
-        thread.save(update_fields=["item"])
+        item_name = self.item.name
+        self.item.delete()
+        thread.refresh_from_db()
         self.client.force_login(self.borrower)
 
         response = self.client.get(self.url)
 
-        self.assertContains(response, "Item no longer available")
+        self.assertIsNone(thread.item_id)
+        self.assertContains(response, "This item is no longer available.")
+        self.assertNotContains(response, item_name)
+        self.assertContains(response, reverse("chat-thread-detail", args=[thread.pk]))
+
+    def test_lists_a_thread_for_a_soft_deleted_item(self) -> None:
+        thread = self.make_thread()
+        item_name = self.item.name
+        self.item.soft_delete(deleted_by=self.lender)
+        self.client.force_login(self.borrower)
+
+        response = self.client.get(self.url)
+
+        self.assertContains(response, "This item is no longer available.")
+        self.assertNotContains(response, item_name)
         self.assertContains(response, reverse("chat-thread-detail", args=[thread.pk]))
 
     def test_labels_an_archived_thread(self) -> None:
