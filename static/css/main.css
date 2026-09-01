@@ -45,6 +45,13 @@ Borrow'd theme for DaisyUI
   font-display: swap;
   src: url("$fonts/RobotoSlab-Regular.ttf");
 }
+/* Alpine.js cloak: hides elements gated by x-show/x-if/x-data until
+   Alpine has finished initializing, preventing a flash of their raw
+   (uninitialized) HTML state while the deferred Alpine script loads. */
+[x-cloak] {
+  display: none !important;
+}
+
 /* Tailwind Theme
 TODO: Transfer over all to daisy */
 @theme {
