@@ -9,7 +9,7 @@ class GroupsPage:
         self.heading = page.get_by_role("heading", name="Groups")
         self.moderator_toggle = page.get_by_role("checkbox", name="Groups I manage")
         self.create_group_button = page.get_by_role(
-            "link", name=re.compile("create group", re.I)
+            "link", name=re.compile("create group", re.IGNORECASE)
         )
         self.first_group_link = page.locator("#groups-card-container a").first
 

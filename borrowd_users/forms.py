@@ -255,6 +255,24 @@ class ProfileUpdateForm(forms.ModelForm[Profile]):
         return profile
 
 
+class ProfilePhotoUploadForm(forms.Form):
+    """Validates a single profile photo upload, independent of the rest of
+    ProfileUpdateForm's fields, for the auto-save-on-select upload endpoint."""
+
+    image = forms.ImageField(
+        required=True,
+        validators=[
+            FileExtensionValidator(allowed_extensions=ALLOWED_IMAGE_EXTENSIONS)
+        ],
+    )
+
+    def clean_image(self) -> UploadedFile:
+        image: UploadedFile = self.cleaned_data["image"]
+        validate_image_size(image)
+        validate_image_dimensions(image)
+        return image
+
+
 class ChangePasswordForm(SetPasswordForm):
     """
     Custom password change form that doesn't require the old password.

@@ -37,4 +37,4 @@ class Command(BaseCommand):
         except ValidationError as e:
             self.stderr.write(self.style.ERROR(f"Error: {e.message_dict}"))
         except Exception as e:
-            self.stderr.write(self.style.ERROR(f"Error: {str(e)}"))
+            self.stderr.write(self.style.ERROR(f"Error: {e!s}"))

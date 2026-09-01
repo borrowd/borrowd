@@ -193,5 +193,5 @@ class GroupListViewVisibilityTests(TestCase):
 
         page_membership = response.context_data["object_list"][0]
 
-        self.assertTrue(getattr(page_membership, "group_needs_moderator"))
+        self.assertTrue(page_membership.group_needs_moderator)
         self.assertContains(response, "group-needs-moderator-indicator")

@@ -31,9 +31,13 @@ window.showToast = function showToast(message, variant = 'success') {
         <path stroke-linecap="round" stroke-linejoin="round"
               d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" />
       </svg>
-      <span class="text-sm leading-6">${message}</span>
+      <span class="text-sm leading-6"></span>
     </div>
   `;
+  // Set via textContent, not interpolated into the template above -- message
+  // can come from server-echoed input (e.g. a validator's rejected filename)
+  // and must never be parsed as markup.
+  wrapper.querySelector('span').textContent = message;
   document.body.appendChild(wrapper);
   // Initialise Alpine on the newly-injected element so x-init fires.
   Alpine.initTree(wrapper);

@@ -24,7 +24,7 @@ class GroupCreatePage:
         )
 
         self.create_group_button = page.get_by_role(
-            "button", name=re.compile("create group", re.I)
+            "button", name=re.compile("create group", re.IGNORECASE)
         )
 
     def expect_opened(self):

@@ -53,6 +53,8 @@ class BorrowdGroup(Model):
     custom group model in Django, but this is a common way to start.
     """
 
+    _perms_group_id_for_cleanup: int | None
+
     name = CharField(max_length=50)
     description = TextField(max_length=500, blank=True, null=True)
     logo = ProcessedImageField(
@@ -166,7 +168,7 @@ class BorrowdGroup(Model):
         # TODO: Check for suspended, banned etc.
         if Membership.objects.filter(user=user, group=self).exists():
             raise ExistingMemberException(
-                (f"User '{user}' is already a member of group '{self}'")
+                f"User '{user}' is already a member of group '{self}'"
             )
 
         if self.membership_requires_approval and not is_moderator:
@@ -196,7 +198,7 @@ class BorrowdGroup(Model):
         # Allow specific flows, such as leaving a group, to bypass the
         # last-moderator signal check.
         if bypass_last_moderator_check:
-            setattr(membership, "_bypass_last_moderator_check", True)
+            membership._bypass_last_moderator_check = True
 
         # Remove the user's group membership.
         perms_group = self.perms_group
@@ -259,6 +261,8 @@ class Membership(Model):
         is_moderator (BooleanField): A boolean field indicating whether the user
             is a moderator of the group. Defaults to False.
     """
+
+    _bypass_last_moderator_check: bool
 
     user = ForeignKey(
         BorrowdUser,
