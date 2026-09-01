@@ -3,24 +3,16 @@ from typing import Any
 from django import forms
 from django.core.files.uploadedfile import UploadedFile
 from django.core.validators import FileExtensionValidator
-from django.template.defaultfilters import filesizeformat
 
+from borrowd.validators import (
+    ALLOWED_IMAGE_ACCEPT,
+    ALLOWED_IMAGE_EXTENSIONS,
+    validate_image_dimensions,
+    validate_image_size,
+)
 from borrowd_users.models import BorrowdUser
 
 from .models import Item, ItemPhoto
-
-MAX_PHOTO_SIZE_BYTES = 5 * 1024 * 1024  # 5MB
-ALLOWED_IMAGE_EXTENSIONS = ["jpg", "jpeg", "png", "webp"]
-ALLOWED_IMAGE_ACCEPT = ",".join(f".{ext}" for ext in ALLOWED_IMAGE_EXTENSIONS)
-
-
-def validate_image_size(image: UploadedFile) -> None:
-    """Validate that uploaded image doesn't exceed maximum file size."""
-    if image.size and image.size > MAX_PHOTO_SIZE_BYTES:
-        raise forms.ValidationError(
-            f"File size must be under {filesizeformat(MAX_PHOTO_SIZE_BYTES)}. "
-            f"Your file is {filesizeformat(image.size)}."
-        )
 
 
 class ItemForm(forms.ModelForm[Item]):
@@ -102,6 +94,7 @@ class ItemCreateWithPhotoForm(ItemForm):
         image: UploadedFile | None = self.cleaned_data.get("image")
         if image:
             validate_image_size(image)
+            validate_image_dimensions(image)
         return image
 
 
@@ -129,4 +122,5 @@ class ItemPhotoForm(forms.ModelForm[ItemPhoto]):
         image: UploadedFile | None = self.cleaned_data.get("image")
         if image:
             validate_image_size(image)
+            validate_image_dimensions(image)
         return image

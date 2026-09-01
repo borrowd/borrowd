@@ -15,7 +15,7 @@ from django.test import TestCase
 from django.urls import reverse
 from PIL import Image
 
-from borrowd_users.forms import MAX_PROFILE_PHOTO_SIZE_BYTES
+from borrowd.validators import MAX_PHOTO_SIZE_BYTES
 from borrowd_users.models import BorrowdUser
 
 
@@ -120,7 +120,7 @@ class UploadProfilePhotoViewTests(TestCase):
 
     def test_upload_rejects_oversized_file(self) -> None:
         self.client.force_login(self.user)
-        oversized = create_test_image(size_bytes=MAX_PROFILE_PHOTO_SIZE_BYTES + 1)
+        oversized = create_test_image(size_bytes=MAX_PHOTO_SIZE_BYTES + 1)
 
         response = self.client.post(self.url, {"image": oversized})
 

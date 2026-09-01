@@ -28,7 +28,8 @@
     "scripts": {
         "build": "vite build",
         "dev": "vite",
-        "test:e2e": "cd e2e_tests && pytest --tb=short"
+        "test:e2e": "cd e2e_tests && pytest --tb=short",
+        "test:js": "node --test static/js/*.test.js"
     },
     "type": "commonjs",
     "version": "1.0.0"

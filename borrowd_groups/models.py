@@ -1,6 +1,7 @@
 from typing import Any  # Unfortunately needed for more mypy shenanigans
 
 from django.contrib.auth.models import Group
+from django.core.validators import FileExtensionValidator
 from django.db.models import (
     CASCADE,
     DO_NOTHING,
@@ -21,6 +22,7 @@ from django.urls import reverse
 from imagekit.models import ProcessedImageField
 from imagekit.processors import ResizeToFit
 
+from borrowd.validators import ALLOWED_IMAGE_EXTENSIONS, validate_image_size
 from borrowd_groups.exceptions import ExistingMemberException
 from borrowd_permissions.models import BorrowdGroupOLP
 from borrowd_users.models import BorrowdUser
@@ -60,6 +62,10 @@ class BorrowdGroup(Model):
         processors=[ResizeToFit(1600, 1600)],
         format="JPEG",
         options={"quality": 75},
+        validators=[
+            FileExtensionValidator(allowed_extensions=ALLOWED_IMAGE_EXTENSIONS),
+            validate_image_size,
+        ],
         null=True,
         blank=True,
     )
@@ -68,6 +74,10 @@ class BorrowdGroup(Model):
         processors=[ResizeToFit(1600, 400)],
         format="JPEG",
         options={"quality": 75},
+        validators=[
+            FileExtensionValidator(allowed_extensions=ALLOWED_IMAGE_EXTENSIONS),
+            validate_image_size,
+        ],
         null=True,
         blank=True,
     )

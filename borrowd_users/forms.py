@@ -8,7 +8,13 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import UploadedFile
 from django.core.validators import FileExtensionValidator
-from django.template.defaultfilters import filesizeformat
+
+from borrowd.validators import (
+    ALLOWED_IMAGE_ACCEPT,
+    ALLOWED_IMAGE_EXTENSIONS,
+    validate_image_dimensions,
+    validate_image_size,
+)
 
 from .models import BorrowdUser, Profile
 
@@ -16,21 +22,6 @@ User = get_user_model()
 
 # Common field styles
 INPUT_CLASSES = "input w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-borrowd-indigo-500 focus:border-borrowd-indigo-500"
-
-MAX_PROFILE_PHOTO_SIZE_BYTES = 5 * 1024 * 1024  # 5MB
-ALLOWED_PROFILE_IMAGE_EXTENSIONS = ["jpg", "jpeg", "png", "webp"]
-ALLOWED_PROFILE_IMAGE_ACCEPT = ",".join(
-    f".{ext}" for ext in ALLOWED_PROFILE_IMAGE_EXTENSIONS
-)
-
-
-def validate_profile_photo_size(image: UploadedFile) -> None:
-    """Validate that an uploaded profile photo doesn't exceed the maximum file size."""
-    if image.size and image.size > MAX_PROFILE_PHOTO_SIZE_BYTES:
-        raise forms.ValidationError(
-            f"File size must be under {filesizeformat(MAX_PROFILE_PHOTO_SIZE_BYTES)}. "
-            f"Your file is {filesizeformat(image.size)}."
-        )
 
 
 # Factory functions for creating form fields with consistent styling
@@ -190,13 +181,13 @@ class ProfileUpdateForm(forms.ModelForm[Profile]):
     image = forms.ImageField(
         required=False,
         validators=[
-            FileExtensionValidator(allowed_extensions=ALLOWED_PROFILE_IMAGE_EXTENSIONS)
+            FileExtensionValidator(allowed_extensions=ALLOWED_IMAGE_EXTENSIONS)
         ],
         widget=forms.FileInput(
             attrs={
                 "class": "file-input file-input-bordered w-full sr-only",
                 "id": "id_image",
-                "accept": ALLOWED_PROFILE_IMAGE_ACCEPT,
+                "accept": ALLOWED_IMAGE_ACCEPT,
             }
         ),
     )
@@ -208,12 +199,6 @@ class ProfileUpdateForm(forms.ModelForm[Profile]):
     email = create_email_field()
     bio = create_bio_field()
 
-    def clean_image(self) -> UploadedFile | None:
-        image: UploadedFile | None = self.cleaned_data.get("image")
-        if image:
-            validate_profile_photo_size(image)
-        return image
-
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         # Populate the name fields from the associated user
@@ -222,6 +207,13 @@ class ProfileUpdateForm(forms.ModelForm[Profile]):
             self.fields["last_name"].initial = self.instance.user.last_name
             self.fields["email"].initial = self.instance.user.email
         self.fields["bio"].initial = self.instance.bio
+
+    def clean_image(self) -> UploadedFile | None:
+        image: UploadedFile | None = self.cleaned_data.get("image")
+        if image:
+            validate_image_size(image)
+            validate_image_dimensions(image)
+        return image
 
     def clean_first_name(self) -> str:
         first_name: str | None = self.cleaned_data.get("first_name")
@@ -270,13 +262,14 @@ class ProfilePhotoUploadForm(forms.Form):
     image = forms.ImageField(
         required=True,
         validators=[
-            FileExtensionValidator(allowed_extensions=ALLOWED_PROFILE_IMAGE_EXTENSIONS)
+            FileExtensionValidator(allowed_extensions=ALLOWED_IMAGE_EXTENSIONS)
         ],
     )
 
     def clean_image(self) -> UploadedFile:
         image: UploadedFile = self.cleaned_data["image"]
-        validate_profile_photo_size(image)
+        validate_image_size(image)
+        validate_image_dimensions(image)
         return image
 
 
