@@ -217,7 +217,7 @@
                                 method: 'POST',
                                 headers: {
                                     'Content-Type': 'application/json',
-                                    'X-CSRFToken': '{{ csrf_token }}',
+                                    'X-CSRFToken': window.getCsrfToken(),
                                 },
                                 body: JSON.stringify({ endpoint: sub.endpoint }),
                             });
@@ -248,7 +248,7 @@
                                 method: 'POST',
                                 headers: {
                                     'Content-Type': 'application/json',
-                                    'X-CSRFToken': '{{ csrf_token }}',
+                                    'X-CSRFToken': window.getCsrfToken(),
                                 },
                                 body: JSON.stringify(sub.toJSON()),
                             });
@@ -270,7 +270,7 @@
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/x-www-form-urlencoded',
-                            'X-CSRFToken': '{{ csrf_token }}',
+                            'X-CSRFToken': window.getCsrfToken(),
                         },
                         body: new URLSearchParams(data),
                     });

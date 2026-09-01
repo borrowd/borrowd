@@ -97,6 +97,13 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = "borrowd.urls"
 
+# CsrfViewMiddleware rejects a failed request directly (it returns an
+# HttpResponseForbidden without raising), so it never reaches handler403 or
+# Django's exception-based error handling — and the django.security.csrf
+# logger only warns, which is below Sentry's default error-level threshold.
+# Without this, CSRF failures are invisible in Sentry regardless of environment.
+CSRF_FAILURE_VIEW = "borrowd.views.csrf_failure"
+
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
