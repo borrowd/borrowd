@@ -96,6 +96,10 @@
                         {# Hidden file input rendered by the form widget #}
                         {{ form.image }}
                     </div>
+                    {% if form.image.errors %}
+                        <span class="label-text-alt text-error px-1">{{ form.image.errors }}</span>
+                    {% endif %}
+                    <span class="label-text-alt text-base-content/60 px-1">{% trans "Max size 10MB" %}</span>
                 </div>
 
                 {# Personal fields #}
@@ -444,29 +448,36 @@
     avatarPreview.src = src;
   }
 
-  // Live preview + auto-save on new file select
+  // Resize client-side, then live preview + auto-save, on new file select
   if (imageInput) {
-    imageInput.addEventListener('change', function (e) {
+    imageInput.addEventListener('change', async function (e) {
       const file = e.target.files[0];
       if (!file) return;
 
       const previousSrc = avatarPreview.src;
+      const resized = await window.resizeImageFile(file, 1600, 1600);
+      const dt = new DataTransfer();
+      dt.items.add(resized);
+      imageInput.files = dt.files;
+
       // Only preview files that look like images -- accept="image/*" is a
       // picker hint the user can bypass, and feeding a non-image data URL
-      // into the <img> would trip its onerror fallback. Note file.type is
-      // derived from the filename extension by the browser, not the actual
-      // bytes, so a renamed/corrupted file can still slip through here;
-      // setAvatarSrc's re-armed onerror handler covers that case, and the
-      // upload's own error toast covers the server-side rejection either way.
-      if (file.type.startsWith('image/')) {
+      // into the <img> would trip its onerror fallback. Note resized.type is
+      // derived from the filename extension by the browser (falling back to
+      // the original file's type when the resize itself fails), not the
+      // actual bytes, so a renamed/corrupted file can still slip through
+      // here; setAvatarSrc's re-armed onerror handler covers that case, and
+      // the upload's own error toast covers the server-side rejection either
+      // way.
+      if (resized.type.startsWith('image/')) {
         const reader = new FileReader();
         reader.onload = function (e) { setAvatarSrc(e.target.result); };
-        reader.readAsDataURL(file);
+        reader.readAsDataURL(resized);
       }
 
       const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
       const formData = new FormData();
-      formData.append('image', file);
+      formData.append('image', resized);
 
       fetch('{% url "profile-upload-photo" %}', {
         method: 'POST',

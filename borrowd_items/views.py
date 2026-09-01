@@ -8,6 +8,7 @@ from django.db.models import QuerySet
 from django.forms import ModelForm
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect
+from django.template.defaultfilters import filesizeformat
 from django.urls import reverse, reverse_lazy
 from django.utils.datastructures import MultiValueDict
 from django.views.decorators.http import require_POST
@@ -20,6 +21,7 @@ from borrowd.util import (
     BorrowdTemplateFinderMixin,
     resolve_back_url,
 )
+from borrowd.validators import ALLOWED_IMAGE_ACCEPT, MAX_PHOTO_SIZE_BYTES
 from borrowd_community_requests.exceptions import CannotActOnOwnRequestException
 from borrowd_community_requests.models import CommunityRequest
 from borrowd_groups.models import Membership, MembershipStatus
@@ -39,7 +41,6 @@ from .card_helpers import (
 from .exceptions import InvalidItemAction, ItemAlreadyRequested
 from .filters import ItemFilter
 from .forms import (
-    ALLOWED_IMAGE_ACCEPT,
     ItemCreateWithPhotoForm,
     ItemForm,
     ItemPhotoForm,
@@ -465,7 +466,8 @@ class ItemUpdateView(
             _add_message_safe(
                 self.request,
                 messages.WARNING,
-                f"{skipped} photo(s) were skipped -- invalid format or over 5 MB.",
+                f"{skipped} photo(s) were skipped -- invalid format or over "
+                f"{filesizeformat(MAX_PHOTO_SIZE_BYTES)}.",
             )
         over_limit = len(uploaded_files) - remaining_slots
         if over_limit > 0:
