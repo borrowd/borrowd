@@ -492,6 +492,45 @@ class ThreadArchivalTests(MessagingTestCase):
             thread.refresh_from_db()
             self.assertEqual(thread.archive_reason, ArchiveReason.ITEM_UNAVAILABLE)
 
+    def test_archives_prerequest_and_transaction_threads_for_an_item(self) -> None:
+        transaction = self.make_transaction()
+        prerequest_thread = self.make_thread(borrower=self.make_user("other"))
+
+        MessagingService.archive_open_threads_for_item(
+            self.item, ArchiveReason.ITEM_DELETED
+        )
+
+        self.thread.refresh_from_db()
+        prerequest_thread.refresh_from_db()
+        self.assertEqual(self.thread.transaction, transaction)
+        self.assertEqual(self.thread.archive_reason, ArchiveReason.ITEM_DELETED)
+        self.assertEqual(prerequest_thread.archive_reason, ArchiveReason.ITEM_DELETED)
+
+    def test_archiving_an_item_leaves_other_item_conversations_open(self) -> None:
+        other_item = self.make_item(name="Saw")
+        other_thread = self.make_thread(item=other_item)
+
+        MessagingService.archive_open_threads_for_item(
+            self.item, ArchiveReason.ITEM_DELETED
+        )
+
+        self.thread.refresh_from_db()
+        other_thread.refresh_from_db()
+        self.assertEqual(self.thread.archive_reason, ArchiveReason.ITEM_DELETED)
+        self.assertFalse(other_thread.is_archived)
+
+    def test_archiving_an_item_twice_posts_one_notice(self) -> None:
+        MessagingService.archive_open_threads_for_item(
+            self.item, ArchiveReason.ITEM_DELETED
+        )
+        MessagingService.archive_open_threads_for_item(
+            self.item, ArchiveReason.CANCELLED
+        )
+
+        self.thread.refresh_from_db()
+        self.assertEqual(self.thread.archive_reason, ArchiveReason.ITEM_DELETED)
+        self.assertEqual(self.thread.messages.count(), 1)
+
     def test_archiving_looks_the_system_user_up_once(self) -> None:
         # system user lookup, then savepoint, thread update, message insert, release
         with self.assertNumQueries(5):
