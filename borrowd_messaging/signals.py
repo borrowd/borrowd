@@ -51,11 +51,11 @@ def sync_chat_thread_with_transaction(
     close everyone else's conversation once the item is spoken for,
     and archive or annotate the thread as the status moves on.
     """
-    if not settings.MESSAGING_ENABLED:
-        return
-
     if created:
-        MessagingService.attach_thread_to(instance)
+        if settings.MESSAGING_ENABLED:
+            MessagingService.attach_thread_to(instance)
+        else:
+            MessagingService.attach_existing_prerequest_thread_to(instance)
         return
 
     if instance.status == getattr(instance, "_previous_status", None):
