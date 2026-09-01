@@ -225,6 +225,55 @@ class SendMessageTests(MessagingTestCase):
         dispatch.assert_called_once_with(message)
 
 
+@override_settings(MESSAGING_ENABLED=False)
+class AttachExistingPreRequestThreadTests(MessagingTestCase):
+    def test_attaches_an_existing_conversation(self) -> None:
+        transaction = self.make_transaction()
+        thread = self.make_thread()
+
+        attached = MessagingService.attach_existing_prerequest_thread_to(transaction)
+
+        self.assertEqual(attached, thread)
+        thread.refresh_from_db()
+        self.assertEqual(thread.transaction, transaction)
+
+    def test_returns_none_without_creating_a_conversation(self) -> None:
+        transaction = self.make_transaction()
+
+        attached = MessagingService.attach_existing_prerequest_thread_to(transaction)
+
+        self.assertIsNone(attached)
+        self.assertEqual(ChatThread.objects.count(), 0)
+
+    def test_returns_a_conversation_already_attached_to_the_transaction(self) -> None:
+        transaction = self.make_transaction()
+        thread = self.make_thread(transaction=transaction)
+
+        first = MessagingService.attach_existing_prerequest_thread_to(transaction)
+        second = MessagingService.attach_existing_prerequest_thread_to(transaction)
+
+        self.assertEqual(first, thread)
+        self.assertEqual(second, thread)
+        self.assertEqual(ChatThread.objects.count(), 1)
+
+    def test_losing_a_claim_race_does_not_create_a_conversation(self) -> None:
+        winner = self.make_transaction()
+        loser = self.make_transaction()
+        thread = self.make_thread()
+        stale = ChatThread.objects.get(pk=thread.pk)
+        ChatThread.objects.filter(pk=thread.pk).update(transaction=winner)
+
+        with patch.object(
+            MessagingService, "_active_prerequest_thread", return_value=stale
+        ):
+            attached = MessagingService.attach_existing_prerequest_thread_to(loser)
+
+        self.assertIsNone(attached)
+        self.assertEqual(ChatThread.objects.count(), 1)
+        thread.refresh_from_db()
+        self.assertEqual(thread.transaction, winner)
+
+
 @override_settings(MESSAGING_ENABLED=True)
 class AttachThreadToTransactionTests(MessagingTestCase):
     def test_carries_an_existing_conversation_forward(self) -> None:

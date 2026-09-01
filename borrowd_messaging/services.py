@@ -135,6 +135,28 @@ class MessagingService:
         the open pre-request conversation if there is one,
         otherwise a fresh thread.
         """
+        thread = cls.attach_existing_prerequest_thread_to(transaction)
+        if thread is not None:
+            return thread
+
+        return ChatThread.objects.create(
+            transaction=transaction,
+            item=transaction.item,
+            lender=transaction.party1,
+            borrower=transaction.party2,
+            created_by=transaction.party2,
+            updated_by=transaction.party2,
+        )
+
+    @classmethod
+    def attach_existing_prerequest_thread_to(
+        cls, transaction: Transaction
+    ) -> ChatThread | None:
+        """
+        Give a Transaction its existing pre-request thread, if one exists.
+
+        Unlike attach_thread_to, this method never creates a thread.
+        """
         existing = ChatThread.objects.filter(transaction=transaction).first()
         if existing is not None:
             return existing
@@ -142,7 +164,7 @@ class MessagingService:
         thread = cls._active_prerequest_thread(transaction.party2, transaction.item)
         if thread is not None:
             # Conditional so two concurrent requests can't claim the same
-            # thread; the loser falls through and gets a fresh one.
+            # thread. The caller decides whether a failed claim creates one.
             claimed = ChatThread.objects.filter(
                 pk=thread.pk, transaction__isnull=True
             ).update(
@@ -154,14 +176,7 @@ class MessagingService:
                 thread.refresh_from_db()
                 return thread
 
-        return ChatThread.objects.create(
-            transaction=transaction,
-            item=transaction.item,
-            lender=transaction.party1,
-            borrower=transaction.party2,
-            created_by=transaction.party2,
-            updated_by=transaction.party2,
-        )
+        return None
 
     @classmethod
     def post_system_message(
