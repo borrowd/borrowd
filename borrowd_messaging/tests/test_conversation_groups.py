@@ -149,3 +149,47 @@ class ConversationGroupResolutionTests(MessagingTestCase):
         )
 
         self.assertIsNone(group)
+
+
+class RequestGroupChoicesForItemsTests(MessagingTestCase):
+    def _make_eligible_group(self, name: str) -> BorrowdGroup:
+        group = self.make_group(name=name)
+        group.add_user(self.borrower)
+        return group
+
+    def test_batches_ambiguous_choices_by_item(self) -> None:
+        group_b = self._make_eligible_group("Group B")
+        group_a = self._make_eligible_group("Group A")
+        group_c = self._make_eligible_group("Group C")
+        explicit_item = self.make_item(
+            name="Explicit item",
+            share_with_all_groups=False,
+        )
+        explicit_item.shared_with_groups.add(group_b, group_c)
+        single_group_item = self.make_item(
+            name="Single-group item",
+            share_with_all_groups=False,
+        )
+        single_group_item.shared_with_groups.add(group_a)
+
+        with self.assertNumQueries(4):
+            choices = MessagingService.request_group_choices_for_items(
+                self.borrower,
+                [self.item, explicit_item, single_group_item],
+            )
+
+        self.assertEqual(choices[self.item.pk], (group_a, group_b, group_c))
+        self.assertEqual(choices[explicit_item.pk], (group_b, group_c))
+        self.assertNotIn(single_group_item.pk, choices)
+
+    def test_existing_thread_does_not_need_another_choice(self) -> None:
+        self._make_eligible_group("Group A")
+        self._make_eligible_group("Group B")
+        self.make_thread()
+
+        choices = MessagingService.request_group_choices_for_items(
+            self.borrower,
+            [self.item],
+        )
+
+        self.assertEqual(choices, {})

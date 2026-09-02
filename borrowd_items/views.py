@@ -69,6 +69,13 @@ PAGE_SIZE_DESKTOP_DEFAULT = 12
 PAGE_SIZE_MIN = 4
 PAGE_SIZE_MAX = 48
 
+_TRANSACTION_REQUEST_ACTIONS = frozenset(
+    {
+        ItemAction.REQUEST_ITEM,
+        ItemAction.REQUEST_GIVEAWAY,
+    }
+)
+
 
 def _build_item_action_success_message(item_name: str, action: ItemAction) -> str:
     """
@@ -182,10 +189,7 @@ def borrow_item(request: HttpRequest, pk: int) -> HttpResponse:
 
     try:
         with atomic():
-            if settings.MESSAGING_ENABLED and action in (
-                ItemAction.REQUEST_ITEM,
-                ItemAction.REQUEST_GIVEAWAY,
-            ):
+            if settings.MESSAGING_ENABLED and action in _TRANSACTION_REQUEST_ACTIONS:
                 if item.get_requesting_user() is not None:
                     raise ItemAlreadyRequested
                 selected_group = MessagingService.conversation_group_selection(
@@ -407,11 +411,7 @@ class ItemDetailView(
                 "item_conversation_label": "View conversation",
             }
 
-        if (
-            item.deleted_at is not None
-            or item.status != ItemStatus.AVAILABLE
-            or not item.owner.profile.allow_pre_request_chat
-        ):
+        if item.deleted_at is not None or item.status != ItemStatus.AVAILABLE:
             return {}
 
         prerequest_thread = (
@@ -424,23 +424,37 @@ class ItemDetailView(
             .only("pk")
             .first()
         )
-        if prerequest_thread is not None:
-            return {
-                "item_conversation_url": reverse(
-                    "chat-thread-detail", args=[prerequest_thread.pk]
-                ),
-                "item_conversation_label": "Message lender",
-            }
-
-        eligible_groups = tuple(
-            MessagingService.eligible_conversation_groups(user, item)
+        eligible_groups = (
+            ()
+            if prerequest_thread is not None
+            else tuple(MessagingService.eligible_conversation_groups(user, item))
         )
-        return {
-            "show_message_lender": True,
-            "conversation_group_choices": (
-                eligible_groups if len(eligible_groups) > 1 else ()
-            ),
+        request_group_choices = eligible_groups if len(eligible_groups) > 1 else ()
+        request_context: dict[str, object] = {
+            "request_conversation_group_choices": request_group_choices,
         }
+
+        if not item.owner.profile.allow_pre_request_chat:
+            return request_context
+
+        if prerequest_thread is not None:
+            request_context.update(
+                {
+                    "item_conversation_url": reverse(
+                        "chat-thread-detail", args=[prerequest_thread.pk]
+                    ),
+                    "item_conversation_label": "Message lender",
+                }
+            )
+            return request_context
+
+        request_context.update(
+            {
+                "show_message_lender": True,
+                "conversation_group_choices": request_group_choices,
+            }
+        )
+        return request_context
 
 
 # django-filter is untyped (see the django_filters note in mypy.ini), so
@@ -489,7 +503,25 @@ class ItemListView(
 
         # Build card contexts for all items
         items = list(context["object_list"])
-        context["item_cards"] = build_item_cards_for_items(items, user, "search")
+        item_cards = build_item_cards_for_items(items, user, "search")
+        requestable_items = [
+            card["item"]
+            for card in item_cards
+            if any(
+                action in _TRANSACTION_REQUEST_ACTIONS
+                for action in card["action_context"].actions
+            )
+        ]
+        request_group_choices = (
+            MessagingService.request_group_choices_for_items(user, requestable_items)
+            if settings.MESSAGING_ENABLED
+            else {}
+        )
+        for card in item_cards:
+            card["request_conversation_group_choices"] = request_group_choices.get(
+                card["pk"], ()
+            )
+        context["item_cards"] = item_cards
         context["user_has_items"] = Item.objects.filter(
             owner=user,
         ).exists()
