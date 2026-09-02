@@ -123,6 +123,86 @@ class MessagingService:
 
         return groups.order_by("name", "pk")
 
+    @staticmethod
+    def request_group_choices_for_items(
+        borrower: BorrowdUser,
+        items: list[Item],
+    ) -> dict[int, tuple[BorrowdGroup, ...]]:
+        """
+        Return ambiguous Group choices for direct requests in one batch.
+
+        Items with an active pre-request thread already have conversation
+        context. Zero or one eligible Group can also be resolved without a
+        choice, so neither case is included in the result.
+        """
+        items_by_id = {item.pk: item for item in items}
+        if not items_by_id:
+            return {}
+
+        existing_thread_item_ids = set(
+            ChatThread.objects.filter(
+                borrower=borrower,
+                item_id__in=items_by_id,
+                archived_at__isnull=True,
+                transaction__isnull=True,
+            ).values_list("item_id", flat=True)
+        )
+        items_needing_context = {
+            item_id: item
+            for item_id, item in items_by_id.items()
+            if item_id not in existing_thread_item_ids
+        }
+        if not items_needing_context:
+            return {}
+
+        borrower_groups = list(
+            BorrowdGroup.objects.filter(
+                membership__user=borrower,
+                membership__status=MembershipStatus.ACTIVE,
+                deleted_at__isnull=True,
+                perms_group__isnull=False,
+            ).order_by("name", "pk")
+        )
+        if len(borrower_groups) < 2:
+            return {}
+
+        group_ids = [group.pk for group in borrower_groups]
+        owner_group_pairs = set(
+            Membership.objects.filter(
+                user_id__in={item.owner_id for item in items_needing_context.values()},
+                group_id__in=group_ids,
+                status=MembershipStatus.ACTIVE,
+            ).values_list("user_id", "group_id")
+        )
+
+        explicitly_shared_item_ids = [
+            item.pk
+            for item in items_needing_context.values()
+            if not item.share_with_all_groups
+        ]
+        explicit_item_group_pairs = set(
+            BorrowdGroup.objects.filter(
+                shared_items__pk__in=explicitly_shared_item_ids,
+                pk__in=group_ids,
+            ).values_list("shared_items__pk", "pk")
+        )
+
+        choices: dict[int, tuple[BorrowdGroup, ...]] = {}
+        for item_id, item in items_needing_context.items():
+            eligible_groups = tuple(
+                group
+                for group in borrower_groups
+                if (item.owner_id, group.pk) in owner_group_pairs
+                and (
+                    item.share_with_all_groups
+                    or (item_id, group.pk) in explicit_item_group_pairs
+                )
+            )
+            if len(eligible_groups) > 1:
+                choices[item_id] = eligible_groups
+
+        return choices
+
     @classmethod
     def resolve_conversation_group(
         cls,

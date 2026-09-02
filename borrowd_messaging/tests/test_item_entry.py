@@ -292,6 +292,8 @@ class ItemDetailMessagingActionTests(MessagingTestCase):
         self.assertNotContains(response, 'id="item-conversation-link"')
 
     def test_lender_preference_hides_only_message_lender(self) -> None:
+        self._make_eligible_group("Group A")
+        self._make_eligible_group("Group B")
         profile = self.lender.profile
         profile.allow_pre_request_chat = False
         profile.save(update_fields=["allow_pre_request_chat"])
@@ -301,6 +303,10 @@ class ItemDetailMessagingActionTests(MessagingTestCase):
         self.assertNotContains(response, 'id="message-lender-button"')
         self.assertNotContains(response, 'id="item-conversation-link"')
         self.assertContains(response, "Request item")
+        self.assertContains(
+            response,
+            f'id="form-{response.context["request_modal_id"]}-conversation-group"',
+        )
 
     def test_unavailable_item_hides_message_lender(self) -> None:
         self.item.status = ItemStatus.BORROWED
@@ -323,6 +329,7 @@ class ItemDetailMessagingActionTests(MessagingTestCase):
         self.assertContains(response, f'href="{conversation_url}"')
         self.assertContains(response, "Message lender")
         self.assertNotContains(response, 'id="conversation-group-modal"')
+        self.assertNotContains(response, "Choose the group for this request")
 
     def test_active_transaction_thread_is_linked_directly(self) -> None:
         transaction = self.make_transaction(status=TransactionStatus.REQUESTED)
@@ -345,6 +352,7 @@ class ItemDetailMessagingActionTests(MessagingTestCase):
 
         self.assertContains(response, 'id="message-lender-button"')
         self.assertNotContains(response, 'id="conversation-group-modal"')
+        self.assertNotContains(response, "Choose the group for this request")
 
     def test_multiple_eligible_groups_are_offered_in_a_picker(self) -> None:
         group_b = self._make_eligible_group("Group B")
@@ -357,6 +365,18 @@ class ItemDetailMessagingActionTests(MessagingTestCase):
         self.assertContains(response, f'action="{self.open_url}"')
         self.assertContains(response, 'name="conversation_group"')
         self.assertContains(response, 'form="open-conversation-form"')
+        request_form_id = f"form-{response.context['request_modal_id']}"
+        self.assertContains(
+            response,
+            f'id="{request_form_id}-conversation-group"',
+        )
+        self.assertContains(response, f'form="{request_form_id}"')
+        self.assertContains(response, "Choose the group for this request")
+        self.assertContains(
+            response,
+            '<option value="" selected disabled>Choose a group</option>',
+            html=True,
+        )
         self.assertContains(
             response,
             f'<option value="{group_a.pk}">Group A</option>',
@@ -383,6 +403,71 @@ class ItemDetailMessagingActionTests(MessagingTestCase):
         ]
         self.assertEqual(choice_ids, [shared_a.pk, shared_b.pk])
         self.assertNotIn(unshared.pk, choice_ids)
+
+    def test_giveaway_request_modal_uses_the_same_required_group_choice(self) -> None:
+        self.item.listing_type = ListingType.GIVEAWAY
+        self.item.save(update_fields=["listing_type"])
+        self._make_eligible_group("Group A")
+        self._make_eligible_group("Group B")
+
+        response = self.client.get(self.url)
+
+        form_id = f"form-request-giveaway-modal{response.context['modal_suffix']}"
+        self.assertContains(response, f'id="{form_id}-conversation-group"')
+        self.assertContains(response, f'form="{form_id}"')
+        self.assertContains(response, 'value="REQUEST_GIVEAWAY"')
+
+
+@override_settings(MESSAGING_ENABLED=True)
+class ItemListRequestGroupChoiceTests(MessagingTestCase):
+    def setUp(self) -> None:
+        super().setUp()
+        assign_perm(ItemOLP.VIEW, self.borrower, self.item)
+        self.url = reverse("item-list")
+        self.client.force_login(self.borrower)
+
+    def _make_eligible_group(self, name: str) -> BorrowdGroup:
+        group = self.make_group(name=name)
+        group.add_user(self.borrower)
+        return group
+
+    def test_ambiguous_request_modal_lists_the_batched_group_choices(self) -> None:
+        group_b = self._make_eligible_group("Group B")
+        group_a = self._make_eligible_group("Group A")
+
+        response = self.client.get(self.url)
+
+        card = next(
+            card
+            for card in response.context["item_cards"]
+            if card["pk"] == self.item.pk
+        )
+        self.assertEqual(
+            card["request_conversation_group_choices"],
+            (group_a, group_b),
+        )
+        form_id = f"form-request-item-modal-search-{self.item.pk}"
+        self.assertContains(response, f'id="{form_id}-conversation-group"')
+        self.assertContains(response, f'form="{form_id}"')
+        self.assertRegex(
+            response.content.decode(),
+            rf'<select id="{form_id}-conversation-group"[^>]*required>',
+        )
+
+    def test_existing_thread_removes_the_group_choice_from_the_modal(self) -> None:
+        self._make_eligible_group("Group A")
+        self._make_eligible_group("Group B")
+        self.make_thread()
+
+        response = self.client.get(self.url)
+
+        card = next(
+            card
+            for card in response.context["item_cards"]
+            if card["pk"] == self.item.pk
+        )
+        self.assertEqual(card["request_conversation_group_choices"], ())
+        self.assertNotContains(response, "Choose the group for this request")
 
 
 @override_settings(MESSAGING_ENABLED=True)
