@@ -6,6 +6,7 @@ from django.contrib import messages
 from django.contrib.messages.api import MessageFailure
 from django.core.files.uploadedfile import UploadedFile
 from django.db.models import QuerySet
+from django.db.transaction import atomic
 from django.forms import ModelForm
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect
@@ -26,6 +27,11 @@ from borrowd.validators import ALLOWED_IMAGE_ACCEPT, MAX_PHOTO_SIZE_BYTES
 from borrowd_community_requests.exceptions import CannotActOnOwnRequestException
 from borrowd_community_requests.models import CommunityRequest
 from borrowd_groups.models import Membership, MembershipStatus
+from borrowd_messaging.exceptions import (
+    ConversationGroupSelectionRequired,
+    InvalidConversationGroup,
+    PreRequestChatUnavailable,
+)
 from borrowd_messaging.models import ChatThread
 from borrowd_messaging.services import MessagingService
 from borrowd_permissions.mixins import (
@@ -175,7 +181,28 @@ def borrow_item(request: HttpRequest, pk: int) -> HttpResponse:
         return HttpResponse("Not found", status=404)
 
     try:
-        item.process_action(user=user, action=action)
+        with atomic():
+            if settings.MESSAGING_ENABLED and action in (
+                ItemAction.REQUEST_ITEM,
+                ItemAction.REQUEST_GIVEAWAY,
+            ):
+                if item.get_requesting_user() is not None:
+                    raise ItemAlreadyRequested
+                selected_group = MessagingService.conversation_group_selection(
+                    request.POST.get("conversation_group")
+                )
+                MessagingService.prepare_thread_for_request(
+                    user,
+                    item,
+                    selected_group=selected_group,
+                )
+            item.process_action(user=user, action=action)
+    except (
+        ConversationGroupSelectionRequired,
+        InvalidConversationGroup,
+        PreRequestChatUnavailable,
+    ) as exc:
+        _add_message_safe(request, messages.ERROR, str(exc))
     except ItemAlreadyRequested:
         _add_message_safe(
             request,
