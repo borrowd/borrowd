@@ -49,6 +49,23 @@ _DISPUTE_NOTICE = (
 
 class MessagingService:
     @staticmethod
+    def _conversation_context_values(
+        item: Item,
+        conversation_group: BorrowdGroup | None,
+    ) -> dict[str, object]:
+        """Return the historical context written when a thread is created."""
+        return {
+            "conversation_group": conversation_group,
+            "conversation_group_source_id": (
+                conversation_group.pk if conversation_group is not None else None
+            ),
+            "conversation_group_name": (
+                conversation_group.name if conversation_group is not None else None
+            ),
+            "listing_type": item.listing_type,
+        }
+
+    @staticmethod
     def eligible_conversation_groups(
         borrower: BorrowdUser, item: Item
     ) -> QuerySet[BorrowdGroup]:
@@ -124,11 +141,15 @@ class MessagingService:
 
     @classmethod
     def get_or_create_prerequest_thread(
-        cls, borrower: BorrowdUser, item: Item
+        cls,
+        borrower: BorrowdUser,
+        item: Item,
+        selected_group: BorrowdGroup | None = None,
     ) -> ChatThread:
         """
         Return the borrower's open pre-request thread for this item,
-        creating one if they have none.
+        creating one if they have none. Multiple eligible groups require an
+        explicit selection for a new conversation.
         """
         if not settings.MESSAGING_ENABLED:
             raise MessagingDisabled("Messaging is not enabled.")
@@ -147,6 +168,12 @@ class MessagingService:
         if existing is not None:
             return existing
 
+        conversation_group = cls.resolve_conversation_group(
+            borrower,
+            item,
+            selected_group=selected_group,
+        )
+
         try:
             with atomic():
                 return ChatThread.objects.create(
@@ -155,6 +182,7 @@ class MessagingService:
                     borrower=borrower,
                     created_by=borrower,
                     updated_by=borrower,
+                    **cls._conversation_context_values(item, conversation_group),
                 )
         except IntegrityError:
             # Race condition catch.
