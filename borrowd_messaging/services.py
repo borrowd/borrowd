@@ -1,15 +1,19 @@
 from django.conf import settings
 from django.core.exceptions import PermissionDenied
 from django.db import IntegrityError
+from django.db.models import QuerySet
 from django.db.transaction import atomic
 from django.utils import timezone
 
+from borrowd_groups.models import BorrowdGroup, Membership, MembershipStatus
 from borrowd_items.models import Item, ItemStatus, Transaction
 from borrowd_permissions.models import ItemOLP
 from borrowd_users.models import BorrowdUser
 from borrowd_users.system import get_system_user
 
 from .exceptions import (
+    ConversationGroupSelectionRequired,
+    InvalidConversationGroup,
     InvalidMessageBody,
     MessagingDisabled,
     NotThreadParticipant,
@@ -44,6 +48,69 @@ _DISPUTE_NOTICE = (
 
 
 class MessagingService:
+    @staticmethod
+    def eligible_conversation_groups(
+        borrower: BorrowdUser, item: Item
+    ) -> QuerySet[BorrowdGroup]:
+        """
+        Return active groups where both participants are active members and
+        the Item is currently shared.
+        """
+        owner_group_ids = Membership.objects.filter(
+            user_id=item.owner_id,
+            status=MembershipStatus.ACTIVE,
+        ).values_list("group_id", flat=True)
+        borrower_group_ids = Membership.objects.filter(
+            user=borrower,
+            status=MembershipStatus.ACTIVE,
+        ).values_list("group_id", flat=True)
+        groups = BorrowdGroup.objects.filter(
+            pk__in=owner_group_ids,
+            deleted_at__isnull=True,
+            perms_group__isnull=False,
+        ).filter(pk__in=borrower_group_ids)
+
+        if not item.share_with_all_groups:
+            groups = groups.filter(
+                pk__in=item.shared_with_groups.values_list("pk", flat=True)
+            )
+
+        return groups.order_by("name", "pk")
+
+    @classmethod
+    def resolve_conversation_group(
+        cls,
+        borrower: BorrowdUser,
+        item: Item,
+        selected_group: BorrowdGroup | None = None,
+        *,
+        require_selection: bool = True,
+    ) -> BorrowdGroup | None:
+        """
+        Validate an explicit group or infer the only eligible group.
+
+        Callers that cannot ask the user to disambiguate may leave multiple
+        eligible groups unfiled by passing ``require_selection=False``.
+        """
+        eligible_groups = cls.eligible_conversation_groups(borrower, item)
+
+        if selected_group is not None:
+            resolved_group = eligible_groups.filter(pk=selected_group.pk).first()
+            if resolved_group is None:
+                raise InvalidConversationGroup(
+                    "The selected group is not available for this conversation."
+                )
+            return resolved_group
+
+        candidates = list(eligible_groups[:2])
+        if len(candidates) == 1:
+            return candidates[0]
+        if len(candidates) > 1 and require_selection:
+            raise ConversationGroupSelectionRequired(
+                "Choose a group for this conversation."
+            )
+        return None
+
     @staticmethod
     def _active_prerequest_thread(
         borrower: BorrowdUser, item: Item
