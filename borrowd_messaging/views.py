@@ -12,9 +12,10 @@ from django.views.generic.detail import SingleObjectMixin
 
 from borrowd.util import BorrowdTemplateFinderMixin
 from borrowd_groups.models import BorrowdGroup
-from borrowd_items.models import Item, TransactionStatus
+from borrowd_items.models import Item, ItemAction, ItemStatus, TransactionStatus
 from borrowd_permissions.mixins import LoginOr404PermissionMixin
 from borrowd_permissions.models import ChatThreadOLP, ItemOLP
+from borrowd_users.models import BorrowdUser
 from borrowd_users.request import get_authenticated_user
 
 from .exceptions import (
@@ -176,7 +177,35 @@ class ChatThreadDetailView(
         context["is_disputed"] = (
             transaction is not None and transaction.status == TransactionStatus.DISPUTED
         )
+        context["pre_request_action"] = self._pre_request_action(chat_thread, user)
         return context
+
+    @staticmethod
+    def _pre_request_action(
+        chat_thread: ChatThread,
+        user: BorrowdUser,
+    ) -> ItemAction | None:
+        item = chat_thread.item
+        if (
+            chat_thread.is_archived
+            or chat_thread.transaction_id is not None
+            or user.pk != chat_thread.borrower_id
+            or item is None
+            or item.deleted_at is not None
+            or item.status != ItemStatus.AVAILABLE
+            or item.owner_id != chat_thread.lender_id
+            or not user.has_perm(ItemOLP.VIEW, item)
+        ):
+            return None
+
+        actions = item.get_actions_for(user)
+        for request_action in (
+            ItemAction.REQUEST_ITEM,
+            ItemAction.REQUEST_GIVEAWAY,
+        ):
+            if request_action in actions:
+                return request_action
+        return None
 
 
 class ChatThreadSendView(

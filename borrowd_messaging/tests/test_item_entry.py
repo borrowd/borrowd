@@ -1,10 +1,10 @@
 from django.contrib.messages import get_messages
 from django.test import override_settings
 from django.urls import reverse
-from guardian.shortcuts import assign_perm
+from guardian.shortcuts import assign_perm, remove_perm
 
 from borrowd_groups.models import BorrowdGroup
-from borrowd_items.models import ItemStatus, TransactionStatus
+from borrowd_items.models import ItemStatus, ListingType, TransactionStatus
 from borrowd_messaging.models import ChatThread
 from borrowd_permissions.models import ItemOLP
 
@@ -323,3 +323,86 @@ class ItemDetailMessagingActionTests(MessagingTestCase):
         self.assertContains(response, f'value="{shared_a.pk}"')
         self.assertContains(response, f'value="{shared_b.pk}"')
         self.assertNotContains(response, f'value="{unshared.pk}"')
+
+
+@override_settings(MESSAGING_ENABLED=True)
+class PreRequestChatRequestActionTests(MessagingTestCase):
+    def setUp(self) -> None:
+        super().setUp()
+        assign_perm(ItemOLP.VIEW, self.borrower, self.item)
+        self.thread = self.make_thread()
+        self.url = reverse("chat-thread-detail", args=[self.thread.pk])
+
+    def test_borrower_can_request_a_lending_listing(self) -> None:
+        self.client.force_login(self.borrower)
+
+        response = self.client.get(self.url)
+
+        self.assertContains(response, 'id="request-listing-button"')
+        self.assertContains(response, "Request item")
+        self.assertContains(
+            response,
+            f'action="{reverse("item-borrow", args=[self.item.pk])}"',
+        )
+        self.assertContains(response, 'value="REQUEST_ITEM"')
+
+    def test_borrower_can_request_a_giveaway_listing(self) -> None:
+        self.item.listing_type = ListingType.GIVEAWAY
+        self.item.save(update_fields=["listing_type"])
+        self.client.force_login(self.borrower)
+
+        response = self.client.get(self.url)
+
+        self.assertContains(response, 'id="request-listing-button"')
+        self.assertContains(response, "Request gift")
+        self.assertContains(response, 'value="REQUEST_GIVEAWAY"')
+
+    def test_lender_cannot_request_from_the_chat(self) -> None:
+        self.client.force_login(self.lender)
+
+        response = self.client.get(self.url)
+
+        self.assertNotContains(response, 'id="request-listing-button"')
+        self.assertContains(response, "Close conversation")
+
+    def test_linked_thread_no_longer_shows_pre_request_actions(self) -> None:
+        transaction = self.make_transaction()
+        self.thread.refresh_from_db()
+        self.client.force_login(self.borrower)
+
+        response = self.client.get(self.url)
+
+        self.assertEqual(self.thread.transaction, transaction)
+        self.assertNotContains(response, 'id="request-listing-button"')
+        self.assertNotContains(response, "Close conversation")
+
+    def test_unavailable_item_hides_the_request_action(self) -> None:
+        self.item.status = ItemStatus.BORROWED
+        self.item.save(update_fields=["status"])
+        self.client.force_login(self.borrower)
+
+        response = self.client.get(self.url)
+
+        self.assertNotContains(response, 'id="request-listing-button"')
+        self.assertContains(response, "Close conversation")
+
+    def test_lost_item_permission_hides_the_request_action(self) -> None:
+        remove_perm(ItemOLP.VIEW, self.borrower, self.item)
+        self.client.force_login(self.borrower)
+
+        response = self.client.get(self.url)
+
+        self.assertNotContains(response, 'id="request-listing-button"')
+        self.assertContains(response, "Close conversation")
+
+    def test_changed_item_owner_hides_the_request_action(self) -> None:
+        new_owner = self.make_user("new-owner")
+        self.item.owner = new_owner
+        self.item.updated_by = new_owner
+        self.item.save(update_fields=["owner", "updated_by"])
+        self.client.force_login(self.borrower)
+
+        response = self.client.get(self.url)
+
+        self.assertNotContains(response, 'id="request-listing-button"')
+        self.assertContains(response, "Close conversation")

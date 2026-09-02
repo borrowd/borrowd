@@ -38,14 +38,40 @@ See messaging/_poll.html and messaging/_composer_archived.html. #}
         </p>
     </form>
 
-    {# Only pre-request threads may be closed manually. Transaction lifecycle
-    handling archives linked threads. See borrowd_messaging.signals. #}
+    {# The borrower may turn a pre-request chat into a request. Either participant
+    may close it instead. Transaction lifecycle handling owns linked threads. #}
     {% if not chat_thread.transaction_id %}
-        <button type="button"
-                class="btn btn-error btn-soft mt-2"
-                onclick="showModal('close-conversation-modal')">
-            Close conversation
-        </button>
+        <div class="mt-2 flex flex-wrap gap-2">
+            {% if pre_request_action.name == 'REQUEST_ITEM' %}
+                <button id="request-listing-button"
+                        type="button"
+                        class="btn btn-primary"
+                        onclick="showModal('request-item-from-chat-modal')">
+                    Request item
+                </button>
+            {% elif pre_request_action.name == 'REQUEST_GIVEAWAY' %}
+                <button id="request-listing-button"
+                        type="button"
+                        class="btn btn-primary"
+                        onclick="showModal('request-giveaway-from-chat-modal')">
+                    Request gift
+                </button>
+            {% endif %}
+
+            <button type="button"
+                    class="btn btn-error btn-soft"
+                    onclick="showModal('close-conversation-modal')">
+                Close conversation
+            </button>
+        </div>
+
+        {% if pre_request_action.name == 'REQUEST_ITEM' %}
+            {% include "components/items/modals/request_item_modal.html" with item=chat_thread.item modal_id="request-item-from-chat-modal" %}
+
+        {% elif pre_request_action.name == 'REQUEST_GIVEAWAY' %}
+            {% include "components/items/modals/request_giveaway_modal.html" with item=chat_thread.item modal_id="request-giveaway-from-chat-modal" %}
+
+        {% endif %}
 
         <form id="close-conversation-form"
               class="hidden"
