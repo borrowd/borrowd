@@ -38,8 +38,9 @@ See messaging/_poll.html and messaging/_composer_archived.html. #}
         </p>
     </form>
 
-    {# The borrower may turn a pre-request chat into a request. Either participant
-    may close it instead. Transaction lifecycle handling owns linked threads. #}
+    {#  The borrower may turn a pre-request chat into a request.
+        Either party may close the thread manually.
+        Transaction lifecycle handles linked thread progression/archival. (see borrowd_messaging.signals) #}
     {% if not chat_thread.transaction_id %}
         <div class="mt-2 flex flex-wrap gap-2">
             {% if pre_request_action.name == 'REQUEST_ITEM' %}
