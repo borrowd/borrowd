@@ -30,7 +30,7 @@
                       method="post"
                       action="{% url 'chat-thread-pre-request-open' item.pk %}">
                     {% csrf_token %}
-                    <label for="conversation-group" class="label mb-2">
+                    <label for="conversation-group" class="label mb-2 whitespace-normal">
                         Which group should this conversation be filed under?
                     </label>
                     <select id="conversation-group"
