@@ -22,3 +22,11 @@ class PreRequestChatUnavailable(BorrowdException):
     Raised when a pre-request thread cannot be opened for an item, e.g. the
     item is not available or its owner has pre-request chat turned off.
     """
+
+
+class InvalidConversationGroup(BorrowdException):
+    """Raised when a selected group is not eligible for the conversation."""
+
+
+class ConversationGroupSelectionRequired(BorrowdException):
+    """Raised when more than one eligible group requires an explicit choice."""

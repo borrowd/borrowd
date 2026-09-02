@@ -43,6 +43,7 @@ class MessagingTestCase(TestCase):
             "name": name,
             "created_by": self.lender,
             "updated_by": self.lender,
+            "membership_requires_approval": False,
         }
         defaults.update(overrides)
         return BorrowdGroup.objects.create_group(**defaults)
