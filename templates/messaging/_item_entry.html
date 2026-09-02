@@ -1,20 +1,20 @@
 {% load heroicons %}
 
 {% if item_conversation_url %}
-    <div class="px-3 pt-3 lg:px-0">
+    <div class="p-3">
         <a id="item-conversation-link"
            href="{{ item_conversation_url }}"
-           class="btn btn-outline btn-primary w-full">
+           class="btn btn-outline btn-primary btn-sm md:btn-md w-full">
             {% heroicon_outline "chat-bubble-left-right" class="size-5" %}
             {{ item_conversation_label }}
         </a>
     </div>
 {% elif show_message_lender %}
-    <div class="px-3 pt-3 lg:px-0">
+    <div class="p-3">
         {% if conversation_group_choices %}
             <button id="message-lender-button"
                     type="button"
-                    class="btn btn-outline btn-primary w-full"
+                    class="btn btn-outline btn-primary btn-sm md:btn-md w-full"
                     onclick="showModal('conversation-group-modal')">
                 {% heroicon_outline "chat-bubble-left-right" class="size-5" %}
                 Message lender
@@ -50,7 +50,7 @@
                 {% csrf_token %}
                 <button id="message-lender-button"
                         type="submit"
-                        class="btn btn-outline btn-primary w-full">
+                        class="btn btn-outline btn-primary btn-sm md:btn-md w-full">
                     {% heroicon_outline "chat-bubble-left-right" class="size-5" %}
                     Message lender
                 </button>
