@@ -1,6 +1,7 @@
 from typing import Any
 from urllib.parse import urlencode
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.messages.api import MessageFailure
 from django.core.files.uploadedfile import UploadedFile
@@ -25,6 +26,8 @@ from borrowd.validators import ALLOWED_IMAGE_ACCEPT, MAX_PHOTO_SIZE_BYTES
 from borrowd_community_requests.exceptions import CannotActOnOwnRequestException
 from borrowd_community_requests.models import CommunityRequest
 from borrowd_groups.models import Membership, MembershipStatus
+from borrowd_messaging.models import ChatThread
+from borrowd_messaging.services import MessagingService
 from borrowd_permissions.mixins import (
     LoginOr403PermissionMixin,
     LoginOr404PermissionMixin,
@@ -45,7 +48,13 @@ from .forms import (
     ItemForm,
     ItemPhotoForm,
 )
-from .models import Item, ItemAction, ItemPhoto, ItemStatus
+from .models import (
+    TERMINAL_TRANSACTION_STATUSES,
+    Item,
+    ItemAction,
+    ItemPhoto,
+    ItemStatus,
+)
 
 _MOBILE_UA_KEYWORDS = ("mobile", "android", "iphone", "ipad", "ipod")
 
@@ -343,8 +352,68 @@ class ItemDetailView(
             fallback_url=reverse("item-list"),
             allowed_url_names=BROWSABLE_BACK_TARGETS,
         )
+        context.update(self._messaging_context(user))
 
         return context
+
+    def _messaging_context(self, user: BorrowdUser) -> dict[str, object]:
+        """Return the conversation action shown on this Item detail page."""
+        item = self.object
+        if not settings.MESSAGING_ENABLED or item.owner_id == user.pk:
+            return {}
+
+        transaction_thread = (
+            ChatThread.objects.filter(
+                item=item,
+                borrower=user,
+                transaction__isnull=False,
+            )
+            .exclude(transaction__status__in=TERMINAL_TRANSACTION_STATUSES)
+            .only("pk")
+            .first()
+        )
+        if transaction_thread is not None:
+            return {
+                "item_conversation_url": reverse(
+                    "chat-thread-detail", args=[transaction_thread.pk]
+                ),
+                "item_conversation_label": "View conversation",
+            }
+
+        if (
+            item.deleted_at is not None
+            or item.status != ItemStatus.AVAILABLE
+            or not item.owner.profile.allow_pre_request_chat
+        ):
+            return {}
+
+        prerequest_thread = (
+            ChatThread.objects.filter(
+                item=item,
+                borrower=user,
+                transaction__isnull=True,
+                archived_at__isnull=True,
+            )
+            .only("pk")
+            .first()
+        )
+        if prerequest_thread is not None:
+            return {
+                "item_conversation_url": reverse(
+                    "chat-thread-detail", args=[prerequest_thread.pk]
+                ),
+                "item_conversation_label": "Message lender",
+            }
+
+        eligible_groups = tuple(
+            MessagingService.eligible_conversation_groups(user, item)
+        )
+        return {
+            "show_message_lender": True,
+            "conversation_group_choices": (
+                eligible_groups if len(eligible_groups) > 1 else ()
+            ),
+        }
 
 
 # django-filter is untyped (see the django_filters note in mypy.ini), so
