@@ -362,6 +362,11 @@ class AttachExistingPreRequestThreadTests(MessagingTestCase):
 
 @override_settings(MESSAGING_ENABLED=True)
 class AttachThreadToTransactionTests(MessagingTestCase):
+    def _make_eligible_group(self, name: str) -> BorrowdGroup:
+        group = self.make_group(name=name)
+        group.add_user(self.borrower)
+        return group
+
     def test_carries_an_existing_conversation_forward(self) -> None:
         thread = self.make_thread()
         message = MessagingService.send_message(
@@ -383,6 +388,87 @@ class AttachThreadToTransactionTests(MessagingTestCase):
         self.assertEqual(thread.lender, self.lender)
         self.assertEqual(thread.borrower, self.borrower)
         self.assertEqual(thread.item, self.item)
+        self.assertIsNone(thread.conversation_group)
+        self.assertIsNone(thread.conversation_group_source_id)
+        self.assertIsNone(thread.conversation_group_name)
+        self.assertEqual(thread.listing_type, ListingType.LEND)
+
+    def test_fresh_thread_snapshots_the_only_eligible_group(self) -> None:
+        group = self._make_eligible_group("Tool Library")
+        self.item.listing_type = ListingType.GIVEAWAY
+        self.item.save(update_fields=["listing_type"])
+
+        transaction = self.make_transaction()
+
+        thread = ChatThread.objects.get(transaction=transaction)
+        self.assertEqual(thread.conversation_group, group)
+        self.assertEqual(thread.conversation_group_source_id, group.pk)
+        self.assertEqual(thread.conversation_group_name, "Tool Library")
+        self.assertEqual(thread.listing_type, ListingType.GIVEAWAY)
+
+    def test_fresh_thread_stays_unfiled_when_groups_are_ambiguous(self) -> None:
+        self._make_eligible_group("Group A")
+        self._make_eligible_group("Group B")
+
+        transaction = self.make_transaction()
+
+        thread = ChatThread.objects.get(transaction=transaction)
+        self.assertIsNone(thread.conversation_group)
+        self.assertIsNone(thread.conversation_group_source_id)
+        self.assertIsNone(thread.conversation_group_name)
+        self.assertEqual(thread.listing_type, ListingType.LEND)
+
+    def test_existing_thread_keeps_its_context_when_attached(self) -> None:
+        original_group = self._make_eligible_group("Original Group")
+        thread = self.make_thread(
+            conversation_group=original_group,
+            conversation_group_source_id=original_group.pk,
+            conversation_group_name=original_group.name,
+            listing_type=ListingType.LEND,
+        )
+
+        original_group.name = "Renamed Group"
+        original_group.save(update_fields=["name"])
+        self._make_eligible_group("Replacement Group")
+        self.item.listing_type = ListingType.GIVEAWAY
+        self.item.save(update_fields=["listing_type"])
+
+        transaction = self.make_transaction()
+
+        thread.refresh_from_db()
+        self.assertEqual(thread.transaction, transaction)
+        self.assertEqual(thread.conversation_group, original_group)
+        self.assertEqual(thread.conversation_group_source_id, original_group.pk)
+        self.assertEqual(thread.conversation_group_name, "Original Group")
+        self.assertEqual(thread.listing_type, ListingType.LEND)
+
+    def test_legacy_unfiled_thread_is_not_reclassified_when_attached(self) -> None:
+        thread = self.make_thread()
+        self._make_eligible_group("Tool Library")
+
+        transaction = self.make_transaction()
+
+        thread.refresh_from_db()
+        self.assertEqual(thread.transaction, transaction)
+        self.assertIsNone(thread.conversation_group)
+        self.assertIsNone(thread.conversation_group_source_id)
+        self.assertIsNone(thread.conversation_group_name)
+        self.assertIsNone(thread.listing_type)
+
+    def test_historical_owner_mismatch_leaves_fresh_context_unknown(self) -> None:
+        new_owner = self.make_user("new-owner")
+        self.item.owner = new_owner
+        self.item.listing_type = ListingType.GIVEAWAY
+        self.item.save(update_fields=["owner", "listing_type"])
+        with override_settings(MESSAGING_ENABLED=False):
+            transaction = self.make_transaction()
+
+        thread = MessagingService.attach_thread_to(transaction)
+
+        self.assertIsNone(thread.conversation_group)
+        self.assertIsNone(thread.conversation_group_source_id)
+        self.assertIsNone(thread.conversation_group_name)
+        self.assertIsNone(thread.listing_type)
 
     def test_is_idempotent(self) -> None:
         transaction = self.make_transaction()

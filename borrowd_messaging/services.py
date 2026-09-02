@@ -65,6 +65,26 @@ class MessagingService:
             "listing_type": item.listing_type,
         }
 
+    @classmethod
+    def _transaction_conversation_context_values(
+        cls,
+        transaction: Transaction,
+    ) -> dict[str, object]:
+        """
+        Infer context for a fresh transaction thread only while the Item still
+        belongs to the transaction's original lender.
+        """
+        item = transaction.item
+        if item.owner_id != transaction.party1_id:
+            return {}
+
+        conversation_group = cls.resolve_conversation_group(
+            transaction.party2,
+            item,
+            require_selection=False,
+        )
+        return cls._conversation_context_values(item, conversation_group)
+
     @staticmethod
     def eligible_conversation_groups(
         borrower: BorrowdUser, item: Item
@@ -241,6 +261,7 @@ class MessagingService:
             borrower=transaction.party2,
             created_by=transaction.party2,
             updated_by=transaction.party2,
+            **cls._transaction_conversation_context_values(transaction),
         )
 
     @classmethod
