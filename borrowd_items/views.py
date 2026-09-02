@@ -188,8 +188,8 @@ def borrow_item(request: HttpRequest, pk: int) -> HttpResponse:
         return HttpResponse("Not found", status=404)
 
     try:
-        with atomic():
-            if settings.MESSAGING_ENABLED and action in _TRANSACTION_REQUEST_ACTIONS:
+        if settings.MESSAGING_ENABLED and action in _TRANSACTION_REQUEST_ACTIONS:
+            with atomic():
                 if item.get_requesting_user() is not None:
                     raise ItemAlreadyRequested
                 selected_group = MessagingService.conversation_group_selection(
@@ -200,6 +200,8 @@ def borrow_item(request: HttpRequest, pk: int) -> HttpResponse:
                     item,
                     selected_group=selected_group,
                 )
+                item.process_action(user=user, action=action)
+        else:
             item.process_action(user=user, action=action)
     except (
         ConversationGroupSelectionRequired,
