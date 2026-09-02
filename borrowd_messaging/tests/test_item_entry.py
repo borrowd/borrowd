@@ -600,6 +600,114 @@ class ItemConversationConversionFlowTests(MessagingTestCase):
         self.assertEqual(thread.conversation_group, eligible_group)
         self.assertEqual(thread.conversation_group_name, "Tool Library")
 
+    def test_direct_item_request_without_groups_stays_unfiled(self) -> None:
+        self.client.post(
+            self.borrow_url,
+            {"action": ItemAction.REQUEST_ITEM},
+            HTTP_REFERER=self.item_url,
+        )
+
+        transaction = Transaction.objects.get(item=self.item, party2=self.borrower)
+        thread = ChatThread.objects.get(transaction=transaction)
+        self.assertIsNone(thread.conversation_group)
+        self.assertIsNone(thread.conversation_group_source_id)
+        self.assertIsNone(thread.conversation_group_name)
+
+    def test_direct_item_request_requires_an_ambiguous_group_choice(self) -> None:
+        self._make_eligible_group("Group A")
+        self._make_eligible_group("Group B")
+
+        response = self.client.post(
+            self.borrow_url,
+            {"action": ItemAction.REQUEST_ITEM},
+            HTTP_REFERER=self.item_url,
+        )
+
+        self.item.refresh_from_db()
+        self.assertRedirects(response, self.item_url, fetch_redirect_response=False)
+        self.assertEqual(self.item.status, ItemStatus.AVAILABLE)
+        self.assertFalse(Transaction.objects.filter(item=self.item).exists())
+        self.assertFalse(ChatThread.objects.filter(item=self.item).exists())
+        self.assertEqual(
+            [str(message) for message in get_messages(response.wsgi_request)],
+            ["Choose a group for this conversation."],
+        )
+
+    def test_direct_item_request_snapshots_the_selected_group(self) -> None:
+        self._make_eligible_group("Group A")
+        selected = self._make_eligible_group("Group B")
+
+        response = self.client.post(
+            self.borrow_url,
+            {
+                "action": ItemAction.REQUEST_ITEM,
+                "conversation_group": selected.pk,
+            },
+            HTTP_REFERER=self.item_url,
+        )
+
+        transaction = Transaction.objects.get(item=self.item, party2=self.borrower)
+        thread = ChatThread.objects.get(transaction=transaction)
+        self.assertRedirects(response, self.item_url, fetch_redirect_response=False)
+        self.assertEqual(thread.conversation_group, selected)
+        self.assertEqual(thread.conversation_group_source_id, selected.pk)
+        self.assertEqual(thread.conversation_group_name, "Group B")
+
+    def test_direct_giveaway_request_snapshots_the_selected_group(self) -> None:
+        self.item.listing_type = ListingType.GIVEAWAY
+        self.item.save(update_fields=["listing_type"])
+        self._make_eligible_group("Group A")
+        selected = self._make_eligible_group("Group B")
+
+        self.client.post(
+            self.borrow_url,
+            {
+                "action": ItemAction.REQUEST_GIVEAWAY,
+                "conversation_group": selected.pk,
+            },
+            HTTP_REFERER=self.item_url,
+        )
+
+        transaction = Transaction.objects.get(item=self.item, party2=self.borrower)
+        thread = ChatThread.objects.get(transaction=transaction)
+        self.assertEqual(transaction.status, TransactionStatus.GIVEAWAY_REQUESTED)
+        self.assertEqual(thread.conversation_group, selected)
+        self.assertEqual(thread.listing_type, ListingType.GIVEAWAY)
+
+    def test_direct_request_rejects_an_ineligible_group(self) -> None:
+        ineligible = self.make_group(name="Lender only")
+
+        response = self.client.post(
+            self.borrow_url,
+            {
+                "action": ItemAction.REQUEST_ITEM,
+                "conversation_group": ineligible.pk,
+            },
+            HTTP_REFERER=self.item_url,
+        )
+
+        self.assertRedirects(response, self.item_url, fetch_redirect_response=False)
+        self.assertFalse(Transaction.objects.filter(item=self.item).exists())
+        self.assertFalse(ChatThread.objects.filter(item=self.item).exists())
+        self.assertEqual(
+            [str(message) for message in get_messages(response.wsgi_request)],
+            ["The selected group is not available for this conversation."],
+        )
+
+    def test_direct_request_ignores_the_pre_request_chat_preference(self) -> None:
+        profile = self.lender.profile
+        profile.allow_pre_request_chat = False
+        profile.save(update_fields=["allow_pre_request_chat"])
+
+        self.client.post(
+            self.borrow_url,
+            {"action": ItemAction.REQUEST_ITEM},
+            HTTP_REFERER=self.item_url,
+        )
+
+        transaction = Transaction.objects.get(item=self.item, party2=self.borrower)
+        self.assertTrue(ChatThread.objects.filter(transaction=transaction).exists())
+
     def test_stale_chat_request_does_not_claim_the_pre_request_thread(self) -> None:
         self.client.post(self.open_url)
         losing_thread = ChatThread.objects.get(

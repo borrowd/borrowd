@@ -11,7 +11,6 @@ from django.views.generic import DetailView, ListView, View
 from django.views.generic.detail import SingleObjectMixin
 
 from borrowd.util import BorrowdTemplateFinderMixin
-from borrowd_groups.models import BorrowdGroup
 from borrowd_items.models import Item, ItemAction, ItemStatus, TransactionStatus
 from borrowd_permissions.mixins import LoginOr404PermissionMixin
 from borrowd_permissions.models import ChatThreadOLP, ItemOLP
@@ -97,7 +96,9 @@ class ChatThreadPreRequestOpenView(
         item = self.get_object()
 
         try:
-            selected_group = self._selected_group(request)
+            selected_group = MessagingService.conversation_group_selection(
+                request.POST.get("conversation_group")
+            )
             chat_thread = MessagingService.get_or_create_prerequest_thread(
                 borrower,
                 item,
@@ -112,26 +113,6 @@ class ChatThreadPreRequestOpenView(
             return redirect("item-detail", pk=item.pk)
 
         return redirect("chat-thread-detail", pk=chat_thread.pk)
-
-    @staticmethod
-    def _selected_group(request: HttpRequest) -> BorrowdGroup | None:
-        raw_group_id = request.POST.get("conversation_group")
-        if raw_group_id is None or raw_group_id == "":
-            return None
-
-        try:
-            group_id = int(raw_group_id)
-        except ValueError as exc:
-            raise InvalidConversationGroup(
-                "The selected group is not available for this conversation."
-            ) from exc
-
-        selected_group = BorrowdGroup.objects.filter(pk=group_id).first()
-        if selected_group is None:
-            raise InvalidConversationGroup(
-                "The selected group is not available for this conversation."
-            )
-        return selected_group
 
 
 class ChatThreadDetailView(

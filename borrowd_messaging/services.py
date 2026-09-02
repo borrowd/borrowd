@@ -49,6 +49,28 @@ _DISPUTE_NOTICE = (
 
 class MessagingService:
     @staticmethod
+    def conversation_group_selection(
+        raw_group_id: str | None,
+    ) -> BorrowdGroup | None:
+        """Resolve an optional submitted group ID to a Group."""
+        if raw_group_id is None or raw_group_id == "":
+            return None
+
+        try:
+            group_id = int(raw_group_id)
+        except ValueError as exc:
+            raise InvalidConversationGroup(
+                "The selected group is not available for this conversation."
+            ) from exc
+
+        selected_group = BorrowdGroup.objects.filter(pk=group_id).first()
+        if selected_group is None:
+            raise InvalidConversationGroup(
+                "The selected group is not available for this conversation."
+            )
+        return selected_group
+
+    @staticmethod
     def _conversation_context_values(
         item: Item,
         conversation_group: BorrowdGroup | None,
@@ -146,6 +168,42 @@ class MessagingService:
             transaction__isnull=True,
         ).first()
 
+    @staticmethod
+    def _validate_thread_participants(borrower: BorrowdUser, item: Item) -> None:
+        """Validate the participants and Item shared by thread entry paths."""
+        if not settings.MESSAGING_ENABLED:
+            raise MessagingDisabled("Messaging is not enabled.")
+        if borrower.pk == item.owner_id:
+            raise PermissionDenied("Owners cannot open a chat about their own item.")
+        if not borrower.has_perm(ItemOLP.VIEW, item):
+            raise PermissionDenied("Cannot open a chat about an unviewable item.")
+        if item.deleted_at is not None or item.status != ItemStatus.AVAILABLE:
+            raise PreRequestChatUnavailable("This item is not available.")
+
+    @classmethod
+    def _create_prerequest_thread(
+        cls,
+        borrower: BorrowdUser,
+        item: Item,
+        conversation_group: BorrowdGroup | None,
+    ) -> ChatThread:
+        """Create a pre-request thread, or return the concurrent winner."""
+        try:
+            with atomic():
+                return ChatThread.objects.create(
+                    item=item,
+                    lender=item.owner,
+                    borrower=borrower,
+                    created_by=borrower,
+                    updated_by=borrower,
+                    **cls._conversation_context_values(item, conversation_group),
+                )
+        except IntegrityError:
+            thread = cls._active_prerequest_thread(borrower, item)
+            if thread is None:
+                raise
+            return thread
+
     @classmethod
     def get_or_create_prerequest_thread(
         cls,
@@ -158,14 +216,7 @@ class MessagingService:
         creating one if they have none. Multiple eligible groups require an
         explicit selection for a new conversation.
         """
-        if not settings.MESSAGING_ENABLED:
-            raise MessagingDisabled("Messaging is not enabled.")
-        if borrower.pk == item.owner_id:
-            raise PermissionDenied("Owners cannot open a chat about their own item.")
-        if not borrower.has_perm(ItemOLP.VIEW, item):
-            raise PermissionDenied("Cannot open a chat about an unviewable item.")
-        if item.deleted_at is not None or item.status != ItemStatus.AVAILABLE:
-            raise PreRequestChatUnavailable("This item is not available.")
+        cls._validate_thread_participants(borrower, item)
         if not item.owner.profile.allow_pre_request_chat:
             raise PreRequestChatUnavailable(
                 "This user has turned off messages about their items."
@@ -181,22 +232,33 @@ class MessagingService:
             selected_group=selected_group,
         )
 
-        try:
-            with atomic():
-                return ChatThread.objects.create(
-                    item=item,
-                    lender=item.owner,
-                    borrower=borrower,
-                    created_by=borrower,
-                    updated_by=borrower,
-                    **cls._conversation_context_values(item, conversation_group),
-                )
-        except IntegrityError:
-            # Race condition catch.
-            thread = cls._active_prerequest_thread(borrower, item)
-            if thread is None:
-                raise
-            return thread
+        return cls._create_prerequest_thread(borrower, item, conversation_group)
+
+    @classmethod
+    def prepare_thread_for_request(
+        cls,
+        borrower: BorrowdUser,
+        item: Item,
+        selected_group: BorrowdGroup | None = None,
+    ) -> ChatThread:
+        """
+        Create or reuse the thread that an immediate Item request will claim.
+
+        Direct requests are independent of the lender's pre-request-chat
+        preference because they start the normal Transaction lifecycle.
+        """
+        cls._validate_thread_participants(borrower, item)
+
+        existing = cls._active_prerequest_thread(borrower, item)
+        if existing is not None:
+            return existing
+
+        conversation_group = cls.resolve_conversation_group(
+            borrower,
+            item,
+            selected_group=selected_group,
+        )
+        return cls._create_prerequest_thread(borrower, item, conversation_group)
 
     @classmethod
     def send_message(
