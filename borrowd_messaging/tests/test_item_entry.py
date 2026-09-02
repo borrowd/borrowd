@@ -1,9 +1,12 @@
+from unittest.mock import patch
+
 from django.contrib.messages import get_messages
 from django.test import Client, override_settings
 from django.urls import reverse
 from guardian.shortcuts import assign_perm, remove_perm
 
 from borrowd_groups.models import BorrowdGroup
+from borrowd_items.exceptions import ItemAlreadyRequested
 from borrowd_items.models import (
     ItemAction,
     ItemStatus,
@@ -792,6 +795,21 @@ class ItemConversationConversionFlowTests(MessagingTestCase):
 
         transaction = Transaction.objects.get(item=self.item, party2=self.borrower)
         self.assertTrue(ChatThread.objects.filter(transaction=transaction).exists())
+
+    def test_failed_direct_request_rolls_back_the_prepared_thread(self) -> None:
+        with patch(
+            "borrowd_items.models.Item.process_action",
+            side_effect=ItemAlreadyRequested,
+        ):
+            response = self.client.post(
+                self.borrow_url,
+                {"action": ItemAction.REQUEST_ITEM},
+                HTTP_REFERER=self.item_url,
+            )
+
+        self.assertRedirects(response, self.item_url, fetch_redirect_response=False)
+        self.assertFalse(Transaction.objects.filter(item=self.item).exists())
+        self.assertFalse(ChatThread.objects.filter(item=self.item).exists())
 
     def test_stale_chat_request_does_not_claim_the_pre_request_thread(self) -> None:
         self.client.post(self.open_url)
