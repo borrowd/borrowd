@@ -12,6 +12,7 @@ from borrowd_items.models import (
     TransactionStatus,
 )
 from borrowd_messaging.models import ChatThread, Message
+from borrowd_messaging.views import ChatThreadPreRequestOpenView
 from borrowd_permissions.models import ItemOLP
 
 from .base import MessagingTestCase
@@ -34,7 +35,11 @@ class ChatThreadPreRequestOpenViewTests(MessagingTestCase):
 
         response = self.client.post(self.url)
 
-        thread = ChatThread.objects.get()
+        thread = ChatThread.objects.get(
+            item=self.item,
+            borrower=self.borrower,
+            transaction__isnull=True,
+        )
         self.assertRedirects(
             response,
             reverse("chat-thread-detail", args=[thread.pk]),
@@ -56,7 +61,13 @@ class ChatThreadPreRequestOpenViewTests(MessagingTestCase):
             reverse("chat-thread-detail", args=[existing.pk]),
             fetch_redirect_response=False,
         )
-        self.assertEqual(ChatThread.objects.count(), 1)
+        self.assertEqual(
+            ChatThread.objects.filter(
+                item=self.item,
+                borrower=self.borrower,
+            ).count(),
+            1,
+        )
 
     def test_snapshots_an_explicit_eligible_group(self) -> None:
         self._make_eligible_group("Group A")
@@ -68,7 +79,11 @@ class ChatThreadPreRequestOpenViewTests(MessagingTestCase):
             {"conversation_group": selected.pk},
         )
 
-        thread = ChatThread.objects.get()
+        thread = ChatThread.objects.get(
+            item=self.item,
+            borrower=self.borrower,
+            transaction__isnull=True,
+        )
         self.assertRedirects(
             response,
             reverse("chat-thread-detail", args=[thread.pk]),
@@ -90,7 +105,7 @@ class ChatThreadPreRequestOpenViewTests(MessagingTestCase):
             reverse("item-detail", args=[self.item.pk]),
             fetch_redirect_response=False,
         )
-        self.assertFalse(ChatThread.objects.exists())
+        self.assertFalse(ChatThread.objects.filter(item=self.item).exists())
         self.assertEqual(
             [str(message) for message in get_messages(response.wsgi_request)],
             ["Choose a group for this conversation."],
@@ -110,7 +125,7 @@ class ChatThreadPreRequestOpenViewTests(MessagingTestCase):
             reverse("item-detail", args=[self.item.pk]),
             fetch_redirect_response=False,
         )
-        self.assertFalse(ChatThread.objects.exists())
+        self.assertFalse(ChatThread.objects.filter(item=self.item).exists())
         self.assertEqual(
             [str(message) for message in get_messages(response.wsgi_request)],
             ["The selected group is not available for this conversation."],
@@ -129,7 +144,29 @@ class ChatThreadPreRequestOpenViewTests(MessagingTestCase):
             reverse("item-detail", args=[self.item.pk]),
             fetch_redirect_response=False,
         )
-        self.assertFalse(ChatThread.objects.exists())
+        self.assertFalse(ChatThread.objects.filter(item=self.item).exists())
+
+    def test_rejects_a_numeric_group_that_does_not_exist(self) -> None:
+        deleted_group = self.make_group(name="Deleted Group")
+        deleted_group_id = deleted_group.pk
+        deleted_group.delete()
+        self.client.force_login(self.borrower)
+
+        response = self.client.post(
+            self.url,
+            {"conversation_group": deleted_group_id},
+        )
+
+        self.assertRedirects(
+            response,
+            reverse("item-detail", args=[self.item.pk]),
+            fetch_redirect_response=False,
+        )
+        self.assertFalse(ChatThread.objects.filter(item=self.item).exists())
+        self.assertEqual(
+            [str(message) for message in get_messages(response.wsgi_request)],
+            ["The selected group is not available for this conversation."],
+        )
 
     def test_unavailable_item_does_not_open_a_conversation(self) -> None:
         self.item.status = ItemStatus.BORROWED
@@ -143,7 +180,7 @@ class ChatThreadPreRequestOpenViewTests(MessagingTestCase):
             reverse("item-detail", args=[self.item.pk]),
             fetch_redirect_response=False,
         )
-        self.assertFalse(ChatThread.objects.exists())
+        self.assertFalse(ChatThread.objects.filter(item=self.item).exists())
 
     def test_disabled_lender_preference_does_not_open_a_conversation(self) -> None:
         profile = self.lender.profile
@@ -158,7 +195,7 @@ class ChatThreadPreRequestOpenViewTests(MessagingTestCase):
             reverse("item-detail", args=[self.item.pk]),
             fetch_redirect_response=False,
         )
-        self.assertFalse(ChatThread.objects.exists())
+        self.assertFalse(ChatThread.objects.filter(item=self.item).exists())
 
     def test_owner_cannot_open_a_pre_request_conversation(self) -> None:
         self.client.force_login(self.lender)
@@ -166,7 +203,7 @@ class ChatThreadPreRequestOpenViewTests(MessagingTestCase):
         response = self.client.post(self.url)
 
         self.assertEqual(response.status_code, 403)
-        self.assertFalse(ChatThread.objects.exists())
+        self.assertFalse(ChatThread.objects.filter(item=self.item).exists())
 
     def test_user_without_item_permission_gets_a_404(self) -> None:
         stranger = self.make_user("stranger")
@@ -175,7 +212,7 @@ class ChatThreadPreRequestOpenViewTests(MessagingTestCase):
         response = self.client.post(self.url)
 
         self.assertEqual(response.status_code, 404)
-        self.assertFalse(ChatThread.objects.exists())
+        self.assertFalse(ChatThread.objects.filter(item=self.item).exists())
 
     def test_anonymous_user_is_sent_to_login(self) -> None:
         response = self.client.post(self.url)
@@ -190,7 +227,7 @@ class ChatThreadPreRequestOpenViewTests(MessagingTestCase):
         response = self.client.post(self.url)
 
         self.assertEqual(response.status_code, 404)
-        self.assertFalse(ChatThread.objects.exists())
+        self.assertFalse(ChatThread.objects.filter(item=self.item).exists())
 
     def test_get_is_not_allowed(self) -> None:
         self.client.force_login(self.borrower)
@@ -198,7 +235,19 @@ class ChatThreadPreRequestOpenViewTests(MessagingTestCase):
         response = self.client.get(self.url)
 
         self.assertEqual(response.status_code, 405)
-        self.assertFalse(ChatThread.objects.exists())
+        self.assertFalse(ChatThread.objects.filter(item=self.item).exists())
+
+
+class ItemObjectLookupTests(MessagingTestCase):
+    def test_item_lookup_is_reused_for_permission_and_request_handling(self) -> None:
+        view = ChatThreadPreRequestOpenView()
+        view.kwargs = {"item_pk": self.item.pk}
+
+        with self.assertNumQueries(1):
+            first_lookup = view.get_object()
+            second_lookup = view.get_object()
+
+        self.assertIs(first_lookup, second_lookup)
 
 
 @override_settings(MESSAGING_ENABLED=True)
@@ -305,6 +354,9 @@ class ItemDetailMessagingActionTests(MessagingTestCase):
 
         self.assertContains(response, 'id="conversation-group-modal"')
         self.assertContains(response, "Choose a group")
+        self.assertContains(response, f'action="{self.open_url}"')
+        self.assertContains(response, 'name="conversation_group"')
+        self.assertContains(response, 'form="open-conversation-form"')
         self.assertContains(
             response,
             f'<option value="{group_a.pk}">Group A</option>',
@@ -326,9 +378,11 @@ class ItemDetailMessagingActionTests(MessagingTestCase):
 
         response = self.client.get(self.url)
 
-        self.assertContains(response, f'value="{shared_a.pk}"')
-        self.assertContains(response, f'value="{shared_b.pk}"')
-        self.assertNotContains(response, f'value="{unshared.pk}"')
+        choice_ids = [
+            group.pk for group in response.context["conversation_group_choices"]
+        ]
+        self.assertEqual(choice_ids, [shared_a.pk, shared_b.pk])
+        self.assertNotIn(unshared.pk, choice_ids)
 
 
 @override_settings(MESSAGING_ENABLED=True)
@@ -439,7 +493,11 @@ class ItemConversationConversionFlowTests(MessagingTestCase):
             self.open_url,
             {"conversation_group": selected_group.pk},
         )
-        thread = ChatThread.objects.get()
+        thread = ChatThread.objects.get(
+            item=self.item,
+            borrower=self.borrower,
+            transaction__isnull=True,
+        )
         message = Message.objects.create(
             thread=thread,
             sender=self.borrower,
@@ -453,7 +511,10 @@ class ItemConversationConversionFlowTests(MessagingTestCase):
             HTTP_REFERER=chat_url,
         )
 
-        transaction = Transaction.objects.get()
+        transaction = Transaction.objects.get(
+            item=self.item,
+            party2=self.borrower,
+        )
         thread.refresh_from_db()
         self.item.refresh_from_db()
         self.assertRedirects(response, chat_url, fetch_redirect_response=False)
@@ -462,7 +523,13 @@ class ItemConversationConversionFlowTests(MessagingTestCase):
         self.assertEqual(thread.conversation_group_source_id, selected_group.pk)
         self.assertEqual(thread.conversation_group_name, "Group B")
         self.assertEqual(thread.messages.get(pk=message.pk).body, message.body)
-        self.assertEqual(ChatThread.objects.count(), 1)
+        self.assertEqual(
+            ChatThread.objects.filter(
+                item=self.item,
+                borrower=self.borrower,
+            ).count(),
+            1,
+        )
         self.assertEqual(self.item.status, ItemStatus.REQUESTED)
 
         chat_response = self.client.get(chat_url)
@@ -478,7 +545,11 @@ class ItemConversationConversionFlowTests(MessagingTestCase):
         self.item.listing_type = ListingType.GIVEAWAY
         self.item.save(update_fields=["listing_type"])
         self.client.post(self.open_url)
-        thread = ChatThread.objects.get()
+        thread = ChatThread.objects.get(
+            item=self.item,
+            borrower=self.borrower,
+            transaction__isnull=True,
+        )
         message = Message.objects.create(
             thread=thread,
             sender=self.borrower,
@@ -492,14 +563,23 @@ class ItemConversationConversionFlowTests(MessagingTestCase):
             HTTP_REFERER=chat_url,
         )
 
-        transaction = Transaction.objects.get()
+        transaction = Transaction.objects.get(
+            item=self.item,
+            party2=self.borrower,
+        )
         thread.refresh_from_db()
         self.assertRedirects(response, chat_url, fetch_redirect_response=False)
         self.assertEqual(transaction.status, TransactionStatus.GIVEAWAY_REQUESTED)
         self.assertEqual(thread.transaction, transaction)
         self.assertEqual(thread.listing_type, ListingType.GIVEAWAY)
         self.assertTrue(thread.messages.filter(pk=message.pk).exists())
-        self.assertEqual(ChatThread.objects.count(), 1)
+        self.assertEqual(
+            ChatThread.objects.filter(
+                item=self.item,
+                borrower=self.borrower,
+            ).count(),
+            1,
+        )
 
     def test_direct_item_request_still_creates_one_transaction_thread(self) -> None:
         eligible_group = self._make_eligible_group("Tool Library")
@@ -510,16 +590,23 @@ class ItemConversationConversionFlowTests(MessagingTestCase):
             HTTP_REFERER=self.item_url,
         )
 
-        transaction = Transaction.objects.get()
-        thread = ChatThread.objects.get()
+        transaction = Transaction.objects.get(
+            item=self.item,
+            party2=self.borrower,
+        )
+        thread = ChatThread.objects.get(transaction=transaction)
         self.assertRedirects(response, self.item_url, fetch_redirect_response=False)
         self.assertEqual(thread.transaction, transaction)
         self.assertEqual(thread.conversation_group, eligible_group)
         self.assertEqual(thread.conversation_group_name, "Tool Library")
 
-    def test_losing_request_race_does_not_claim_the_pre_request_thread(self) -> None:
+    def test_stale_chat_request_does_not_claim_the_pre_request_thread(self) -> None:
         self.client.post(self.open_url)
-        losing_thread = ChatThread.objects.get()
+        losing_thread = ChatThread.objects.get(
+            item=self.item,
+            borrower=self.borrower,
+            transaction__isnull=True,
+        )
         winner = self.make_user("winner")
         assign_perm(ItemOLP.VIEW, winner, self.item)
         winner_client = Client()
@@ -529,7 +616,10 @@ class ItemConversationConversionFlowTests(MessagingTestCase):
             {"action": ItemAction.REQUEST_ITEM},
             HTTP_REFERER=self.item_url,
         )
-        winning_transaction = Transaction.objects.get(party2=winner)
+        winning_transaction = Transaction.objects.get(
+            item=self.item,
+            party2=winner,
+        )
 
         response = self.client.post(
             self.borrow_url,
@@ -538,7 +628,7 @@ class ItemConversationConversionFlowTests(MessagingTestCase):
         )
 
         losing_thread.refresh_from_db()
-        self.assertEqual(Transaction.objects.count(), 1)
+        self.assertEqual(Transaction.objects.filter(item=self.item).count(), 1)
         self.assertIsNone(losing_thread.transaction)
         self.assertEqual(winning_transaction.chat_thread.borrower, winner)
         self.assertEqual(
