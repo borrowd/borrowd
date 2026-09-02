@@ -2,6 +2,7 @@ from typing import Any
 
 from django.test import TestCase
 
+from borrowd_groups.models import BorrowdGroup
 from borrowd_items.models import Item, Transaction
 from borrowd_messaging.models import ChatThread
 from borrowd_users.models import BorrowdUser
@@ -36,6 +37,15 @@ class MessagingTestCase(TestCase):
         }
         defaults.update(overrides)
         return Item.objects.create(**defaults)
+
+    def make_group(self, name: str = "Group", **overrides: Any) -> BorrowdGroup:
+        defaults: dict[str, Any] = {
+            "name": name,
+            "created_by": self.lender,
+            "updated_by": self.lender,
+        }
+        defaults.update(overrides)
+        return BorrowdGroup.objects.create_group(**defaults)
 
     def make_thread(self, **overrides: Any) -> ChatThread:
         borrower = overrides.pop("borrower", self.borrower)
