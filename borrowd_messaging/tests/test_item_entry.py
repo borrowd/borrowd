@@ -1,11 +1,17 @@
 from django.contrib.messages import get_messages
-from django.test import override_settings
+from django.test import Client, override_settings
 from django.urls import reverse
 from guardian.shortcuts import assign_perm, remove_perm
 
 from borrowd_groups.models import BorrowdGroup
-from borrowd_items.models import ItemStatus, ListingType, TransactionStatus
-from borrowd_messaging.models import ChatThread
+from borrowd_items.models import (
+    ItemAction,
+    ItemStatus,
+    ListingType,
+    Transaction,
+    TransactionStatus,
+)
+from borrowd_messaging.models import ChatThread, Message
 from borrowd_permissions.models import ItemOLP
 
 from .base import MessagingTestCase
@@ -406,3 +412,136 @@ class PreRequestChatRequestActionTests(MessagingTestCase):
 
         self.assertNotContains(response, 'id="request-listing-button"')
         self.assertContains(response, "Close conversation")
+
+
+@override_settings(MESSAGING_ENABLED=True)
+class ItemConversationConversionFlowTests(MessagingTestCase):
+    def setUp(self) -> None:
+        super().setUp()
+        assign_perm(ItemOLP.VIEW, self.borrower, self.item)
+        self.item_url = reverse("item-detail", args=[self.item.pk])
+        self.open_url = reverse(
+            "chat-thread-pre-request-open",
+            args=[self.item.pk],
+        )
+        self.borrow_url = reverse("item-borrow", args=[self.item.pk])
+        self.client.force_login(self.borrower)
+
+    def _make_eligible_group(self, name: str) -> BorrowdGroup:
+        group = self.make_group(name=name)
+        group.add_user(self.borrower)
+        return group
+
+    def test_lending_request_keeps_the_thread_history_and_context(self) -> None:
+        self._make_eligible_group("Group A")
+        selected_group = self._make_eligible_group("Group B")
+        self.client.post(
+            self.open_url,
+            {"conversation_group": selected_group.pk},
+        )
+        thread = ChatThread.objects.get()
+        message = Message.objects.create(
+            thread=thread,
+            sender=self.borrower,
+            body="Could I collect this on Saturday?",
+        )
+        chat_url = reverse("chat-thread-detail", args=[thread.pk])
+
+        response = self.client.post(
+            self.borrow_url,
+            {"action": ItemAction.REQUEST_ITEM},
+            HTTP_REFERER=chat_url,
+        )
+
+        transaction = Transaction.objects.get()
+        thread.refresh_from_db()
+        self.item.refresh_from_db()
+        self.assertRedirects(response, chat_url, fetch_redirect_response=False)
+        self.assertEqual(thread.transaction, transaction)
+        self.assertEqual(thread.conversation_group, selected_group)
+        self.assertEqual(thread.conversation_group_source_id, selected_group.pk)
+        self.assertEqual(thread.conversation_group_name, "Group B")
+        self.assertEqual(thread.messages.get(pk=message.pk).body, message.body)
+        self.assertEqual(ChatThread.objects.count(), 1)
+        self.assertEqual(self.item.status, ItemStatus.REQUESTED)
+
+        chat_response = self.client.get(chat_url)
+        self.assertContains(chat_response, message.body)
+        self.assertNotContains(chat_response, 'id="request-listing-button"')
+        self.assertNotContains(chat_response, "Close conversation")
+
+        item_response = self.client.get(self.item_url)
+        self.assertContains(item_response, "View conversation")
+        self.assertContains(item_response, f'href="{chat_url}"')
+
+    def test_giveaway_request_keeps_the_existing_thread(self) -> None:
+        self.item.listing_type = ListingType.GIVEAWAY
+        self.item.save(update_fields=["listing_type"])
+        self.client.post(self.open_url)
+        thread = ChatThread.objects.get()
+        message = Message.objects.create(
+            thread=thread,
+            sender=self.borrower,
+            body="Would this fit in a hatchback?",
+        )
+        chat_url = reverse("chat-thread-detail", args=[thread.pk])
+
+        response = self.client.post(
+            self.borrow_url,
+            {"action": ItemAction.REQUEST_GIVEAWAY},
+            HTTP_REFERER=chat_url,
+        )
+
+        transaction = Transaction.objects.get()
+        thread.refresh_from_db()
+        self.assertRedirects(response, chat_url, fetch_redirect_response=False)
+        self.assertEqual(transaction.status, TransactionStatus.GIVEAWAY_REQUESTED)
+        self.assertEqual(thread.transaction, transaction)
+        self.assertEqual(thread.listing_type, ListingType.GIVEAWAY)
+        self.assertTrue(thread.messages.filter(pk=message.pk).exists())
+        self.assertEqual(ChatThread.objects.count(), 1)
+
+    def test_direct_item_request_still_creates_one_transaction_thread(self) -> None:
+        eligible_group = self._make_eligible_group("Tool Library")
+
+        response = self.client.post(
+            self.borrow_url,
+            {"action": ItemAction.REQUEST_ITEM},
+            HTTP_REFERER=self.item_url,
+        )
+
+        transaction = Transaction.objects.get()
+        thread = ChatThread.objects.get()
+        self.assertRedirects(response, self.item_url, fetch_redirect_response=False)
+        self.assertEqual(thread.transaction, transaction)
+        self.assertEqual(thread.conversation_group, eligible_group)
+        self.assertEqual(thread.conversation_group_name, "Tool Library")
+
+    def test_losing_request_race_does_not_claim_the_pre_request_thread(self) -> None:
+        self.client.post(self.open_url)
+        losing_thread = ChatThread.objects.get()
+        winner = self.make_user("winner")
+        assign_perm(ItemOLP.VIEW, winner, self.item)
+        winner_client = Client()
+        winner_client.force_login(winner)
+        winner_client.post(
+            self.borrow_url,
+            {"action": ItemAction.REQUEST_ITEM},
+            HTTP_REFERER=self.item_url,
+        )
+        winning_transaction = Transaction.objects.get(party2=winner)
+
+        response = self.client.post(
+            self.borrow_url,
+            {"action": ItemAction.REQUEST_ITEM},
+            HTTP_REFERER=reverse("chat-thread-detail", args=[losing_thread.pk]),
+        )
+
+        losing_thread.refresh_from_db()
+        self.assertEqual(Transaction.objects.count(), 1)
+        self.assertIsNone(losing_thread.transaction)
+        self.assertEqual(winning_transaction.chat_thread.borrower, winner)
+        self.assertEqual(
+            [str(message) for message in get_messages(response.wsgi_request)],
+            ["Sorry! Another user requested this item just before you."],
+        )
