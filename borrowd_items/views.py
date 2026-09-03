@@ -6,6 +6,7 @@ from django.contrib import messages
 from django.contrib.messages.api import MessageFailure
 from django.core.exceptions import PermissionDenied
 from django.core.files.uploadedfile import UploadedFile
+from django.core.paginator import Paginator
 from django.db.models import QuerySet
 from django.db.transaction import atomic
 from django.forms import ModelForm
@@ -33,6 +34,7 @@ from borrowd_messaging.exceptions import (
     InvalidConversationGroup,
     PreRequestChatUnavailable,
 )
+from borrowd_messaging.mixins import MessagingEnabledMixin
 from borrowd_messaging.models import ChatThread
 from borrowd_messaging.services import MessagingService
 from borrowd_messaging.thread_summaries import (
@@ -82,6 +84,7 @@ _TRANSACTION_REQUEST_ACTIONS = frozenset(
 )
 
 _ITEM_CONVERSATION_PREVIEW_LIMIT = 10
+_ITEM_CONVERSATION_HISTORY_PAGE_SIZE = 25
 
 
 def _build_item_action_success_message(item_name: str, action: ItemAction) -> str:
@@ -481,6 +484,40 @@ class ItemDetailView(
             }
         )
         return messaging_context
+
+
+class ItemConversationHistoryView(
+    MessagingEnabledMixin,
+    LoginOr404PermissionMixin,
+    DetailView[Item],
+):
+    """Show every Item conversation this participant may read."""
+
+    model = Item
+    permission_required = ItemOLP.VIEW
+    template_name = "messaging/item_conversation_history.html"
+    context_object_name = "item"
+
+    def get_object(self, queryset: QuerySet[Item] | None = None) -> Item:
+        if hasattr(self, "object"):
+            return self.object
+        self.object = super().get_object(queryset)
+        return self.object
+
+    def get_context_data(self, **kwargs: str) -> dict[str, Any]:
+        context = super().get_context_data(**kwargs)
+        user = get_authenticated_user(self.request)
+        paginator = Paginator(
+            item_conversation_threads(self.object, user),
+            _ITEM_CONVERSATION_HISTORY_PAGE_SIZE,
+        )
+        page_obj = paginator.get_page(self.request.GET.get("page"))
+        context["page_obj"] = page_obj
+        context["item_conversation_summaries"] = build_conversation_summaries(
+            page_obj,
+            user,
+        )
+        return context
 
 
 # django-filter is untyped (see the django_filters note in mypy.ini), so
