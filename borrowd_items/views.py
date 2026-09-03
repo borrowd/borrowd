@@ -35,6 +35,10 @@ from borrowd_messaging.exceptions import (
 )
 from borrowd_messaging.models import ChatThread
 from borrowd_messaging.services import MessagingService
+from borrowd_messaging.thread_summaries import (
+    build_conversation_summaries,
+    item_conversation_threads,
+)
 from borrowd_permissions.mixins import (
     LoginOr403PermissionMixin,
     LoginOr404PermissionMixin,
@@ -76,6 +80,8 @@ _TRANSACTION_REQUEST_ACTIONS = frozenset(
         ItemAction.REQUEST_GIVEAWAY,
     }
 )
+
+_ITEM_CONVERSATION_PREVIEW_LIMIT = 10
 
 
 def _build_item_action_success_message(item_name: str, action: ItemAction) -> str:
@@ -391,10 +397,26 @@ class ItemDetailView(
         return context
 
     def _messaging_context(self, user: BorrowdUser) -> dict[str, object]:
-        """Return the conversation action shown on this Item detail page."""
+        """Return the messaging content shown on this Item detail page."""
         item = self.object
-        if not settings.MESSAGING_ENABLED or item.owner_id == user.pk:
+        if not settings.MESSAGING_ENABLED:
             return {}
+
+        messaging_context: dict[str, object] = {}
+        conversation_summaries = build_conversation_summaries(
+            item_conversation_threads(item, user)[:_ITEM_CONVERSATION_PREVIEW_LIMIT],
+            user,
+        )
+        if item.owner_id == user.pk or conversation_summaries:
+            messaging_context.update(
+                {
+                    "show_item_conversations": True,
+                    "item_conversation_summaries": conversation_summaries,
+                }
+            )
+
+        if item.owner_id == user.pk:
+            return messaging_context
 
         transaction_thread = (
             ChatThread.objects.filter(
@@ -407,15 +429,18 @@ class ItemDetailView(
             .first()
         )
         if transaction_thread is not None:
-            return {
-                "item_conversation_url": reverse(
-                    "chat-thread-detail", args=[transaction_thread.pk]
-                ),
-                "item_conversation_label": "View conversation",
-            }
+            messaging_context.update(
+                {
+                    "item_conversation_url": reverse(
+                        "chat-thread-detail", args=[transaction_thread.pk]
+                    ),
+                    "item_conversation_label": "View conversation",
+                }
+            )
+            return messaging_context
 
         if item.deleted_at is not None or item.status != ItemStatus.AVAILABLE:
-            return {}
+            return messaging_context
 
         prerequest_thread = (
             ChatThread.objects.filter(
@@ -433,15 +458,13 @@ class ItemDetailView(
             else tuple(MessagingService.eligible_conversation_groups(user, item))
         )
         request_group_choices = eligible_groups if len(eligible_groups) > 1 else ()
-        request_context: dict[str, object] = {
-            "request_conversation_group_choices": request_group_choices,
-        }
+        messaging_context["request_conversation_group_choices"] = request_group_choices
 
         if not item.owner.profile.allow_pre_request_chat:
-            return request_context
+            return messaging_context
 
         if prerequest_thread is not None:
-            request_context.update(
+            messaging_context.update(
                 {
                     "item_conversation_url": reverse(
                         "chat-thread-detail", args=[prerequest_thread.pk]
@@ -449,15 +472,15 @@ class ItemDetailView(
                     "item_conversation_label": "Message lender",
                 }
             )
-            return request_context
+            return messaging_context
 
-        request_context.update(
+        messaging_context.update(
             {
                 "show_message_lender": True,
                 "conversation_group_choices": request_group_choices,
             }
         )
-        return request_context
+        return messaging_context
 
 
 # django-filter is untyped (see the django_filters note in mypy.ini), so
