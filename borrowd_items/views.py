@@ -7,7 +7,7 @@ from django.contrib.messages.api import MessageFailure
 from django.core.exceptions import PermissionDenied
 from django.core.files.uploadedfile import UploadedFile
 from django.core.paginator import Paginator
-from django.db.models import QuerySet
+from django.db.models import Exists, OuterRef, Q, QuerySet
 from django.db.transaction import atomic
 from django.forms import ModelForm
 from django.http import HttpRequest, HttpResponse
@@ -42,6 +42,7 @@ from borrowd_messaging.thread_summaries import (
     item_conversation_threads,
 )
 from borrowd_permissions.mixins import (
+    CachedObjectMixin,
     LoginOr403PermissionMixin,
     LoginOr404PermissionMixin,
 )
@@ -363,11 +364,27 @@ class ItemDeleteView(
 
 class ItemDetailView(
     LoginOr404PermissionMixin,
+    CachedObjectMixin[Item],
     BorrowdTemplateFinderMixin,
     DetailView[Item],
 ):
     model = Item
     permission_required = ItemOLP.VIEW
+
+    def get_queryset(self) -> QuerySet[Item]:
+        queryset = super().get_queryset()
+        if not settings.MESSAGING_ENABLED:
+            return queryset
+
+        user = get_authenticated_user(self.request)
+        viewer_threads = ChatThread.objects.filter(
+            item_id=OuterRef("pk"),
+        ).filter(
+            Q(lender_id=user.pk) | Q(borrower_id=user.pk),
+        )
+        return queryset.annotate(
+            viewer_has_item_conversations=Exists(viewer_threads),
+        )
 
     def get_context_data(self, **kwargs: str) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
@@ -406,11 +423,16 @@ class ItemDetailView(
             return {}
 
         messaging_context: dict[str, object] = {}
-        conversation_summaries = build_conversation_summaries(
-            item_conversation_threads(item, user)[:_ITEM_CONVERSATION_PREVIEW_LIMIT],
-            user,
+        viewer_has_item_conversations = bool(
+            getattr(item, "viewer_has_item_conversations", False)
         )
-        if item.owner_id == user.pk or conversation_summaries:
+        if item.owner_id == user.pk or viewer_has_item_conversations:
+            conversation_summaries = build_conversation_summaries(
+                item_conversation_threads(item, user)[
+                    :_ITEM_CONVERSATION_PREVIEW_LIMIT
+                ],
+                user,
+            )
             messaging_context.update(
                 {
                     "show_item_conversations": True,
@@ -489,6 +511,7 @@ class ItemDetailView(
 class ItemConversationHistoryView(
     MessagingEnabledMixin,
     LoginOr404PermissionMixin,
+    CachedObjectMixin[Item],
     DetailView[Item],
 ):
     """Show every Item conversation this participant may read."""
@@ -497,12 +520,6 @@ class ItemConversationHistoryView(
     permission_required = ItemOLP.VIEW
     template_name = "messaging/item_conversation_history.html"
     context_object_name = "item"
-
-    def get_object(self, queryset: QuerySet[Item] | None = None) -> Item:
-        if hasattr(self, "object"):
-            return self.object
-        self.object = super().get_object(queryset)
-        return self.object
 
     def get_context_data(self, **kwargs: str) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)

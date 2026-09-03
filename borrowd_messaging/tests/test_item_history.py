@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 from django.test import override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -69,8 +71,12 @@ class ItemConversationPreviewTests(MessagingTestCase):
         assign_perm(ItemOLP.VIEW, viewer, self.item)
         self.client.force_login(viewer)
 
-        response = self.client.get(self.url)
+        with patch(
+            "borrowd_items.views.build_conversation_summaries"
+        ) as build_summaries:
+            response = self.client.get(self.url)
 
+        build_summaries.assert_not_called()
         self.assertNotContains(response, 'id="item-conversations"')
         self.assertNotContains(
             response,
