@@ -1,6 +1,7 @@
 from django.utils import timezone
 
 from borrowd_groups.models import BorrowdGroup, Membership, MembershipStatus
+from borrowd_items.models import Item
 from borrowd_messaging.exceptions import (
     ConversationGroupSelectionRequired,
     InvalidConversationGroup,
@@ -72,6 +73,20 @@ class ConversationGroupResolutionTests(MessagingTestCase):
 
         self.assertEqual(groups, [eligible])
         self.assertNotIn(not_shared, groups)
+
+    def test_eligible_groups_use_one_query_with_an_uncached_owner(self) -> None:
+        eligible = self._make_eligible_group("Eligible")
+        item = Item.objects.get(pk=self.item.pk)
+
+        with self.assertNumQueries(1):
+            groups = list(
+                MessagingService.eligible_conversation_groups(
+                    self.borrower,
+                    item,
+                )
+            )
+
+        self.assertEqual(groups, [eligible])
 
     def test_no_eligible_group_resolves_to_unfiled(self) -> None:
         group = MessagingService.resolve_conversation_group(

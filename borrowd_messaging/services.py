@@ -5,7 +5,7 @@ from django.db.models import QuerySet
 from django.db.transaction import atomic
 from django.utils import timezone
 
-from borrowd_groups.models import BorrowdGroup, Membership, MembershipStatus
+from borrowd_groups.models import BorrowdGroup, MembershipStatus
 from borrowd_items.models import Item, ItemStatus, Transaction
 from borrowd_permissions.models import ItemOLP
 from borrowd_users.models import BorrowdUser
@@ -93,24 +93,11 @@ class MessagingService:
         Return active groups where both participants are active members and
         the Item is currently shared.
         """
-        owner_group_ids = Membership.objects.filter(
-            user_id=item.owner_id,
-            status=MembershipStatus.ACTIVE,
-        ).values_list("group_id", flat=True)
-        borrower_group_ids = Membership.objects.filter(
-            user=borrower,
-            status=MembershipStatus.ACTIVE,
-        ).values_list("group_id", flat=True)
-        groups = BorrowdGroup.objects.filter(
-            pk__in=owner_group_ids,
+        groups = item.groups_allowed_to_view().filter(
             deleted_at__isnull=True,
-            perms_group__isnull=False,
-        ).filter(pk__in=borrower_group_ids)
-
-        if not item.share_with_all_groups:
-            groups = groups.filter(
-                pk__in=item.shared_with_groups.values_list("pk", flat=True)
-            )
+            membership__user=borrower,
+            membership__status=MembershipStatus.ACTIVE,
+        )
 
         return groups.order_by("name", "pk")
 
