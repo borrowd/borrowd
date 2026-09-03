@@ -52,6 +52,7 @@ def backfill_conversation_context(
                 .filter(
                     user_id=item.owner_id,
                     status=_MEMBERSHIP_STATUS_ACTIVE,
+                    joined_at__lte=thread.created_at,
                 )
                 .values_list("group_id", flat=True)
             )
@@ -60,6 +61,7 @@ def backfill_conversation_context(
                 .filter(
                     user_id=thread.borrower_id,
                     status=_MEMBERSHIP_STATUS_ACTIVE,
+                    joined_at__lte=thread.created_at,
                 )
                 .values_list("group_id", flat=True)
             )
