@@ -1,6 +1,12 @@
 from django.test import override_settings
 
-from borrowd_items.models import Transaction, TransactionStatus
+from borrowd_items.models import (
+    ItemAction,
+    ItemStatus,
+    ResolutionReason,
+    Transaction,
+    TransactionStatus,
+)
 from borrowd_messaging.models import ArchiveReason, ChatThread
 from borrowd_messaging.services import ARCHIVE_MESSAGES, MessagingService
 from borrowd_messaging.tests.base import MessagingTestCase
@@ -219,6 +225,40 @@ class TransactionLifecycleTests(MessagingTestCase):
         self.assertTrue(last_message.is_system)
         self.assertIn("dispute has been raised", last_message.body)
         MessagingService.send_message(thread, self.borrower, "Let's sort this out.")
+
+    def test_resolving_a_lost_item_preserves_the_resolution_archive_reason(
+        self,
+    ) -> None:
+        self.item.status = ItemStatus.BORROWED
+        self.item.save(update_fields=["status"])
+        transaction = self.make_transaction()
+        transaction.status = TransactionStatus.DISPUTED
+        transaction.save()
+        onlooker_thread = self.make_thread(borrower=self.make_user("onlooker"))
+
+        self.item.process_action(
+            self.lender,
+            ItemAction.RESOLVE_DISPUTE_NOT_RETURNED,
+        )
+
+        self.item.refresh_from_db()
+        transaction.refresh_from_db()
+        transaction_thread = ChatThread.objects.get(transaction=transaction)
+        onlooker_thread.refresh_from_db()
+        self.assertIsNotNone(self.item.deleted_at)
+        self.assertEqual(transaction.status, TransactionStatus.RESOLVED)
+        self.assertEqual(
+            transaction.resolution_reason,
+            ResolutionReason.DISPUTE_ITEM_NOT_RETURNED,
+        )
+        self.assertEqual(transaction_thread.archive_reason, ArchiveReason.RESOLVED)
+        last_message = transaction_thread.messages.order_by("id").last()
+        assert last_message is not None
+        self.assertEqual(
+            last_message.body,
+            ARCHIVE_MESSAGES[ArchiveReason.RESOLVED],
+        )
+        self.assertEqual(onlooker_thread.archive_reason, ArchiveReason.ITEM_DELETED)
 
     def test_re_saving_a_disputed_transaction_posts_one_notice(self) -> None:
         transaction = self.make_transaction()
