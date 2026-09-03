@@ -1,15 +1,19 @@
 from django.conf import settings
 from django.core.exceptions import PermissionDenied
 from django.db import IntegrityError
+from django.db.models import QuerySet
 from django.db.transaction import atomic
 from django.utils import timezone
 
+from borrowd_groups.models import BorrowdGroup, MembershipStatus
 from borrowd_items.models import Item, ItemStatus, Transaction
 from borrowd_permissions.models import ItemOLP
 from borrowd_users.models import BorrowdUser
 from borrowd_users.system import get_system_user
 
 from .exceptions import (
+    ConversationGroupSelectionRequired,
+    InvalidConversationGroup,
     InvalidMessageBody,
     MessagingDisabled,
     NotThreadParticipant,
@@ -45,6 +49,93 @@ _DISPUTE_NOTICE = (
 
 class MessagingService:
     @staticmethod
+    def _conversation_context_values(
+        item: Item,
+        conversation_group: BorrowdGroup | None,
+    ) -> dict[str, object]:
+        """Return the historical context written when a thread is created."""
+        return {
+            "conversation_group": conversation_group,
+            "conversation_group_source_id": (
+                conversation_group.pk if conversation_group is not None else None
+            ),
+            "conversation_group_name": (
+                conversation_group.name if conversation_group is not None else None
+            ),
+            "listing_type": item.listing_type,
+        }
+
+    @classmethod
+    def _transaction_conversation_context_values(
+        cls,
+        transaction: Transaction,
+    ) -> dict[str, object]:
+        """
+        Infer context for a fresh transaction thread only while the Item still
+        belongs to the transaction's original lender.
+        """
+        item = transaction.item
+        if item.owner_id != transaction.party1_id:
+            return {}
+
+        conversation_group = cls.resolve_conversation_group(
+            transaction.party2,
+            item,
+            require_selection=False,
+        )
+        return cls._conversation_context_values(item, conversation_group)
+
+    @staticmethod
+    def eligible_conversation_groups(
+        borrower: BorrowdUser, item: Item
+    ) -> QuerySet[BorrowdGroup]:
+        """
+        Return active groups where both participants are active members and
+        the Item is currently shared.
+        """
+        groups = item.groups_allowed_to_view().filter(
+            deleted_at__isnull=True,
+            membership__user=borrower,
+            membership__status=MembershipStatus.ACTIVE,
+        )
+
+        return groups.order_by("name", "pk")
+
+    @classmethod
+    def resolve_conversation_group(
+        cls,
+        borrower: BorrowdUser,
+        item: Item,
+        selected_group: BorrowdGroup | None = None,
+        *,
+        require_selection: bool = True,
+    ) -> BorrowdGroup | None:
+        """
+        Validate an explicit group or infer the only eligible group.
+
+        Callers that cannot ask the user to disambiguate may leave multiple
+        eligible groups unfiled by passing ``require_selection=False``.
+        """
+        eligible_groups = cls.eligible_conversation_groups(borrower, item)
+
+        if selected_group is not None:
+            resolved_group = eligible_groups.filter(pk=selected_group.pk).first()
+            if resolved_group is None:
+                raise InvalidConversationGroup(
+                    "The selected group is not available for this conversation."
+                )
+            return resolved_group
+
+        candidates = list(eligible_groups[:2])
+        if len(candidates) == 1:
+            return candidates[0]
+        if len(candidates) > 1 and require_selection:
+            raise ConversationGroupSelectionRequired(
+                "Choose a group for this conversation."
+            )
+        return None
+
+    @staticmethod
     def _active_prerequest_thread(
         borrower: BorrowdUser, item: Item
     ) -> ChatThread | None:
@@ -57,11 +148,15 @@ class MessagingService:
 
     @classmethod
     def get_or_create_prerequest_thread(
-        cls, borrower: BorrowdUser, item: Item
+        cls,
+        borrower: BorrowdUser,
+        item: Item,
+        selected_group: BorrowdGroup | None = None,
     ) -> ChatThread:
         """
         Return the borrower's open pre-request thread for this item,
-        creating one if they have none.
+        creating one if they have none. Multiple eligible groups require an
+        explicit selection for a new conversation.
         """
         if not settings.MESSAGING_ENABLED:
             raise MessagingDisabled("Messaging is not enabled.")
@@ -80,6 +175,12 @@ class MessagingService:
         if existing is not None:
             return existing
 
+        conversation_group = cls.resolve_conversation_group(
+            borrower,
+            item,
+            selected_group=selected_group,
+        )
+
         try:
             with atomic():
                 return ChatThread.objects.create(
@@ -88,6 +189,7 @@ class MessagingService:
                     borrower=borrower,
                     created_by=borrower,
                     updated_by=borrower,
+                    **cls._conversation_context_values(item, conversation_group),
                 )
         except IntegrityError:
             # Race condition catch.
@@ -146,6 +248,7 @@ class MessagingService:
             borrower=transaction.party2,
             created_by=transaction.party2,
             updated_by=transaction.party2,
+            **cls._transaction_conversation_context_values(transaction),
         )
 
     @classmethod

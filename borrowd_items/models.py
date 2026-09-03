@@ -1004,17 +1004,17 @@ class Item(Model):
                         f"Unexpected action '{action}' for Item '{self}' and User '{user}'"
                     )
 
-    def _groups_allowed_to_view(self) -> "QuerySet[BorrowdGroup]":
+    def groups_allowed_to_view(self) -> "QuerySet[BorrowdGroup]":
         """
         The owner's active groups that may see this item.
 
         When share_with_all_groups is True, all active groups qualify.
         When False, only groups explicitly listed in shared_with_groups qualify.
         """
-        from borrowd_groups.models import MembershipStatus
+        from borrowd_groups.models import BorrowdGroup, MembershipStatus
 
-        owner_active_groups = self.owner.borrowd_groups.filter(
-            membership__user=self.owner,
+        owner_active_groups = BorrowdGroup.objects.filter(
+            membership__user_id=self.owner_id,
             membership__status=MembershipStatus.ACTIVE,
         ).exclude(perms_group=None)
 
@@ -1043,7 +1043,7 @@ class Item(Model):
         remove_perm(ItemOLP.VIEW, groups_that_can_view_item, self)
 
         allowed_groups = Group.objects.filter(
-            pk__in=self._groups_allowed_to_view().values_list("perms_group", flat=True)
+            pk__in=self.groups_allowed_to_view().values_list("perms_group", flat=True)
         )
         assign_perm(ItemOLP.VIEW, allowed_groups, self)
 

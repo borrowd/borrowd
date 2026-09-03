@@ -11,14 +11,17 @@ from django.db.models import (
     F,
     ForeignKey,
     Index,
+    IntegerField,
     Model,
     OneToOneField,
+    PositiveBigIntegerField,
     Q,
     TextChoices,
     UniqueConstraint,
 )
 from django.utils import timezone
 
+from borrowd_items.models import ListingType
 from borrowd_messaging.exceptions import NotThreadParticipant
 from borrowd_permissions.models import ChatThreadOLP
 from borrowd_users.models import BorrowdUser
@@ -56,6 +59,35 @@ class ChatThread(Model):
         on_delete=SET_NULL,
         related_name="chat_threads",
         help_text="The Item under discussion. NULL after the item is hard-deleted.",
+    )
+    conversation_group = ForeignKey(
+        to="borrowd_groups.BorrowdGroup",
+        null=True,
+        blank=True,
+        default=None,
+        on_delete=SET_NULL,
+        related_name="+",
+        help_text="The group this conversation was filed under, if any.",
+    )
+    conversation_group_source_id = PositiveBigIntegerField(
+        null=True,
+        blank=True,
+        default=None,
+        help_text="The selected group's ID at conversation creation.",
+    )
+    conversation_group_name = CharField(
+        max_length=50,
+        null=True,
+        blank=True,
+        default=None,
+        help_text="The selected group's name at conversation creation.",
+    )
+    listing_type = IntegerField(
+        choices=ListingType,
+        null=True,
+        blank=True,
+        default=None,
+        help_text="The Item's listing type at conversation creation.",
     )
     lender = ForeignKey(
         to=BorrowdUser,
@@ -132,6 +164,20 @@ class ChatThread(Model):
             CheckConstraint(
                 condition=~Q(lender=F("borrower")),
                 name="chat_thread_lender_is_not_borrower",
+            ),
+            CheckConstraint(
+                condition=(
+                    Q(
+                        conversation_group__isnull=True,
+                        conversation_group_source_id__isnull=True,
+                        conversation_group_name__isnull=True,
+                    )
+                    | Q(
+                        conversation_group_source_id__isnull=False,
+                        conversation_group_name__isnull=False,
+                    )
+                ),
+                name="chat_thread_group_context_is_consistent",
             ),
         ]
         permissions = [
