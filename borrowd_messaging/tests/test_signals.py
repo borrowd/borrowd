@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 from django.test import override_settings
 
 from borrowd_items.models import (
@@ -69,12 +71,18 @@ class ItemLifecycleTests(MessagingTestCase):
         self.assertTrue(self.lender.has_perm(ChatThreadOLP.VIEW, thread))
         self.assertTrue(self.borrower.has_perm(ChatThreadOLP.VIEW, thread))
 
-    def test_resaving_a_soft_deleted_item_posts_one_notice(self) -> None:
+    def test_updating_a_soft_deleted_item_does_not_rescan_conversations(self) -> None:
         thread = self.make_thread()
         self.item.soft_delete(deleted_by=self.lender)
 
-        self.item.name = "Removed Drill"
-        self.item.save(update_fields=["name"])
+        with patch.object(
+            MessagingService,
+            "archive_open_threads_for_item",
+        ) as archive_threads:
+            self.item.name = "Removed Drill"
+            self.item.save(update_fields=["name"])
+
+        archive_threads.assert_not_called()
 
         thread.refresh_from_db()
         self.assertEqual(thread.archive_reason, ArchiveReason.ITEM_DELETED)

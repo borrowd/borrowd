@@ -43,9 +43,15 @@ def assign_chat_thread_permissions(
 
 @receiver(post_save, sender=Item)
 def archive_threads_for_soft_deleted_item(
-    sender: type[Item], instance: Item, **kwargs: Any
+    sender: type[Item],
+    instance: Item,
+    update_fields: frozenset[str] | None,
+    **kwargs: Any,
 ) -> None:
     """Archive open conversations after an Item is soft-deleted."""
+    if update_fields is not None and "deleted_at" not in update_fields:
+        return
+
     if instance.deleted_at is not None:
         MessagingService.archive_open_threads_for_item(
             instance, ArchiveReason.ITEM_DELETED
