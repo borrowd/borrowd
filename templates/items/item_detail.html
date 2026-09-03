@@ -167,6 +167,10 @@
 
                         {% endfor %}
                     </div>
+                    <div class="mt-2 text-right">
+                        <a href="{% url 'item-conversation-history' item.pk %}"
+                           class="btn btn-ghost btn-sm">View all conversations</a>
+                    </div>
                 {% else %}
                     <p class="text-sm text-base-content/70">
                         No conversations yet.
