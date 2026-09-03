@@ -937,13 +937,12 @@ class Item(Model):
                     current_tx.updated_by = user
                     current_tx.save()
                 case ItemAction.RESOLVE_DISPUTE_NOT_RETURNED:
-                    # Item is gone for good
-                    # soft-delete it and close out the transaction.
-                    self.soft_delete(deleted_by=user)
+                    # Close out the transaction before removing the lost Item.
                     current_tx.force_resolve(
                         resolved_by=user,
                         reason=ResolutionReason.DISPUTE_ITEM_NOT_RETURNED,
                     )
+                    self.soft_delete(deleted_by=user)
                 case ItemAction.OFFER_GIVEAWAY:
                     # The lender offers to give the item to the borrower permanently.
                     # Item stays BORROWED until the borrower accepts.

@@ -1,11 +1,11 @@
 from typing import Any
 
 from django.conf import settings
-from django.db.models.signals import post_save
+from django.db.models.signals import post_save, pre_delete
 from django.dispatch import receiver
 from guardian.shortcuts import assign_perm
 
-from borrowd_items.models import Transaction, TransactionStatus
+from borrowd_items.models import Item, Transaction, TransactionStatus
 from borrowd_permissions.models import ChatThreadOLP
 
 from .models import ArchiveReason, ChatThread
@@ -41,6 +41,31 @@ def assign_chat_thread_permissions(
         assign_perm(ChatThreadOLP.VIEW, instance.borrower, instance)
 
 
+@receiver(post_save, sender=Item)
+def archive_threads_for_soft_deleted_item(
+    sender: type[Item],
+    instance: Item,
+    update_fields: frozenset[str] | None,
+    **kwargs: Any,
+) -> None:
+    """Archive open conversations after an Item is soft-deleted."""
+    if update_fields is not None and "deleted_at" not in update_fields:
+        return
+
+    if instance.deleted_at is not None:
+        MessagingService.archive_open_threads_for_item(
+            instance, ArchiveReason.ITEM_DELETED
+        )
+
+
+@receiver(pre_delete, sender=Item)
+def archive_threads_for_hard_deleted_item(
+    sender: type[Item], instance: Item, **kwargs: Any
+) -> None:
+    """Archive open conversations before an Item is hard-deleted."""
+    MessagingService.archive_open_threads_for_item(instance, ArchiveReason.ITEM_DELETED)
+
+
 @receiver(post_save, sender=Transaction)
 def sync_chat_thread_with_transaction(
     sender: type[Transaction], instance: Transaction, created: bool, **kwargs: Any
@@ -51,11 +76,11 @@ def sync_chat_thread_with_transaction(
     close everyone else's conversation once the item is spoken for,
     and archive or annotate the thread as the status moves on.
     """
-    if not settings.MESSAGING_ENABLED:
-        return
-
     if created:
-        MessagingService.attach_thread_to(instance)
+        if settings.MESSAGING_ENABLED:
+            MessagingService.attach_thread_to(instance)
+        else:
+            MessagingService.attach_existing_prerequest_thread_to(instance)
         return
 
     if instance.status == getattr(instance, "_previous_status", None):
