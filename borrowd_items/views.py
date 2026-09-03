@@ -6,6 +6,7 @@ from django.contrib import messages
 from django.contrib.messages.api import MessageFailure
 from django.core.exceptions import PermissionDenied
 from django.core.files.uploadedfile import UploadedFile
+from django.core.paginator import Paginator
 from django.db.models import QuerySet
 from django.db.transaction import atomic
 from django.forms import ModelForm
@@ -33,8 +34,13 @@ from borrowd_messaging.exceptions import (
     InvalidConversationGroup,
     PreRequestChatUnavailable,
 )
+from borrowd_messaging.mixins import MessagingEnabledMixin
 from borrowd_messaging.models import ChatThread
 from borrowd_messaging.services import MessagingService
+from borrowd_messaging.thread_summaries import (
+    build_conversation_summaries,
+    item_conversation_threads,
+)
 from borrowd_permissions.mixins import (
     LoginOr403PermissionMixin,
     LoginOr404PermissionMixin,
@@ -76,6 +82,9 @@ _TRANSACTION_REQUEST_ACTIONS = frozenset(
         ItemAction.REQUEST_GIVEAWAY,
     }
 )
+
+_ITEM_CONVERSATION_PREVIEW_LIMIT = 10
+_ITEM_CONVERSATION_HISTORY_PAGE_SIZE = 25
 
 
 def _build_item_action_success_message(item_name: str, action: ItemAction) -> str:
@@ -391,10 +400,26 @@ class ItemDetailView(
         return context
 
     def _messaging_context(self, user: BorrowdUser) -> dict[str, object]:
-        """Return the conversation action shown on this Item detail page."""
+        """Return the messaging content shown on this Item detail page."""
         item = self.object
-        if not settings.MESSAGING_ENABLED or item.owner_id == user.pk:
+        if not settings.MESSAGING_ENABLED:
             return {}
+
+        messaging_context: dict[str, object] = {}
+        conversation_summaries = build_conversation_summaries(
+            item_conversation_threads(item, user)[:_ITEM_CONVERSATION_PREVIEW_LIMIT],
+            user,
+        )
+        if item.owner_id == user.pk or conversation_summaries:
+            messaging_context.update(
+                {
+                    "show_item_conversations": True,
+                    "item_conversation_summaries": conversation_summaries,
+                }
+            )
+
+        if item.owner_id == user.pk:
+            return messaging_context
 
         transaction_thread = (
             ChatThread.objects.filter(
@@ -407,15 +432,18 @@ class ItemDetailView(
             .first()
         )
         if transaction_thread is not None:
-            return {
-                "item_conversation_url": reverse(
-                    "chat-thread-detail", args=[transaction_thread.pk]
-                ),
-                "item_conversation_label": "View conversation",
-            }
+            messaging_context.update(
+                {
+                    "item_conversation_url": reverse(
+                        "chat-thread-detail", args=[transaction_thread.pk]
+                    ),
+                    "item_conversation_label": "View conversation",
+                }
+            )
+            return messaging_context
 
         if item.deleted_at is not None or item.status != ItemStatus.AVAILABLE:
-            return {}
+            return messaging_context
 
         prerequest_thread = (
             ChatThread.objects.filter(
@@ -433,15 +461,13 @@ class ItemDetailView(
             else tuple(MessagingService.eligible_conversation_groups(user, item))
         )
         request_group_choices = eligible_groups if len(eligible_groups) > 1 else ()
-        request_context: dict[str, object] = {
-            "request_conversation_group_choices": request_group_choices,
-        }
+        messaging_context["request_conversation_group_choices"] = request_group_choices
 
         if not item.owner.profile.allow_pre_request_chat:
-            return request_context
+            return messaging_context
 
         if prerequest_thread is not None:
-            request_context.update(
+            messaging_context.update(
                 {
                     "item_conversation_url": reverse(
                         "chat-thread-detail", args=[prerequest_thread.pk]
@@ -449,15 +475,49 @@ class ItemDetailView(
                     "item_conversation_label": "Message lender",
                 }
             )
-            return request_context
+            return messaging_context
 
-        request_context.update(
+        messaging_context.update(
             {
                 "show_message_lender": True,
                 "conversation_group_choices": request_group_choices,
             }
         )
-        return request_context
+        return messaging_context
+
+
+class ItemConversationHistoryView(
+    MessagingEnabledMixin,
+    LoginOr404PermissionMixin,
+    DetailView[Item],
+):
+    """Show every Item conversation this participant may read."""
+
+    model = Item
+    permission_required = ItemOLP.VIEW
+    template_name = "messaging/item_conversation_history.html"
+    context_object_name = "item"
+
+    def get_object(self, queryset: QuerySet[Item] | None = None) -> Item:
+        if hasattr(self, "object"):
+            return self.object
+        self.object = super().get_object(queryset)
+        return self.object
+
+    def get_context_data(self, **kwargs: str) -> dict[str, Any]:
+        context = super().get_context_data(**kwargs)
+        user = get_authenticated_user(self.request)
+        paginator = Paginator(
+            item_conversation_threads(self.object, user),
+            _ITEM_CONVERSATION_HISTORY_PAGE_SIZE,
+        )
+        page_obj = paginator.get_page(self.request.GET.get("page"))
+        context["page_obj"] = page_obj
+        context["item_conversation_summaries"] = build_conversation_summaries(
+            page_obj,
+            user,
+        )
+        return context
 
 
 # django-filter is untyped (see the django_filters note in mypy.ini), so

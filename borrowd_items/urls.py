@@ -1,6 +1,7 @@
 from django.urls import path
 
 from .views import (
+    ItemConversationHistoryView,
     ItemCreateView,
     ItemDeleteView,
     ItemDetailView,
@@ -14,6 +15,11 @@ from .views import (
 urlpatterns = [
     path("", ItemListView.as_view(), name="item-list"),
     path("create/", ItemCreateView.as_view(), name="item-create"),
+    path(
+        "<int:pk>/conversations/",
+        ItemConversationHistoryView.as_view(),
+        name="item-conversation-history",
+    ),
     path("<int:pk>/", ItemDetailView.as_view(), name="item-detail"),
     path("<int:pk>/edit/", ItemUpdateView.as_view(), name="item-edit"),
     path("<int:pk>/delete/", ItemDeleteView.as_view(), name="item-delete"),

@@ -18,19 +18,26 @@ Usage:
     {% include "components/pagination.html" with page_obj=page_obj query_params=request.GET %}
 {% endcomment %}
 
+{% load pagination_tags %}
+
 {% if page_obj.paginator.num_pages > 1 %}
-    <div class="flex justify-center pt-4">
+    {% elided_page_range page_obj as page_range %}
+    <div class="flex max-w-full justify-center pt-4">
         <div class="join">
-            {% for page_num in page_obj.paginator.page_range %}
-                {% if page_num == page_obj.number %}
+            {% for page_num in page_range %}
+                {% if not page_num %}
+                    <span class="join-item flex h-10 min-w-8 items-center justify-center px-2 text-base-content/60 sm:min-w-[2.5rem]"
+                          aria-hidden="true">…</span>
+                {% elif page_num == page_obj.number %}
                     {# Current page — primary styling #}
-                    <button class="join-item btn btn-primary btn-sm min-w-[2.5rem] h-10">
+                    <span class="join-item btn btn-primary btn-sm h-10 min-w-8 px-2 sm:min-w-[2.5rem]"
+                          aria-current="page">
                         {{ page_num }}
-                    </button>
+                    </span>
                 {% else %}
                     {# Other pages — base-200 styling #}
                     <a href="?page={{ page_num }}{% if query_params %}{% for key, values in query_params.lists %}{% if key != 'page' %}{% for value in values %}&{{ key }}={{ value }}{% endfor %}{% endif %}{% endfor %}{% endif %}"
-                       class="join-item btn btn-sm min-w-[2.5rem] h-10 bg-base-300 border-base-300 hover:bg-base-200 shadow-sm text-base-content">
+                       class="join-item btn btn-sm h-10 min-w-8 bg-base-300 border-base-300 px-2 hover:bg-base-200 shadow-sm text-base-content sm:min-w-[2.5rem]">
                         {{ page_num }}
                     </a>
                 {% endif %}
