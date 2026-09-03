@@ -1,11 +1,29 @@
-from typing import Any
+from typing import Any, TypeVar
 
 from django.contrib.auth.views import redirect_to_login
 from django.core.exceptions import PermissionDenied
-from django.db.models import Model
+from django.db.models import Model, QuerySet
 from django.http import Http404, HttpRequest, HttpResponse
 from django.http.response import HttpResponseBase
+from django.views.generic.detail import SingleObjectMixin
 from guardian.mixins import PermissionRequiredMixin
+
+_ObjectT = TypeVar("_ObjectT", bound=Model)
+
+
+class CachedObjectMixin(SingleObjectMixin[_ObjectT]):
+    """Reuse the object already loaded for an object-permission check."""
+
+    object: _ObjectT
+
+    def get_object(
+        self,
+        queryset: QuerySet[_ObjectT] | None = None,
+    ) -> _ObjectT:
+        if hasattr(self, "object"):
+            return self.object
+        self.object = super().get_object(queryset)
+        return self.object
 
 
 class _LoginRequiredPermissionMixin(PermissionRequiredMixin):
