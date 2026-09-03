@@ -152,6 +152,29 @@
             </div>
         </div>
 
+        {% if show_item_conversations %}
+            <section id="item-conversations"
+                     class="w-full pt-3"
+                     aria-labelledby="item-conversations-heading">
+                <h2 id="item-conversations-heading" class="mb-3 text-xl font-semibold">
+                    Conversations
+                </h2>
+
+                {% if item_conversation_summaries %}
+                    <div class="flex flex-col gap-2">
+                        {% for summary in item_conversation_summaries %}
+                            {% include "messaging/_thread_summary_card.html" with summary=summary only %}
+
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-sm text-base-content/70">
+                        No conversations yet.
+                    </p>
+                {% endif %}
+            </section>
+        {% endif %}
+
         {% if show_actions %}
             {% include "components/items/modals/accept_request_modal.html" with item=item modal_id=accept_modal_id %}
             {% include "components/items/modals/request_item_modal.html" with item=item modal_id=request_modal_id %}
