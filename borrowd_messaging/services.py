@@ -5,7 +5,7 @@ from django.db.models import QuerySet
 from django.db.transaction import atomic
 from django.utils import timezone
 
-from borrowd_groups.models import BorrowdGroup, MembershipStatus
+from borrowd_groups.models import BorrowdGroup, Membership, MembershipStatus
 from borrowd_items.models import Item, ItemStatus, Transaction
 from borrowd_permissions.models import ItemOLP
 from borrowd_users.models import BorrowdUser
@@ -297,14 +297,15 @@ class MessagingService:
         explicit selection for a new conversation.
         """
         cls._validate_thread_participants(borrower, item)
-        if not item.owner.profile.allow_pre_request_chat:
-            raise PreRequestChatUnavailable(
-                "This user has turned off messages about their items."
-            )
 
         existing = cls._active_prerequest_thread(borrower, item)
         if existing is not None:
             return existing
+
+        if not item.owner.profile.allow_pre_request_chat:
+            raise PreRequestChatUnavailable(
+                "This user has turned off messages about their items."
+            )
 
         conversation_group = cls.resolve_conversation_group(
             borrower,

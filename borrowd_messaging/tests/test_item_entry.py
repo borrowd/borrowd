@@ -72,6 +72,30 @@ class ChatThreadPreRequestOpenViewTests(MessagingTestCase):
             1,
         )
 
+    def test_reopens_an_existing_conversation_after_lender_disables_new_chats(
+        self,
+    ) -> None:
+        existing = self.make_thread()
+        profile = self.lender.profile
+        profile.allow_pre_request_chat = False
+        profile.save(update_fields=["allow_pre_request_chat"])
+        self.client.force_login(self.borrower)
+
+        response = self.client.post(self.url)
+
+        self.assertRedirects(
+            response,
+            reverse("chat-thread-detail", args=[existing.pk]),
+            fetch_redirect_response=False,
+        )
+        self.assertEqual(
+            ChatThread.objects.filter(
+                item=self.item,
+                borrower=self.borrower,
+            ).count(),
+            1,
+        )
+
     def test_snapshots_an_explicit_eligible_group(self) -> None:
         self._make_eligible_group("Group A")
         selected = self._make_eligible_group("Group B")
