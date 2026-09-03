@@ -149,3 +149,116 @@ class ConversationGroupResolutionTests(MessagingTestCase):
         )
 
         self.assertIsNone(group)
+
+
+class RequestGroupChoicesForItemsTests(MessagingTestCase):
+    def _make_eligible_group(self, name: str) -> BorrowdGroup:
+        group = self.make_group(name=name)
+        group.add_user(self.borrower)
+        return group
+
+    def test_batches_ambiguous_choices_by_item(self) -> None:
+        group_b = self._make_eligible_group("Group B")
+        group_a = self._make_eligible_group("Group A")
+        group_c = self._make_eligible_group("Group C")
+        explicit_item = self.make_item(
+            name="Explicit item",
+            share_with_all_groups=False,
+        )
+        explicit_item.shared_with_groups.add(group_b, group_c)
+        single_group_item = self.make_item(
+            name="Single-group item",
+            share_with_all_groups=False,
+        )
+        single_group_item.shared_with_groups.add(group_a)
+
+        with self.assertNumQueries(4):
+            choices = MessagingService.request_group_choices_for_items(
+                self.borrower,
+                [self.item, explicit_item, single_group_item],
+            )
+
+        self.assertEqual(choices[self.item.pk], (group_a, group_b, group_c))
+        self.assertEqual(choices[explicit_item.pk], (group_b, group_c))
+        self.assertNotIn(single_group_item.pk, choices)
+
+    def test_batch_choices_match_single_item_eligibility_policy(self) -> None:
+        group_a = self._make_eligible_group("Group A")
+        group_b = self._make_eligible_group("Group B")
+        not_shared = self._make_eligible_group("Not shared")
+
+        pending_borrower = self.make_group(
+            name="Pending borrower",
+            membership_requires_approval=True,
+        )
+        pending_borrower.add_user(self.borrower)
+
+        suspended_owner = self._make_eligible_group("Suspended owner")
+        Membership.objects.filter(
+            group=suspended_owner,
+            user=self.lender,
+        ).update(status=MembershipStatus.SUSPENDED)
+
+        soft_deleted = self._make_eligible_group("Soft deleted")
+        soft_deleted.deleted_at = timezone.now()
+        soft_deleted.deleted_by = self.lender
+        soft_deleted.save(update_fields=["deleted_at", "deleted_by"])
+
+        missing_permissions_group = self._make_eligible_group(
+            "Missing permissions group"
+        )
+        BorrowdGroup.objects.filter(pk=missing_permissions_group.pk).update(
+            perms_group=None
+        )
+
+        explicit_item = self.make_item(
+            name="Explicit item",
+            share_with_all_groups=False,
+        )
+        explicit_item.shared_with_groups.add(
+            group_a,
+            group_b,
+            pending_borrower,
+            suspended_owner,
+            soft_deleted,
+            missing_permissions_group,
+        )
+        items = [self.item, explicit_item]
+
+        with self.assertNumQueries(4):
+            batch_choices = MessagingService.request_group_choices_for_items(
+                self.borrower,
+                items,
+            )
+
+        expected_choices: dict[int, tuple[BorrowdGroup, ...]] = {}
+        for item in items:
+            eligible_groups = tuple(
+                MessagingService.eligible_conversation_groups(
+                    self.borrower,
+                    item,
+                )
+            )
+            if len(eligible_groups) > 1:
+                expected_choices[item.pk] = eligible_groups
+
+        self.assertEqual(batch_choices, expected_choices)
+        self.assertEqual(
+            batch_choices,
+            {
+                self.item.pk: (group_a, group_b, not_shared),
+                explicit_item.pk: (group_a, group_b),
+            },
+        )
+
+    def test_existing_thread_does_not_need_another_choice(self) -> None:
+        self._make_eligible_group("Group A")
+        self._make_eligible_group("Group B")
+        self.make_thread()
+
+        choices = MessagingService.request_group_choices_for_items(
+            self.borrower,
+            [self.item],
+        )
+
+        self.assertEqual(choices, {})
