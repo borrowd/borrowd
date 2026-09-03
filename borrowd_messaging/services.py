@@ -261,22 +261,61 @@ class MessagingService:
             raise PreRequestChatUnavailable("This item is not available.")
 
     @classmethod
-    def _create_prerequest_thread(
+    def _get_or_create_prerequest_thread(
         cls,
         borrower: BorrowdUser,
         item: Item,
-        conversation_group: BorrowdGroup | None,
+        selected_group: BorrowdGroup | None,
+        *,
+        enforce_pre_request_preference: bool,
     ) -> ChatThread:
-        """Create a pre-request thread, or return the concurrent winner."""
+        """
+        Get or create a pre-request thread while locking the given Item's row
+        """
         try:
             with atomic():
+                try:
+                    # https://docs.djangoproject.com/en/5.2/ref/models/querysets/#select-for-update
+                    locked_item = (
+                        Item.all_objects.select_for_update(of=("self",))
+                        .select_related("owner__profile")
+                        .get(pk=item.pk)
+                    )
+                except Item.DoesNotExist as exc:
+                    raise PreRequestChatUnavailable(
+                        "This item is not available."
+                    ) from exc
+
+                cls._validate_thread_participants(borrower, locked_item)
+
+                existing = cls._active_prerequest_thread(borrower, locked_item)
+                if existing is not None:
+                    return existing
+
+                if (
+                    enforce_pre_request_preference
+                    and not locked_item.owner.profile.allow_pre_request_chat
+                ):
+                    raise PreRequestChatUnavailable(
+                        "This user has turned off messages about their items."
+                    )
+
+                conversation_group = cls.resolve_conversation_group(
+                    borrower,
+                    locked_item,
+                    selected_group=selected_group,
+                )
+
                 return ChatThread.objects.create(
-                    item=item,
-                    lender=item.owner,
+                    item=locked_item,
+                    lender=locked_item.owner,
                     borrower=borrower,
                     created_by=borrower,
                     updated_by=borrower,
-                    **cls._conversation_context_values(item, conversation_group),
+                    **cls._conversation_context_values(
+                        locked_item,
+                        conversation_group,
+                    ),
                 )
         except IntegrityError:
             thread = cls._active_prerequest_thread(borrower, item)
@@ -296,24 +335,12 @@ class MessagingService:
         creating one if they have none. Multiple eligible groups require an
         explicit selection for a new conversation.
         """
-        cls._validate_thread_participants(borrower, item)
-
-        existing = cls._active_prerequest_thread(borrower, item)
-        if existing is not None:
-            return existing
-
-        if not item.owner.profile.allow_pre_request_chat:
-            raise PreRequestChatUnavailable(
-                "This user has turned off messages about their items."
-            )
-
-        conversation_group = cls.resolve_conversation_group(
+        return cls._get_or_create_prerequest_thread(
             borrower,
             item,
             selected_group=selected_group,
+            enforce_pre_request_preference=True,
         )
-
-        return cls._create_prerequest_thread(borrower, item, conversation_group)
 
     @classmethod
     def prepare_thread_for_request(
@@ -328,18 +355,12 @@ class MessagingService:
         Direct requests are independent of the lender's pre-request-chat
         preference because they start the normal Transaction lifecycle.
         """
-        cls._validate_thread_participants(borrower, item)
-
-        existing = cls._active_prerequest_thread(borrower, item)
-        if existing is not None:
-            return existing
-
-        conversation_group = cls.resolve_conversation_group(
+        return cls._get_or_create_prerequest_thread(
             borrower,
             item,
             selected_group=selected_group,
+            enforce_pre_request_preference=False,
         )
-        return cls._create_prerequest_thread(borrower, item, conversation_group)
 
     @classmethod
     def send_message(
