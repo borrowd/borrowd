@@ -8,11 +8,10 @@ from django.db.models.functions import Coalesce
 from django.http import HttpRequest, HttpResponse, HttpResponseBadRequest
 from django.shortcuts import redirect, render
 from django.views.generic import DetailView, ListView, View
-from django.views.generic.detail import SingleObjectMixin
 
 from borrowd.util import BorrowdTemplateFinderMixin
 from borrowd_items.models import Item, ItemAction, ItemStatus, TransactionStatus
-from borrowd_permissions.mixins import LoginOr404PermissionMixin
+from borrowd_permissions.mixins import CachedObjectMixin, LoginOr404PermissionMixin
 from borrowd_permissions.models import ChatThreadOLP, ItemOLP
 from borrowd_users.models import BorrowdUser
 from borrowd_users.request import get_authenticated_user
@@ -51,41 +50,17 @@ def _parse_cursor(raw_cursor: str | None, chat_thread: ChatThread) -> int:
     return cursor
 
 
-class _CachedChatThreadMixin(SingleObjectMixin[ChatThread]):
-    """Reuse the ChatThread resolved during the object-permission check."""
-
-    object: ChatThread
-
-    def get_object(self, queryset: QuerySet[ChatThread] | None = None) -> ChatThread:
-        if hasattr(self, "object"):
-            return self.object
-        self.object = super().get_object(queryset)
-        return self.object
-
-
-class _CachedItemMixin(SingleObjectMixin[Item]):
-    """Reuse the Item resolved during the object-permission check."""
-
-    object: Item
-    pk_url_kwarg = "item_pk"
-
-    def get_object(self, queryset: QuerySet[Item] | None = None) -> Item:
-        if hasattr(self, "object"):
-            return self.object
-        self.object = super().get_object(queryset)
-        return self.object
-
-
 class ChatThreadPreRequestOpenView(
     MessagingEnabledMixin,
     LoginOr404PermissionMixin,
-    _CachedItemMixin,
+    CachedObjectMixin[Item],
     View,
 ):
     """Create or resume the borrower's pre-request conversation for an Item."""
 
     model = Item
     permission_required = ItemOLP.VIEW
+    pk_url_kwarg = "item_pk"
     http_method_names = ["post"]
 
     def get_queryset(self) -> QuerySet[Item]:
@@ -118,7 +93,7 @@ class ChatThreadPreRequestOpenView(
 class ChatThreadDetailView(
     MessagingEnabledMixin,
     LoginOr404PermissionMixin,
-    _CachedChatThreadMixin,
+    CachedObjectMixin[ChatThread],
     BorrowdTemplateFinderMixin,
     DetailView[ChatThread],
 ):
@@ -192,7 +167,7 @@ class ChatThreadDetailView(
 class ChatThreadSendView(
     MessagingEnabledMixin,
     LoginOr404PermissionMixin,
-    _CachedChatThreadMixin,
+    CachedObjectMixin[ChatThread],
     View,
 ):
     """
@@ -239,7 +214,7 @@ class ChatThreadSendView(
 class ChatThreadPollView(
     MessagingEnabledMixin,
     LoginOr404PermissionMixin,
-    _CachedChatThreadMixin,
+    CachedObjectMixin[ChatThread],
     View,
 ):
     """
@@ -300,7 +275,7 @@ class ChatThreadPollView(
 class ChatThreadPreRequestCloseView(
     MessagingEnabledMixin,
     LoginOr404PermissionMixin,
-    _CachedChatThreadMixin,
+    CachedObjectMixin[ChatThread],
     View,
 ):
     """

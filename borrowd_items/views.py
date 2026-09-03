@@ -42,6 +42,7 @@ from borrowd_messaging.thread_summaries import (
     item_conversation_threads,
 )
 from borrowd_permissions.mixins import (
+    CachedObjectMixin,
     LoginOr403PermissionMixin,
     LoginOr404PermissionMixin,
 )
@@ -363,6 +364,7 @@ class ItemDeleteView(
 
 class ItemDetailView(
     LoginOr404PermissionMixin,
+    CachedObjectMixin[Item],
     BorrowdTemplateFinderMixin,
     DetailView[Item],
 ):
@@ -489,6 +491,7 @@ class ItemDetailView(
 class ItemConversationHistoryView(
     MessagingEnabledMixin,
     LoginOr404PermissionMixin,
+    CachedObjectMixin[Item],
     DetailView[Item],
 ):
     """Show every Item conversation this participant may read."""
@@ -497,12 +500,6 @@ class ItemConversationHistoryView(
     permission_required = ItemOLP.VIEW
     template_name = "messaging/item_conversation_history.html"
     context_object_name = "item"
-
-    def get_object(self, queryset: QuerySet[Item] | None = None) -> Item:
-        if hasattr(self, "object"):
-            return self.object
-        self.object = super().get_object(queryset)
-        return self.object
 
     def get_context_data(self, **kwargs: str) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
