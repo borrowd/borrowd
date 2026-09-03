@@ -7,7 +7,7 @@ from django.utils import timezone
 from guardian.shortcuts import assign_perm
 
 from borrowd_groups.models import BorrowdGroup
-from borrowd_items.models import ItemStatus, ListingType
+from borrowd_items.models import Item, ItemStatus, ListingType
 from borrowd_messaging.exceptions import (
     ConversationGroupSelectionRequired,
     InvalidMessageBody,
@@ -183,6 +183,18 @@ class GetOrCreatePreRequestThreadTests(MessagingTestCase):
 
         with self.assertRaises(PreRequestChatUnavailable):
             MessagingService.get_or_create_prerequest_thread(self.borrower, self.item)
+
+    def test_stale_item_is_reloaded_before_thread_creation(self) -> None:
+        # Simulate deletion after the caller loaded its Item instance. Updating
+        # through the queryset deliberately leaves self.item stale and avoids
+        # letting the deletion signal hide an incorrectly created new thread.
+        Item.all_objects.filter(pk=self.item.pk).update(deleted_at=timezone.now())
+        self.assertIsNone(self.item.deleted_at)
+
+        with self.assertRaises(PreRequestChatUnavailable):
+            MessagingService.get_or_create_prerequest_thread(self.borrower, self.item)
+
+        self.assertFalse(ChatThread.objects.exists())
 
     def test_lender_can_turn_off_pre_request_chat(self) -> None:
         profile = self.lender.profile
