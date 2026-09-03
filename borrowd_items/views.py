@@ -4,6 +4,7 @@ from urllib.parse import urlencode
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.messages.api import MessageFailure
+from django.core.exceptions import PermissionDenied
 from django.core.files.uploadedfile import UploadedFile
 from django.db.models import QuerySet
 from django.db.transaction import atomic
@@ -215,7 +216,7 @@ def borrow_item(request: HttpRequest, pk: int) -> HttpResponse:
             messages.WARNING,
             "Sorry! Another user requested this item just before you.",
         )
-    except InvalidItemAction:
+    except (InvalidItemAction, PermissionDenied):
         _add_message_safe(
             request,
             messages.ERROR,
