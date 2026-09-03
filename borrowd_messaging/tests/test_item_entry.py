@@ -399,6 +399,11 @@ class ItemDetailMessagingActionTests(MessagingTestCase):
         )
         self.assertContains(response, f'form="{request_form_id}"')
         self.assertContains(response, "Choose the group for this request")
+        self.assertRegex(
+            response.content.decode(),
+            r'(?s)<select id="conversation-group"[^>]*required[^>]*>\s*'
+            r'<option value="" selected disabled>\s*Choose a group\s*</option>',
+        )
         self.assertContains(
             response,
             '<option value="" selected disabled>Choose a group</option>',

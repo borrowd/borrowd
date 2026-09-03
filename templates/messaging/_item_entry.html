@@ -35,7 +35,11 @@
                     </label>
                     <select id="conversation-group"
                             name="conversation_group"
-                            class="select select-bordered w-full">
+                            class="select select-bordered w-full"
+                            required>
+                        <option value="" selected disabled>
+                            Choose a group
+                        </option>
                         {% for group in conversation_group_choices %}
                             <option value="{{ group.pk }}">
                                 {{ group.name }}
