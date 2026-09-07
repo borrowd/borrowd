@@ -17,6 +17,10 @@ class InvalidMessageBody(BorrowdException):
     """Raised when a message body is empty or longer than the column allows."""
 
 
+class InvalidReadCursor(BorrowdException):
+    """Raised when a read cursor does not identify a message in the thread."""
+
+
 class PreRequestChatUnavailable(BorrowdException):
     """
     Raised when a pre-request thread cannot be opened for an item, e.g. the
