@@ -6,6 +6,7 @@ from .views import (
     ChatThreadPollView,
     ChatThreadPreRequestCloseView,
     ChatThreadPreRequestOpenView,
+    ChatThreadReadView,
     ChatThreadSendView,
 )
 
@@ -19,6 +20,7 @@ urlpatterns = [
     path("<int:pk>/", ChatThreadDetailView.as_view(), name="chat-thread-detail"),
     path("<int:pk>/send/", ChatThreadSendView.as_view(), name="chat-thread-send"),
     path("<int:pk>/poll/", ChatThreadPollView.as_view(), name="chat-thread-poll"),
+    path("<int:pk>/read/", ChatThreadReadView.as_view(), name="chat-thread-read"),
     path(
         "<int:pk>/pre-request-close/",
         ChatThreadPreRequestCloseView.as_view(),

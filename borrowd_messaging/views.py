@@ -7,6 +7,8 @@ from django.db.models import Max, Q, QuerySet
 from django.db.models.functions import Coalesce
 from django.http import HttpRequest, HttpResponse, HttpResponseBadRequest
 from django.shortcuts import redirect, render
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.generic import DetailView, ListView, View
 
 from borrowd.util import BorrowdTemplateFinderMixin
@@ -20,11 +22,13 @@ from .exceptions import (
     ConversationGroupSelectionRequired,
     InvalidConversationGroup,
     InvalidMessageBody,
+    InvalidReadCursor,
     PreRequestChatUnavailable,
     ThreadNotWritable,
 )
 from .mixins import MessagingEnabledMixin
 from .models import MESSAGE_BODY_MAX_LENGTH, ChatThread
+from .read_state import mark_thread_read
 from .services import MessagingService
 
 _INVALID_CURSOR_MESSAGE = "`after` must be a message id from this conversation."
@@ -90,6 +94,7 @@ class ChatThreadPreRequestOpenView(
         return redirect("chat-thread-detail", pk=chat_thread.pk)
 
 
+@method_decorator(ensure_csrf_cookie, name="dispatch")
 class ChatThreadDetailView(
     MessagingEnabledMixin,
     LoginOr404PermissionMixin,
@@ -162,6 +167,43 @@ class ChatThreadDetailView(
             if request_action in actions:
                 return request_action
         return None
+
+
+class ChatThreadReadView(
+    MessagingEnabledMixin,
+    LoginOr404PermissionMixin,
+    CachedObjectMixin[ChatThread],
+    View,
+):
+    """Acknowledge the browser's rendered boundary, including archived threads."""
+
+    model = ChatThread
+    permission_required = ChatThreadOLP.VIEW
+    http_method_names = ["post"]
+
+    def get_queryset(self) -> QuerySet[ChatThread]:
+        viewer = get_authenticated_user(self.request)
+        return super().get_queryset().filter(Q(lender=viewer) | Q(borrower=viewer))
+
+    def post(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
+        raw_cursor = request.POST.get("through")
+        try:
+            if raw_cursor is None:
+                raise ValueError
+            through = int(raw_cursor)
+        except ValueError:
+            return HttpResponseBadRequest("`through` must be a message id.")
+
+        try:
+            mark_thread_read(
+                self.get_object(),
+                get_authenticated_user(request),
+                through_message_id=through,
+            )
+        except InvalidReadCursor as exc:
+            return HttpResponseBadRequest(str(exc))
+
+        return HttpResponse(status=204)
 
 
 class ChatThreadSendView(
