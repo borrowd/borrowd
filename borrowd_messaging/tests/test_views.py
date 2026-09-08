@@ -991,13 +991,13 @@ class ConversationItemPreviewTests(MessagingTestCase):
 
         self.assertContains(self.client.get(self.url), self.lender.profile.full_name())
 
-    def test_an_item_without_a_photo_still_renders(self) -> None:
+    def test_an_item_without_a_photo_falls_back_to_the_shared_placeholder(self) -> None:
         self.client.force_login(self.borrower)
 
         response = self.client.get(self.url)
 
-        self.assertEqual(response.status_code, 200)
         self.assertContains(response, self.item.name)
+        self.assertContains(response, "items/categories/logo-tools.png")
 
     def test_a_removed_item_says_so_and_offers_no_link(self) -> None:
         self.item.soft_delete(deleted_by=self.lender)

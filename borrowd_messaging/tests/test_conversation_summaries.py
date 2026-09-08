@@ -474,6 +474,22 @@ class HubConversationSummaryTests(MessagingTestCase):
         self.assertIsNone(card.item_name)
         self.assertIsNone(card.item_thumbnail_url)
 
+    def test_a_card_without_a_photo_falls_back_to_the_shared_placeholder(self) -> None:
+        self.make_thread()
+        card = self.hub_cards(self.borrower)[0]
+
+        html = render_to_string(
+            "messaging/_thread_summary_card.html",
+            {
+                "summary": card.conversation,
+                "show_item": True,
+                "item_name": card.item_name,
+                "item_thumbnail_url": card.item_thumbnail_url,
+            },
+        )
+
+        self.assertIn("items/categories/logo-tools.png", html)
+
     def test_an_item_without_a_photo_still_names_the_item(self) -> None:
         self.make_thread()
 
