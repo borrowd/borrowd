@@ -1,5 +1,28 @@
+{% load heroicons %}
+
+{% comment %}
+Parameters:
+- summary: a ConversationSummary (borrowd_messaging/conversation_summaries.py)
+- show_item: Optional flag adding the Item thumbnail and name. Item pages are
+  already scoped to one Item, so they leave it off.
+- item_name: Item name, or empty when the Item has been removed
+- item_thumbnail_url: first Item photo, or empty when there is none to show
+- has_unread: Optional flag marking messages this viewer has not acknowledged
+{% endcomment %}
+
 <a href="{% url 'chat-thread-detail' summary.thread_id %}"
    class="flex items-center gap-3 rounded-xl border border-base-300 bg-base-100 p-3 transition hover:border-base-content/30 hover:bg-base-200/50">
+    {% if show_item %}
+        {% if item_thumbnail_url %}
+            <img src="{{ item_thumbnail_url }}"
+                 alt="{{ item_name }}"
+                 class="h-12 w-12 shrink-0 rounded-lg object-cover" />
+        {% else %}
+            <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-base-200 text-base-content/40"
+                  aria-hidden="true">{% heroicon_outline "photo" class="size-6" %}</span>
+        {% endif %}
+    {% endif %}
+
     <c-avatar class="h-12 w-12 shrink-0 rounded-full"
               src="{% if summary.other_participant.profile.image %}{{ summary.other_participant.profile.image.url }}{% endif %}"
               name="{{ summary.other_participant.profile.full_name }}"
@@ -7,11 +30,22 @@
 
     <span class="min-w-0 grow">
         <span class="flex items-start justify-between gap-2">
-            <span class="truncate font-medium">{{ summary.other_participant.profile.full_name }}</span>
+            <span class="truncate {% if has_unread %}font-semibold{% else %}font-medium{% endif %}">
+                {% if has_unread %}
+                    <span class="mr-1 inline-block size-2 rounded-full bg-primary align-middle"
+                          aria-hidden="true"></span>
+                    <span class="sr-only">Unread.</span>
+                {% endif %}
+                {{ summary.other_participant.profile.full_name }}
+            </span>
             <span class="badge badge-sm shrink-0 {% if summary.status_kind == 'active' %}badge-success badge-soft{% elif summary.status_kind == 'disputed' %}badge-warning badge-soft{% elif summary.status_kind == 'prerequest' %}badge-info badge-soft{% else %}badge-ghost{% endif %}">
                 {{ summary.status_label }}
             </span>
         </span>
+
+        {% if show_item %}
+            <span class="mt-0.5 block truncate text-sm">{% firstof item_name "This item is no longer available." %}</span>
+        {% endif %}
 
         <span class="mt-0.5 block text-xs text-base-content/60">
             {{ summary.started_at|date:"M j, Y" }} –
