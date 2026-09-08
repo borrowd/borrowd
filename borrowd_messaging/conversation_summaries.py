@@ -41,6 +41,19 @@ class ConversationSummary:
     status_kind: ConversationStatusKind
 
 
+@dataclass(frozen=True)
+class HubConversationSummary:
+    """A conversation summary plus the Item context and unread state the hub shows.
+
+    A null item_name means the Item is gone; the template supplies the copy.
+    """
+
+    conversation: ConversationSummary
+    item_name: str | None
+    item_thumbnail_url: str | None
+    has_unread_messages: bool
+
+
 def threads_for_item(
     item: Item,
     viewer: BorrowdUser,
@@ -58,8 +71,55 @@ def threads_for_item(
 
 
 def participant_conversation_threads(viewer: BorrowdUser) -> QuerySet[ChatThread]:
-    """Return all this participant's threads with summary and unread data loaded."""
-    return _with_summary_data(threads_with_unread_state(viewer)).select_related("item")
+    """Return all this participant's threads with summary and unread data loaded.
+
+    Photos are prefetched, so paginate before evaluating this to keep the
+    prefetch to one page of Items.
+    """
+    return (
+        _with_summary_data(threads_with_unread_state(viewer))
+        .select_related("item")
+        .prefetch_related("item__photos")
+    )
+
+
+def build_hub_conversation_summaries(
+    threads: Iterable[ChatThread],
+    viewer: BorrowdUser,
+) -> list[HubConversationSummary]:
+    """Pair each conversation summary with its Item context and unread state."""
+    loaded = list(threads)
+    summaries = build_conversation_summaries(loaded, viewer)
+    cards: list[HubConversationSummary] = []
+    for thread, summary in zip(loaded, summaries, strict=True):
+        item = thread.item if _is_available(thread.item) else None
+        cards.append(
+            HubConversationSummary(
+                conversation=summary,
+                item_name=item.name if item is not None else None,
+                item_thumbnail_url=_thumbnail_url(item),
+                has_unread_messages=cast(bool, getattr(thread, "has_unread_messages")),
+            )
+        )
+    return cards
+
+
+def _is_available(item: Item | None) -> bool:
+    """A hard-deleted Item leaves no link; a soft-deleted one is still linked."""
+    return item is not None and item.deleted_at is None
+
+
+def _thumbnail_url(item: Item | None) -> str | None:
+    """Read the prefetched first photo. A missing file must not break the page."""
+    if item is None:
+        return None
+    photo = next(iter(item.photos.all()), None)
+    if photo is None:
+        return None
+    try:
+        return cast(str, photo.thumbnail.url)
+    except FileNotFoundError:
+        return None
 
 
 def _with_summary_data(threads: QuerySet[ChatThread]) -> QuerySet[ChatThread]:
