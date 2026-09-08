@@ -706,19 +706,12 @@ class ChatThreadListViewTests(MessagingTestCase):
         super().setUp()
         self.url = reverse("chat-thread-list")
 
-    def section(self, name: str, query: str = "") -> dict[str, Any]:
-        """Fetch the hub and pick out one section's context."""
-        response = self.client.get(f"{self.url}{query}")
-        return next(
-            section
-            for section in response.context["conversation_sections"]
-            if section["name"] == name
-        )
+    def cards(self, query: str = "") -> list[Any]:
+        """Fetch the hub and return the cards on the selected tab."""
+        return list(self.client.get(f"{self.url}{query}").context["cards"])
 
-    def thread_ids(self, name: str, query: str = "") -> list[int]:
-        return [
-            card.conversation.thread_id for card in self.section(name, query)["cards"]
-        ]
+    def thread_ids(self, query: str = "") -> list[int]:
+        return [card.conversation.thread_id for card in self.cards(query)]
 
     def make_archived_threads(self, count: int) -> None:
         """Archived threads escape the one-active-pre-request-thread constraint."""
@@ -775,7 +768,8 @@ class ChatThreadListViewTests(MessagingTestCase):
         thread.refresh_from_db()
         self.client.force_login(self.borrower)
 
-        response = self.client.get(self.url)
+        # Removing the Item archives its conversation, so it moves tabs.
+        response = self.client.get(self.url, {"section": "archived"})
 
         self.assertIsNone(thread.item_id)
         self.assertContains(response, "This item is no longer available.")
@@ -788,18 +782,20 @@ class ChatThreadListViewTests(MessagingTestCase):
         self.item.soft_delete(deleted_by=self.lender)
         self.client.force_login(self.borrower)
 
-        response = self.client.get(self.url)
+        response = self.client.get(self.url, {"section": "archived"})
 
         self.assertContains(response, "This item is no longer available.")
         self.assertNotContains(response, item_name)
         self.assertContains(response, reverse("chat-thread-detail", args=[thread.pk]))
 
-    def test_labels_an_archived_thread(self) -> None:
+    def test_labels_an_archived_thread_with_its_reason(self) -> None:
         thread = self.make_thread()
         MessagingService.archive_thread(thread, ArchiveReason.CLOSED)
         self.client.force_login(self.borrower)
 
-        self.assertContains(self.client.get(self.url), "Archived")
+        self.assertContains(
+            self.client.get(self.url, {"section": "archived"}), "Closed"
+        )
 
     def test_thread_with_newest_message_comes_first(self) -> None:
         chatty = self.make_thread(item=self.make_item(name="Projector"))
@@ -807,7 +803,7 @@ class ChatThreadListViewTests(MessagingTestCase):
         Message.objects.create(thread=chatty, sender=self.borrower, body="Two")
         self.client.force_login(self.borrower)
 
-        self.assertEqual(self.thread_ids("active"), [chatty.pk, quiet.pk])
+        self.assertEqual(self.thread_ids(), [chatty.pk, quiet.pk])
 
     def test_new_empty_thread_comes_before_an_older_message_thread(self) -> None:
         older = self.make_thread(item=self.make_item(name="Ladder"))
@@ -820,60 +816,72 @@ class ChatThreadListViewTests(MessagingTestCase):
         newer = self.make_thread(item=self.make_item(name="Projector"))
         self.client.force_login(self.borrower)
 
-        self.assertEqual(self.thread_ids("active"), [newer.pk, older.pk])
+        self.assertEqual(self.thread_ids(), [newer.pk, older.pk])
 
     def test_empty_state(self) -> None:
         self.client.force_login(self.borrower)
 
         self.assertContains(self.client.get(self.url), "no conversations yet")
 
-    def test_active_and_archived_threads_land_in_their_own_sections(self) -> None:
+    def test_each_tab_shows_only_its_own_conversations(self) -> None:
         active = self.make_thread()
         self.make_archived_threads(1)
         archived = ChatThread.objects.get(archived_at__isnull=False)
         self.client.force_login(self.borrower)
 
-        self.assertEqual(self.thread_ids("active"), [active.pk])
-        self.assertEqual(self.thread_ids("archived"), [archived.pk])
+        self.assertEqual(self.thread_ids(), [active.pk])
+        self.assertEqual(self.thread_ids("?section=archived"), [archived.pk])
 
-    def test_a_section_with_nothing_in_it_says_so(self) -> None:
+    def test_active_is_the_tab_an_unknown_section_falls_back_to(self) -> None:
+        active = self.make_thread()
+        self.make_archived_threads(1)
+        self.client.force_login(self.borrower)
+
+        for query in ("", "?section=", "?section=nonsense"):
+            self.assertEqual(self.thread_ids(query), [active.pk])
+
+    def test_an_empty_tab_says_so_while_the_other_tab_has_conversations(self) -> None:
         self.make_thread()
         self.client.force_login(self.borrower)
 
-        response = self.client.get(self.url)
+        response = self.client.get(self.url, {"section": "archived"})
 
         self.assertContains(response, "No archived conversations.")
-        self.assertNotContains(response, "No active conversations.")
+        self.assertNotContains(response, "no conversations yet")
 
-    def test_each_section_holds_twenty_five_conversations_per_page(self) -> None:
+    def test_a_tab_holds_twenty_five_conversations_per_page(self) -> None:
         self.make_archived_threads(26)
         oldest = ChatThread.objects.filter(archived_at__isnull=False).earliest("pk")
         self.client.force_login(self.borrower)
 
-        page = self.section("archived")["page_obj"]
+        response = self.client.get(self.url, {"section": "archived"})
+        page = response.context["page_obj"]
 
-        self.assertEqual(len(self.thread_ids("archived")), 25)
+        self.assertEqual(len(self.thread_ids("?section=archived")), 25)
         self.assertEqual((page.number, page.paginator.num_pages), (1, 2))
-        self.assertEqual(self.thread_ids("archived", "?archived_page=2"), [oldest.pk])
+        self.assertEqual(self.thread_ids("?section=archived&page=2"), [oldest.pk])
 
-    def test_paging_one_section_leaves_the_other_section_where_it_was(self) -> None:
+    def test_page_links_stay_on_the_selected_tab(self) -> None:
+        self.make_archived_threads(26)
+        self.client.force_login(self.borrower)
+
+        response = self.client.get(self.url, {"section": "archived", "page": "2"})
+
+        self.assertContains(response, "?page=1&section=archived")
+
+    def test_switching_tabs_starts_again_at_the_first_page(self) -> None:
         self.make_archived_threads(26)
         self.make_active_threads(26)
         self.client.force_login(self.borrower)
 
-        both_on_page_two = "?active_page=2&archived_page=2"
-        response = self.client.get(f"{self.url}{both_on_page_two}")
+        response = self.client.get(self.url, {"section": "archived", "page": "2"})
 
-        self.assertEqual(self.section("active", both_on_page_two)["page_obj"].number, 2)
+        self.assertEqual(response.context["page_obj"].number, 2)
+        # The tab link carries no page, so the other tab opens at its first page.
+        self.assertContains(response, 'href="?section=active"')
         self.assertEqual(
-            self.section("archived", both_on_page_two)["page_obj"].number, 2
-        )
-        # Each section's links carry the other section's page unchanged.
-        self.assertContains(
-            response, "?archived_page=1&active_page=2#archived-conversations"
-        )
-        self.assertContains(
-            response, "?active_page=1&archived_page=2#active-conversations"
+            self.client.get(self.url, {"section": "active"}).context["page_obj"].number,
+            1,
         )
 
     def test_a_conversation_with_incoming_messages_is_marked_unread(self) -> None:
@@ -883,29 +891,25 @@ class ChatThreadListViewTests(MessagingTestCase):
         )
         self.client.force_login(self.borrower)
 
-        self.assertTrue(
-            self.section("active")["cards"][0].conversation.has_unread_messages
-        )
+        self.assertTrue(self.cards()[0].conversation.has_unread_messages)
 
         mark_thread_read(thread, self.borrower, through_message_id=message.pk)
 
-        self.assertFalse(
-            self.section("active")["cards"][0].conversation.has_unread_messages
-        )
+        self.assertFalse(self.cards()[0].conversation.has_unread_messages)
 
     def test_page_cost_does_not_grow_with_the_number_of_conversations(self) -> None:
         self.make_active_threads(1)
         self.make_archived_threads(1)
         self.client.force_login(self.borrower)
-        with CaptureQueriesContext(connection) as one_each:
+        with CaptureQueriesContext(connection) as one_conversation:
             self.client.get(self.url)
 
         self.make_active_threads(24)
         self.make_archived_threads(24)
-        with CaptureQueriesContext(connection) as a_full_page_each:
+        with CaptureQueriesContext(connection) as a_full_page:
             self.client.get(self.url)
 
-        self.assertEqual(len(a_full_page_each), len(one_each))
+        self.assertEqual(len(a_full_page), len(one_conversation))
 
     def test_anonymous_user_is_sent_to_login(self) -> None:
         self.assertEqual(self.client.get(self.url).status_code, 302)

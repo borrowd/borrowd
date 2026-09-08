@@ -39,6 +39,7 @@ from .conversation_summaries import (
 
 _INVALID_CURSOR_MESSAGE = "`after` must be a message id from this conversation."
 _HUB_PAGE_SIZE = 25
+_HUB_SECTIONS = ("active", "archived")
 
 
 class _InvalidCursor(ValueError):
@@ -375,44 +376,32 @@ class ChatThreadListView(
     LoginRequiredMixin,
     TemplateView,
 ):
-    """Show the viewer's active and archived conversations, paginated separately."""
+    """Show the viewer's conversations under an Active or Archived tab."""
 
     template_name = "messaging/chatthread_list.html"
 
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
         viewer = get_authenticated_user(self.request)
-        threads = participant_conversation_threads(viewer)
-        sections = [
-            self._section(
-                "active", "Active", threads.filter(archived_at__isnull=True), viewer
-            ),
-            self._section(
-                "archived",
-                "Archived",
-                threads.filter(archived_at__isnull=False),
-                viewer,
-            ),
-        ]
-        context["conversation_sections"] = sections
-        context["has_conversations"] = any(section["cards"] for section in sections)
-        return context
+        selected = self.request.GET.get("section")
+        if selected not in _HUB_SECTIONS:
+            selected = _HUB_SECTIONS[0]
 
-    def _section(
-        self,
-        name: str,
-        title: str,
-        threads: QuerySet[ChatThread],
-        viewer: BorrowdUser,
-    ) -> dict[str, Any]:
-        """Paginate one section. Each keeps its own page while the other moves."""
-        page = Paginator(threads, _HUB_PAGE_SIZE).get_page(
-            self.request.GET.get(f"{name}_page")
+        threads = participant_conversation_threads(viewer)
+        active = threads.filter(archived_at__isnull=True)
+        archived = threads.filter(archived_at__isnull=False)
+        shown, hidden = (
+            (active, archived) if selected == "active" else (archived, active)
         )
-        return {
-            "name": name,
-            "title": title,
-            "page_param": f"{name}_page",
-            "page_obj": page,
-            "cards": build_hub_conversation_summaries(page, viewer),
-        }
+
+        page = Paginator(shown, _HUB_PAGE_SIZE).get_page(self.request.GET.get("page"))
+        context["conversation_tabs"] = [
+            {"name": name, "title": name.title(), "is_selected": name == selected}
+            for name in _HUB_SECTIONS
+        ]
+        context["selected_section"] = selected
+        context["page_obj"] = page
+        context["cards"] = build_hub_conversation_summaries(page, viewer)
+        # Tell a first-time viewer they have nothing anywhere, not just on this tab.
+        context["has_conversations"] = bool(page.paginator.count) or hidden.exists()
+        return context
