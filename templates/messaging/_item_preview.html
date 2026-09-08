@@ -5,17 +5,14 @@ The name links to the Item page only when the viewer may still open it: a
 participant who left the Item's group keeps the conversation but loses the Item.
 {% endcomment %}
 
-{% load heroicons %}
+{% load static %}
 
 <div class="flex items-center gap-3 rounded-xl border border-base-300 bg-base-100 p-2">
-    {% if item_thumbnail_url %}
-        <img src="{{ item_thumbnail_url }}"
-             alt="{{ item_name }}"
-             class="h-12 w-12 shrink-0 rounded-lg object-cover" />
-    {% else %}
-        <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-base-200 text-base-content/40"
-              aria-hidden="true">{% heroicon_outline "photo" class="size-6" %}</span>
-    {% endif %}
+    {% static 'items/categories/logo-tools.png' as fallback_image %}
+    <img src="{{ item_thumbnail_url|default:fallback_image }}"
+         alt="{{ item_name|default:'Item image' }}"
+         loading="lazy"
+         class="h-12 w-12 shrink-0 rounded-lg object-cover" />
 
     <span class="min-w-0 grow">
         {% if item_url %}
