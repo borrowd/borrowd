@@ -40,7 +40,7 @@ Parameters:
         </span>
 
         {% if show_item %}
-            <span class="mt-0.5 block truncate text-sm {% if item_removed %}text-base-content/60{% endif %}">{% firstof item_name "This item is no longer available." %}</span>
+            <span class="mt-0.5 block truncate text-sm {% if item_removed %}text-base-content/60{% endif %}">{% firstof item_name "Item unavailable" %}</span>
         {% endif %}
 
         <span class="mt-0.5 block text-xs text-base-content/60">

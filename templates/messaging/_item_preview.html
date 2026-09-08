@@ -20,7 +20,7 @@ loses the Item. A removed Item still shows its name and photo, muted.
             <a href="{{ item_url }}"
                class="block truncate font-medium hover:underline">{{ item_name }}</a>
         {% else %}
-            <span class="block truncate font-medium {% if item_removed %}text-base-content/60{% endif %}">{% firstof item_name "This item is no longer available." %}</span>
+            <span class="block truncate font-medium {% if item_removed %}text-base-content/60{% endif %}">{% firstof item_name "Item unavailable" %}</span>
         {% endif %}
         <span class="block truncate text-sm text-base-content/70">{{ other_participant.profile.full_name }}</span>
     </span>

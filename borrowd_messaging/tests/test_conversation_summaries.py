@@ -527,7 +527,7 @@ class HubConversationSummaryTests(MessagingTestCase):
 
         self.assertIn(self.item.name, html)
         self.assertIn("Unread.", html)
-        self.assertNotIn("This item is no longer available.", html)
+        self.assertNotIn("Item unavailable", html)
 
     def test_card_template_names_an_item_whose_row_is_gone(self) -> None:
         self.make_thread()
@@ -545,4 +545,4 @@ class HubConversationSummaryTests(MessagingTestCase):
             },
         )
 
-        self.assertIn("This item is no longer available.", html)
+        self.assertIn("Item unavailable", html)

@@ -148,7 +148,7 @@ class ChatThreadDetailViewTests(MessagingTestCase):
         response = self.client.get(self.url)
 
         self.assertIsNone(self.thread.item_id)
-        self.assertContains(response, "This item is no longer available.")
+        self.assertContains(response, "Item unavailable")
         self.assertNotContains(response, item_name)
 
     def test_header_keeps_a_soft_deleted_item_name(self) -> None:
@@ -805,7 +805,7 @@ class ChatThreadListViewTests(MessagingTestCase):
         response = self.client.get(self.url, {"section": "archived"})
 
         self.assertIsNone(thread.item_id)
-        self.assertContains(response, "This item is no longer available.")
+        self.assertContains(response, "Item unavailable")
         self.assertNotContains(response, item_name)
         self.assertContains(response, reverse("chat-thread-detail", args=[thread.pk]))
 
@@ -1029,7 +1029,7 @@ class ConversationItemPreviewTests(MessagingTestCase):
         response = self.client.get(self.url)
 
         self.assertIsNone(response.context["item_name"])
-        self.assertContains(response, "This item is no longer available.")
+        self.assertContains(response, "Item unavailable")
         self.assertNotContains(response, item_name)
 
     def test_a_viewer_who_lost_item_access_keeps_the_name_without_a_link(self) -> None:
