@@ -215,18 +215,13 @@ class UnreadThreadQueryTests(MessagingTestCase):
         )
         self.assertFalse(unread_threads_for(self.borrower).exists())
 
-    def test_only_the_other_participants_human_messages_count(self) -> None:
+    def test_own_and_unrelated_human_messages_do_not_count(self) -> None:
         outsider = self.make_user("outsider")
-        for sender, is_system in (
-            (self.borrower, False),
-            (get_system_user(), True),
-            (self.lender, True),
-            (outsider, False),
-        ):
+        for sender in (self.borrower, get_system_user(), outsider):
             Message.objects.create(
                 thread=self.thread,
                 sender=sender,
-                is_system=is_system,
+                is_system=False,
                 body="Does not count as incoming human chat.",
             )
 
@@ -236,15 +231,48 @@ class UnreadThreadQueryTests(MessagingTestCase):
         )
         self.assertEqual(unread_threads_for(self.borrower).count(), 1)
 
-    def test_later_own_and_system_messages_do_not_hide_unread_messages(self) -> None:
+    def test_system_notices_need_each_participants_acknowledgment(self) -> None:
+        for sender in (get_system_user(), self.lender, self.borrower):
+            with self.subTest(sender=sender.pk):
+                notice = MessagingService.post_system_message(
+                    self.thread, "A conversation update.", sender=sender
+                )
+                for viewer in (self.lender, self.borrower):
+                    self.assertEqual(list(unread_threads_for(viewer)), [self.thread])
+
+                mark_thread_read(
+                    self.thread, self.borrower, through_message_id=notice.pk
+                )
+
+                self.assertFalse(unread_threads_for(self.borrower).exists())
+                self.assertTrue(unread_threads_for(self.lender).exists())
+                mark_thread_read(self.thread, self.lender, through_message_id=notice.pk)
+                self.assertFalse(unread_threads_for(self.lender).exists())
+
+    def test_read_notice_does_not_hide_a_later_notice_or_human_message(self) -> None:
+        notice = MessagingService.post_system_message(self.thread, "First notice.")
+        later_notice = MessagingService.post_system_message(
+            self.thread, "Second notice."
+        )
+        mark_thread_read(self.thread, self.borrower, through_message_id=notice.pk)
+        self.assertTrue(unread_threads_for(self.borrower).exists())
+        mark_thread_read(self.thread, self.borrower, through_message_id=later_notice.pk)
+        self.assertFalse(unread_threads_for(self.borrower).exists())
+
+        message = Message.objects.create(
+            thread=self.thread, sender=self.lender, body="One more thing."
+        )
+        self.assertTrue(unread_threads_for(self.borrower).exists())
+        mark_thread_read(self.thread, self.borrower, through_message_id=message.pk)
+        self.assertFalse(unread_threads_for(self.borrower).exists())
+
+    def test_later_own_messages_do_not_hide_unread_incoming_messages(self) -> None:
         Message.objects.create(
             thread=self.thread, sender=self.lender, body="Can you come Saturday?"
         )
         Message.objects.create(
             thread=self.thread, sender=self.borrower, body="My response."
         )
-        MessagingService.post_system_message(self.thread, "A system notice.")
-
         self.assertTrue(unread_threads_for(self.borrower).exists())
 
     def test_each_threads_viewer_role_selects_the_right_cursor(self) -> None:
@@ -282,6 +310,7 @@ class UnreadThreadQueryTests(MessagingTestCase):
         Message.objects.create(
             thread=other_thread, sender=self.lender, body="Private conversation."
         )
+        MessagingService.post_system_message(other_thread, "A private notice.")
 
         self.assertEqual(list(threads_with_unread_state(self.borrower)), [self.thread])
         self.assertFalse(unread_threads_for(self.borrower).exists())
@@ -294,6 +323,12 @@ class UnreadThreadQueryTests(MessagingTestCase):
 
         self.assertEqual(list(unread_threads_for(self.borrower)), [self.thread])
         mark_thread_read(self.thread, self.borrower, through_message_id=message.pk)
+        self.assertTrue(unread_threads_for(self.borrower).exists())
+        closing_notice = self.thread.messages.latest("pk")
+        self.assertTrue(closing_notice.is_system)
+        mark_thread_read(
+            self.thread, self.borrower, through_message_id=closing_notice.pk
+        )
         self.assertFalse(unread_threads_for(self.borrower).exists())
 
     def test_item_removal_preserves_unread_history_and_read_access(self) -> None:
@@ -306,6 +341,12 @@ class UnreadThreadQueryTests(MessagingTestCase):
         self.assertIsNone(self.thread.item_id)
         self.assertEqual(list(unread_threads_for(self.borrower)), [self.thread])
         mark_thread_read(self.thread, self.borrower, through_message_id=message.pk)
+        self.assertTrue(unread_threads_for(self.borrower).exists())
+        deletion_notice = self.thread.messages.latest("pk")
+        self.assertTrue(deletion_notice.is_system)
+        mark_thread_read(
+            self.thread, self.borrower, through_message_id=deletion_notice.pk
+        )
         self.assertFalse(unread_threads_for(self.borrower).exists())
 
     def test_multiple_messages_count_once_per_thread_in_one_query(self) -> None:
@@ -315,6 +356,7 @@ class UnreadThreadQueryTests(MessagingTestCase):
                 Message.objects.create(
                     thread=thread, sender=self.lender, body="An unread message."
                 )
+            MessagingService.post_system_message(thread, "An unread notice.")
 
         with self.assertNumQueries(1):
             self.assertEqual(unread_threads_for(self.borrower).count(), 2)

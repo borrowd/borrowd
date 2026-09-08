@@ -91,14 +91,13 @@ def threads_with_unread_state(
         ),
     )
     unread_messages = Message.objects.filter(
+        Q(is_system=True) | Q(sender_id=OuterRef("other_participant_id")),
         thread_id=OuterRef("pk"),
-        sender_id=OuterRef("other_participant_id"),
-        is_system=False,
         pk__gt=OuterRef("viewer_read_cursor"),
     )
     return threads.annotate(has_unread_messages=Exists(unread_messages))
 
 
 def unread_threads_for(viewer: BorrowdUser) -> QuerySet[ChatThread]:
-    """Return threads with unacknowledged human messages from the other party."""
+    """Return threads with unacknowledged incoming messages or system notices."""
     return threads_with_unread_state(viewer).filter(has_unread_messages=True)
