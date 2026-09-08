@@ -22,7 +22,7 @@
                     {% if section.cards %}
                         <div class="flex flex-col gap-2">
                             {% for card in section.cards %}
-                                {% include "messaging/_thread_summary_card.html" with summary=card.conversation show_item=True item_name=card.item_name item_thumbnail_url=card.item_thumbnail_url has_unread=card.has_unread_messages only %}
+                                {% include "messaging/_thread_summary_card.html" with summary=card.conversation show_item=True item_name=card.item_name item_thumbnail_url=card.item_thumbnail_url only %}
 
                             {% endfor %}
                         </div>

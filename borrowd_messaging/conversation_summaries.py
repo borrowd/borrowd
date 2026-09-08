@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Literal, cast
 
-from django.db.models import DateTimeField, OuterRef, Q, QuerySet, Subquery
+from django.db.models import DateTimeField, OuterRef, QuerySet, Subquery
 from django.db.models.functions import Coalesce
 
 from borrowd_items.models import Item, TransactionStatus
@@ -39,11 +39,12 @@ class ConversationSummary:
     last_message_preview: str | None
     status_label: str
     status_kind: ConversationStatusKind
+    has_unread_messages: bool
 
 
 @dataclass(frozen=True)
 class HubConversationSummary:
-    """A conversation summary plus the Item context and unread state the hub shows.
+    """A conversation summary plus the Item context the hub shows beside it.
 
     A null item_name means the Item is gone; the template supplies the copy.
     """
@@ -51,7 +52,6 @@ class HubConversationSummary:
     conversation: ConversationSummary
     item_name: str | None
     item_thumbnail_url: str | None
-    has_unread_messages: bool
 
 
 def threads_for_item(
@@ -63,11 +63,7 @@ def threads_for_item(
     Each row includes the related data and latest-message values needed by
     build_conversation_summaries.
     """
-    return _with_summary_data(
-        ChatThread.objects.filter(item=item).filter(
-            Q(lender=viewer) | Q(borrower=viewer)
-        )
-    )
+    return _with_summary_data(threads_with_unread_state(viewer).filter(item=item))
 
 
 def participant_conversation_threads(viewer: BorrowdUser) -> QuerySet[ChatThread]:
@@ -87,7 +83,7 @@ def build_hub_conversation_summaries(
     threads: Iterable[ChatThread],
     viewer: BorrowdUser,
 ) -> list[HubConversationSummary]:
-    """Pair each conversation summary with its Item context and unread state."""
+    """Pair each conversation summary with the Item context shown beside it."""
     loaded = list(threads)
     summaries = build_conversation_summaries(loaded, viewer)
     cards: list[HubConversationSummary] = []
@@ -98,7 +94,6 @@ def build_hub_conversation_summaries(
                 conversation=summary,
                 item_name=item.name if item is not None else None,
                 item_thumbnail_url=_thumbnail_url(item),
-                has_unread_messages=cast(bool, getattr(thread, "has_unread_messages")),
             )
         )
     return cards
@@ -190,6 +185,10 @@ def build_conversation_summaries(
                 ),
                 status_label=status_label,
                 status_kind=status_kind,
+                has_unread_messages=cast(
+                    bool,
+                    getattr(thread, "has_unread_messages"),
+                ),
             )
         )
     return summaries
