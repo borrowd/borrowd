@@ -3,6 +3,7 @@ from typing import Any
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied
+from django.core.paginator import Paginator
 from django.db.models import Q, QuerySet
 from django.http import HttpRequest, HttpResponse, HttpResponseBadRequest
 from django.shortcuts import redirect, render
@@ -10,7 +11,7 @@ from django.template.loader import render_to_string
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import ensure_csrf_cookie
-from django.views.generic import DetailView, ListView, View
+from django.views.generic import DetailView, TemplateView, View
 
 from borrowd.util import BorrowdTemplateFinderMixin
 from borrowd_items.models import Item, ItemAction, ItemStatus, TransactionStatus
@@ -31,9 +32,13 @@ from .mixins import MessagingEnabledMixin
 from .models import MESSAGE_BODY_MAX_LENGTH, ChatThread
 from .read_state import mark_thread_read, unread_threads_for
 from .services import MessagingService
-from .conversation_summaries import participant_conversation_threads
+from .conversation_summaries import (
+    build_hub_conversation_summaries,
+    participant_conversation_threads,
+)
 
 _INVALID_CURSOR_MESSAGE = "`after` must be a message id from this conversation."
+_HUB_PAGE_SIZE = 25
 
 
 class _InvalidCursor(ValueError):
@@ -368,12 +373,46 @@ class ChatThreadPreRequestCloseView(
 class ChatThreadListView(
     MessagingEnabledMixin,
     LoginRequiredMixin,
-    ListView[ChatThread],
+    TemplateView,
 ):
-    """List every conversation the user participates in, newest activity first."""
+    """Show the viewer's active and archived conversations, paginated separately."""
 
     template_name = "messaging/chatthread_list.html"
-    context_object_name = "chat_threads"
 
-    def get_queryset(self) -> QuerySet[ChatThread]:
-        return participant_conversation_threads(get_authenticated_user(self.request))
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+        context = super().get_context_data(**kwargs)
+        viewer = get_authenticated_user(self.request)
+        threads = participant_conversation_threads(viewer)
+        sections = [
+            self._section(
+                "active", "Active", threads.filter(archived_at__isnull=True), viewer
+            ),
+            self._section(
+                "archived",
+                "Archived",
+                threads.filter(archived_at__isnull=False),
+                viewer,
+            ),
+        ]
+        context["conversation_sections"] = sections
+        context["has_conversations"] = any(section["cards"] for section in sections)
+        return context
+
+    def _section(
+        self,
+        name: str,
+        title: str,
+        threads: QuerySet[ChatThread],
+        viewer: BorrowdUser,
+    ) -> dict[str, Any]:
+        """Paginate one section. Each keeps its own page while the other moves."""
+        page = Paginator(threads, _HUB_PAGE_SIZE).get_page(
+            self.request.GET.get(f"{name}_page")
+        )
+        return {
+            "name": name,
+            "title": title,
+            "page_param": f"{name}_page",
+            "page_obj": page,
+            "cards": build_hub_conversation_summaries(page, viewer),
+        }

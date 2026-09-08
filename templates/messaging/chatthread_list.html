@@ -9,35 +9,33 @@
             Messages
         </c-h1>
 
-        {% if chat_threads %}
-            <ul class="mt-4 divide-y divide-base-300">
-                {% for chat_thread in chat_threads %}
-                    <li>
-                        <a class="flex items-center justify-between gap-3 py-3 hover:underline"
-                           href="{% url 'chat-thread-detail' chat_thread.pk %}">
-                            <span class="min-w-0">
-                                <span class="block truncate">
-                                    {% if chat_thread.item and not chat_thread.item.deleted_at %}
-                                        {{ chat_thread.item.name }}
-                                    {% else %}
-                                        This item is no longer available.
-                                    {% endif %}
-                                </span>
-                                <span class="block text-sm opacity-70">
-                                    {% if chat_thread.lender_id == user.pk %}
-                                        {{ chat_thread.borrower.profile.full_name }}
-                                    {% else %}
-                                        {{ chat_thread.lender.profile.full_name }}
-                                    {% endif %}
-                                </span>
-                            </span>
-                            {% if chat_thread.is_archived %}
-                                <span class="badge badge-ghost shrink-0">Archived</span>
-                            {% endif %}
-                        </a>
-                    </li>
-                {% endfor %}
-            </ul>
+        {% if has_conversations %}
+            {% for section in conversation_sections %}
+                <section id="{{ section.name }}-conversations"
+                         class="mt-6 scroll-mt-4"
+                         aria-labelledby="{{ section.name }}-conversations-heading">
+                    <h2 id="{{ section.name }}-conversations-heading"
+                        class="mb-3 text-xl font-semibold">
+                        {{ section.title }}
+                    </h2>
+
+                    {% if section.cards %}
+                        <div class="flex flex-col gap-2">
+                            {% for card in section.cards %}
+                                {% include "messaging/_thread_summary_card.html" with summary=card.conversation show_item=True item_name=card.item_name item_thumbnail_url=card.item_thumbnail_url has_unread=card.has_unread_messages only %}
+
+                            {% endfor %}
+                        </div>
+
+                        {% include "components/pagination.html" with page_obj=section.page_obj query_params=request.GET page_param=section.page_param anchor=section.name|add:"-conversations" %}
+
+                    {% else %}
+                        <p class="text-sm opacity-70">
+                            No {{ section.title|lower }} conversations.
+                        </p>
+                    {% endif %}
+                </section>
+            {% endfor %}
         {% else %}
             <p class="mt-4 text-sm opacity-70">
                 You have no conversations yet.
