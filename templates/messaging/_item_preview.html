@@ -1,0 +1,29 @@
+{% comment %}
+The Item this conversation is about, pinned above the messages.
+
+The name links to the Item page only when the viewer may still open it: a
+participant who left the Item's group keeps the conversation but loses the Item.
+{% endcomment %}
+
+{% load heroicons %}
+
+<div class="flex items-center gap-3 rounded-xl border border-base-300 bg-base-100 p-2">
+    {% if item_thumbnail_url %}
+        <img src="{{ item_thumbnail_url }}"
+             alt="{{ item_name }}"
+             class="h-12 w-12 shrink-0 rounded-lg object-cover" />
+    {% else %}
+        <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-base-200 text-base-content/40"
+              aria-hidden="true">{% heroicon_outline "photo" class="size-6" %}</span>
+    {% endif %}
+
+    <span class="min-w-0 grow">
+        {% if item_url %}
+            <a href="{{ item_url }}"
+               class="block truncate font-medium hover:underline">{{ item_name }}</a>
+        {% else %}
+            <span class="block truncate font-medium">{% firstof item_name "This item is no longer available." %}</span>
+        {% endif %}
+        <span class="block truncate text-sm text-base-content/70">{{ other_participant.profile.full_name }}</span>
+    </span>
+</div>
