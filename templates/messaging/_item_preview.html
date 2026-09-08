@@ -26,4 +26,7 @@ participant who left the Item's group keeps the conversation but loses the Item.
         {% endif %}
         <span class="block truncate text-sm text-base-content/70">{{ other_participant.profile.full_name }}</span>
     </span>
+
+    {% include "messaging/_conversation_status.html" %}
+
 </div>

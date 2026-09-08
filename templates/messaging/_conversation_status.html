@@ -1,0 +1,9 @@
+{# Wrapper so a poll can replace the status in place. An open thread can be
+disputed, resolved, or archived while the reader is on the page.
+https://htmx.org/attributes/hx-swap-oob/ #}
+
+<div id="chat-conversation-status"
+     {% if oob %}hx-swap-oob="true"{% endif %}>
+    {% include "messaging/_status_badge.html" with status_label=conversation_status_label status_kind=conversation_status_kind only %}
+
+</div>
