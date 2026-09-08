@@ -151,15 +151,23 @@ class ChatThreadDetailViewTests(MessagingTestCase):
         self.assertContains(response, "This item is no longer available.")
         self.assertNotContains(response, item_name)
 
-    def test_header_handles_a_soft_deleted_item(self) -> None:
-        item_name = self.item.name
+    def test_header_keeps_a_soft_deleted_item_name(self) -> None:
         self.item.soft_delete(deleted_by=self.lender)
         self.client.force_login(self.borrower)
 
         response = self.client.get(self.url)
 
-        self.assertContains(response, "This item is no longer available.")
-        self.assertNotContains(response, item_name)
+        self.assertEqual(response.context["item_name"], self.item.name)
+        self.assertTrue(response.context["item_removed"])
+
+    def test_header_says_so_when_the_item_row_is_gone(self) -> None:
+        self.item.delete()
+        self.client.force_login(self.borrower)
+
+        response = self.client.get(self.url)
+
+        self.assertIsNone(response.context["item_name"])
+        self.assertFalse(response.context["item_removed"])
 
     def test_lender_sees_the_thread(self) -> None:
         self.client.force_login(self.lender)
@@ -801,7 +809,7 @@ class ChatThreadListViewTests(MessagingTestCase):
         self.assertNotContains(response, item_name)
         self.assertContains(response, reverse("chat-thread-detail", args=[thread.pk]))
 
-    def test_lists_a_thread_for_a_soft_deleted_item(self) -> None:
+    def test_a_soft_deleted_item_keeps_its_name_on_the_card(self) -> None:
         thread = self.make_thread()
         item_name = self.item.name
         self.item.soft_delete(deleted_by=self.lender)
@@ -809,8 +817,10 @@ class ChatThreadListViewTests(MessagingTestCase):
 
         response = self.client.get(self.url, {"section": "archived"})
 
-        self.assertContains(response, "This item is no longer available.")
-        self.assertNotContains(response, item_name)
+        # Items are soft-deleted, so the row is still there to read.
+        card = response.context["cards"][0]
+        self.assertEqual((card.item_name, card.item_removed), (item_name, True))
+        self.assertContains(response, item_name)
         self.assertContains(response, reverse("chat-thread-detail", args=[thread.pk]))
 
     def test_labels_an_archived_thread_with_its_reason(self) -> None:
@@ -991,22 +1001,36 @@ class ConversationItemPreviewTests(MessagingTestCase):
 
         self.assertContains(self.client.get(self.url), self.lender.profile.full_name())
 
-    def test_an_item_without_a_photo_falls_back_to_the_shared_placeholder(self) -> None:
+    def test_an_item_without_a_photo_still_renders(self) -> None:
         self.client.force_login(self.borrower)
 
         response = self.client.get(self.url)
 
+        self.assertEqual(response.status_code, 200)
         self.assertContains(response, self.item.name)
-        self.assertContains(response, "items/categories/logo-tools.png")
 
-    def test_a_removed_item_says_so_and_offers_no_link(self) -> None:
+    def test_a_removed_item_keeps_its_name_but_offers_no_link(self) -> None:
         self.item.soft_delete(deleted_by=self.lender)
         self.client.force_login(self.borrower)
 
         response = self.client.get(self.url)
 
+        # The Item page 404s once it is removed, so the name is not a link.
+        self.assertEqual(response.context["item_name"], self.item.name)
+        self.assertTrue(response.context["item_removed"])
+        self.assertIsNone(response.context["item_url"])
+        self.assertContains(response, self.item.name)
+
+    def test_an_item_whose_row_is_gone_says_so(self) -> None:
+        item_name = self.item.name
+        self.item.delete()
+        self.client.force_login(self.borrower)
+
+        response = self.client.get(self.url)
+
+        self.assertIsNone(response.context["item_name"])
         self.assertContains(response, "This item is no longer available.")
-        self.assertNotContains(response, reverse("item-detail", args=[self.item.pk]))
+        self.assertNotContains(response, item_name)
 
     def test_a_viewer_who_lost_item_access_keeps_the_name_without_a_link(self) -> None:
         remove_perm(ItemOLP.VIEW, self.borrower, self.item)

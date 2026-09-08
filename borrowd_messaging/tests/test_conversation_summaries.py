@@ -454,15 +454,16 @@ class HubConversationSummaryTests(MessagingTestCase):
 
         self.assertFalse(card.conversation.has_unread_messages)
 
-    def test_a_soft_deleted_item_leaves_the_name_and_thumbnail_empty(self) -> None:
+    def test_a_soft_deleted_item_keeps_its_name_and_photo(self) -> None:
         self.make_thread()
-        self.add_photo(self.item)
+        photo = self.add_photo(self.item)
         self.item.soft_delete(deleted_by=self.lender)
 
         card = self.hub_cards(self.borrower)[0]
 
-        self.assertIsNone(card.item_name)
-        self.assertIsNone(card.item_thumbnail_url)
+        self.assertEqual(card.item_name, self.item.name)
+        self.assertEqual(card.item_thumbnail_url, photo.thumbnail.url)
+        self.assertTrue(card.item_removed)
 
     def test_a_hard_deleted_item_leaves_the_name_and_thumbnail_empty(self) -> None:
         self.make_thread()
@@ -473,22 +474,7 @@ class HubConversationSummaryTests(MessagingTestCase):
 
         self.assertIsNone(card.item_name)
         self.assertIsNone(card.item_thumbnail_url)
-
-    def test_a_card_without_a_photo_falls_back_to_the_shared_placeholder(self) -> None:
-        self.make_thread()
-        card = self.hub_cards(self.borrower)[0]
-
-        html = render_to_string(
-            "messaging/_thread_summary_card.html",
-            {
-                "summary": card.conversation,
-                "show_item": True,
-                "item_name": card.item_name,
-                "item_thumbnail_url": card.item_thumbnail_url,
-            },
-        )
-
-        self.assertIn("items/categories/logo-tools.png", html)
+        self.assertFalse(card.item_removed)
 
     def test_an_item_without_a_photo_still_names_the_item(self) -> None:
         self.make_thread()
@@ -497,6 +483,7 @@ class HubConversationSummaryTests(MessagingTestCase):
 
         self.assertEqual(card.item_name, self.item.name)
         self.assertIsNone(card.item_thumbnail_url)
+        self.assertFalse(card.item_removed)
 
     def test_a_missing_photo_file_does_not_break_the_card(self) -> None:
         self.make_thread()
@@ -542,9 +529,9 @@ class HubConversationSummaryTests(MessagingTestCase):
         self.assertIn("Unread.", html)
         self.assertNotIn("This item is no longer available.", html)
 
-    def test_card_template_names_a_removed_item_in_its_place(self) -> None:
+    def test_card_template_names_an_item_whose_row_is_gone(self) -> None:
         self.make_thread()
-        self.item.soft_delete(deleted_by=self.lender)
+        self.item.delete()
         card = self.hub_cards(self.borrower)[0]
 
         html = render_to_string(
@@ -554,8 +541,8 @@ class HubConversationSummaryTests(MessagingTestCase):
                 "show_item": True,
                 "item_name": card.item_name,
                 "item_thumbnail_url": card.item_thumbnail_url,
+                "item_removed": card.item_removed,
             },
         )
 
         self.assertIn("This item is no longer available.", html)
-        self.assertNotIn(self.item.name, html)

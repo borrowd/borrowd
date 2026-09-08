@@ -34,10 +34,11 @@ from .models import MESSAGE_BODY_MAX_LENGTH, ChatThread
 from .read_state import mark_thread_read, unread_threads_for
 from .services import MessagingService
 from .conversation_summaries import (
-    available_item,
     build_hub_conversation_summaries,
     conversation_status,
+    is_removed,
     item_thumbnail_url,
+    listed_item,
     participant_conversation_threads,
 )
 
@@ -156,15 +157,17 @@ class ChatThreadDetailView(
         user: BorrowdUser,
     ) -> dict[str, Any]:
         """The Item context pinned above the conversation."""
-        item = available_item(chat_thread)
+        item = chat_thread.item
+        listed = listed_item(chat_thread)
         status_label, status_kind = conversation_status(chat_thread)
         return {
             "item_name": item.name if item is not None else None,
             "item_thumbnail_url": item_thumbnail_url(item),
-            # A participant who left the Item's group keeps the conversation but
-            # not the Item page, so only link somewhere they may actually go.
-            "item_url": reverse("item-detail", args=[item.pk])
-            if item is not None and user.has_perm(ItemOLP.VIEW, item)
+            "item_removed": is_removed(chat_thread),
+            # Link only where the viewer may actually go: a removed Item 404s,
+            # and so does one whose group the viewer has since left.
+            "item_url": reverse("item-detail", args=[listed.pk])
+            if listed is not None and user.has_perm(ItemOLP.VIEW, listed)
             else None,
             "conversation_status_label": status_label,
             "conversation_status_kind": status_kind,

@@ -5,8 +5,9 @@ Parameters:
 - summary: a ConversationSummary (borrowd_messaging/conversation_summaries.py)
 - show_item: Optional flag adding the Item thumbnail and name. Item pages are
   already scoped to one Item, so they leave it off.
-- item_name: Item name, or empty when the Item has been removed
+- item_name: Item name, or empty only when the Item row itself is gone
 - item_thumbnail_url: first Item photo; the shared Item placeholder stands in
+- item_removed: Optional flag muting a removed Item, which keeps its name
 {% endcomment %}
 
 <a href="{% url 'chat-thread-detail' summary.thread_id %}"
@@ -16,7 +17,7 @@ Parameters:
         <img src="{{ item_thumbnail_url|default:fallback_image }}"
              alt="{{ item_name|default:'Item image' }}"
              loading="lazy"
-             class="h-12 w-12 shrink-0 rounded-lg object-cover" />
+             class="h-12 w-12 shrink-0 rounded-lg object-cover {% if item_removed %}opacity-60 grayscale{% endif %}" />
     {% endif %}
 
     <c-avatar class="h-12 w-12 shrink-0 rounded-full"
@@ -39,7 +40,7 @@ Parameters:
         </span>
 
         {% if show_item %}
-            <span class="mt-0.5 block truncate text-sm">{% firstof item_name "This item is no longer available." %}</span>
+            <span class="mt-0.5 block truncate text-sm {% if item_removed %}text-base-content/60{% endif %}">{% firstof item_name "This item is no longer available." %}</span>
         {% endif %}
 
         <span class="mt-0.5 block text-xs text-base-content/60">
