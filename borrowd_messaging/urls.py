@@ -8,10 +8,16 @@ from .views import (
     ChatThreadPreRequestOpenView,
     ChatThreadReadView,
     ChatThreadSendView,
+    ChatThreadUnreadBadgeView,
 )
 
 urlpatterns = [
     path("", ChatThreadListView.as_view(), name="chat-thread-list"),
+    path(
+        "unread-badge/",
+        ChatThreadUnreadBadgeView.as_view(),
+        name="chat-thread-unread-badge",
+    ),
     path(
         "items/<int:item_pk>/open/",
         ChatThreadPreRequestOpenView.as_view(),
