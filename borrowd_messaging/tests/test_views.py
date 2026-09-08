@@ -1,6 +1,6 @@
 from datetime import timedelta
 from html.parser import HTMLParser
-from typing import Protocol
+from typing import Any, Protocol
 from unittest.mock import patch
 
 from django.core.exceptions import PermissionDenied
@@ -14,8 +14,10 @@ from borrowd_items.models import Transaction, TransactionStatus
 from borrowd_messaging.models import (
     MESSAGE_BODY_MAX_LENGTH,
     ArchiveReason,
+    ChatThread,
     Message,
 )
+from borrowd_messaging.read_state import mark_thread_read
 from borrowd_messaging.services import MessagingService
 from borrowd_messaging.views import (
     ChatThreadDetailView,
@@ -704,6 +706,40 @@ class ChatThreadListViewTests(MessagingTestCase):
         super().setUp()
         self.url = reverse("chat-thread-list")
 
+    def section(self, name: str, query: str = "") -> dict[str, Any]:
+        """Fetch the hub and pick out one section's context."""
+        response = self.client.get(f"{self.url}{query}")
+        return next(
+            section
+            for section in response.context["conversation_sections"]
+            if section["name"] == name
+        )
+
+    def thread_ids(self, name: str, query: str = "") -> list[int]:
+        return [
+            card.conversation.thread_id for card in self.section(name, query)["cards"]
+        ]
+
+    def make_archived_threads(self, count: int) -> None:
+        """Archived threads escape the one-active-pre-request-thread constraint."""
+        ChatThread.objects.bulk_create(
+            ChatThread(
+                item=self.item,
+                lender=self.lender,
+                borrower=self.borrower,
+                created_by=self.borrower,
+                updated_by=self.borrower,
+                archived_at=timezone.now(),
+                archive_reason=ArchiveReason.CLOSED,
+            )
+            for _ in range(count)
+        )
+
+    def make_active_threads(self, count: int) -> None:
+        """One active pre-request thread per Item, so each needs its own Item."""
+        for index in range(count):
+            self.make_thread(item=self.make_item(name=f"Item {index}"))
+
     def test_lists_the_threads_you_are_in(self) -> None:
         thread = self.make_thread()
         self.client.force_login(self.borrower)
@@ -771,12 +807,7 @@ class ChatThreadListViewTests(MessagingTestCase):
         Message.objects.create(thread=chatty, sender=self.borrower, body="Two")
         self.client.force_login(self.borrower)
 
-        response = self.client.get(self.url)
-
-        self.assertEqual(
-            list(response.context["chat_threads"]),
-            [chatty, quiet],
-        )
+        self.assertEqual(self.thread_ids("active"), [chatty.pk, quiet.pk])
 
     def test_new_empty_thread_comes_before_an_older_message_thread(self) -> None:
         older = self.make_thread(item=self.make_item(name="Ladder"))
@@ -789,17 +820,88 @@ class ChatThreadListViewTests(MessagingTestCase):
         newer = self.make_thread(item=self.make_item(name="Projector"))
         self.client.force_login(self.borrower)
 
-        response = self.client.get(self.url)
-
-        self.assertEqual(
-            list(response.context["chat_threads"]),
-            [newer, older],
-        )
+        self.assertEqual(self.thread_ids("active"), [newer.pk, older.pk])
 
     def test_empty_state(self) -> None:
         self.client.force_login(self.borrower)
 
         self.assertContains(self.client.get(self.url), "no conversations yet")
+
+    def test_active_and_archived_threads_land_in_their_own_sections(self) -> None:
+        active = self.make_thread()
+        self.make_archived_threads(1)
+        archived = ChatThread.objects.get(archived_at__isnull=False)
+        self.client.force_login(self.borrower)
+
+        self.assertEqual(self.thread_ids("active"), [active.pk])
+        self.assertEqual(self.thread_ids("archived"), [archived.pk])
+
+    def test_a_section_with_nothing_in_it_says_so(self) -> None:
+        self.make_thread()
+        self.client.force_login(self.borrower)
+
+        response = self.client.get(self.url)
+
+        self.assertContains(response, "No archived conversations.")
+        self.assertNotContains(response, "No active conversations.")
+
+    def test_each_section_holds_twenty_five_conversations_per_page(self) -> None:
+        self.make_archived_threads(26)
+        oldest = ChatThread.objects.filter(archived_at__isnull=False).earliest("pk")
+        self.client.force_login(self.borrower)
+
+        page = self.section("archived")["page_obj"]
+
+        self.assertEqual(len(self.thread_ids("archived")), 25)
+        self.assertEqual((page.number, page.paginator.num_pages), (1, 2))
+        self.assertEqual(self.thread_ids("archived", "?archived_page=2"), [oldest.pk])
+
+    def test_paging_one_section_leaves_the_other_section_where_it_was(self) -> None:
+        self.make_archived_threads(26)
+        self.make_active_threads(26)
+        self.client.force_login(self.borrower)
+
+        both_on_page_two = "?active_page=2&archived_page=2"
+        response = self.client.get(f"{self.url}{both_on_page_two}")
+
+        self.assertEqual(self.section("active", both_on_page_two)["page_obj"].number, 2)
+        self.assertEqual(
+            self.section("archived", both_on_page_two)["page_obj"].number, 2
+        )
+        # Each section's links carry the other section's page unchanged.
+        self.assertContains(
+            response, "?archived_page=1&active_page=2#archived-conversations"
+        )
+        self.assertContains(
+            response, "?active_page=1&archived_page=2#active-conversations"
+        )
+
+    def test_a_conversation_with_incoming_messages_is_marked_unread(self) -> None:
+        thread = self.make_thread()
+        message = Message.objects.create(
+            thread=thread, sender=self.lender, body="Hello"
+        )
+        self.client.force_login(self.borrower)
+
+        self.assertTrue(self.section("active")["cards"][0].has_unread_messages)
+
+        mark_thread_read(thread, self.borrower, through_message_id=message.pk)
+
+        self.assertFalse(self.section("active")["cards"][0].has_unread_messages)
+
+    def test_page_cost_does_not_grow_with_the_number_of_conversations(self) -> None:
+        self.make_active_threads(1)
+        self.make_archived_threads(1)
+        self.client.force_login(self.borrower)
+        with CaptureQueriesContext(connection) as one_each:
+            self.client.get(self.url)
+
+        self.make_active_threads(24)
+        self.make_archived_threads(24)
+        with CaptureQueriesContext(connection) as a_full_page_each:
+            self.client.get(self.url)
+
+        self.assertEqual(len(a_full_page_each), len(one_each))
 
     def test_anonymous_user_is_sent_to_login(self) -> None:
         self.assertEqual(self.client.get(self.url).status_code, 302)
