@@ -15,7 +15,7 @@ from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.generic import DetailView, TemplateView, View
 
 from borrowd.util import BorrowdTemplateFinderMixin
-from borrowd_items.models import Item, ItemAction, ItemStatus, TransactionStatus
+from borrowd_items.models import Item, ItemAction, ItemStatus
 from borrowd_permissions.mixins import CachedObjectMixin, LoginOr404PermissionMixin
 from borrowd_permissions.models import ChatThreadOLP, ItemOLP
 from borrowd_users.models import BorrowdUser
@@ -36,6 +36,7 @@ from .services import MessagingService
 from .conversation_summaries import (
     available_item,
     build_hub_conversation_summaries,
+    conversation_status,
     item_thumbnail_url,
     participant_conversation_threads,
 )
@@ -145,10 +146,6 @@ class ChatThreadDetailView(
             "sender__profile"
         ).order_by("id")
         context["message_body_max_length"] = MESSAGE_BODY_MAX_LENGTH
-        transaction = chat_thread.transaction
-        context["is_disputed"] = (
-            transaction is not None and transaction.status == TransactionStatus.DISPUTED
-        )
         context["pre_request_action"] = self._pre_request_action(chat_thread, user)
         context.update(self._item_preview(chat_thread, user))
         return context
@@ -160,6 +157,7 @@ class ChatThreadDetailView(
     ) -> dict[str, Any]:
         """The Item context pinned above the conversation."""
         item = available_item(chat_thread)
+        status_label, status_kind = conversation_status(chat_thread)
         return {
             "item_name": item.name if item is not None else None,
             "item_thumbnail_url": item_thumbnail_url(item),
@@ -168,6 +166,8 @@ class ChatThreadDetailView(
             "item_url": reverse("item-detail", args=[item.pk])
             if item is not None and user.has_perm(ItemOLP.VIEW, item)
             else None,
+            "conversation_status_label": status_label,
+            "conversation_status_kind": status_kind,
         }
 
     @staticmethod
@@ -335,13 +335,9 @@ class ChatThreadPollView(
         if not newer and not chat_thread.is_archived:
             return HttpResponse(status=204)
 
-        is_disputed = (
-            chat_thread.transaction_id is not None
-            and ChatThread.objects.filter(
-                pk=chat_thread.pk,
-                transaction__status=TransactionStatus.DISPUTED,
-            ).exists()
-        )
+        # get_object() read this thread fresh, so its status is current: a
+        # dispute raised or resolved mid-conversation reaches the reader here.
+        status_label, status_kind = conversation_status(chat_thread)
 
         # An archived thread is finished; nobody can write to it again, so hand
         # over whatever the reader is missing and shut the poller down.
@@ -355,7 +351,8 @@ class ChatThreadPollView(
             {
                 "chat_thread": chat_thread,
                 "chat_messages": newer,
-                "is_disputed": is_disputed,
+                "conversation_status_label": status_label,
+                "conversation_status_kind": status_kind,
                 "viewer": get_authenticated_user(request),
             },
             status=286 if chat_thread.is_archived else 200,

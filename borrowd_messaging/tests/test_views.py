@@ -450,7 +450,7 @@ class ChatThreadPollViewTests(MessagingTestCase):
         self.assertContains(response, "Saturday works.")
         self.assertLess(body.index("Free Saturday?"), body.index("Saturday works."))
 
-    def test_poll_adds_the_dispute_badge(self) -> None:
+    def test_poll_refreshes_the_status_when_a_dispute_is_raised(self) -> None:
         seen = self.send(self.borrower, "Free Saturday?")
         self.dispute()
         self.client.force_login(self.borrower)
@@ -460,11 +460,13 @@ class ChatThreadPollViewTests(MessagingTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Disputed")
         self.assertEqual(
-            _element_attributes(response, "chat-dispute-indicator").get("hx-swap-oob"),
+            _element_attributes(response, "chat-conversation-status").get(
+                "hx-swap-oob"
+            ),
             "true",
         )
 
-    def test_final_poll_removes_the_dispute_badge(self) -> None:
+    def test_final_poll_replaces_the_status_with_the_archive_reason(self) -> None:
         transaction = self.dispute()
         dispute_notice = Message.objects.filter(thread=self.thread).latest("pk")
         transaction.status = TransactionStatus.RETURNED
@@ -476,10 +478,13 @@ class ChatThreadPollViewTests(MessagingTestCase):
 
         self.assertEqual(response.status_code, 286)
         self.assertEqual(
-            _element_attributes(response, "chat-dispute-indicator").get("hx-swap-oob"),
+            _element_attributes(response, "chat-conversation-status").get(
+                "hx-swap-oob"
+            ),
             "true",
         )
         self.assertNotContains(response, "Disputed", status_code=286)
+        self.assertContains(response, "Returned", status_code=286)
 
     def test_archiving_delivers_notice_replaces_composer_and_stops_poller(
         self,
@@ -669,7 +674,7 @@ class ChatThreadCloseButtonTests(MessagingTestCase):
 
 
 @override_settings(MESSAGING_ENABLED=True)
-class DisputeBadgeTests(MessagingTestCase):
+class ConversationStatusTests(MessagingTestCase):
     def setUp(self) -> None:
         super().setUp()
         self.thread = self.make_thread()
@@ -681,7 +686,7 @@ class DisputeBadgeTests(MessagingTestCase):
         transaction.save()
         self.thread.refresh_from_db()
 
-    def test_disputed_thread_shows_the_badge(self) -> None:
+    def test_disputed_thread_shows_the_disputed_status(self) -> None:
         self.dispute()
         self.client.force_login(self.borrower)
 
@@ -698,12 +703,26 @@ class DisputeBadgeTests(MessagingTestCase):
 
         self.assertEqual(response.status_code, 200)
 
-    def test_ordinary_transaction_has_no_badge(self) -> None:
+    def test_ordinary_transaction_reads_as_active(self) -> None:
         self.make_transaction()
         self.thread.refresh_from_db()
         self.client.force_login(self.borrower)
 
-        self.assertNotContains(self.client.get(self.url), "Disputed")
+        response = self.client.get(self.url)
+
+        self.assertContains(response, "Active")
+        self.assertNotContains(response, "Disputed")
+
+    def test_thread_without_a_request_reads_as_pre_request(self) -> None:
+        self.client.force_login(self.borrower)
+
+        self.assertContains(self.client.get(self.url), "Pre-request")
+
+    def test_archived_thread_shows_its_archive_reason(self) -> None:
+        MessagingService.archive_thread(self.thread, ArchiveReason.CLOSED)
+        self.client.force_login(self.borrower)
+
+        self.assertContains(self.client.get(self.url), "Closed")
 
 
 @override_settings(MESSAGING_ENABLED=True)
