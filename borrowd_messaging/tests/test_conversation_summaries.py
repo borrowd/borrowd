@@ -382,11 +382,31 @@ class ParticipantConversationSummaryTests(MessagingTestCase):
             summaries = build_conversation_summaries(archived[:25], self.borrower)
         self.assertEqual(len(summaries), 25)
 
-    def test_item_history_does_not_pay_for_unused_unread_annotation(self) -> None:
-        self.make_thread()
-        query = threads_for_item(self.item, self.borrower)
+    def test_both_entry_points_use_the_same_unread_definition(self) -> None:
+        thread = self.make_thread()
+        notice = MessagingService.post_system_message(thread, "An update.")
 
-        self.assertNotIn("has_unread_messages", str(query.query))
+        for threads in (
+            participant_conversation_threads(self.borrower),
+            threads_for_item(self.item, self.borrower),
+        ):
+            self.assertTrue(
+                build_conversation_summaries(threads, self.borrower)[
+                    0
+                ].has_unread_messages
+            )
+
+        mark_thread_read(thread, self.borrower, through_message_id=notice.pk)
+
+        for threads in (
+            participant_conversation_threads(self.borrower),
+            threads_for_item(self.item, self.borrower),
+        ):
+            self.assertFalse(
+                build_conversation_summaries(threads, self.borrower)[
+                    0
+                ].has_unread_messages
+            )
 
 
 @override_settings(MESSAGING_ENABLED=True, MEDIA_ROOT=mkdtemp())
@@ -421,7 +441,7 @@ class HubConversationSummaryTests(MessagingTestCase):
         self.assertEqual(card.conversation.thread_id, thread.pk)
         self.assertEqual(card.item_name, self.item.name)
         self.assertEqual(card.item_thumbnail_url, photo.thumbnail.url)
-        self.assertTrue(card.has_unread_messages)
+        self.assertTrue(card.conversation.has_unread_messages)
 
     def test_acknowledged_conversation_is_not_marked_unread(self) -> None:
         thread = self.make_thread()
@@ -430,7 +450,9 @@ class HubConversationSummaryTests(MessagingTestCase):
         )
         mark_thread_read(thread, self.borrower, through_message_id=message.pk)
 
-        self.assertFalse(self.hub_cards(self.borrower)[0].has_unread_messages)
+        card = self.hub_cards(self.borrower)[0]
+
+        self.assertFalse(card.conversation.has_unread_messages)
 
     def test_a_soft_deleted_item_leaves_the_name_and_thumbnail_empty(self) -> None:
         self.make_thread()
@@ -497,7 +519,6 @@ class HubConversationSummaryTests(MessagingTestCase):
                     "show_item": True,
                     "item_name": card.item_name,
                     "item_thumbnail_url": card.item_thumbnail_url,
-                    "has_unread": card.has_unread_messages,
                 },
             )
 
@@ -522,4 +543,3 @@ class HubConversationSummaryTests(MessagingTestCase):
 
         self.assertIn("This item is no longer available.", html)
         self.assertNotIn(self.item.name, html)
-        self.assertNotIn("Unread.", html)
