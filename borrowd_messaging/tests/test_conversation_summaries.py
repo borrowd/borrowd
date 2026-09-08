@@ -1,12 +1,18 @@
 from datetime import timedelta
+from io import BytesIO
+from tempfile import mkdtemp
 
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.template.loader import render_to_string
 from django.test import override_settings
 from django.utils import timezone
+from PIL import Image
 
-from borrowd_items.models import ListingType, TransactionStatus
+from borrowd_items.models import Item, ItemPhoto, ListingType, TransactionStatus
 from borrowd_messaging.conversation_summaries import (
+    HubConversationSummary,
     build_conversation_summaries,
+    build_hub_conversation_summaries,
     participant_conversation_threads,
     threads_for_item,
 )
@@ -197,7 +203,7 @@ class ParticipantConversationSummaryTests(MessagingTestCase):
         with self.assertRaises(NotThreadParticipant):
             build_conversation_summaries([thread], outsider)
 
-    def test_query_is_lazy_and_loads_summary_relations_in_one_query(self) -> None:
+    def test_query_is_lazy_and_loads_summary_relations_with_item_photos(self) -> None:
         transaction = self.make_transaction(status=TransactionStatus.DISPUTED)
         thread = ChatThread.objects.get(transaction=transaction)
         Message.objects.create(
@@ -208,7 +214,8 @@ class ParticipantConversationSummaryTests(MessagingTestCase):
 
         with self.assertNumQueries(0):
             query = participant_conversation_threads(self.borrower)
-        with self.assertNumQueries(1):
+        # One row query, plus one prefetch for the loaded Items' photos.
+        with self.assertNumQueries(2):
             threads = list(query)
             summaries = build_conversation_summaries(threads, self.borrower)
             for loaded in threads:
@@ -370,7 +377,8 @@ class ParticipantConversationSummaryTests(MessagingTestCase):
         self.assertEqual(list(query.filter(archived_at__isnull=True)), [active])
         archived = query.filter(archived_at__isnull=False)
         self.assertEqual(archived.count(), 26)
-        with self.assertNumQueries(1):
+        # The photo prefetch follows the slice, so it stays one page wide.
+        with self.assertNumQueries(2):
             summaries = build_conversation_summaries(archived[:25], self.borrower)
         self.assertEqual(len(summaries), 25)
 
@@ -379,3 +387,139 @@ class ParticipantConversationSummaryTests(MessagingTestCase):
         query = threads_for_item(self.item, self.borrower)
 
         self.assertNotIn("has_unread_messages", str(query.query))
+
+
+@override_settings(MESSAGING_ENABLED=True, MEDIA_ROOT=mkdtemp())
+class HubConversationSummaryTests(MessagingTestCase):
+    """The extra Item context and unread state the Messages hub cards show."""
+
+    def add_photo(self, item: Item) -> ItemPhoto:
+        image = Image.new("RGB", (40, 40), color="red")
+        content = BytesIO()
+        image.save(content, format="JPEG")
+        return ItemPhoto.objects.create(
+            item=item,
+            image=SimpleUploadedFile(
+                name="photo.jpg", content=content.getvalue(), content_type="image/jpeg"
+            ),
+            created_by=self.lender,
+            updated_by=self.lender,
+        )
+
+    def hub_cards(self, viewer: BorrowdUser) -> list[HubConversationSummary]:
+        return build_hub_conversation_summaries(
+            participant_conversation_threads(viewer), viewer
+        )
+
+    def test_card_carries_the_item_name_thumbnail_and_unread_state(self) -> None:
+        thread = self.make_thread()
+        photo = self.add_photo(self.item)
+        Message.objects.create(thread=thread, sender=self.lender, body="Hello")
+
+        card = self.hub_cards(self.borrower)[0]
+
+        self.assertEqual(card.conversation.thread_id, thread.pk)
+        self.assertEqual(card.item_name, self.item.name)
+        self.assertEqual(card.item_thumbnail_url, photo.thumbnail.url)
+        self.assertTrue(card.has_unread_messages)
+
+    def test_acknowledged_conversation_is_not_marked_unread(self) -> None:
+        thread = self.make_thread()
+        message = Message.objects.create(
+            thread=thread, sender=self.lender, body="Hello"
+        )
+        mark_thread_read(thread, self.borrower, through_message_id=message.pk)
+
+        self.assertFalse(self.hub_cards(self.borrower)[0].has_unread_messages)
+
+    def test_a_soft_deleted_item_leaves_the_name_and_thumbnail_empty(self) -> None:
+        self.make_thread()
+        self.add_photo(self.item)
+        self.item.soft_delete(deleted_by=self.lender)
+
+        card = self.hub_cards(self.borrower)[0]
+
+        self.assertIsNone(card.item_name)
+        self.assertIsNone(card.item_thumbnail_url)
+
+    def test_a_hard_deleted_item_leaves_the_name_and_thumbnail_empty(self) -> None:
+        self.make_thread()
+        self.add_photo(self.item)
+        self.item.delete()
+
+        card = self.hub_cards(self.borrower)[0]
+
+        self.assertIsNone(card.item_name)
+        self.assertIsNone(card.item_thumbnail_url)
+
+    def test_an_item_without_a_photo_still_names_the_item(self) -> None:
+        self.make_thread()
+
+        card = self.hub_cards(self.borrower)[0]
+
+        self.assertEqual(card.item_name, self.item.name)
+        self.assertIsNone(card.item_thumbnail_url)
+
+    def test_a_missing_photo_file_does_not_break_the_card(self) -> None:
+        self.make_thread()
+        photo = self.add_photo(self.item)
+        photo.image.storage.delete(photo.image.name)
+
+        card = self.hub_cards(self.borrower)[0]
+
+        self.assertEqual(card.item_name, self.item.name)
+        self.assertIsNone(card.item_thumbnail_url)
+
+    def test_cards_load_their_photos_without_a_query_per_row(self) -> None:
+        for name in ("Ladder", "Projector", "Saw"):
+            item = self.make_item(name=name)
+            self.add_photo(item)
+            self.make_thread(item=item)
+        query = participant_conversation_threads(self.borrower)
+
+        # One row query and one photo prefetch, however many rows there are.
+        with self.assertNumQueries(2):
+            cards = build_hub_conversation_summaries(query, self.borrower)
+
+        self.assertEqual(len(cards), 3)
+        self.assertTrue(all(card.item_thumbnail_url for card in cards))
+
+    def test_card_template_shows_the_item_context_and_the_unread_mark(self) -> None:
+        thread = self.make_thread()
+        Message.objects.create(thread=thread, sender=self.lender, body="Hello")
+        card = self.hub_cards(self.borrower)[0]
+
+        with self.assertNumQueries(0):
+            html = render_to_string(
+                "messaging/_thread_summary_card.html",
+                {
+                    "summary": card.conversation,
+                    "show_item": True,
+                    "item_name": card.item_name,
+                    "item_thumbnail_url": card.item_thumbnail_url,
+                    "has_unread": card.has_unread_messages,
+                },
+            )
+
+        self.assertIn(self.item.name, html)
+        self.assertIn("Unread.", html)
+        self.assertNotIn("This item is no longer available.", html)
+
+    def test_card_template_names_a_removed_item_in_its_place(self) -> None:
+        self.make_thread()
+        self.item.soft_delete(deleted_by=self.lender)
+        card = self.hub_cards(self.borrower)[0]
+
+        html = render_to_string(
+            "messaging/_thread_summary_card.html",
+            {
+                "summary": card.conversation,
+                "show_item": True,
+                "item_name": card.item_name,
+                "item_thumbnail_url": card.item_thumbnail_url,
+            },
+        )
+
+        self.assertIn("This item is no longer available.", html)
+        self.assertNotIn(self.item.name, html)
+        self.assertNotIn("Unread.", html)
