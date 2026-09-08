@@ -88,24 +88,33 @@ def build_hub_conversation_summaries(
     summaries = build_conversation_summaries(loaded, viewer)
     cards: list[HubConversationSummary] = []
     for thread, summary in zip(loaded, summaries, strict=True):
-        item = thread.item if _is_available(thread.item) else None
+        item = available_item(thread)
         cards.append(
             HubConversationSummary(
                 conversation=summary,
                 item_name=item.name if item is not None else None,
-                item_thumbnail_url=_thumbnail_url(item),
+                item_thumbnail_url=item_thumbnail_url(item),
             )
         )
     return cards
 
 
-def _is_available(item: Item | None) -> bool:
-    """A hard-deleted Item leaves no link; a soft-deleted one is still linked."""
-    return item is not None and item.deleted_at is None
+def available_item(thread: ChatThread) -> Item | None:
+    """The conversation's Item while it still exists.
+
+    A hard-deleted Item leaves no link; a soft-deleted one is still linked.
+    Neither has anything left to show.
+    """
+    item = thread.item
+    return item if item is not None and item.deleted_at is None else None
 
 
-def _thumbnail_url(item: Item | None) -> str | None:
-    """Read the prefetched first photo. A missing file must not break the page."""
+def item_thumbnail_url(item: Item | None) -> str | None:
+    """Read the Item's first photo. A missing file must not break the page.
+
+    Callers listing many Items should prefetch photos; one Item costs one query
+    either way.
+    """
     if item is None:
         return None
     photo = next(iter(item.photos.all()), None)

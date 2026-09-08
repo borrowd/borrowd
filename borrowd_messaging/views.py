@@ -8,6 +8,7 @@ from django.db.models import Q, QuerySet
 from django.http import HttpRequest, HttpResponse, HttpResponseBadRequest
 from django.shortcuts import redirect, render
 from django.template.loader import render_to_string
+from django.urls import reverse
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import ensure_csrf_cookie
@@ -21,7 +22,9 @@ from borrowd_users.models import BorrowdUser
 from borrowd_users.request import get_authenticated_user
 
 from .conversation_summaries import (
+    available_item,
     build_hub_conversation_summaries,
+    item_thumbnail_url,
     participant_conversation_threads,
 )
 from .exceptions import (
@@ -150,7 +153,25 @@ class ChatThreadDetailView(
             transaction is not None and transaction.status == TransactionStatus.DISPUTED
         )
         context["pre_request_action"] = self._pre_request_action(chat_thread, user)
+        context.update(self._item_preview(chat_thread, user))
         return context
+
+    @staticmethod
+    def _item_preview(
+        chat_thread: ChatThread,
+        user: BorrowdUser,
+    ) -> dict[str, Any]:
+        """The Item context pinned above the conversation."""
+        item = available_item(chat_thread)
+        return {
+            "item_name": item.name if item is not None else None,
+            "item_thumbnail_url": item_thumbnail_url(item),
+            # A participant who left the Item's group keeps the conversation but
+            # not the Item page, so only link somewhere they may actually go.
+            "item_url": reverse("item-detail", args=[item.pk])
+            if item is not None and user.has_perm(ItemOLP.VIEW, item)
+            else None,
+        }
 
     @staticmethod
     def _pre_request_action(

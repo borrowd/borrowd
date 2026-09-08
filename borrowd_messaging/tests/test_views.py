@@ -1,16 +1,21 @@
 from datetime import timedelta
 from html.parser import HTMLParser
+from io import BytesIO
+from tempfile import mkdtemp
 from typing import Any, Protocol
 from unittest.mock import patch
 
 from django.core.exceptions import PermissionDenied
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import connection
 from django.test import override_settings
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
+from guardian.shortcuts import assign_perm, remove_perm
+from PIL import Image
 
-from borrowd_items.models import Transaction, TransactionStatus
+from borrowd_items.models import ItemPhoto, Transaction, TransactionStatus
 from borrowd_messaging.models import (
     MESSAGE_BODY_MAX_LENGTH,
     ArchiveReason,
@@ -25,6 +30,7 @@ from borrowd_messaging.views import (
     ChatThreadPreRequestCloseView,
     ChatThreadSendView,
 )
+from borrowd_permissions.models import ItemOLP
 from borrowd_users.models import BorrowdUser
 
 from .base import MessagingTestCase
@@ -926,3 +932,81 @@ class ChatThreadListViewTests(MessagingTestCase):
         self.assertNotContains(
             self.client.get(reverse("item-list")), reverse("chat-thread-list")
         )
+
+
+@override_settings(MESSAGING_ENABLED=True, MEDIA_ROOT=mkdtemp())
+class ConversationItemPreviewTests(MessagingTestCase):
+    """The Item card pinned above a conversation."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        self.thread = self.make_thread()
+        self.url = reverse("chat-thread-detail", args=[self.thread.pk])
+        assign_perm(ItemOLP.VIEW, self.borrower, self.item)
+
+    def add_photo(self) -> ItemPhoto:
+        image = Image.new("RGB", (40, 40), color="red")
+        content = BytesIO()
+        image.save(content, format="JPEG")
+        return ItemPhoto.objects.create(
+            item=self.item,
+            image=SimpleUploadedFile(
+                name="photo.jpg", content=content.getvalue(), content_type="image/jpeg"
+            ),
+            created_by=self.lender,
+            updated_by=self.lender,
+        )
+
+    def test_preview_names_the_item_and_links_to_its_page(self) -> None:
+        photo = self.add_photo()
+        self.client.force_login(self.borrower)
+
+        response = self.client.get(self.url)
+
+        self.assertContains(response, self.item.name)
+        self.assertContains(response, photo.thumbnail.url)
+        self.assertContains(response, reverse("item-detail", args=[self.item.pk]))
+
+    def test_preview_shows_the_other_participant(self) -> None:
+        self.client.force_login(self.borrower)
+
+        self.assertContains(self.client.get(self.url), self.lender.profile.full_name())
+
+    def test_an_item_without_a_photo_still_renders(self) -> None:
+        self.client.force_login(self.borrower)
+
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, self.item.name)
+
+    def test_a_removed_item_says_so_and_offers_no_link(self) -> None:
+        self.item.soft_delete(deleted_by=self.lender)
+        self.client.force_login(self.borrower)
+
+        response = self.client.get(self.url)
+
+        self.assertContains(response, "This item is no longer available.")
+        self.assertNotContains(response, reverse("item-detail", args=[self.item.pk]))
+
+    def test_a_viewer_who_lost_item_access_keeps_the_name_without_a_link(self) -> None:
+        remove_perm(ItemOLP.VIEW, self.borrower, self.item)
+        self.client.force_login(self.borrower)
+
+        response = self.client.get(self.url)
+
+        self.assertContains(response, self.item.name)
+        self.assertNotContains(response, reverse("item-detail", args=[self.item.pk]))
+
+    def test_the_preview_costs_no_query_per_photo(self) -> None:
+        self.add_photo()
+        self.client.force_login(self.borrower)
+        with CaptureQueriesContext(connection) as one_photo:
+            self.client.get(self.url)
+
+        for _ in range(4):
+            self.add_photo()
+        with CaptureQueriesContext(connection) as many_photos:
+            self.client.get(self.url)
+
+        self.assertEqual(len(many_photos), len(one_photo))
