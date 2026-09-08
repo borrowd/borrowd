@@ -7,7 +7,9 @@ from django.db.models import Max, Q, QuerySet
 from django.db.models.functions import Coalesce
 from django.http import HttpRequest, HttpResponse, HttpResponseBadRequest
 from django.shortcuts import redirect, render
+from django.template.loader import render_to_string
 from django.utils.decorators import method_decorator
+from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.generic import DetailView, ListView, View
 
@@ -28,7 +30,7 @@ from .exceptions import (
 )
 from .mixins import MessagingEnabledMixin
 from .models import MESSAGE_BODY_MAX_LENGTH, ChatThread
-from .read_state import mark_thread_read
+from .read_state import mark_thread_read, unread_threads_for
 from .services import MessagingService
 
 _INVALID_CURSOR_MESSAGE = "`after` must be a message id from this conversation."
@@ -167,6 +169,23 @@ class ChatThreadDetailView(
             if request_action in actions:
                 return request_action
         return None
+
+
+@method_decorator(never_cache, name="dispatch")
+class ChatThreadUnreadBadgeView(MessagingEnabledMixin, LoginRequiredMixin, View):
+    """Return only the viewer's badge contents, without page context processors."""
+
+    http_method_names = ["get"]
+    # A fragment request must not swap a redirected login page into the menu.
+    raise_exception = True
+
+    def get(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
+        count = unread_threads_for(get_authenticated_user(request)).count()
+        return HttpResponse(
+            render_to_string(
+                "messaging/_unread_badge.html", {"unread_conversation_count": count}
+            )
+        )
 
 
 class ChatThreadReadView(
