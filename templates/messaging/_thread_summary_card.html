@@ -1,4 +1,4 @@
-{% load heroicons %}
+{% load static %}
 
 {% comment %}
 Parameters:
@@ -6,20 +6,17 @@ Parameters:
 - show_item: Optional flag adding the Item thumbnail and name. Item pages are
   already scoped to one Item, so they leave it off.
 - item_name: Item name, or empty when the Item has been removed
-- item_thumbnail_url: first Item photo, or empty when there is none to show
+- item_thumbnail_url: first Item photo; the shared Item placeholder stands in
 {% endcomment %}
 
 <a href="{% url 'chat-thread-detail' summary.thread_id %}"
    class="flex items-center gap-3 rounded-xl border border-base-300 bg-base-100 p-3 transition hover:border-base-content/30 hover:bg-base-200/50">
     {% if show_item %}
-        {% if item_thumbnail_url %}
-            <img src="{{ item_thumbnail_url }}"
-                 alt="{{ item_name }}"
-                 class="h-12 w-12 shrink-0 rounded-lg object-cover" />
-        {% else %}
-            <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-base-200 text-base-content/40"
-                  aria-hidden="true">{% heroicon_outline "photo" class="size-6" %}</span>
-        {% endif %}
+        {% static 'items/categories/logo-tools.png' as fallback_image %}
+        <img src="{{ item_thumbnail_url|default:fallback_image }}"
+             alt="{{ item_name|default:'Item image' }}"
+             loading="lazy"
+             class="h-12 w-12 shrink-0 rounded-lg object-cover" />
     {% endif %}
 
     <c-avatar class="h-12 w-12 shrink-0 rounded-full"
