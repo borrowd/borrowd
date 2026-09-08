@@ -177,7 +177,7 @@ def build_conversation_summaries(
                 f"User {viewer.pk} is not a participant of ChatThread {thread.pk}."
             )
 
-        status_label, status_kind = _conversation_status(thread)
+        status_label, status_kind = conversation_status(thread)
         summaries.append(
             ConversationSummary(
                 thread_id=thread.pk,
@@ -203,9 +203,10 @@ def build_conversation_summaries(
     return summaries
 
 
-def _conversation_status(
+def conversation_status(
     thread: ChatThread,
 ) -> tuple[str, ConversationStatusKind]:
+    """Where this conversation stands, as a label and a kind for styling."""
     if thread.is_archived:
         reason = thread.archive_reason
         return (

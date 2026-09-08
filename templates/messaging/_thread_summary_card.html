@@ -37,9 +37,8 @@ Parameters:
                 {% endif %}
                 {{ summary.other_participant.profile.full_name }}
             </span>
-            <span class="badge badge-sm shrink-0 {% if summary.status_kind == 'active' %}badge-success badge-soft{% elif summary.status_kind == 'disputed' %}badge-warning badge-soft{% elif summary.status_kind == 'prerequest' %}badge-info badge-soft{% else %}badge-ghost{% endif %}">
-                {{ summary.status_label }}
-            </span>
+            {% include "messaging/_status_badge.html" with status_label=summary.status_label status_kind=summary.status_kind only %}
+
         </span>
 
         {% if show_item %}
