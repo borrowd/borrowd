@@ -179,6 +179,33 @@ class ChatThreadReadViewTests(MessagingTestCase):
         self.assertIsNone(self.thread.borrower_last_read_message_id)
         self.assertTrue(unread_threads_for(self.borrower).exists())
 
+    def test_closing_notice_needs_acknowledgment_even_from_the_person_who_closed(
+        self,
+    ) -> None:
+        response = self.client.post(
+            reverse("chat-thread-pre-request-close", args=[self.thread.pk])
+        )
+        self.assertEqual(response.status_code, 302)
+        notice = self.thread.messages.latest("pk")
+        self.assertTrue(notice.is_system)
+
+        detail = self.client.get(reverse("chat-thread-detail", args=[self.thread.pk]))
+        self.assertContains(detail, f'id="message-{notice.pk}"')
+        self.client.post(self.url, {"through": self.message.pk})
+        for viewer in (self.borrower, self.lender):
+            self.assertTrue(unread_threads_for(viewer).exists())
+
+        for viewer in (self.borrower, self.lender):
+            with self.subTest(viewer=viewer.pk):
+                self.client.force_login(viewer)
+                self.assertEqual(
+                    self.client.post(self.url, {"through": notice.pk}).status_code,
+                    204,
+                )
+                self.assertFalse(unread_threads_for(viewer).exists())
+                if viewer == self.borrower:
+                    self.assertTrue(unread_threads_for(self.lender).exists())
+
     def test_archived_detail_supplies_csrf_cookie_and_endpoint(self) -> None:
         MessagingService.archive_thread(self.thread, ArchiveReason.CLOSED)
         client = Client(enforce_csrf_checks=True)
