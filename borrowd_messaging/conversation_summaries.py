@@ -46,12 +46,15 @@ class ConversationSummary:
 class HubConversationSummary:
     """A conversation summary plus the Item context the hub shows beside it.
 
-    A null item_name means the Item is gone; the template supplies the copy.
+    A removed Item keeps its name and photo: Items are soft-deleted, so the row
+    is still there to read. A null item_name means the Item row itself is gone,
+    and the template supplies the copy.
     """
 
     conversation: ConversationSummary
     item_name: str | None
     item_thumbnail_url: str | None
+    item_removed: bool
 
 
 def threads_for_item(
@@ -88,25 +91,34 @@ def build_hub_conversation_summaries(
     summaries = build_conversation_summaries(loaded, viewer)
     cards: list[HubConversationSummary] = []
     for thread, summary in zip(loaded, summaries, strict=True):
-        item = available_item(thread)
+        item = thread.item
         cards.append(
             HubConversationSummary(
                 conversation=summary,
                 item_name=item.name if item is not None else None,
                 item_thumbnail_url=item_thumbnail_url(item),
+                item_removed=is_removed(thread),
             )
         )
     return cards
 
 
-def available_item(thread: ChatThread) -> Item | None:
-    """The conversation's Item while it still exists.
+def listed_item(thread: ChatThread) -> Item | None:
+    """The conversation's Item while it is still listed.
 
-    A hard-deleted Item leaves no link; a soft-deleted one is still linked.
-    Neither has anything left to show.
+    Only a listed Item has a page to link to; a removed one 404s.
     """
     item = thread.item
     return item if item is not None and item.deleted_at is None else None
+
+
+def is_removed(thread: ChatThread) -> bool:
+    """Whether the Item is soft-deleted but still readable.
+
+    Items are soft-deleted, so a removed Item keeps its name and photo. Only a
+    hard delete leaves nothing, and that clears the link instead.
+    """
+    return thread.item is not None and thread.item.deleted_at is not None
 
 
 def item_thumbnail_url(item: Item | None) -> str | None:
