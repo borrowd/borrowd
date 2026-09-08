@@ -3,8 +3,7 @@ from typing import Any
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied
-from django.db.models import Max, Q, QuerySet
-from django.db.models.functions import Coalesce
+from django.db.models import Q, QuerySet
 from django.http import HttpRequest, HttpResponse, HttpResponseBadRequest
 from django.shortcuts import redirect, render
 from django.template.loader import render_to_string
@@ -32,6 +31,7 @@ from .mixins import MessagingEnabledMixin
 from .models import MESSAGE_BODY_MAX_LENGTH, ChatThread
 from .read_state import mark_thread_read, unread_threads_for
 from .services import MessagingService
+from .conversation_summaries import participant_conversation_threads
 
 _INVALID_CURSOR_MESSAGE = "`after` must be a message id from this conversation."
 
@@ -376,13 +376,4 @@ class ChatThreadListView(
     context_object_name = "chat_threads"
 
     def get_queryset(self) -> QuerySet[ChatThread]:
-        user = get_authenticated_user(self.request)
-        return (
-            ChatThread.objects.filter(Q(lender=user) | Q(borrower=user))
-            .select_related("item", "lender__profile", "borrower__profile")
-            # Sort on the last message, falling back to creation for threads with no msgs
-            .annotate(
-                last_activity_at=Coalesce(Max("messages__created_at"), "created_at")
-            )
-            .order_by("-last_activity_at", "-pk")
-        )
+        return participant_conversation_threads(get_authenticated_user(self.request))
