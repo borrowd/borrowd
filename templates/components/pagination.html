@@ -13,10 +13,6 @@ Parameters:
   - .previous_page_number: int (if has_previous)
   - .next_page_number: int (if has_next)
 - query_params: Optional dict of query params to preserve (e.g., {"search": "drill", "categories": "3"})
-- page_param: Optional query parameter name, defaults to "page". Give each
-  paginator on a page its own name so they page independently.
-- anchor: Optional fragment to append to every link, so paging one section
-  returns the reader to it.
 
 Usage:
     {% include "components/pagination.html" with page_obj=page_obj query_params=request.GET %}
@@ -25,7 +21,6 @@ Usage:
 {% load pagination_tags %}
 
 {% if page_obj.paginator.num_pages > 1 %}
-    {% firstof page_param "page" as page_key %}
     {% elided_page_range page_obj as page_range %}
     <div class="flex max-w-full justify-center pt-4">
         <div class="join">
@@ -41,7 +36,7 @@ Usage:
                     </span>
                 {% else %}
                     {# Other pages — base-200 styling #}
-                    <a href="?{{ page_key }}={{ page_num }}{% if query_params %}{% for key, values in query_params.lists %}{% if key != page_key %}{% for value in values %}&{{ key }}={{ value }}{% endfor %}{% endif %}{% endfor %}{% endif %}{% if anchor %}#{{ anchor }}{% endif %}"
+                    <a href="?page={{ page_num }}{% if query_params %}{% for key, values in query_params.lists %}{% if key != 'page' %}{% for value in values %}&{{ key }}={{ value }}{% endfor %}{% endif %}{% endfor %}{% endif %}"
                        class="join-item btn btn-sm h-10 min-w-8 bg-base-300 border-base-300 px-2 hover:bg-base-200 shadow-sm text-base-content sm:min-w-[2.5rem]">
                         {{ page_num }}
                     </a>
