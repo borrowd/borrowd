@@ -883,11 +883,15 @@ class ChatThreadListViewTests(MessagingTestCase):
         )
         self.client.force_login(self.borrower)
 
-        self.assertTrue(self.section("active")["cards"][0].has_unread_messages)
+        self.assertTrue(
+            self.section("active")["cards"][0].conversation.has_unread_messages
+        )
 
         mark_thread_read(thread, self.borrower, through_message_id=message.pk)
 
-        self.assertFalse(self.section("active")["cards"][0].has_unread_messages)
+        self.assertFalse(
+            self.section("active")["cards"][0].conversation.has_unread_messages
+        )
 
     def test_page_cost_does_not_grow_with_the_number_of_conversations(self) -> None:
         self.make_active_threads(1)

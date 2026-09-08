@@ -7,7 +7,6 @@ Parameters:
   already scoped to one Item, so they leave it off.
 - item_name: Item name, or empty when the Item has been removed
 - item_thumbnail_url: first Item photo, or empty when there is none to show
-- has_unread: Optional flag marking messages this viewer has not acknowledged
 {% endcomment %}
 
 <a href="{% url 'chat-thread-detail' summary.thread_id %}"
@@ -30,8 +29,8 @@ Parameters:
 
     <span class="min-w-0 grow">
         <span class="flex items-start justify-between gap-2">
-            <span class="truncate {% if has_unread %}font-semibold{% else %}font-medium{% endif %}">
-                {% if has_unread %}
+            <span class="truncate {% if summary.has_unread_messages %}font-semibold{% else %}font-medium{% endif %}">
+                {% if summary.has_unread_messages %}
                     <span class="mr-1 inline-block size-2 rounded-full bg-primary align-middle"
                           aria-hidden="true"></span>
                     <span class="sr-only">Unread.</span>
