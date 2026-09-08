@@ -11,6 +11,7 @@ from borrowd_users.models import BorrowdUser
 
 from .exceptions import NotThreadParticipant
 from .models import ArchiveReason, ChatThread, Message
+from .read_state import threads_with_unread_state
 
 ConversationStatusKind = Literal["active", "archived", "disputed", "prerequest"]
 
@@ -49,19 +50,39 @@ def threads_for_item(
     Each row includes the related data and latest-message values needed by
     build_conversation_summaries.
     """
+    return _with_summary_data(
+        ChatThread.objects.filter(item=item).filter(
+            Q(lender=viewer) | Q(borrower=viewer)
+        )
+    )
+
+
+def participant_conversation_threads(viewer: BorrowdUser) -> QuerySet[ChatThread]:
+    """Return all this participant's threads with summary and unread data loaded."""
+    return _with_summary_data(threads_with_unread_state(viewer)).select_related("item")
+
+
+def _with_summary_data(threads: QuerySet[ChatThread]) -> QuerySet[ChatThread]:
+    """Add message previews and sort conversations by their latest message time.
+
+    Use the highest-ID message for the preview.
+    For conversations without messages, use their creation time.
+    Break equal activity times using the conversation ID, highest first.
+    """
+    # Preview: highest message ID.
     latest_message = Message.objects.filter(thread_id=OuterRef("pk")).order_by("-pk")
+    # Activity date: latest message timestamp.
+    latest_activity = latest_message.order_by("-created_at", "-pk")
 
     return (
-        ChatThread.objects.filter(item=item)
-        .filter(Q(lender=viewer) | Q(borrower=viewer))
-        .select_related(
+        threads.select_related(
             "lender__profile",
             "borrower__profile",
             "transaction",
         )
         .annotate(
             summary_last_message_at=Subquery(
-                latest_message.values("created_at")[:1],
+                latest_activity.values("created_at")[:1],
                 output_field=DateTimeField(),
             ),
             summary_last_message_preview=Subquery(latest_message.values("body")[:1]),
