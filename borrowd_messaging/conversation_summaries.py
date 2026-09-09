@@ -61,7 +61,9 @@ def threads_for_item(
     Each row includes the related data and latest-message values needed by
     build_conversation_summaries.
     """
-    return _with_summary_data(threads_with_unread_state(viewer).filter(item=item))
+    return _prepare_threads_for_summaries(
+        threads_with_unread_state(viewer).filter(item=item)
+    )
 
 
 def threads_for_hub(viewer: BorrowdUser) -> QuerySet[ChatThread]:
@@ -71,7 +73,7 @@ def threads_for_hub(viewer: BorrowdUser) -> QuerySet[ChatThread]:
     evaluating the queryset so photos are fetched for only one page of Items.
     """
     return (
-        _with_summary_data(threads_with_unread_state(viewer))
+        _prepare_threads_for_summaries(threads_with_unread_state(viewer))
         .select_related("item")
         .prefetch_related("item__photos")
     )
@@ -133,13 +135,10 @@ def item_thumbnail_url(item: Item | None) -> str | None:
         return None
 
 
-def _with_summary_data(threads: QuerySet[ChatThread]) -> QuerySet[ChatThread]:
-    """Add message previews and sort conversations by their latest message time.
-
-    Use the highest-ID message for the preview.
-    For conversations without messages, use their creation time.
-    Break equal activity times using the conversation ID, highest first.
-    """
+def _prepare_threads_for_summaries(
+    threads: QuerySet[ChatThread],
+) -> QuerySet[ChatThread]:
+    """Add preview and activity data, then order newest activity first."""
     # Preview: highest message ID.
     latest_message = Message.objects.filter(thread_id=OuterRef("pk")).order_by("-pk")
     # Activity date: latest message timestamp.
