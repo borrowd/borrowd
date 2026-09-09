@@ -31,7 +31,7 @@ class ConversationSummary:
     """The data shared by Item conversation cards and history rows."""
 
     thread_id: int
-    other_party: BorrowdUser
+    other_participant: BorrowdUser
     started_at: datetime
     ended_at: datetime | None
     last_activity_at: datetime
@@ -84,9 +84,9 @@ def build_conversation_summaries(
     summaries: list[ConversationSummary] = []
     for thread in threads:
         if viewer.pk == thread.lender_id:
-            other_party = thread.borrower
+            other_participant = thread.borrower
         elif viewer.pk == thread.borrower_id:
-            other_party = thread.lender
+            other_participant = thread.lender
         else:
             raise NotThreadParticipant(
                 f"User {viewer.pk} is not a participant of ChatThread {thread.pk}."
@@ -96,7 +96,7 @@ def build_conversation_summaries(
         summaries.append(
             ConversationSummary(
                 thread_id=thread.pk,
-                other_party=other_party,
+                other_participant=other_participant,
                 started_at=thread.created_at,
                 ended_at=thread.archived_at,
                 last_activity_at=cast(

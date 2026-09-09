@@ -42,9 +42,9 @@ class ItemConversationSummaryTests(MessagingTestCase):
             summary for summary in summaries if summary.thread_id == first.pk
         )
         with self.assertNumQueries(0):
-            self.assertEqual(first_summary.other_party, self.borrower)
+            self.assertEqual(first_summary.other_participant, self.borrower)
             self.assertEqual(
-                first_summary.other_party.profile.full_name(),
+                first_summary.other_participant.profile.full_name(),
                 self.borrower.profile.full_name(),
             )
             self.assertEqual(
