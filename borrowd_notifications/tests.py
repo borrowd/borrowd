@@ -3209,3 +3209,104 @@ class GroupNeedsModeratorNotificationLinkTests(TestCase):
             recipient=member, verb=NotificationType.GROUP_NEEDS_MODERATOR.value
         )
         self.assertEqual(_notification_action_url(notification), f"/groups/{group.pk}/")
+
+
+class NewMessagePushExclusionTests(TestCase):
+    """Messaging is in-app and email only in v1, enforced server-side."""
+
+    def setUp(self) -> None:
+        self.user = BorrowdUser.objects.create_user(
+            username="push-excluded", email="push-excluded@example.com", password="x"
+        )
+        self.client.force_login(self.user)
+
+    def test_new_message_is_excluded_from_push(self) -> None:
+        self.assertIn(
+            NotificationType.NEW_MESSAGE, NotificationType.push_excluded_types()
+        )
+
+    def test_delivery_never_uses_push_even_if_the_row_says_so(self) -> None:
+        NotificationPreference.objects.update_or_create(
+            user=self.user,
+            notification_type=NotificationType.NEW_MESSAGE.value,
+            defaults={
+                "in_app_enabled": True,
+                "email_enabled": True,
+                "push_enabled": True,
+            },
+        )
+
+        channels = NotificationService._get_enabled_channels(
+            self.user, NotificationType.NEW_MESSAGE
+        )
+
+        self.assertNotIn(ChannelType.PUSH, channels)
+        self.assertEqual(channels, {ChannelType.APP, ChannelType.EMAIL})
+
+    def test_other_types_still_deliver_over_push(self) -> None:
+        NotificationPreference.objects.update_or_create(
+            user=self.user,
+            notification_type=NotificationType.ITEM_REQUEST_ACCEPTED.value,
+            defaults={
+                "in_app_enabled": True,
+                "email_enabled": True,
+                "push_enabled": True,
+            },
+        )
+
+        channels = NotificationService._get_enabled_channels(
+            self.user, NotificationType.ITEM_REQUEST_ACCEPTED
+        )
+
+        self.assertIn(ChannelType.PUSH, channels)
+
+    def test_toggling_push_on_is_refused(self) -> None:
+        response = self.client.post(
+            reverse("notification-toggle"),
+            {
+                "notification_type": NotificationType.NEW_MESSAGE.value,
+                "channel": ChannelType.PUSH.value,
+                "enabled": "true",
+            },
+        )
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_app_and_email_toggles_still_work(self) -> None:
+        for channel in (ChannelType.APP, ChannelType.EMAIL):
+            with self.subTest(channel=channel):
+                response = self.client.post(
+                    reverse("notification-toggle"),
+                    {
+                        "notification_type": NotificationType.NEW_MESSAGE.value,
+                        "channel": channel.value,
+                        "enabled": "false",
+                    },
+                )
+
+                self.assertEqual(response.status_code, 204)
+
+    def test_bulk_push_skips_the_excluded_type(self) -> None:
+        response = self.client.post(
+            reverse("notification-bulk-toggle"),
+            {"scope": "master", "channel": ChannelType.PUSH.value, "enabled": "true"},
+        )
+
+        self.assertEqual(response.status_code, 204)
+        pref = NotificationPreference.objects.get(
+            user=self.user, notification_type=NotificationType.NEW_MESSAGE.value
+        )
+        self.assertFalse(pref.push_enabled)
+
+    def test_the_page_offers_no_push_toggle_for_messages(self) -> None:
+        response = self.client.get(reverse("notification-preferences"))
+
+        messages_type = next(
+            type_ctx
+            for category in response.context["categories"]
+            for type_ctx in category["types"]
+            if type_ctx["type_value"] == NotificationType.NEW_MESSAGE.value
+        )
+        self.assertFalse(messages_type["supports_push"])
+        self.assertTrue(messages_type["app_enabled"])
+        self.assertTrue(messages_type["email_enabled"])
