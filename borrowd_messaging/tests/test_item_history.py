@@ -78,9 +78,7 @@ class ItemConversationPreviewTests(MessagingTestCase):
         assign_perm(ItemOLP.VIEW, viewer, self.item)
         self.client.force_login(viewer)
 
-        with patch(
-            "borrowd_items.views.threads_for_item"
-        ) as conversation_threads:
+        with patch("borrowd_items.views.threads_for_item") as conversation_threads:
             self.client.get(self.url)
 
         conversation_threads.assert_not_called()
