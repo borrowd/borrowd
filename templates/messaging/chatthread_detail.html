@@ -22,9 +22,7 @@
 
         </div>
 
-        <ul id="chat-messages"
-            class="mt-4 flex flex-col gap-1"
-            data-read-url="{% url 'chat-thread-read' chat_thread.pk %}">
+        <ul id="chat-messages" class="mt-4 flex flex-col gap-1">
             {% include "messaging/_messages.html" with chat_messages=chat_messages viewer=user %}
 
         </ul>
