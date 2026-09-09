@@ -225,6 +225,55 @@ class SendMessageTests(MessagingTestCase):
         dispatch.assert_called_once_with(message)
 
 
+@override_settings(MESSAGING_ENABLED=False)
+class AttachExistingPreRequestThreadTests(MessagingTestCase):
+    def test_attaches_an_existing_conversation(self) -> None:
+        transaction = self.make_transaction()
+        thread = self.make_thread()
+
+        attached = MessagingService.attach_existing_prerequest_thread_to(transaction)
+
+        self.assertEqual(attached, thread)
+        thread.refresh_from_db()
+        self.assertEqual(thread.transaction, transaction)
+
+    def test_returns_none_without_creating_a_conversation(self) -> None:
+        transaction = self.make_transaction()
+
+        attached = MessagingService.attach_existing_prerequest_thread_to(transaction)
+
+        self.assertIsNone(attached)
+        self.assertEqual(ChatThread.objects.count(), 0)
+
+    def test_returns_a_conversation_already_attached_to_the_transaction(self) -> None:
+        transaction = self.make_transaction()
+        thread = self.make_thread(transaction=transaction)
+
+        first = MessagingService.attach_existing_prerequest_thread_to(transaction)
+        second = MessagingService.attach_existing_prerequest_thread_to(transaction)
+
+        self.assertEqual(first, thread)
+        self.assertEqual(second, thread)
+        self.assertEqual(ChatThread.objects.count(), 1)
+
+    def test_losing_a_claim_race_does_not_create_a_conversation(self) -> None:
+        winner = self.make_transaction()
+        loser = self.make_transaction()
+        thread = self.make_thread()
+        stale = ChatThread.objects.get(pk=thread.pk)
+        ChatThread.objects.filter(pk=thread.pk).update(transaction=winner)
+
+        with patch.object(
+            MessagingService, "_active_prerequest_thread", return_value=stale
+        ):
+            attached = MessagingService.attach_existing_prerequest_thread_to(loser)
+
+        self.assertIsNone(attached)
+        self.assertEqual(ChatThread.objects.count(), 1)
+        thread.refresh_from_db()
+        self.assertEqual(thread.transaction, winner)
+
+
 @override_settings(MESSAGING_ENABLED=True)
 class AttachThreadToTransactionTests(MessagingTestCase):
     def test_carries_an_existing_conversation_forward(self) -> None:
@@ -442,6 +491,45 @@ class ThreadArchivalTests(MessagingTestCase):
         for thread in (self.thread, other_thread):
             thread.refresh_from_db()
             self.assertEqual(thread.archive_reason, ArchiveReason.ITEM_UNAVAILABLE)
+
+    def test_archives_prerequest_and_transaction_threads_for_an_item(self) -> None:
+        transaction = self.make_transaction()
+        prerequest_thread = self.make_thread(borrower=self.make_user("other"))
+
+        MessagingService.archive_open_threads_for_item(
+            self.item, ArchiveReason.ITEM_DELETED
+        )
+
+        self.thread.refresh_from_db()
+        prerequest_thread.refresh_from_db()
+        self.assertEqual(self.thread.transaction, transaction)
+        self.assertEqual(self.thread.archive_reason, ArchiveReason.ITEM_DELETED)
+        self.assertEqual(prerequest_thread.archive_reason, ArchiveReason.ITEM_DELETED)
+
+    def test_archiving_an_item_leaves_other_item_conversations_open(self) -> None:
+        other_item = self.make_item(name="Saw")
+        other_thread = self.make_thread(item=other_item)
+
+        MessagingService.archive_open_threads_for_item(
+            self.item, ArchiveReason.ITEM_DELETED
+        )
+
+        self.thread.refresh_from_db()
+        other_thread.refresh_from_db()
+        self.assertEqual(self.thread.archive_reason, ArchiveReason.ITEM_DELETED)
+        self.assertFalse(other_thread.is_archived)
+
+    def test_archiving_an_item_twice_posts_one_notice(self) -> None:
+        MessagingService.archive_open_threads_for_item(
+            self.item, ArchiveReason.ITEM_DELETED
+        )
+        MessagingService.archive_open_threads_for_item(
+            self.item, ArchiveReason.CANCELLED
+        )
+
+        self.thread.refresh_from_db()
+        self.assertEqual(self.thread.archive_reason, ArchiveReason.ITEM_DELETED)
+        self.assertEqual(self.thread.messages.count(), 1)
 
     def test_archiving_looks_the_system_user_up_once(self) -> None:
         # system user lookup, then savepoint, thread update, message insert, release

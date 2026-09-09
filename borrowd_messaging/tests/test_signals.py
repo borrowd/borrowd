@@ -1,6 +1,14 @@
+from unittest.mock import patch
+
 from django.test import override_settings
 
-from borrowd_items.models import Transaction, TransactionStatus
+from borrowd_items.models import (
+    ItemAction,
+    ItemStatus,
+    ResolutionReason,
+    Transaction,
+    TransactionStatus,
+)
 from borrowd_messaging.models import ArchiveReason, ChatThread
 from borrowd_messaging.services import ARCHIVE_MESSAGES, MessagingService
 from borrowd_messaging.tests.base import MessagingTestCase
@@ -20,6 +28,90 @@ class ChatThreadPermissionSignalTests(MessagingTestCase):
         outsider = self.make_user("outsider")
 
         self.assertFalse(outsider.has_perm(ChatThreadOLP.VIEW, self.thread))
+
+
+@override_settings(MESSAGING_ENABLED=True)
+class ItemLifecycleTests(MessagingTestCase):
+    def test_saving_an_active_item_leaves_its_conversations_open(self) -> None:
+        thread = self.make_thread()
+
+        self.item.name = "Cordless Drill"
+        self.item.save(update_fields=["name"])
+
+        thread.refresh_from_db()
+        self.assertFalse(thread.is_archived)
+        self.assertEqual(thread.messages.count(), 0)
+
+    def test_soft_deletion_archives_every_open_item_conversation(self) -> None:
+        transaction_thread = self.make_thread()
+        transaction = self.make_transaction()
+        prerequest_thread = self.make_thread(borrower=self.make_user("onlooker"))
+
+        self.item.soft_delete(deleted_by=self.lender)
+
+        for thread in (transaction_thread, prerequest_thread):
+            thread.refresh_from_db()
+            self.assertEqual(thread.archive_reason, ArchiveReason.ITEM_DELETED)
+            self.assertEqual(thread.messages.count(), 1)
+            self.assertEqual(
+                thread.messages.get().body,
+                ARCHIVE_MESSAGES[ArchiveReason.ITEM_DELETED],
+            )
+        self.assertEqual(transaction_thread.transaction, transaction)
+
+    def test_hard_deletion_preserves_and_archives_a_conversation(self) -> None:
+        thread = self.make_thread()
+
+        self.item.delete()
+
+        thread.refresh_from_db()
+        self.assertIsNone(thread.item_id)
+        self.assertEqual(thread.archive_reason, ArchiveReason.ITEM_DELETED)
+        self.assertEqual(thread.messages.count(), 1)
+        self.assertTrue(self.lender.has_perm(ChatThreadOLP.VIEW, thread))
+        self.assertTrue(self.borrower.has_perm(ChatThreadOLP.VIEW, thread))
+
+    def test_updating_a_soft_deleted_item_does_not_rescan_conversations(self) -> None:
+        thread = self.make_thread()
+        self.item.soft_delete(deleted_by=self.lender)
+
+        with patch.object(
+            MessagingService,
+            "archive_open_threads_for_item",
+        ) as archive_threads:
+            self.item.name = "Removed Drill"
+            self.item.save(update_fields=["name"])
+
+        archive_threads.assert_not_called()
+
+        thread.refresh_from_db()
+        self.assertEqual(thread.archive_reason, ArchiveReason.ITEM_DELETED)
+        self.assertEqual(thread.messages.count(), 1)
+
+    def test_hard_deleting_a_soft_deleted_item_posts_one_notice(self) -> None:
+        thread = self.make_thread()
+        self.item.soft_delete(deleted_by=self.lender)
+
+        self.item.delete()
+
+        thread.refresh_from_db()
+        self.assertIsNone(thread.item_id)
+        self.assertEqual(thread.archive_reason, ArchiveReason.ITEM_DELETED)
+        self.assertEqual(thread.messages.count(), 1)
+
+    @override_settings(MESSAGING_ENABLED=False)
+    def test_item_deletion_archival_ignores_the_feature_flag(self) -> None:
+        soft_delete_thread = self.make_thread()
+        hard_delete_item = self.make_item(name="Saw")
+        hard_delete_thread = self.make_thread(item=hard_delete_item)
+
+        self.item.soft_delete(deleted_by=self.lender)
+        hard_delete_item.delete()
+
+        for thread in (soft_delete_thread, hard_delete_thread):
+            thread.refresh_from_db()
+            self.assertEqual(thread.archive_reason, ArchiveReason.ITEM_DELETED)
+            self.assertEqual(thread.messages.count(), 1)
 
 
 @override_settings(MESSAGING_ENABLED=True)
@@ -142,6 +234,40 @@ class TransactionLifecycleTests(MessagingTestCase):
         self.assertIn("dispute has been raised", last_message.body)
         MessagingService.send_message(thread, self.borrower, "Let's sort this out.")
 
+    def test_resolving_a_lost_item_preserves_the_resolution_archive_reason(
+        self,
+    ) -> None:
+        self.item.status = ItemStatus.BORROWED
+        self.item.save(update_fields=["status"])
+        transaction = self.make_transaction()
+        transaction.status = TransactionStatus.DISPUTED
+        transaction.save()
+        onlooker_thread = self.make_thread(borrower=self.make_user("onlooker"))
+
+        self.item.process_action(
+            self.lender,
+            ItemAction.RESOLVE_DISPUTE_NOT_RETURNED,
+        )
+
+        self.item.refresh_from_db()
+        transaction.refresh_from_db()
+        transaction_thread = ChatThread.objects.get(transaction=transaction)
+        onlooker_thread.refresh_from_db()
+        self.assertIsNotNone(self.item.deleted_at)
+        self.assertEqual(transaction.status, TransactionStatus.RESOLVED)
+        self.assertEqual(
+            transaction.resolution_reason,
+            ResolutionReason.DISPUTE_ITEM_NOT_RETURNED,
+        )
+        self.assertEqual(transaction_thread.archive_reason, ArchiveReason.RESOLVED)
+        last_message = transaction_thread.messages.order_by("id").last()
+        assert last_message is not None
+        self.assertEqual(
+            last_message.body,
+            ARCHIVE_MESSAGES[ArchiveReason.RESOLVED],
+        )
+        self.assertEqual(onlooker_thread.archive_reason, ArchiveReason.ITEM_DELETED)
+
     def test_re_saving_a_disputed_transaction_posts_one_notice(self) -> None:
         transaction = self.make_transaction()
         transaction.status = TransactionStatus.DISPUTED
@@ -162,30 +288,70 @@ class TransactionLifecycleTests(MessagingTestCase):
 
 
 @override_settings(MESSAGING_ENABLED=False)
-class TransactionsAreUntouchedWhileTheFeatureFlagIsOffTests(MessagingTestCase):
-    """
-    With the flag off, transactions must behave exactly as they did before
-    messaging existed: no threads, no system messages, nothing to PROTECT
-    a transaction from being deleted.
-    """
+class TransactionLifecycleWhileFeatureFlagIsOffTests(MessagingTestCase):
+    def advance(self, transaction: Transaction, status: TransactionStatus) -> None:
+        transaction.status = status
+        transaction.save()
 
-    def test_a_new_transaction_gets_no_thread(self) -> None:
+    def test_a_new_transaction_does_not_create_a_thread(self) -> None:
         transaction = self.make_transaction()
 
         self.assertFalse(ChatThread.objects.filter(transaction=transaction).exists())
 
-    def test_a_terminal_status_archives_nothing(self) -> None:
+    def test_a_new_transaction_carries_an_existing_conversation_forward(self) -> None:
+        thread = self.make_thread()
+
+        transaction = self.make_transaction()
+
+        thread.refresh_from_db()
+        self.assertEqual(thread.transaction, transaction)
+        self.assertFalse(thread.is_archived)
+
+    def test_accepting_archives_other_prerequest_conversations(self) -> None:
+        requester_thread = self.make_thread()
         onlooker_thread = self.make_thread(borrower=self.make_user("onlooker"))
         transaction = self.make_transaction()
 
-        transaction.status = TransactionStatus.RETURNED
-        transaction.save()
+        self.advance(transaction, TransactionStatus.ACCEPTED)
 
+        requester_thread.refresh_from_db()
         onlooker_thread.refresh_from_db()
-        self.assertFalse(onlooker_thread.is_archived)
-        self.assertEqual(onlooker_thread.messages.count(), 0)
+        self.assertFalse(requester_thread.is_archived)
+        self.assertEqual(onlooker_thread.archive_reason, ArchiveReason.ITEM_UNAVAILABLE)
 
-    def test_a_transaction_can_still_be_destroyed(self) -> None:
+    def test_a_dispute_annotates_an_existing_thread(self) -> None:
+        thread = self.make_thread()
+        transaction = self.make_transaction()
+
+        self.advance(transaction, TransactionStatus.DISPUTED)
+
+        thread.refresh_from_db()
+        self.assertFalse(thread.is_archived)
+        message = thread.messages.get()
+        self.assertTrue(message.is_system)
+        self.assertIn("dispute has been raised", message.body)
+
+    def test_a_terminal_status_archives_an_existing_thread(self) -> None:
+        thread = self.make_thread()
+        transaction = self.make_transaction()
+
+        self.advance(transaction, TransactionStatus.RETURNED)
+
+        thread.refresh_from_db()
+        self.assertEqual(thread.archive_reason, ArchiveReason.RETURNED)
+        self.assertEqual(
+            thread.messages.get().body,
+            ARCHIVE_MESSAGES[ArchiveReason.RETURNED],
+        )
+
+    def test_a_terminal_status_does_not_create_a_thread(self) -> None:
+        transaction = self.make_transaction()
+
+        self.advance(transaction, TransactionStatus.RETURNED)
+
+        self.assertFalse(ChatThread.objects.filter(transaction=transaction).exists())
+
+    def test_a_transaction_without_a_thread_can_still_be_destroyed(self) -> None:
         transaction = self.make_transaction()
 
         transaction.delete()
