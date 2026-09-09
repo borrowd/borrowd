@@ -27,7 +27,7 @@ from .conversation_summaries import (
     is_removed,
     item_thumbnail_url,
     listed_item,
-    participant_conversation_threads,
+    threads_for_hub,
 )
 from .exceptions import (
     ConversationGroupSelectionRequired,
@@ -409,7 +409,7 @@ class ChatThreadListView(
         if selected not in _HUB_SECTIONS:
             selected = _HUB_SECTIONS[0]
 
-        threads = participant_conversation_threads(viewer)
+        threads = threads_for_hub(viewer)
         active = threads.filter(archived_at__isnull=True)
         archived = threads.filter(archived_at__isnull=False)
         shown, hidden = (

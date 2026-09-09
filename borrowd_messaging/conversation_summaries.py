@@ -64,11 +64,11 @@ def threads_for_item(
     return _with_summary_data(threads_with_unread_state(viewer).filter(item=item))
 
 
-def participant_conversation_threads(viewer: BorrowdUser) -> QuerySet[ChatThread]:
-    """Return all this participant's threads with summary and unread data loaded.
+def threads_for_hub(viewer: BorrowdUser) -> QuerySet[ChatThread]:
+    """Return all threads the viewer participates in for the Messages hub.
 
-    Photos are prefetched, so paginate before evaluating this to keep the
-    prefetch to one page of Items.
+    Each row includes summary data, its Item, and Item photos. Paginate before
+    evaluating the queryset so photos are fetched for only one page of Items.
     """
     return (
         _with_summary_data(threads_with_unread_state(viewer))
