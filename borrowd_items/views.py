@@ -29,6 +29,10 @@ from borrowd.validators import ALLOWED_IMAGE_ACCEPT, MAX_PHOTO_SIZE_BYTES
 from borrowd_community_requests.exceptions import CannotActOnOwnRequestException
 from borrowd_community_requests.models import CommunityRequest
 from borrowd_groups.models import Membership, MembershipStatus
+from borrowd_messaging.conversation_summaries import (
+    build_conversation_summaries,
+    item_conversation_threads,
+)
 from borrowd_messaging.exceptions import (
     ConversationGroupSelectionRequired,
     InvalidConversationGroup,
@@ -37,10 +41,6 @@ from borrowd_messaging.exceptions import (
 from borrowd_messaging.mixins import MessagingEnabledMixin
 from borrowd_messaging.models import ChatThread
 from borrowd_messaging.services import MessagingService
-from borrowd_messaging.thread_summaries import (
-    build_conversation_summaries,
-    item_conversation_threads,
-)
 from borrowd_permissions.mixins import (
     LoginOr403PermissionMixin,
     LoginOr404PermissionMixin,

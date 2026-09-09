@@ -5,11 +5,11 @@ from django.test import override_settings
 from django.utils import timezone
 
 from borrowd_items.models import TransactionStatus
-from borrowd_messaging.models import ArchiveReason, ChatThread, Message
-from borrowd_messaging.thread_summaries import (
+from borrowd_messaging.conversation_summaries import (
     build_conversation_summaries,
     item_conversation_threads,
 )
+from borrowd_messaging.models import ArchiveReason, ChatThread, Message
 from borrowd_users.models import BorrowdUser
 
 from .base import MessagingTestCase
