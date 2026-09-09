@@ -37,6 +37,7 @@ from .exceptions import (
     PreRequestChatUnavailable,
     ThreadNotWritable,
 )
+from .filters import ConversationFilter
 from .mixins import MessagingEnabledMixin
 from .models import MESSAGE_BODY_MAX_LENGTH, ChatThread
 from .read_state import mark_thread_read, unread_threads_for
@@ -401,6 +402,13 @@ class ChatThreadListView(
 
     template_name = "messaging/chatthread_list.html"
 
+    def _tab_url(self, section: str) -> str:
+        """Keep the filters when switching tabs, but start again at page one."""
+        params = self.request.GET.copy()
+        params["section"] = section
+        params.pop("page", None)
+        return f"?{params.urlencode()}"
+
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
         viewer = get_authenticated_user(self.request)
@@ -408,7 +416,12 @@ class ChatThreadListView(
         if selected not in _HUB_SECTIONS:
             selected = _HUB_SECTIONS[0]
 
-        threads = threads_for_hub(viewer)
+        conversations = ConversationFilter(
+            self.request.GET,
+            queryset=threads_for_hub(viewer),
+            request=self.request,
+        )
+        threads = conversations.qs
         active = threads.filter(archived_at__isnull=True)
         archived = threads.filter(archived_at__isnull=False)
         shown, hidden = (
@@ -416,8 +429,14 @@ class ChatThreadListView(
         )
 
         page = Paginator(shown, _HUB_PAGE_SIZE).get_page(self.request.GET.get("page"))
+        context["conversation_filter"] = conversations
         context["conversation_tabs"] = [
-            {"name": name, "title": name.title(), "is_selected": name == selected}
+            {
+                "name": name,
+                "title": name.title(),
+                "is_selected": name == selected,
+                "url": self._tab_url(name),
+            }
             for name in _HUB_SECTIONS
         ]
         context["selected_section"] = selected
