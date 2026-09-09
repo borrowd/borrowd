@@ -12,7 +12,7 @@ from borrowd_items.models import Item, ItemPhoto, ListingType, TransactionStatus
 from borrowd_messaging.conversation_summaries import (
     HubConversationCard,
     build_conversation_summaries,
-    build_hub_conversation_summaries,
+    build_hub_cards,
     threads_for_hub,
     threads_for_item,
 )
@@ -423,7 +423,7 @@ class HubConversationCardTests(MessagingTestCase):
         )
 
     def hub_cards(self, viewer: BorrowdUser) -> list[HubConversationCard]:
-        return build_hub_conversation_summaries(threads_for_hub(viewer), viewer)
+        return build_hub_cards(threads_for_hub(viewer), viewer)
 
     def test_card_carries_the_item_name_thumbnail_and_unread_state(self) -> None:
         thread = self.make_thread()
@@ -498,7 +498,7 @@ class HubConversationCardTests(MessagingTestCase):
 
         # One row query and one photo prefetch, however many rows there are.
         with self.assertNumQueries(2):
-            cards = build_hub_conversation_summaries(query, self.borrower)
+            cards = build_hub_cards(query, self.borrower)
 
         self.assertEqual(len(cards), 3)
         self.assertTrue(all(card.item_thumbnail_url for card in cards))

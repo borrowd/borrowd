@@ -22,7 +22,7 @@ from borrowd_users.models import BorrowdUser
 from borrowd_users.request import get_authenticated_user
 
 from .conversation_summaries import (
-    build_hub_conversation_summaries,
+    build_hub_cards,
     conversation_status,
     is_removed,
     item_thumbnail_url,
@@ -422,7 +422,7 @@ class ChatThreadListView(
         ]
         context["selected_section"] = selected
         context["page_obj"] = page
-        context["cards"] = build_hub_conversation_summaries(page, viewer)
+        context["cards"] = build_hub_cards(page, viewer)
         # Tell a first-time viewer they have nothing anywhere, not just on this tab.
         context["has_conversations"] = bool(page.paginator.count) or hidden.exists()
         return context
