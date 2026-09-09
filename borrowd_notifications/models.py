@@ -117,6 +117,11 @@ class NotificationType(models.TextChoices):
             }
         )
 
+    @classmethod
+    def push_excluded_types(cls) -> "frozenset[NotificationType]":
+        """Types that never deliver over push, whatever a preference row says."""
+        return frozenset({cls.NEW_MESSAGE})
+
     def __str__(self) -> str:
         return self.name.lower()
 
