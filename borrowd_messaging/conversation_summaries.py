@@ -79,7 +79,7 @@ def threads_for_hub(viewer: BorrowdUser) -> QuerySet[ChatThread]:
     )
 
 
-def build_hub_conversation_summaries(
+def build_hub_cards(
     threads: Iterable[ChatThread],
     viewer: BorrowdUser,
 ) -> list[HubConversationCard]:
