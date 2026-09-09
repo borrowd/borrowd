@@ -1,0 +1,27 @@
+{% extends "notifications/messages/layout.html" %}
+
+{% block title %}
+    New message - Borrow'd
+{% endblock %}
+
+{% block content %}
+    <h2>
+        Hi {{ recipient_name }},
+    </h2>
+
+    <p>
+        <strong>{{ sender_name }} sent you a message about {{ item_name }}.</strong>
+    </p>
+
+    <p>
+        Sorting out the details up front is what keeps a borrow easy for both of you.
+    </p>
+
+    <div class="text-center">
+        <a href="{{ conversation_url }}" class="button">Read and reply</a>
+    </div>
+
+    <p>
+        The Borrow'd team
+    </p>
+{% endblock %}

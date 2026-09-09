@@ -1,0 +1,10 @@
+Hi {{ recipient_name }},
+
+{{ sender_name }} sent you a message about {{ item_name }}.
+
+Sorting out the details up front is what keeps a borrow easy for both of you.
+
+Read and reply:
+{{ conversation_url }}
+
+The Borrow'd team
