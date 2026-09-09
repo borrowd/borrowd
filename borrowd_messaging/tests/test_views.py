@@ -510,6 +510,8 @@ class ChatThreadPollViewTests(MessagingTestCase):
             _element_attributes(response, "chat-composer").get("hx-swap-oob"),
             "true",
         )
+        # The swapped-in composer names the reason, like the pinned badge does.
+        self.assertContains(response, "archived (Closed)", status_code=286)
 
     def test_settled_archived_thread_stops_the_poller_with_nothing_to_add(self) -> None:
         self.send(self.borrower, "Free Saturday?")
@@ -570,7 +572,7 @@ class ArchivedThreadReadOnlyTests(MessagingTestCase):
 
         response = self.client.get(reverse("chat-thread-detail", args=[self.thread.pk]))
 
-        self.assertContains(response, "This conversation is archived.")
+        self.assertContains(response, "This conversation is archived (Closed).")
         self.assertNotContains(response, 'name="body"')
         self.assertNotContains(
             response, reverse("chat-thread-poll", args=[self.thread.pk])
@@ -731,6 +733,37 @@ class ConversationStatusTests(MessagingTestCase):
         self.client.force_login(self.borrower)
 
         self.assertContains(self.client.get(self.url), "Closed")
+
+    def test_the_composer_is_replaced_by_the_archive_reason(self) -> None:
+        for reason, label in (
+            (ArchiveReason.RETURNED, "Returned"),
+            (ArchiveReason.REJECTED, "Declined"),
+            (ArchiveReason.ITEM_DELETED, "Item deleted"),
+        ):
+            with self.subTest(reason=reason):
+                thread = self.make_thread(item=self.make_item(name=f"Item {reason}"))
+                MessagingService.archive_thread(thread, reason)
+                self.client.force_login(self.borrower)
+
+                response = self.client.get(
+                    reverse("chat-thread-detail", args=[thread.pk])
+                )
+
+                self.assertContains(response, f"archived ({label})")
+                self.assertNotContains(
+                    response, "This conversation is archived. You can still read it."
+                )
+
+    def test_an_archived_thread_without_a_reason_stays_generic(self) -> None:
+        ChatThread.objects.filter(pk=self.thread.pk).update(
+            archived_at=timezone.now(), archive_reason=None
+        )
+        self.client.force_login(self.borrower)
+
+        self.assertContains(
+            self.client.get(self.url),
+            "This conversation is archived. You can still read it.",
+        )
 
 
 @override_settings(MESSAGING_ENABLED=True)
