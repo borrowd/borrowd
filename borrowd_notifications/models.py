@@ -23,6 +23,7 @@ from borrowd_items.models import (
     Transaction,
     TransactionStatus,
 )
+from borrowd_messaging.models import Message
 from borrowd_users.models import BorrowdUser
 
 """
@@ -90,6 +91,9 @@ class NotificationType(models.TextChoices):
     REQUEST_CANCELLED_OWNER_LEFT = "REQUEST_CANCELLED_OWNER_LEFT"
     LOAN_ENDED_OWNER_LEFT = "LOAN_ENDED_OWNER_LEFT"
 
+    # Messaging
+    NEW_MESSAGE = "NEW_MESSAGE"
+
     # Ownership transfer / giveaway
     GIVEAWAY_OFFER_SENT = "GIVEAWAY_OFFER_SENT"
     GIVEAWAY_ACCEPTED = "GIVEAWAY_ACCEPTED"
@@ -125,6 +129,20 @@ class NotificationType(models.TextChoices):
     def _get_template_context_for(notification: Notification) -> dict[str, Any]:
         """Extract context from the notification's action_object."""
         context = {}
+        # The target is the latest Message, which gives the read boundary; the
+        # action_object is its ChatThread, which gives the link.
+        if notification.verb == NotificationType.NEW_MESSAGE.value and isinstance(
+            notification.target, Message
+        ):
+            thread = notification.action_object
+            item = thread.item
+            return {
+                "recipient_name": notification.recipient.first_name,
+                "sender_name": notification.actor.first_name,
+                "item_name": item.name if item is not None else "an item",
+                "conversation_url": settings.BASE_URL.rstrip("/")
+                + reverse("chat-thread-detail", args=[thread.pk]),
+            }
         if notification.verb in (
             NotificationType.REQUEST_CANCELLED_BORROWER_LEFT.value,
             NotificationType.REQUEST_CANCELLED_OWNER_LEFT.value,
@@ -324,6 +342,7 @@ _MESSAGE_TEMPLATES: dict[NotificationType, str] = {
     NotificationType.GIVEAWAY_REQUEST_APPROVED: "{gifter_name} approved your request - {item_name} is yours!",
     NotificationType.GIVEAWAY_REQUEST_DECLINED: "{gifter_name} declined your request for {item_name}",
     NotificationType.GIVEAWAY_COMPLETED: "You gave {item_name} to {receiver_name}",
+    NotificationType.NEW_MESSAGE: "{sender_name} sent you a message about {item_name}",
 }
 
 
