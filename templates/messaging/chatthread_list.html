@@ -59,6 +59,9 @@
                 <button type="submit" class="btn btn-primary">
                     Apply
                 </button>
+                {% if filters_applied %}
+                    <a href="{{ clear_filters_url }}" class="btn btn-ghost">Clear filters</a>
+                {% endif %}
             </form>
 
             {% if cards %}
