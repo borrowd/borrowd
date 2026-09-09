@@ -29,7 +29,7 @@ _ARCHIVE_STATUS_LABELS: dict[str, str] = {
 
 @dataclass(frozen=True)
 class ConversationSummary:
-    """The data shared by Item conversation cards and history rows."""
+    """Viewer-specific data used to display one conversation."""
 
     thread_id: int
     other_participant: BorrowdUser
@@ -44,12 +44,7 @@ class ConversationSummary:
 
 @dataclass(frozen=True)
 class HubConversationSummary:
-    """A conversation summary plus the Item context the hub shows beside it.
-
-    A removed Item keeps its name and photo: Items are soft-deleted, so the row
-    is still there to read. A null item_name means the Item row itself is gone,
-    and the template supplies the copy.
-    """
+    """A conversation summary plus the Item context the hub shows beside it."""
 
     conversation: ConversationSummary
     item_name: str | None
