@@ -777,7 +777,7 @@ class ChatThreadListViewTests(MessagingTestCase):
         return list(self.client.get(f"{self.url}{query}").context["cards"])
 
     def thread_ids(self, query: str = "") -> list[int]:
-        return [card.conversation.thread_id for card in self.cards(query)]
+        return [card.summary.thread_id for card in self.cards(query)]
 
     def make_archived_threads(self, count: int) -> None:
         """Archived threads escape the one-active-pre-request-thread constraint."""
@@ -959,11 +959,11 @@ class ChatThreadListViewTests(MessagingTestCase):
         )
         self.client.force_login(self.borrower)
 
-        self.assertTrue(self.cards()[0].conversation.has_unread_messages)
+        self.assertTrue(self.cards()[0].summary.has_unread_messages)
 
         mark_thread_read(thread, self.borrower, through_message_id=message.pk)
 
-        self.assertFalse(self.cards()[0].conversation.has_unread_messages)
+        self.assertFalse(self.cards()[0].summary.has_unread_messages)
 
     def test_page_cost_does_not_grow_with_the_number_of_conversations(self) -> None:
         self.make_active_threads(1)
