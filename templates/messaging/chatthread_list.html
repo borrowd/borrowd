@@ -48,6 +48,14 @@
                            value="{{ conversation_filter.form.person.value|default:'' }}"
                            placeholder="Person" />
                 </label>
+                <label class="label cursor-pointer gap-2">
+                    <input type="checkbox"
+                           class="checkbox checkbox-sm"
+                           name="{{ conversation_filter.form.unread.html_name }}"
+                           id="{{ conversation_filter.form.unread.id_for_label }}"
+                           {% if conversation_filter.form.unread.value %}checked{% endif %} />
+                    <span class="label-text">Unread only</span>
+                </label>
                 <button type="submit" class="btn btn-primary">
                     Apply
                 </button>
