@@ -213,3 +213,41 @@ class ClearFiltersTests(MessagingTestCase):
         self.assertContains(
             self.client.get(self.url, {"unread": "on"}), "Clear filters"
         )
+
+
+@override_settings(MESSAGING_ENABLED=True)
+class FilteredEmptyStateTests(MessagingTestCase):
+    def setUp(self) -> None:
+        super().setUp()
+        self.url = reverse("chat-thread-list")
+        self.client.force_login(self.borrower)
+
+    def test_filters_that_match_nothing_say_so(self) -> None:
+        self.make_thread()
+
+        response = self.client.get(self.url, {"item": "nothing-like-this"})
+
+        self.assertContains(response, "No conversations match your filters.")
+        self.assertNotContains(response, "No active conversations.")
+
+    def test_an_unfiltered_empty_tab_still_names_the_tab(self) -> None:
+        self.make_thread()
+
+        response = self.client.get(self.url, {"section": "archived"})
+
+        self.assertContains(response, "No archived conversations.")
+        self.assertNotContains(response, "No conversations match your filters.")
+
+    def test_someone_with_nothing_at_all_is_not_told_about_filters(self) -> None:
+        response = self.client.get(self.url, {"item": "drill"})
+
+        self.assertContains(response, "no conversations yet")
+        self.assertNotContains(response, "No conversations match your filters.")
+
+    def test_the_filters_stay_on_screen_when_nothing_matches(self) -> None:
+        self.make_thread()
+
+        response = self.client.get(self.url, {"item": "nothing-like-this"})
+
+        self.assertContains(response, "Clear filters")
+        self.assertContains(response, 'value="nothing-like-this"')
