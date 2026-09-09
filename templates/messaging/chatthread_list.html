@@ -39,6 +39,15 @@
                            value="{{ conversation_filter.form.item.value|default:'' }}"
                            placeholder="Item name" />
                 </label>
+                <label class="input input-bordered flex grow items-center gap-2">
+                    {% heroicon_mini "user" class="size-4 opacity-50" %}
+                    <input type="text"
+                           name="{{ conversation_filter.form.person.html_name }}"
+                           id="{{ conversation_filter.form.person.id_for_label }}"
+                           class="grow"
+                           value="{{ conversation_filter.form.person.value|default:'' }}"
+                           placeholder="Person" />
+                </label>
                 <button type="submit" class="btn btn-primary">
                     Apply
                 </button>
