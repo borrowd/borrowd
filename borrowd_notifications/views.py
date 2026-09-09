@@ -116,6 +116,14 @@ NOTIFICATION_CATEGORIES: list[dict[str, Any]] = [
             ),
         ],
     },
+    {
+        "name": "Messages",
+        "slug": "messages",
+        "icon": "chat-bubble-left-right",
+        "types": [
+            (NotificationType.NEW_MESSAGE, "New message in a conversation"),
+        ],
+    },
 ]
 
 
