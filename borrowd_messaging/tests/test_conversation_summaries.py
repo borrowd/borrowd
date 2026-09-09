@@ -13,7 +13,7 @@ from borrowd_messaging.conversation_summaries import (
     HubConversationSummary,
     build_conversation_summaries,
     build_hub_conversation_summaries,
-    participant_conversation_threads,
+    threads_for_hub,
     threads_for_item,
 )
 from borrowd_messaging.exceptions import NotThreadParticipant
@@ -178,7 +178,7 @@ class ParticipantConversationSummaryTests(MessagingTestCase):
         )
         self.make_thread(borrower=self.make_user("outsider"))
 
-        threads = participant_conversation_threads(self.borrower)
+        threads = threads_for_hub(self.borrower)
 
         self.assertEqual(
             set(threads.values_list("pk", flat=True)), {borrowing.pk, lending.pk}
@@ -194,7 +194,7 @@ class ParticipantConversationSummaryTests(MessagingTestCase):
         outsider.is_superuser = True
         outsider.save(update_fields=["is_superuser"])
 
-        self.assertFalse(participant_conversation_threads(outsider).exists())
+        self.assertFalse(threads_for_hub(outsider).exists())
 
     def test_summary_builder_rejects_an_unrelated_viewer(self) -> None:
         thread = self.make_thread()
@@ -213,7 +213,7 @@ class ParticipantConversationSummaryTests(MessagingTestCase):
         expected_name = self.lender.profile.full_name()
 
         with self.assertNumQueries(0):
-            query = participant_conversation_threads(self.borrower)
+            query = threads_for_hub(self.borrower)
         # One row query, plus one prefetch for the loaded Items' photos.
         with self.assertNumQueries(2):
             threads = list(query)
@@ -245,7 +245,7 @@ class ParticipantConversationSummaryTests(MessagingTestCase):
         )
 
         summaries = build_conversation_summaries(
-            participant_conversation_threads(self.borrower), self.borrower
+            threads_for_hub(self.borrower), self.borrower
         )
 
         self.assertEqual(
@@ -271,7 +271,7 @@ class ParticipantConversationSummaryTests(MessagingTestCase):
 
         # The item history and Messages list must use the same definition.
         for threads in (
-            participant_conversation_threads(self.borrower),
+            threads_for_hub(self.borrower),
             threads_for_item(self.item, self.borrower),
         ):
             summary = build_conversation_summaries(threads, self.borrower)[0]
@@ -285,7 +285,7 @@ class ParticipantConversationSummaryTests(MessagingTestCase):
         Message.objects.filter(thread=thread).update(created_at=timezone.now())
 
         summary = build_conversation_summaries(
-            participant_conversation_threads(self.borrower), self.borrower
+            threads_for_hub(self.borrower), self.borrower
         )[0]
 
         self.assertEqual(summary.last_message_preview, "Second")
@@ -298,10 +298,8 @@ class ParticipantConversationSummaryTests(MessagingTestCase):
         mark_thread_read(thread, self.borrower, through_message_id=notice.pk)
         Message.objects.create(thread=thread, sender=self.borrower, body="My reply")
 
-        borrower_thread = participant_conversation_threads(self.borrower).get(
-            pk=thread.pk
-        )
-        lender_thread = participant_conversation_threads(self.lender).get(pk=thread.pk)
+        borrower_thread = threads_for_hub(self.borrower).get(pk=thread.pk)
+        lender_thread = threads_for_hub(self.lender).get(pk=thread.pk)
 
         self.assertFalse(getattr(borrower_thread, "has_unread_messages"))
         self.assertTrue(getattr(lender_thread, "has_unread_messages"))
@@ -314,9 +312,7 @@ class ParticipantConversationSummaryTests(MessagingTestCase):
         thread.refresh_from_db()
         before = (thread.updated_at, thread.updated_by_id)
 
-        build_conversation_summaries(
-            participant_conversation_threads(self.borrower), self.borrower
-        )
+        build_conversation_summaries(threads_for_hub(self.borrower), self.borrower)
 
         thread.refresh_from_db()
         self.assertIsNone(thread.borrower_last_read_message_id)
@@ -327,7 +323,7 @@ class ParticipantConversationSummaryTests(MessagingTestCase):
         thread = self.make_thread()
         self.item.delete()
 
-        loaded = participant_conversation_threads(self.borrower).get(pk=thread.pk)
+        loaded = threads_for_hub(self.borrower).get(pk=thread.pk)
         summary = build_conversation_summaries([loaded], self.borrower)[0]
 
         self.assertIsNone(loaded.item)
@@ -350,7 +346,7 @@ class ParticipantConversationSummaryTests(MessagingTestCase):
         self.item.listing_type = ListingType.GIVEAWAY
         self.item.save(update_fields=["listing_type"])
 
-        loaded = participant_conversation_threads(self.borrower).get(pk=thread.pk)
+        loaded = threads_for_hub(self.borrower).get(pk=thread.pk)
 
         self.assertEqual(loaded.conversation_group_name, "Original group")
         self.assertEqual(loaded.conversation_group_source_id, group.pk)
@@ -372,7 +368,7 @@ class ParticipantConversationSummaryTests(MessagingTestCase):
                 for _ in range(26)
             ]
         )
-        query = participant_conversation_threads(self.borrower)
+        query = threads_for_hub(self.borrower)
 
         self.assertEqual(list(query.filter(archived_at__isnull=True)), [active])
         archived = query.filter(archived_at__isnull=False)
@@ -387,7 +383,7 @@ class ParticipantConversationSummaryTests(MessagingTestCase):
         notice = MessagingService.post_system_message(thread, "An update.")
 
         for threads in (
-            participant_conversation_threads(self.borrower),
+            threads_for_hub(self.borrower),
             threads_for_item(self.item, self.borrower),
         ):
             self.assertTrue(
@@ -399,7 +395,7 @@ class ParticipantConversationSummaryTests(MessagingTestCase):
         mark_thread_read(thread, self.borrower, through_message_id=notice.pk)
 
         for threads in (
-            participant_conversation_threads(self.borrower),
+            threads_for_hub(self.borrower),
             threads_for_item(self.item, self.borrower),
         ):
             self.assertFalse(
@@ -427,9 +423,7 @@ class HubConversationSummaryTests(MessagingTestCase):
         )
 
     def hub_cards(self, viewer: BorrowdUser) -> list[HubConversationSummary]:
-        return build_hub_conversation_summaries(
-            participant_conversation_threads(viewer), viewer
-        )
+        return build_hub_conversation_summaries(threads_for_hub(viewer), viewer)
 
     def test_card_carries_the_item_name_thumbnail_and_unread_state(self) -> None:
         thread = self.make_thread()
@@ -500,7 +494,7 @@ class HubConversationSummaryTests(MessagingTestCase):
             item = self.make_item(name=name)
             self.add_photo(item)
             self.make_thread(item=item)
-        query = participant_conversation_threads(self.borrower)
+        query = threads_for_hub(self.borrower)
 
         # One row query and one photo prefetch, however many rows there are.
         with self.assertNumQueries(2):

@@ -21,6 +21,14 @@ from borrowd_permissions.models import ChatThreadOLP, ItemOLP
 from borrowd_users.models import BorrowdUser
 from borrowd_users.request import get_authenticated_user
 
+from .conversation_summaries import (
+    build_hub_conversation_summaries,
+    conversation_status,
+    is_removed,
+    item_thumbnail_url,
+    listed_item,
+    threads_for_hub,
+)
 from .exceptions import (
     ConversationGroupSelectionRequired,
     InvalidConversationGroup,
@@ -33,14 +41,6 @@ from .mixins import MessagingEnabledMixin
 from .models import MESSAGE_BODY_MAX_LENGTH, ChatThread
 from .read_state import mark_thread_read, unread_threads_for
 from .services import MessagingService
-from .conversation_summaries import (
-    build_hub_conversation_summaries,
-    conversation_status,
-    is_removed,
-    item_thumbnail_url,
-    listed_item,
-    participant_conversation_threads,
-)
 
 _INVALID_CURSOR_MESSAGE = "`after` must be a message id from this conversation."
 _HUB_PAGE_SIZE = 25
@@ -408,7 +408,7 @@ class ChatThreadListView(
         if selected not in _HUB_SECTIONS:
             selected = _HUB_SECTIONS[0]
 
-        threads = participant_conversation_threads(viewer)
+        threads = threads_for_hub(viewer)
         active = threads.filter(archived_at__isnull=True)
         archived = threads.filter(archived_at__isnull=False)
         shown, hidden = (
