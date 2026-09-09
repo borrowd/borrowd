@@ -10,7 +10,7 @@ from PIL import Image
 
 from borrowd_items.models import Item, ItemPhoto, ListingType, TransactionStatus
 from borrowd_messaging.conversation_summaries import (
-    HubConversationSummary,
+    HubConversationCard,
     build_conversation_summaries,
     build_hub_conversation_summaries,
     threads_for_hub,
@@ -406,7 +406,7 @@ class ParticipantConversationSummaryTests(MessagingTestCase):
 
 
 @override_settings(MESSAGING_ENABLED=True, MEDIA_ROOT=mkdtemp())
-class HubConversationSummaryTests(MessagingTestCase):
+class HubConversationCardTests(MessagingTestCase):
     """The extra Item context and unread state the Messages hub cards show."""
 
     def add_photo(self, item: Item) -> ItemPhoto:
@@ -422,7 +422,7 @@ class HubConversationSummaryTests(MessagingTestCase):
             updated_by=self.lender,
         )
 
-    def hub_cards(self, viewer: BorrowdUser) -> list[HubConversationSummary]:
+    def hub_cards(self, viewer: BorrowdUser) -> list[HubConversationCard]:
         return build_hub_conversation_summaries(threads_for_hub(viewer), viewer)
 
     def test_card_carries_the_item_name_thumbnail_and_unread_state(self) -> None:
@@ -432,10 +432,10 @@ class HubConversationSummaryTests(MessagingTestCase):
 
         card = self.hub_cards(self.borrower)[0]
 
-        self.assertEqual(card.conversation.thread_id, thread.pk)
+        self.assertEqual(card.summary.thread_id, thread.pk)
         self.assertEqual(card.item_name, self.item.name)
         self.assertEqual(card.item_thumbnail_url, photo.thumbnail.url)
-        self.assertTrue(card.conversation.has_unread_messages)
+        self.assertTrue(card.summary.has_unread_messages)
 
     def test_acknowledged_conversation_is_not_marked_unread(self) -> None:
         thread = self.make_thread()
@@ -446,7 +446,7 @@ class HubConversationSummaryTests(MessagingTestCase):
 
         card = self.hub_cards(self.borrower)[0]
 
-        self.assertFalse(card.conversation.has_unread_messages)
+        self.assertFalse(card.summary.has_unread_messages)
 
     def test_a_soft_deleted_item_keeps_its_name_and_photo(self) -> None:
         self.make_thread()
@@ -512,7 +512,7 @@ class HubConversationSummaryTests(MessagingTestCase):
             html = render_to_string(
                 "messaging/_thread_summary_card.html",
                 {
-                    "summary": card.conversation,
+                    "summary": card.summary,
                     "show_item": True,
                     "item_name": card.item_name,
                     "item_thumbnail_url": card.item_thumbnail_url,
@@ -531,7 +531,7 @@ class HubConversationSummaryTests(MessagingTestCase):
         html = render_to_string(
             "messaging/_thread_summary_card.html",
             {
-                "summary": card.conversation,
+                "summary": card.summary,
                 "show_item": True,
                 "item_name": card.item_name,
                 "item_thumbnail_url": card.item_thumbnail_url,

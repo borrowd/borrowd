@@ -43,10 +43,10 @@ class ConversationSummary:
 
 
 @dataclass(frozen=True)
-class HubConversationSummary:
-    """A conversation summary plus the Item context the hub shows beside it."""
+class HubConversationCard:
+    """A conversation summary plus the Item displayed with it in the hub."""
 
-    conversation: ConversationSummary
+    summary: ConversationSummary
     item_name: str | None
     item_thumbnail_url: str | None
     item_removed: bool
@@ -82,16 +82,16 @@ def threads_for_hub(viewer: BorrowdUser) -> QuerySet[ChatThread]:
 def build_hub_conversation_summaries(
     threads: Iterable[ChatThread],
     viewer: BorrowdUser,
-) -> list[HubConversationSummary]:
+) -> list[HubConversationCard]:
     """Pair each conversation summary with the Item context shown beside it."""
     loaded = list(threads)
     summaries = build_conversation_summaries(loaded, viewer)
-    cards: list[HubConversationSummary] = []
+    cards: list[HubConversationCard] = []
     for thread, summary in zip(loaded, summaries, strict=True):
         item = thread.item
         cards.append(
-            HubConversationSummary(
-                conversation=summary,
+            HubConversationCard(
+                summary=summary,
                 item_name=item.name if item is not None else None,
                 item_thumbnail_url=item_thumbnail_url(item),
                 item_removed=is_removed(thread),
