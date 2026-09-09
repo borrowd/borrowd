@@ -40,11 +40,15 @@ class ConversationSummary:
     status_kind: ConversationStatusKind
 
 
-def item_conversation_threads(
+def threads_for_item(
     item: Item,
     viewer: BorrowdUser,
 ) -> QuerySet[ChatThread]:
-    """Return this participant's Item threads with their card data loaded."""
+    """Return this Item's threads that the viewer participates in.
+
+    Each row includes the related data and latest-message values needed by
+    build_conversation_summaries.
+    """
     latest_message = Message.objects.filter(thread_id=OuterRef("pk")).order_by("-pk")
 
     return (

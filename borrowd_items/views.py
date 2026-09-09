@@ -31,7 +31,7 @@ from borrowd_community_requests.models import CommunityRequest
 from borrowd_groups.models import Membership, MembershipStatus
 from borrowd_messaging.conversation_summaries import (
     build_conversation_summaries,
-    item_conversation_threads,
+    threads_for_item,
 )
 from borrowd_messaging.exceptions import (
     ConversationGroupSelectionRequired,
@@ -407,7 +407,7 @@ class ItemDetailView(
 
         messaging_context: dict[str, object] = {}
         conversation_summaries = build_conversation_summaries(
-            item_conversation_threads(item, user)[:_ITEM_CONVERSATION_PREVIEW_LIMIT],
+            threads_for_item(item, user)[:_ITEM_CONVERSATION_PREVIEW_LIMIT],
             user,
         )
         if item.owner_id == user.pk or conversation_summaries:
@@ -508,7 +508,7 @@ class ItemConversationHistoryView(
         context = super().get_context_data(**kwargs)
         user = get_authenticated_user(self.request)
         paginator = Paginator(
-            item_conversation_threads(self.object, user),
+            threads_for_item(self.object, user),
             _ITEM_CONVERSATION_HISTORY_PAGE_SIZE,
         )
         page_obj = paginator.get_page(self.request.GET.get("page"))

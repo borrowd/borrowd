@@ -7,7 +7,7 @@ from django.utils import timezone
 from borrowd_items.models import TransactionStatus
 from borrowd_messaging.conversation_summaries import (
     build_conversation_summaries,
-    item_conversation_threads,
+    threads_for_item,
 )
 from borrowd_messaging.models import ArchiveReason, ChatThread, Message
 from borrowd_users.models import BorrowdUser
@@ -34,7 +34,7 @@ class ItemConversationSummaryTests(MessagingTestCase):
 
         with self.assertNumQueries(1):
             summaries = build_conversation_summaries(
-                item_conversation_threads(self.item, self.lender),
+                threads_for_item(self.item, self.lender),
                 self.lender,
             )
 
@@ -60,9 +60,7 @@ class ItemConversationSummaryTests(MessagingTestCase):
         strangers_thread = self.make_thread(borrower=stranger)
 
         thread_ids = set(
-            item_conversation_threads(self.item, self.borrower).values_list(
-                "pk", flat=True
-            )
+            threads_for_item(self.item, self.borrower).values_list("pk", flat=True)
         )
 
         self.assertEqual(thread_ids, {own_thread.pk})
@@ -82,7 +80,7 @@ class ItemConversationSummaryTests(MessagingTestCase):
         newer = self.make_thread(borrower=self.make_user("newer-borrower"))
 
         summaries = build_conversation_summaries(
-            item_conversation_threads(self.item, self.lender),
+            threads_for_item(self.item, self.lender),
             self.lender,
         )
 
@@ -108,7 +106,7 @@ class ItemConversationSummaryTests(MessagingTestCase):
         archived.save(update_fields=["archived_at", "archive_reason"])
 
         summaries = build_conversation_summaries(
-            item_conversation_threads(self.item, self.lender),
+            threads_for_item(self.item, self.lender),
             self.lender,
         )
         statuses = {
@@ -133,7 +131,7 @@ class ItemConversationSummaryTests(MessagingTestCase):
             body="Maybe another time.",
         )
         summary = build_conversation_summaries(
-            item_conversation_threads(self.item, self.lender),
+            threads_for_item(self.item, self.lender),
             self.lender,
         )[0]
 
