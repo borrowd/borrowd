@@ -26,43 +26,54 @@
                 </div>
             </nav>
 
-            {# Applying carries the open tab and drops the page, so results
-               always start from the first page. #}
-            <form method="get" class="mt-4 flex flex-wrap items-end gap-2">
-                <input type="hidden" name="section" value="{{ selected_section }}" />
-                <label class="input input-bordered flex grow items-center gap-2">
-                    {% heroicon_mini "magnifying-glass" class="size-4 opacity-50" %}
-                    <input type="text"
-                           name="{{ conversation_filter.form.item.html_name }}"
-                           id="{{ conversation_filter.form.item.id_for_label }}"
-                           class="grow"
-                           value="{{ conversation_filter.form.item.value|default:'' }}"
-                           placeholder="Item name" />
-                </label>
-                <label class="input input-bordered flex grow items-center gap-2">
-                    {% heroicon_mini "user" class="size-4 opacity-50" %}
-                    <input type="text"
-                           name="{{ conversation_filter.form.person.html_name }}"
-                           id="{{ conversation_filter.form.person.id_for_label }}"
-                           class="grow"
-                           value="{{ conversation_filter.form.person.value|default:'' }}"
-                           placeholder="Person" />
-                </label>
-                <label class="label cursor-pointer gap-2">
-                    <input type="checkbox"
-                           class="checkbox checkbox-sm"
-                           name="{{ conversation_filter.form.unread.html_name }}"
-                           id="{{ conversation_filter.form.unread.id_for_label }}"
-                           {% if conversation_filter.form.unread.value %}checked{% endif %} />
-                    <span class="label-text">Unread only</span>
-                </label>
-                <button type="submit" class="btn btn-primary">
-                    Apply
-                </button>
-                {% if filters_applied %}
-                    <a href="{{ clear_filters_url }}" class="btn btn-ghost">Clear filters</a>
-                {% endif %}
-            </form>
+            {# A plain <details> keeps the toggle working without JavaScript.
+               It starts open when something is filtered, so the values and the
+               way to clear them are never hidden. #}
+            <details class="collapse collapse-arrow mt-4 border border-base-300 bg-base-100"
+                     {% if filters_applied %}open{% endif %}>
+                <summary class="collapse-title min-h-0 py-3 text-sm font-medium">
+                    Filters
+                </summary>
+                <div class="collapse-content">
+                    {# Applying carries the open tab and drops the page, so
+                       results always start from the first page. #}
+                    <form method="get" class="flex flex-wrap items-end gap-2">
+                        <input type="hidden" name="section" value="{{ selected_section }}" />
+                        <label class="input input-bordered flex grow items-center gap-2">
+                            {% heroicon_mini "magnifying-glass" class="size-4 opacity-50" %}
+                            <input type="text"
+                                   name="{{ conversation_filter.form.item.html_name }}"
+                                   id="{{ conversation_filter.form.item.id_for_label }}"
+                                   class="grow"
+                                   value="{{ conversation_filter.form.item.value|default:'' }}"
+                                   placeholder="Item name" />
+                        </label>
+                        <label class="input input-bordered flex grow items-center gap-2">
+                            {% heroicon_mini "user" class="size-4 opacity-50" %}
+                            <input type="text"
+                                   name="{{ conversation_filter.form.person.html_name }}"
+                                   id="{{ conversation_filter.form.person.id_for_label }}"
+                                   class="grow"
+                                   value="{{ conversation_filter.form.person.value|default:'' }}"
+                                   placeholder="Person" />
+                        </label>
+                        <label class="label cursor-pointer gap-2">
+                            <input type="checkbox"
+                                   class="checkbox checkbox-sm"
+                                   name="{{ conversation_filter.form.unread.html_name }}"
+                                   id="{{ conversation_filter.form.unread.id_for_label }}"
+                                   {% if conversation_filter.form.unread.value %}checked{% endif %} />
+                            <span class="label-text">Unread only</span>
+                        </label>
+                        <button type="submit" class="btn btn-primary">
+                            Apply
+                        </button>
+                        {% if filters_applied %}
+                            <a href="{{ clear_filters_url }}" class="btn btn-ghost">Clear filters</a>
+                        {% endif %}
+                    </form>
+                </div>
+            </details>
 
             {% if cards %}
                 <div class="mt-4 flex flex-col gap-2">

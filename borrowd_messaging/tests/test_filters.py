@@ -251,3 +251,41 @@ class FilteredEmptyStateTests(MessagingTestCase):
 
         self.assertContains(response, "Clear filters")
         self.assertContains(response, 'value="nothing-like-this"')
+
+
+@override_settings(MESSAGING_ENABLED=True)
+class FilterPanelTests(MessagingTestCase):
+    """The filters live behind a toggle, but never hide an applied filter."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        self.url = reverse("chat-thread-list")
+        self.make_thread()
+        self.client.force_login(self.borrower)
+
+    def panel(self, **params: str) -> str:
+        body = self.client.get(self.url, params).content.decode()
+        start = body.index("<details")
+        return body[start : body.index("</details>", start)]
+
+    def test_the_panel_starts_closed(self) -> None:
+        panel = self.panel()
+
+        self.assertNotIn("open", panel.split(">", 1)[0])
+        self.assertIn("Filters", panel)
+
+    def test_an_applied_filter_opens_the_panel(self) -> None:
+        self.assertIn("open", self.panel(item="drill").split(">", 1)[0])
+
+    def test_the_toggle_holds_the_apply_and_clear_controls(self) -> None:
+        panel = self.panel(item="drill")
+
+        self.assertIn("Apply", panel)
+        self.assertIn("Clear filters", panel)
+        self.assertIn('value="drill"', panel)
+
+    def test_the_panel_opens_when_nothing_matches(self) -> None:
+        panel = self.panel(item="nothing-like-this")
+
+        self.assertIn("open", panel.split(">", 1)[0])
+        self.assertIn("Clear filters", panel)
