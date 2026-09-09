@@ -76,7 +76,11 @@
 
             {% else %}
                 <p class="mt-4 text-sm opacity-70">
-                    No {{ selected_section }} conversations.
+                    {% if filters_applied %}
+                        No conversations match your filters.
+                    {% else %}
+                        No {{ selected_section }} conversations.
+                    {% endif %}
                 </p>
             {% endif %}
         {% else %}
