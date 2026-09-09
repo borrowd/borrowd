@@ -27,7 +27,7 @@
             {% if cards %}
                 <div class="mt-4 flex flex-col gap-2">
                     {% for card in cards %}
-                        {% include "messaging/_thread_summary_card.html" with summary=card.conversation show_item=True item_name=card.item_name item_thumbnail_url=card.item_thumbnail_url item_removed=card.item_removed only %}
+                        {% include "messaging/_thread_summary_card.html" with summary=card.summary show_item=True item_name=card.item_name item_thumbnail_url=card.item_thumbnail_url item_removed=card.item_removed only %}
 
                     {% endfor %}
                 </div>
