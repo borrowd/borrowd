@@ -19,7 +19,7 @@ class ItemNameFilterTests(MessagingTestCase):
 
     def thread_ids(self, query: str = "") -> list[int]:
         response = self.client.get(f"{self.url}{query}")
-        return [card.conversation.thread_id for card in response.context["cards"]]
+        return [card.summary.thread_id for card in response.context["cards"]]
 
     def test_matches_part_of_an_item_name(self) -> None:
         self.assertEqual(self.thread_ids("?item=ladd"), [self.ladder.pk])
@@ -104,7 +104,7 @@ class PersonFilterTests(MessagingTestCase):
 
     def thread_ids(self, query: str = "") -> list[int]:
         response = self.client.get(f"{self.url}{query}")
-        return [card.conversation.thread_id for card in response.context["cards"]]
+        return [card.summary.thread_id for card in response.context["cards"]]
 
     def test_matches_a_first_name(self) -> None:
         self.assertEqual(self.thread_ids("?person=ada"), [self.with_ada.pk])
@@ -156,7 +156,7 @@ class UnreadFilterTests(MessagingTestCase):
 
     def thread_ids(self, query: str = "") -> list[int]:
         response = self.client.get(f"{self.url}{query}")
-        return [card.conversation.thread_id for card in response.context["cards"]]
+        return [card.summary.thread_id for card in response.context["cards"]]
 
     def test_keeps_only_unacknowledged_conversations(self) -> None:
         self.assertEqual(self.thread_ids("?unread=on"), [self.unread.pk])
@@ -179,3 +179,37 @@ class UnreadFilterTests(MessagingTestCase):
     def test_stacks_with_the_item_filter(self) -> None:
         self.assertEqual(self.thread_ids("?unread=on&item=drill"), [self.unread.pk])
         self.assertEqual(self.thread_ids("?unread=on&item=ladder"), [])
+
+
+@override_settings(MESSAGING_ENABLED=True)
+class ClearFiltersTests(MessagingTestCase):
+    def setUp(self) -> None:
+        super().setUp()
+        self.url = reverse("chat-thread-list")
+        self.make_thread()
+        self.client.force_login(self.borrower)
+
+    def test_no_clear_control_until_something_is_filtered(self) -> None:
+        self.assertNotContains(self.client.get(self.url), "Clear filters")
+
+    def test_an_applied_filter_offers_a_way_out(self) -> None:
+        response = self.client.get(self.url, {"item": "drill"})
+
+        self.assertContains(response, "Clear filters")
+        self.assertEqual(response.context["clear_filters_url"], "?section=active")
+
+    def test_an_empty_filter_value_is_not_treated_as_filtering(self) -> None:
+        response = self.client.get(self.url, {"item": "", "person": ""})
+
+        self.assertFalse(response.context["filters_applied"])
+        self.assertNotContains(response, "Clear filters")
+
+    def test_clearing_keeps_the_open_tab(self) -> None:
+        response = self.client.get(self.url, {"section": "archived", "item": "drill"})
+
+        self.assertEqual(response.context["clear_filters_url"], "?section=archived")
+
+    def test_the_unread_checkbox_counts_as_a_filter(self) -> None:
+        self.assertContains(
+            self.client.get(self.url, {"unread": "on"}), "Clear filters"
+        )
