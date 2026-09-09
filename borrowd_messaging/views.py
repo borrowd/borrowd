@@ -24,7 +24,7 @@ from borrowd_users.request import get_authenticated_user
 from .conversation_summaries import (
     build_hub_cards,
     conversation_status,
-    is_removed,
+    has_removed_item,
     item_thumbnail_url,
     listed_item,
     threads_for_hub,
@@ -163,7 +163,7 @@ class ChatThreadDetailView(
         return {
             "item_name": item.name if item is not None else None,
             "item_thumbnail_url": item_thumbnail_url(item),
-            "item_removed": is_removed(chat_thread),
+            "item_removed": has_removed_item(chat_thread),
             # Link only where the viewer may actually go: a removed Item 404s,
             # and so does one whose group the viewer has since left.
             "item_url": reverse("item-detail", args=[listed.pk])

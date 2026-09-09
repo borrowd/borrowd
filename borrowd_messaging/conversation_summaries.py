@@ -94,7 +94,7 @@ def build_hub_cards(
                 summary=summary,
                 item_name=item.name if item is not None else None,
                 item_thumbnail_url=item_thumbnail_url(item),
-                item_removed=is_removed(thread),
+                item_removed=has_removed_item(thread),
             )
         )
     return cards
@@ -109,8 +109,8 @@ def listed_item(thread: ChatThread) -> Item | None:
     return item if item is not None and item.deleted_at is None else None
 
 
-def is_removed(thread: ChatThread) -> bool:
-    """Whether the Item is soft-deleted but still readable.
+def has_removed_item(thread: ChatThread) -> bool:
+    """Return whether this conversation's Item was soft-deleted.
 
     Items are soft-deleted, so a removed Item keeps its name and photo. Only a
     hard delete leaves nothing, and that clears the link instead.
