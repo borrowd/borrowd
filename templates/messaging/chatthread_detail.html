@@ -7,7 +7,7 @@
 {% endblock %}
 {% block content %}
     <div class="w-full max-w-3xl self-start px-4"
-        x-init="$nextTick(() => requestAnimationFrame(() => window.scrollTo(0, document.documentElement.scrollHeight)))">
+         x-init="$nextTick(() => requestAnimationFrame(() => window.scrollTo(0, document.documentElement.scrollHeight)))">
         <div class="sticky top-16 z-30 -mx-4 bg-base-200 px-4 pb-3">
             <h1 class="sr-only">
                 Conversation with {{ other_participant.profile.full_name }}
