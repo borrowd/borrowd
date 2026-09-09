@@ -6,6 +6,7 @@ from borrowd_messaging.read_state import unread_threads_for
 from borrowd_messaging.services import MessagingService
 
 from .base import MessagingTestCase
+from .test_views import _element_attributes
 
 
 @override_settings(MESSAGING_ENABLED=True)
@@ -24,6 +25,7 @@ class ChatThreadReadViewTests(MessagingTestCase):
 
         self.assertEqual(response.status_code, 204)
         self.assertEqual(response.content, b"")
+        self.assertEqual(response["HX-Trigger"], "messaging:read")
         self.thread.refresh_from_db()
         self.assertEqual(self.thread.borrower_last_read_message_id, self.message.pk)
         self.assertIsNone(self.thread.lender_last_read_message_id)
@@ -158,22 +160,72 @@ class ChatThreadReadViewTests(MessagingTestCase):
             self.thread.messages.values_list("pk", flat=True), message_ids
         )
 
-    def test_detail_poll_and_send_do_not_implicitly_mark_messages_read(self) -> None:
-        detail = self.client.get(reverse("chat-thread-detail", args=[self.thread.pk]))
-        self.assertContains(detail, f'data-read-url="{self.url}"')
-        self.assertContains(detail, f'id="message-{self.message.pk}"')
-        self.assertEqual(
-            self.client.get(
-                reverse("chat-thread-poll", args=[self.thread.pk]), {"after": 0}
-            ).status_code,
-            200,
+    def test_initial_page_asks_htmx_to_acknowledge_only_the_last_message(self) -> None:
+        newest = Message.objects.create(
+            thread=self.thread, sender=self.lender, body="After noon, please."
         )
+        detail = self.client.get(reverse("chat-thread-detail", args=[self.thread.pk]))
+
+        older_attrs = _element_attributes(detail, f"message-{self.message.pk}")
+        newest_attrs = _element_attributes(detail, f"message-{newest.pk}")
+        self.assertNotIn("hx-post", older_attrs)
+        self.assertEqual(newest_attrs["hx-post"], self.url)
+        self.assertEqual(newest_attrs["hx-trigger"], "load")
+        self.assertEqual(newest_attrs["hx-vals"], f'{{"through":"{newest.pk}"}}')
+        self.assertEqual(newest_attrs["hx-swap"], "none")
+
+    def test_poll_and_send_ask_htmx_to_acknowledge_their_last_message(self) -> None:
+        incoming = Message.objects.create(
+            thread=self.thread, sender=self.lender, body="After noon, please."
+        )
+        poll = self.client.get(
+            reverse("chat-thread-poll", args=[self.thread.pk]),
+            {"after": self.message.pk},
+        )
+        self.assertEqual(poll.status_code, 200)
         self.assertEqual(
-            self.client.post(
-                reverse("chat-thread-send", args=[self.thread.pk]),
-                {"after": 0, "body": "Sounds good."},
-            ).status_code,
-            200,
+            _element_attributes(poll, f"message-{incoming.pk}")["hx-post"],
+            self.url,
+        )
+
+        sent = self.client.post(
+            reverse("chat-thread-send", args=[self.thread.pk]),
+            {"after": incoming.pk, "body": "Sounds good."},
+        )
+        self.assertEqual(sent.status_code, 200)
+        reply = self.thread.messages.latest("pk")
+        reply_attrs = _element_attributes(sent, f"message-{reply.pk}")
+        self.assertEqual(reply_attrs["hx-post"], self.url)
+        self.assertEqual(reply_attrs["hx-vals"], f'{{"through":"{reply.pk}"}}')
+
+    def test_final_archive_poll_asks_htmx_to_acknowledge_before_polling_stops(
+        self,
+    ) -> None:
+        MessagingService.archive_thread(self.thread, ArchiveReason.CLOSED)
+        notice = self.thread.messages.latest("pk")
+
+        response = self.client.get(
+            reverse("chat-thread-poll", args=[self.thread.pk]),
+            {"after": self.message.pk},
+        )
+
+        self.assertEqual(response.status_code, 286)
+        notice_attrs = _element_attributes(response, f"message-{notice.pk}")
+        self.assertEqual(notice_attrs["hx-post"], self.url)
+        self.assertEqual(notice_attrs["hx-trigger"], "load")
+        self.assertEqual(notice_attrs["hx-vals"], f'{{"through":"{notice.pk}"}}')
+        self.thread.refresh_from_db()
+        self.assertIsNone(self.thread.borrower_last_read_message_id)
+        self.assertTrue(unread_threads_for(self.borrower).exists())
+
+    def test_rendering_messages_does_not_write_read_state_on_the_server(self) -> None:
+        self.client.get(reverse("chat-thread-detail", args=[self.thread.pk]))
+        self.client.get(
+            reverse("chat-thread-poll", args=[self.thread.pk]), {"after": 0}
+        )
+        self.client.post(
+            reverse("chat-thread-send", args=[self.thread.pk]),
+            {"after": 0, "body": "Sounds good."},
         )
         self.thread.refresh_from_db()
         self.assertIsNone(self.thread.borrower_last_read_message_id)
@@ -191,6 +243,9 @@ class ChatThreadReadViewTests(MessagingTestCase):
 
         detail = self.client.get(reverse("chat-thread-detail", args=[self.thread.pk]))
         self.assertContains(detail, f'id="message-{notice.pk}"')
+        self.assertEqual(
+            _element_attributes(detail, f"message-{notice.pk}")["hx-post"], self.url
+        )
         self.client.post(self.url, {"through": self.message.pk})
         for viewer in (self.borrower, self.lender):
             self.assertTrue(unread_threads_for(viewer).exists())
@@ -212,8 +267,12 @@ class ChatThreadReadViewTests(MessagingTestCase):
         client.force_login(self.borrower)
 
         detail = client.get(reverse("chat-thread-detail", args=[self.thread.pk]))
+        notice = self.thread.messages.latest("pk")
 
-        self.assertContains(detail, f'data-read-url="{self.url}"')
+        self.assertEqual(
+            _element_attributes(detail, f"message-{notice.pk}")["hx-post"],
+            self.url,
+        )
         self.assertIn("csrftoken", client.cookies)
         self.assertEqual(
             client.post(self.url, {"through": self.message.pk}).status_code, 403

@@ -222,7 +222,9 @@ class ChatThreadReadView(
         except InvalidReadCursor as exc:
             return HttpResponseBadRequest(str(exc))
 
-        return HttpResponse(status=204)
+        response = HttpResponse(status=204)
+        response["HX-Trigger"] = "messaging:read"
+        return response
 
 
 class ChatThreadSendView(

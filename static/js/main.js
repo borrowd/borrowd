@@ -3,5 +3,4 @@ import "../css/main.css";
 import "./toast.js";
 import "./qrcode-render.js";
 import "./htmx-csrf.js";
-import "./messaging-read.js";
 import "./image-resize.js";
