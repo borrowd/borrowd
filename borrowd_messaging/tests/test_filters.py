@@ -1,7 +1,9 @@
 from django.test import override_settings
 from django.urls import reverse
 
-from borrowd_messaging.models import ChatThread
+from borrowd_messaging.models import ChatThread, Message
+from borrowd_messaging.read_state import mark_thread_read
+from borrowd_messaging.services import MessagingService
 
 from .base import MessagingTestCase
 
@@ -134,3 +136,46 @@ class PersonFilterTests(MessagingTestCase):
     def test_stacks_with_the_item_filter(self) -> None:
         self.assertEqual(self.thread_ids("?person=ada&item=drill"), [self.with_ada.pk])
         self.assertEqual(self.thread_ids("?person=ada&item=ladder"), [])
+
+
+@override_settings(MESSAGING_ENABLED=True)
+class UnreadFilterTests(MessagingTestCase):
+    def setUp(self) -> None:
+        super().setUp()
+        self.url = reverse("chat-thread-list")
+        self.unread = self.make_thread()
+        Message.objects.create(
+            thread=self.unread, sender=self.lender, body="Free Saturday?"
+        )
+        self.read = self.make_thread(item=self.make_item(name="Ladder"))
+        seen = Message.objects.create(
+            thread=self.read, sender=self.lender, body="Ladder is free too."
+        )
+        mark_thread_read(self.read, self.borrower, through_message_id=seen.pk)
+        self.client.force_login(self.borrower)
+
+    def thread_ids(self, query: str = "") -> list[int]:
+        response = self.client.get(f"{self.url}{query}")
+        return [card.conversation.thread_id for card in response.context["cards"]]
+
+    def test_keeps_only_unacknowledged_conversations(self) -> None:
+        self.assertEqual(self.thread_ids("?unread=on"), [self.unread.pk])
+
+    def test_leaving_it_off_keeps_everything(self) -> None:
+        self.assertEqual(set(self.thread_ids()), {self.unread.pk, self.read.pk})
+
+    def test_your_own_messages_do_not_make_a_conversation_unread(self) -> None:
+        mine = self.make_thread(item=self.make_item(name="Saw"))
+        Message.objects.create(thread=mine, sender=self.borrower, body="Hello?")
+
+        self.assertNotIn(mine.pk, self.thread_ids("?unread=on"))
+
+    def test_an_archived_notice_still_counts_as_unread(self) -> None:
+        closing = self.make_thread(item=self.make_item(name="Tent"))
+        MessagingService.close_prerequest_thread(closing, self.lender)
+
+        self.assertEqual(self.thread_ids("?section=archived&unread=on"), [closing.pk])
+
+    def test_stacks_with_the_item_filter(self) -> None:
+        self.assertEqual(self.thread_ids("?unread=on&item=drill"), [self.unread.pk])
+        self.assertEqual(self.thread_ids("?unread=on&item=ladder"), [])
