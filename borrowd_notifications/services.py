@@ -87,9 +87,7 @@ class NotificationService:
             channels.add(ChannelType.APP)
         if pref.email_enabled:
             channels.add(ChannelType.EMAIL)
-        if pref.push_enabled and notification_type not in (
-            NotificationType.push_excluded_types()
-        ):
+        if pref.push_enabled:
             channels.add(ChannelType.PUSH)
         return channels
 

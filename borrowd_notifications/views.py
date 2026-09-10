@@ -169,7 +169,6 @@ def _build_preferences_context(user: BorrowdUser) -> dict[str, Any]:
     category-level "select all" switches.
     """
     mandatory = NotificationType.mandatory_types()
-    push_excluded = NotificationType.push_excluded_types()
     prefs: dict[str, NotificationPreference] = {
         p.notification_type: p for p in NotificationPreference.objects.filter(user=user)
     }
@@ -188,8 +187,7 @@ def _build_preferences_context(user: BorrowdUser) -> dict[str, Any]:
             pref = prefs.get(ntype.value)
             app_on = is_mandatory or (pref is not None and pref.in_app_enabled)
             email_on = is_mandatory or (pref is not None and pref.email_enabled)
-            supports_push = ntype not in push_excluded
-            push_on = supports_push and pref is not None and pref.push_enabled
+            push_on = pref is not None and pref.push_enabled
 
             if not is_mandatory:
                 if not app_on:
@@ -198,7 +196,7 @@ def _build_preferences_context(user: BorrowdUser) -> dict[str, Any]:
                     cat_optional_email = False
 
             # push are not mendatory
-            if supports_push and not push_on:
+            if not push_on:
                 cat_optional_push = False
 
             types_ctx.append(
@@ -209,7 +207,6 @@ def _build_preferences_context(user: BorrowdUser) -> dict[str, Any]:
                     "app_enabled": app_on,
                     "email_enabled": email_on,
                     "push_enabled": push_on,
-                    "supports_push": supports_push,
                 }
             )
 
@@ -232,7 +229,6 @@ def _build_preferences_context(user: BorrowdUser) -> dict[str, Any]:
                 "email": type_ctx["email_enabled"],
                 "push": type_ctx["push_enabled"],
                 "is_mandatory": type_ctx["is_mandatory"],
-                "supports_push": type_ctx["supports_push"],
                 "category": cat_ctx["slug"],
             }
 
@@ -275,12 +271,6 @@ def toggle_preference(request: HttpRequest) -> HttpResponse:
     ):
         return HttpResponse(status=403)
 
-    if (
-        ChannelType(channel_value) == ChannelType.PUSH
-        and ntype in NotificationType.push_excluded_types()
-    ):
-        return HttpResponse(status=403)
-
     field_name = str(ChannelType(channel_value).label)
     obj, _ = NotificationPreference.objects.get_or_create(
         user=user,
@@ -315,10 +305,7 @@ def bulk_toggle_preferences(request: HttpRequest) -> HttpResponse:
         return HttpResponse(status=400)
 
     if channel == ChannelType.PUSH:
-        excluded = NotificationType.push_excluded_types()
-        types_to_update = [
-            ntype for ntype in _all_types_for_scope(scope) if ntype not in excluded
-        ]
+        types_to_update = _all_types_for_scope(scope)
     else:
         types_to_update = _optional_types_for_scope(scope)
     if not types_to_update:
