@@ -34,6 +34,7 @@ from borrowd_items.models import (
     TransactionStatus,
 )
 from borrowd_messaging.models import ChatThread, Message
+from borrowd_messaging.read_state import thread_read
 from borrowd_users.models import BorrowdUser
 
 from .models import NotificationMetadata, NotificationType
@@ -124,6 +125,31 @@ def notify_recipient_of_new_message(
         return
 
     transaction.on_commit(lambda: _notify_new_message(instance))
+
+
+@receiver(thread_read)
+def clear_new_message_notification(
+    sender: type[ChatThread],
+    thread: ChatThread,
+    reader: BorrowdUser,
+    through_message_id: int,
+    **kwargs: Any,
+) -> None:
+    """Clear the reader's notification once they have caught up with it."""
+    notification = Notification.objects.filter(
+        recipient=reader,
+        unread=True,
+        verb=NotificationType.NEW_MESSAGE.value,
+        action_object_content_type=ContentType.objects.get_for_model(ChatThread),
+        action_object_object_id=str(thread.pk),
+    ).first()
+    if notification is None:
+        return
+
+    # target_object_id is a CharField, so compare the ids as numbers rather
+    # than letting the database order "9" after "10".
+    if int(notification.target_object_id) <= through_message_id:
+        notification.mark_as_read()
 
 
 @receiver(post_save, sender=Notification)
