@@ -1,5 +1,5 @@
 from concurrent.futures import ThreadPoolExecutor
-from threading import Barrier
+from threading import Barrier, Event
 from unittest import skipUnless
 
 from django.db import close_old_connections, connection, connections
@@ -13,6 +13,7 @@ from borrowd_messaging.exceptions import (
 from borrowd_messaging.models import ArchiveReason, ChatThread, Message
 from borrowd_messaging.read_state import (
     mark_thread_read,
+    thread_read,
     threads_with_unread_state,
     unread_threads_for,
 )
@@ -404,3 +405,79 @@ class ConcurrentReadCursorTests(TransactionTestCase):
         thread.refresh_from_db()
         self.assertEqual(thread.borrower_last_read_message_id, messages[-1].pk)
         self.assertIsNone(thread.lender_last_read_message_id)
+
+    def test_message_send_waits_for_read_acknowledgment_to_commit(self) -> None:
+        lender = BorrowdUser.objects.create_user(username="lock-lender")
+        borrower = BorrowdUser.objects.create_user(username="lock-borrower")
+        thread = ChatThread.objects.create(
+            lender=lender,
+            borrower=borrower,
+            created_by=borrower,
+            updated_by=borrower,
+        )
+        message = Message.objects.create(
+            thread=thread,
+            sender=lender,
+            body="Free Saturday?",
+        )
+        read_follow_up_started = Event()
+        allow_read_to_commit = Event()
+        send_started = Event()
+        send_finished = Event()
+
+        def pause_read_follow_up(sender: type[ChatThread], **kwargs: object) -> None:
+            read_follow_up_started.set()
+            if not allow_read_to_commit.wait(timeout=10):
+                raise TimeoutError("Timed out waiting to finish the read transaction.")
+
+        def acknowledge_message() -> bool:
+            close_old_connections()
+            try:
+                return mark_thread_read(
+                    ChatThread.objects.get(pk=thread.pk),
+                    BorrowdUser.objects.get(pk=borrower.pk),
+                    through_message_id=message.pk,
+                )
+            finally:
+                connections.close_all()
+
+        def send_another_message() -> int:
+            close_old_connections()
+            try:
+                send_started.set()
+                sent = MessagingService.send_message(
+                    ChatThread.objects.get(pk=thread.pk),
+                    BorrowdUser.objects.get(pk=lender.pk),
+                    "Or Sunday?",
+                )
+                send_finished.set()
+                return sent.pk
+            finally:
+                connections.close_all()
+
+        receiver_id = "test_pause_read_follow_up"
+        thread_read.connect(
+            pause_read_follow_up,
+            dispatch_uid=receiver_id,
+            weak=False,
+        )
+        try:
+            with ThreadPoolExecutor(max_workers=2) as executor:
+                try:
+                    read_result = executor.submit(acknowledge_message)
+                    self.assertTrue(read_follow_up_started.wait(timeout=10))
+                    send_result = executor.submit(send_another_message)
+                    self.assertTrue(send_started.wait(timeout=10))
+                    self.assertFalse(send_finished.wait(timeout=0.5))
+                finally:
+                    allow_read_to_commit.set()
+
+                self.assertTrue(read_result.result(timeout=10))
+                sent_message_id = send_result.result(timeout=10)
+        finally:
+            allow_read_to_commit.set()
+            thread_read.disconnect(dispatch_uid=receiver_id)
+
+        thread.refresh_from_db()
+        self.assertEqual(thread.borrower_last_read_message_id, message.pk)
+        self.assertTrue(Message.objects.filter(pk=sent_message_id).exists())
