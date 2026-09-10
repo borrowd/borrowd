@@ -388,6 +388,28 @@ class SendMessageTests(MessagingTestCase):
 
         dispatch.assert_called_once_with(message)
 
+    def test_creates_notification_state_explicitly(self) -> None:
+        with patch(
+            "borrowd_messaging.services.create_or_refresh_message_notification"
+        ) as create_notification:
+            message = MessagingService.send_message(
+                self.thread,
+                self.borrower,
+                "hello",
+            )
+
+        create_notification.assert_called_once_with(message)
+
+    def test_notification_state_failure_rolls_back_the_message(self) -> None:
+        with patch(
+            "borrowd_messaging.services.create_or_refresh_message_notification",
+            side_effect=RuntimeError("notification state unavailable"),
+        ):
+            with self.assertRaises(RuntimeError):
+                MessagingService.send_message(self.thread, self.borrower, "hello")
+
+        self.assertFalse(self.thread.messages.exists())
+
 
 @override_settings(MESSAGING_ENABLED=False)
 class AttachExistingPreRequestThreadTests(MessagingTestCase):

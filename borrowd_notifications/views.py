@@ -20,6 +20,7 @@ from borrowd.util import is_safe_back_url
 from borrowd_community_requests.models import CommunityRequest
 from borrowd_groups.models import BorrowdGroup, Membership
 from borrowd_items.models import Item
+from borrowd_messaging.models import ChatThread
 from borrowd_users.models import BorrowdUser
 from borrowd_users.request import get_authenticated_user
 
@@ -114,6 +115,14 @@ NOTIFICATION_CATEGORIES: list[dict[str, Any]] = [
                 NotificationType.COMMUNITY_REQUEST_FULFILLED,
                 "Your community request was fulfilled",
             ),
+        ],
+    },
+    {
+        "name": "Messages",
+        "slug": "messages",
+        "icon": "chat-bubble-left-right",
+        "types": [
+            (NotificationType.NEW_MESSAGE, "New message in a conversation"),
         ],
     },
 ]
@@ -335,6 +344,8 @@ def app_channel_qs(qs: QuerySet[Notification]) -> QuerySet[Notification]:
     page, so without this each row costs its own query.
     """
     return qs.filter(borrowd_metadata__visible_in_app=True).prefetch_related(
+        # GenericPrefetch accepts one queryset for each supported content type:
+        # https://docs.djangoproject.com/en/5.2/ref/contrib/contenttypes/#genericprefetch
         GenericPrefetch(
             "action_object",
             [
@@ -342,6 +353,7 @@ def app_channel_qs(qs: QuerySet[Notification]) -> QuerySet[Notification]:
                 Membership.objects.select_related("group", "user__profile"),
                 BorrowdGroup.objects.all(),
                 CommunityRequest.objects.select_related("requester"),
+                ChatThread.objects.all(),
             ],
         )
     )
@@ -437,9 +449,11 @@ def _get_category_icon(slug: str | None) -> str | None:
 
 def _notification_action_object(
     notification: Notification,
-) -> Item | Membership | BorrowdGroup | CommunityRequest | None:
+) -> Item | Membership | BorrowdGroup | CommunityRequest | ChatThread | None:
     action_object = notification.action_object
-    if isinstance(action_object, (Item, Membership, BorrowdGroup, CommunityRequest)):
+    if isinstance(
+        action_object, (Item, Membership, BorrowdGroup, CommunityRequest, ChatThread)
+    ):
         return action_object
     return None
 
@@ -473,6 +487,9 @@ def _notification_action_url(notification: Notification) -> str | None:
         return reverse("borrowd_groups:group-detail", kwargs={"pk": action_object.pk})
     if isinstance(action_object, CommunityRequest):
         return reverse("community-request-list")
+    if isinstance(action_object, ChatThread):
+        # Archived conversations remain readable by their participants.
+        return reverse("chat-thread-detail", kwargs={"pk": action_object.pk})
     return None
 
 

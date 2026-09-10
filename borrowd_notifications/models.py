@@ -32,7 +32,8 @@ from borrowd_users.models import BorrowdUser
         2. Add its in-app message template to _MESSAGE_TEMPLATES and add the
            required values to NotificationType._get_template_context_for().
         3. Emit it with notify.send(). The description passed there is the email
-           subject line. Emitters currently live in borrowd_notifications/signals.py,
+           subject line. Emitters live in borrowd_notifications/signals.py,
+           borrowd_notifications/message_notifications.py,
            borrowd_groups/signals.py, and borrowd_users/services.py.
         4. Add matching email body templates at
            templates/notifications/messages/<notification_type>.html and .txt.
@@ -90,6 +91,9 @@ class NotificationType(models.TextChoices):
     REQUEST_CANCELLED_OWNER_LEFT = "REQUEST_CANCELLED_OWNER_LEFT"
     LOAN_ENDED_OWNER_LEFT = "LOAN_ENDED_OWNER_LEFT"
 
+    # Messaging
+    NEW_MESSAGE = "NEW_MESSAGE"
+
     # Ownership transfer / giveaway
     GIVEAWAY_OFFER_SENT = "GIVEAWAY_OFFER_SENT"
     GIVEAWAY_ACCEPTED = "GIVEAWAY_ACCEPTED"
@@ -124,7 +128,20 @@ class NotificationType(models.TextChoices):
     @staticmethod
     def _get_template_context_for(notification: Notification) -> dict[str, Any]:
         """Extract context from the notification's action_object."""
+
         context = {}
+        if notification.verb == NotificationType.NEW_MESSAGE.value and isinstance(
+            notification.target, ConversationNudge
+        ):
+            thread = notification.target.thread
+            item = thread.item
+            return {
+                "recipient_name": notification.recipient.first_name,
+                "sender_name": notification.actor.first_name,
+                "item_name": item.name if item is not None else "an item",
+                "conversation_url": settings.BASE_URL.rstrip("/")
+                + reverse("chat-thread-detail", args=[thread.pk]),
+            }
         if notification.verb in (
             NotificationType.REQUEST_CANCELLED_BORROWER_LEFT.value,
             NotificationType.REQUEST_CANCELLED_OWNER_LEFT.value,
@@ -324,6 +341,7 @@ _MESSAGE_TEMPLATES: dict[NotificationType, str] = {
     NotificationType.GIVEAWAY_REQUEST_APPROVED: "{gifter_name} approved your request - {item_name} is yours!",
     NotificationType.GIVEAWAY_REQUEST_DECLINED: "{gifter_name} declined your request for {item_name}",
     NotificationType.GIVEAWAY_COMPLETED: "You gave {item_name} to {receiver_name}",
+    NotificationType.NEW_MESSAGE: "{sender_name} sent you a message about {item_name}",
 }
 
 
@@ -382,6 +400,75 @@ class NotificationPreference(Model):
                 fields=["user", "notification_type"],
                 name="unique_notification_preference",
             )
+        ]
+
+
+class ConversationNudgeStatus(TextChoices):
+    """Lifecycle states for one conversation-notification cycle."""
+
+    ACTIVE = "ACTIVE", "Active"
+    CLEARED = "CLEARED", "Cleared"
+
+
+class ConversationNudge(Model):
+    """Tracks one recipient's notification for an unread conversation period."""
+
+    recipient = ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=CASCADE,
+        related_name="conversation_nudges",
+        help_text="User who may receive this conversation notification.",
+    )
+    thread = ForeignKey(
+        "borrowd_messaging.ChatThread",
+        on_delete=CASCADE,
+        related_name="notification_nudges",
+        help_text="Conversation represented by this nudge.",
+    )
+    latest_message = ForeignKey(
+        "borrowd_messaging.Message",
+        on_delete=models.PROTECT,
+        related_name="+",
+        help_text="Newest message covered by this nudge.",
+    )
+    status = models.CharField(
+        max_length=16,
+        choices=ConversationNudgeStatus.choices,
+        default=ConversationNudgeStatus.ACTIVE,
+        help_text="Whether this nudge can still be refreshed.",
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        help_text="When this notification cycle started.",
+    )
+    cleared_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When the recipient read through the covered message.",
+    )
+
+    class Meta:
+        constraints = [
+            # Completed cycles remain as history while only one cycle stays active:
+            # https://docs.djangoproject.com/en/5.2/ref/models/constraints/#uniqueconstraint
+            models.UniqueConstraint(
+                fields=["recipient", "thread"],
+                condition=models.Q(status=ConversationNudgeStatus.ACTIVE),
+                name="unique_active_nudge_per_recipient_thread",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(
+                        status=ConversationNudgeStatus.ACTIVE,
+                        cleared_at__isnull=True,
+                    )
+                    | models.Q(
+                        status=ConversationNudgeStatus.CLEARED,
+                        cleared_at__isnull=False,
+                    )
+                ),
+                name="conversation_nudge_clear_time_matches_status",
+            ),
         ]
 
 

@@ -1,11 +1,16 @@
 import importlib
 import json
+from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
+from threading import Barrier
 from typing import Any
+from unittest import skipUnless
 from unittest.mock import patch
 
 from django.conf import settings
 from django.core import mail
+from django.db import IntegrityError, close_old_connections, connection, connections
+from django.db.transaction import atomic
 from django.http import HttpResponseBase
 from django.templatetags.static import static
 from django.test import TestCase, TransactionTestCase, override_settings
@@ -25,6 +30,9 @@ from borrowd_items.models import (
     Transaction,
     TransactionStatus,
 )
+from borrowd_messaging.models import ChatThread, Message
+from borrowd_messaging.read_state import mark_thread_read
+from borrowd_messaging.services import MessagingService
 from borrowd_notifications.channels import (
     AppNotificationStrategy,
     EmailNotificationStrategy,
@@ -34,8 +42,11 @@ from borrowd_notifications.channels import (
 from borrowd_notifications.services import NotificationService
 from borrowd_users.models import BorrowdUser
 
+from .message_notifications import create_or_refresh_message_notification
 from .models import (
     ChannelType,
+    ConversationNudge,
+    ConversationNudgeStatus,
     NotificationData,
     NotificationMetadata,
     NotificationPreference,
@@ -47,6 +58,7 @@ from .views import (
     NOTIFICATION_CATEGORIES,
     _notification_action_url,
     _notification_avatar_content,
+    app_channel_qs,
 )
 
 
@@ -3090,15 +3102,7 @@ class PUSHNotificationStrategyTests(TransactionTestCase):
 
 
 class NotificationActionUrlTests(TestCase):
-    """Guards _notification_action_url's dispatch on action_object type.
-
-    Every notify.send() call across the app (borrowd_notifications,
-    borrowd_groups, and borrowd_users/services.py) sets action_object to an
-    Item, a Membership, or a BorrowdGroup. If a future call site sets some
-    other type without _notification_action_url being updated to match, the
-    resulting notification silently renders as a non-clickable card with no
-    error anywhere -- these tests fail loudly instead.
-    """
+    """Destinations for each supported notification action-object model."""
 
     def setUp(self) -> None:
         self.user = BorrowdUser.objects.create_user(
@@ -3209,3 +3213,577 @@ class GroupNeedsModeratorNotificationLinkTests(TestCase):
             recipient=member, verb=NotificationType.GROUP_NEEDS_MODERATOR.value
         )
         self.assertEqual(_notification_action_url(notification), f"/groups/{group.pk}/")
+
+
+class NewMessagePushPreferenceTests(TestCase):
+    """Message notifications follow the standard opt-in push preference."""
+
+    def setUp(self) -> None:
+        self.user = BorrowdUser.objects.create_user(
+            username="push-excluded", email="push-excluded@example.com", password="x"
+        )
+        self.client.force_login(self.user)
+
+    def test_push_starts_disabled(self) -> None:
+        preference = NotificationPreference.objects.get(
+            user=self.user,
+            notification_type=NotificationType.NEW_MESSAGE.value,
+        )
+
+        channels = NotificationService._get_enabled_channels(
+            self.user, NotificationType.NEW_MESSAGE
+        )
+
+        self.assertFalse(preference.push_enabled)
+        self.assertNotIn(ChannelType.PUSH, channels)
+        self.assertEqual(channels, {ChannelType.APP, ChannelType.EMAIL})
+
+    def test_single_toggle_can_enable_push(self) -> None:
+        response = self.client.post(
+            reverse("notification-toggle"),
+            {
+                "notification_type": NotificationType.NEW_MESSAGE.value,
+                "channel": ChannelType.PUSH.value,
+                "enabled": "true",
+            },
+        )
+
+        self.assertEqual(response.status_code, 204)
+        preference = NotificationPreference.objects.get(
+            user=self.user,
+            notification_type=NotificationType.NEW_MESSAGE.value,
+        )
+        self.assertTrue(preference.push_enabled)
+        self.assertIn(
+            ChannelType.PUSH,
+            NotificationService._get_enabled_channels(
+                self.user, NotificationType.NEW_MESSAGE
+            ),
+        )
+
+    def test_bulk_toggle_can_enable_push(self) -> None:
+        response = self.client.post(
+            reverse("notification-bulk-toggle"),
+            {"scope": "master", "channel": ChannelType.PUSH.value, "enabled": "true"},
+        )
+
+        self.assertEqual(response.status_code, 204)
+        pref = NotificationPreference.objects.get(
+            user=self.user, notification_type=NotificationType.NEW_MESSAGE.value
+        )
+        self.assertTrue(pref.push_enabled)
+
+    def test_preferences_page_offers_a_push_toggle(self) -> None:
+        response = self.client.get(reverse("notification-preferences"))
+
+        self.assertContains(
+            response,
+            "toggle('NEW_MESSAGE', 'PUSH', 'push', $event.target.checked)",
+        )
+
+
+class NewMessageFixture(TestCase):
+    """A two-person conversation about one Item, and helpers to talk in it.
+
+    Carries no tests of its own; the classes below supply those.
+    """
+
+    def setUp(self) -> None:
+        self.lender = BorrowdUser.objects.create_user(
+            username="nm-lender", email="nm-lender@example.com", password="x"
+        )
+        self.lender.first_name = "Ada"
+        self.lender.save()
+        self.borrower = BorrowdUser.objects.create_user(
+            username="nm-borrower", email="nm-borrower@example.com", password="x"
+        )
+        self.borrower.first_name = "Grace"
+        self.borrower.save()
+        self.item = Item.objects.create(
+            name="Drill",
+            description="A drill",
+            owner=self.lender,
+            created_by=self.lender,
+            updated_by=self.lender,
+        )
+        self.thread = ChatThread.objects.create(
+            item=self.item,
+            lender=self.lender,
+            borrower=self.borrower,
+            created_by=self.borrower,
+            updated_by=self.borrower,
+        )
+
+    def new_message_notifications(self) -> Any:
+        return Notification.objects.filter(verb=NotificationType.NEW_MESSAGE.value)
+
+    def store(self, sender: BorrowdUser, body: str = "Free Saturday?") -> Message:
+        """Store a fixture message without running messaging integrations."""
+        return Message.objects.create(thread=self.thread, sender=sender, body=body)
+
+    def send(
+        self,
+        sender: BorrowdUser,
+        body: str = "Free Saturday?",
+        *,
+        thread: ChatThread | None = None,
+    ) -> Message:
+        """Send through the public messaging service and run commit callbacks."""
+        with self.captureOnCommitCallbacks(execute=True):
+            return MessagingService.send_message(thread or self.thread, sender, body)
+
+
+@override_settings(MESSAGING_ENABLED=False)
+class ConversationNudgeModelTests(NewMessageFixture):
+    """Database rules for conversation-notification cycles."""
+
+    def test_new_nudge_starts_active(self) -> None:
+        message = self.store(self.borrower)
+
+        nudge = ConversationNudge.objects.create(
+            recipient=self.lender,
+            thread=self.thread,
+            latest_message=message,
+        )
+
+        self.assertEqual(nudge.status, ConversationNudgeStatus.ACTIVE)
+        self.assertIsNone(nudge.cleared_at)
+
+    def test_recipient_has_only_one_active_nudge_per_conversation(self) -> None:
+        first_message = self.store(self.borrower, "Free Saturday?")
+        second_message = self.store(self.borrower, "Or Sunday?")
+        ConversationNudge.objects.create(
+            recipient=self.lender,
+            thread=self.thread,
+            latest_message=first_message,
+        )
+
+        with self.assertRaises(IntegrityError), atomic():
+            ConversationNudge.objects.create(
+                recipient=self.lender,
+                thread=self.thread,
+                latest_message=second_message,
+            )
+
+    def test_cleared_nudge_allows_a_new_active_cycle(self) -> None:
+        first_message = self.store(self.borrower, "Free Saturday?")
+        first_nudge = ConversationNudge.objects.create(
+            recipient=self.lender,
+            thread=self.thread,
+            latest_message=first_message,
+        )
+        ConversationNudge.objects.filter(pk=first_nudge.pk).update(
+            status=ConversationNudgeStatus.CLEARED,
+            cleared_at=timezone.now(),
+        )
+        second_message = self.store(self.borrower, "Or Sunday?")
+
+        second_nudge = ConversationNudge.objects.create(
+            recipient=self.lender,
+            thread=self.thread,
+            latest_message=second_message,
+        )
+
+        self.assertEqual(second_nudge.status, ConversationNudgeStatus.ACTIVE)
+        self.assertEqual(ConversationNudge.objects.count(), 2)
+
+    def test_each_participant_can_have_an_active_nudge(self) -> None:
+        borrower_message = self.store(self.borrower)
+        lender_message = self.store(self.lender)
+
+        ConversationNudge.objects.create(
+            recipient=self.lender,
+            thread=self.thread,
+            latest_message=borrower_message,
+        )
+        ConversationNudge.objects.create(
+            recipient=self.borrower,
+            thread=self.thread,
+            latest_message=lender_message,
+        )
+
+        self.assertEqual(
+            ConversationNudge.objects.filter(
+                thread=self.thread,
+                status=ConversationNudgeStatus.ACTIVE,
+            ).count(),
+            2,
+        )
+
+    def test_cleared_nudge_requires_clear_time(self) -> None:
+        message = self.store(self.borrower)
+
+        with self.assertRaises(IntegrityError), atomic():
+            ConversationNudge.objects.create(
+                recipient=self.lender,
+                thread=self.thread,
+                latest_message=message,
+                status=ConversationNudgeStatus.CLEARED,
+            )
+
+
+@override_settings(MESSAGING_ENABLED=True)
+class NewMessageNotificationTests(NewMessageFixture):
+    """Nudging the other participant when a message arrives."""
+
+    def test_storing_a_message_directly_does_not_run_integrations(self) -> None:
+        self.store(self.borrower)
+
+        self.assertFalse(self.new_message_notifications().exists())
+        self.assertFalse(ConversationNudge.objects.exists())
+
+    def test_the_other_participant_is_notified(self) -> None:
+        message = self.send(self.borrower)
+
+        notification = self.new_message_notifications().get()
+        nudge = ConversationNudge.objects.get()
+        self.assertEqual(notification.recipient, self.lender)
+        self.assertEqual(notification.actor, self.borrower)
+        self.assertEqual(notification.action_object, self.thread)
+        self.assertEqual(notification.target, nudge)
+        self.assertEqual(nudge.latest_message, message)
+
+    def test_the_sender_is_never_notified(self) -> None:
+        self.send(self.borrower)
+
+        self.assertFalse(
+            self.new_message_notifications().filter(recipient=self.borrower).exists()
+        )
+
+    def test_a_system_notice_notifies_nobody(self) -> None:
+        with self.captureOnCommitCallbacks(execute=True):
+            Message.objects.create(
+                thread=self.thread,
+                sender=self.lender,
+                body="This conversation was closed.",
+                is_system=True,
+            )
+
+        self.assertFalse(self.new_message_notifications().exists())
+        self.assertFalse(ConversationNudge.objects.exists())
+
+    def test_editing_a_message_does_not_notify_again(self) -> None:
+        message = self.send(self.borrower)
+        with self.captureOnCommitCallbacks(execute=True):
+            message.body = "Free Sunday?"
+            message.save()
+
+        self.assertEqual(self.new_message_notifications().count(), 1)
+
+    @override_settings(MESSAGING_ENABLED=False)
+    def test_nothing_is_sent_while_messaging_is_off(self) -> None:
+        message = self.store(self.borrower)
+        create_or_refresh_message_notification(message)
+
+        self.assertFalse(self.new_message_notifications().exists())
+        self.assertFalse(ConversationNudge.objects.exists())
+
+    def test_the_lender_can_notify_the_borrower_too(self) -> None:
+        self.send(self.lender, "Yes, any time after Friday.")
+
+        notification = self.new_message_notifications().get()
+        self.assertEqual(notification.recipient, self.borrower)
+
+    def test_the_copy_names_the_sender_and_the_item(self) -> None:
+        self.send(self.borrower)
+
+        notification = self.new_message_notifications().get()
+        self.assertEqual(
+            notification.description, "Grace sent you a message about Drill"
+        )
+
+    def test_a_removed_item_still_produces_a_nudge(self) -> None:
+        ChatThread.objects.filter(pk=self.thread.pk).update(item=None)
+        self.thread.refresh_from_db()
+
+        self.send(self.borrower)
+
+        self.assertEqual(self.new_message_notifications().count(), 1)
+
+
+@override_settings(MESSAGING_ENABLED=True)
+class NewMessageCoalescingTests(NewMessageFixture):
+    """One waiting nudge per conversation, refreshed rather than repeated."""
+
+    def test_a_second_message_refreshes_instead_of_duplicating(self) -> None:
+        self.send(self.borrower, "Free Saturday?")
+        second = self.send(self.borrower, "Or Sunday?")
+
+        notification = self.new_message_notifications().get()
+        nudge = ConversationNudge.objects.get()
+        self.assertEqual(notification.target, nudge)
+        self.assertEqual(nudge.latest_message, second)
+        self.assertEqual(notification.timestamp, second.created_at)
+
+    def test_a_burst_stays_one_notification(self) -> None:
+        for index in range(5):
+            self.send(self.borrower, f"Message {index}")
+
+        self.assertEqual(self.new_message_notifications().count(), 1)
+
+    def test_an_older_callback_does_not_move_the_nudge_backwards(self) -> None:
+        with self.settings(MESSAGING_ENABLED=False):
+            first = self.store(self.borrower, "Free Saturday?")
+            second = self.store(self.borrower, "Or Sunday?")
+
+        with self.captureOnCommitCallbacks(execute=True):
+            create_or_refresh_message_notification(second)
+            create_or_refresh_message_notification(first)
+
+        notification = self.new_message_notifications().get()
+        nudge = ConversationNudge.objects.get()
+        self.assertEqual(nudge.latest_message, second)
+        self.assertEqual(notification.timestamp, second.created_at)
+
+    def test_only_the_first_message_sends_an_email(self) -> None:
+        mail.outbox.clear()
+        self.send(self.borrower, "Free Saturday?")
+        after_first = len(mail.outbox)
+        self.send(self.borrower, "Or Sunday?")
+
+        self.assertEqual(after_first, 1)
+        self.assertEqual(len(mail.outbox), 1)
+
+    def test_a_read_notification_does_not_get_reused(self) -> None:
+        self.send(self.borrower, "Free Saturday?")
+        first = self.new_message_notifications().get()
+        first_nudge = ConversationNudge.objects.get()
+        first.mark_as_read()
+
+        self.send(self.borrower, "Or Sunday?")
+
+        first_nudge.refresh_from_db()
+        self.assertEqual(first_nudge.status, ConversationNudgeStatus.CLEARED)
+        self.assertIsNotNone(first_nudge.cleared_at)
+        self.assertEqual(ConversationNudge.objects.count(), 2)
+        self.assertEqual(self.new_message_notifications().count(), 2)
+        self.assertEqual(
+            self.new_message_notifications().filter(unread=True).count(), 1
+        )
+
+    def test_a_read_notification_sends_a_fresh_email(self) -> None:
+        self.send(self.borrower, "Free Saturday?")
+        self.new_message_notifications().get().mark_as_read()
+        mail.outbox.clear()
+
+        self.send(self.borrower, "Or Sunday?")
+
+        self.assertEqual(len(mail.outbox), 1)
+
+    def test_each_conversation_keeps_its_own_notification(self) -> None:
+        other_item = Item.objects.create(
+            name="Ladder",
+            description="A ladder",
+            owner=self.lender,
+            created_by=self.lender,
+            updated_by=self.lender,
+        )
+        other_thread = ChatThread.objects.create(
+            item=other_item,
+            lender=self.lender,
+            borrower=self.borrower,
+            created_by=self.borrower,
+            updated_by=self.borrower,
+        )
+        self.send(self.borrower, "About the drill")
+        self.send(self.borrower, "About the ladder", thread=other_thread)
+
+        self.assertEqual(self.new_message_notifications().count(), 2)
+
+    def test_each_participant_keeps_their_own_notification(self) -> None:
+        self.send(self.borrower, "Free Saturday?")
+        self.send(self.lender, "Yes, after Friday.")
+
+        self.assertEqual(
+            self.new_message_notifications().filter(recipient=self.lender).count(), 1
+        )
+        self.assertEqual(
+            self.new_message_notifications().filter(recipient=self.borrower).count(), 1
+        )
+
+
+@skipUnless(connection.vendor == "postgresql", "Requires PostgreSQL row locks.")
+@override_settings(MESSAGING_ENABLED=False)
+class ConcurrentMessageNotificationTests(TransactionTestCase):
+    """Concurrent callbacks keep one active notification at the newest message."""
+
+    def setUp(self) -> None:
+        self.lender = BorrowdUser.objects.create_user(username="concurrent-lender")
+        self.borrower = BorrowdUser.objects.create_user(username="concurrent-borrower")
+        self.thread = ChatThread.objects.create(
+            lender=self.lender,
+            borrower=self.borrower,
+            created_by=self.borrower,
+            updated_by=self.borrower,
+        )
+        self.messages = [
+            Message.objects.create(thread=self.thread, sender=self.borrower, body=body)
+            for body in ("Free Saturday?", "Or Sunday?")
+        ]
+        NotificationPreference.objects.filter(
+            user=self.lender,
+            notification_type=NotificationType.NEW_MESSAGE.value,
+        ).update(in_app_enabled=False, email_enabled=False)
+
+    def test_concurrent_callbacks_keep_the_newest_message(self) -> None:
+        ready = Barrier(2, timeout=10)
+
+        def notify_for(message_id: int) -> None:
+            close_old_connections()
+            try:
+                message = Message.objects.select_related("sender").get(pk=message_id)
+                ready.wait()
+                create_or_refresh_message_notification(message)
+            finally:
+                connections.close_all()
+
+        with self.settings(MESSAGING_ENABLED=True):
+            with ThreadPoolExecutor(max_workers=2) as executor:
+                list(
+                    executor.map(notify_for, [message.pk for message in self.messages])
+                )
+
+        nudge = ConversationNudge.objects.get()
+        self.assertEqual(nudge.latest_message, self.messages[-1])
+        self.assertEqual(
+            Notification.objects.filter(
+                verb=NotificationType.NEW_MESSAGE.value
+            ).count(),
+            1,
+        )
+
+
+@override_settings(MESSAGING_ENABLED=True)
+class NewMessageReadSyncTests(NewMessageFixture):
+    """Reading a conversation clears the notification it raised."""
+
+    def read_through(self, reader: BorrowdUser, message: Message) -> None:
+        mark_thread_read(self.thread, reader, through_message_id=message.pk)
+
+    def test_reading_the_conversation_clears_the_notification(self) -> None:
+        message = self.send(self.borrower)
+        nudge = ConversationNudge.objects.get()
+
+        self.read_through(self.lender, message)
+
+        nudge.refresh_from_db()
+        self.assertEqual(nudge.status, ConversationNudgeStatus.CLEARED)
+        self.assertIsNotNone(nudge.cleared_at)
+        self.assertFalse(self.new_message_notifications().filter(unread=True).exists())
+
+    def test_a_late_acknowledgment_leaves_a_newer_notification_alone(self) -> None:
+        first = self.send(self.borrower, "Free Saturday?")
+        second = self.send(self.borrower, "Or Sunday?")
+
+        # An acknowledgment for the older message arrives after the newer one.
+        self.read_through(self.lender, first)
+
+        notification = self.new_message_notifications().get()
+        nudge = ConversationNudge.objects.get()
+        self.assertTrue(notification.unread)
+        self.assertEqual(notification.target, nudge)
+        self.assertEqual(nudge.latest_message, second)
+        self.assertEqual(nudge.status, ConversationNudgeStatus.ACTIVE)
+
+    def test_catching_up_afterwards_clears_it(self) -> None:
+        first = self.send(self.borrower, "Free Saturday?")
+        second = self.send(self.borrower, "Or Sunday?")
+        self.read_through(self.lender, first)
+
+        self.read_through(self.lender, second)
+
+        self.assertFalse(self.new_message_notifications().filter(unread=True).exists())
+
+    def test_the_other_participants_notification_is_untouched(self) -> None:
+        from_borrower = self.send(self.borrower, "Free Saturday?")
+        self.send(self.lender, "Yes, after Friday.")
+
+        self.read_through(self.lender, from_borrower)
+
+        self.assertTrue(
+            self.new_message_notifications()
+            .filter(recipient=self.borrower, unread=True)
+            .exists()
+        )
+
+    def test_reading_a_conversation_with_no_notification_is_harmless(self) -> None:
+        message = self.send(self.borrower)
+        self.new_message_notifications().get().mark_as_read()
+
+        self.read_through(self.lender, message)
+
+        self.assertFalse(self.new_message_notifications().filter(unread=True).exists())
+
+    def test_a_repeated_acknowledgment_does_not_move_the_cursor_or_notification(
+        self,
+    ) -> None:
+        message = self.send(self.borrower)
+        self.read_through(self.lender, message)
+
+        # The second call finds nothing to advance, so no signal is sent.
+        self.read_through(self.lender, message)
+
+        self.assertEqual(self.new_message_notifications().count(), 1)
+
+    def test_the_read_endpoint_clears_it_too(self) -> None:
+        message = self.send(self.borrower)
+        self.client.force_login(self.lender)
+
+        response = self.client.post(
+            reverse("chat-thread-read", args=[self.thread.pk]),
+            {"through": message.pk},
+        )
+
+        self.assertEqual(response.status_code, 204)
+        self.assertFalse(self.new_message_notifications().filter(unread=True).exists())
+
+    def test_the_bell_refreshes_as_soon_as_a_conversation_is_read(self) -> None:
+        """The read endpoint broadcasts messaging:read; the bell listens for it.
+
+        Without this the bell waits for its 30s tick while the Messages count
+        in the side nav has already updated.
+        """
+        self.client.force_login(self.lender)
+
+        response = self.client.get(reverse("item-list"))
+
+        # The pill's own trigger carries a bracket filter, so this exact string
+        # can only be the bell's.
+        self.assertContains(
+            response,
+            'hx-trigger="load, every 30s, messaging:read from:document"',
+        )
+
+
+@override_settings(MESSAGING_ENABLED=True)
+class NewMessageNotificationLinkTests(NewMessageFixture):
+    """Links from new-message notifications to their conversations."""
+
+    def test_new_message_notification_links_to_conversation(self) -> None:
+        self.send(self.borrower)
+
+        notification = self.new_message_notifications().get()
+
+        self.assertEqual(
+            _notification_action_url(notification),
+            reverse("chat-thread-detail", args=[self.thread.pk]),
+        )
+
+    def test_archived_conversation_notification_remains_clickable(self) -> None:
+        self.send(self.borrower)
+        ChatThread.objects.filter(pk=self.thread.pk).update(archived_at=timezone.now())
+
+        notification = self.new_message_notifications().get()
+
+        self.assertEqual(
+            _notification_action_url(notification),
+            reverse("chat-thread-detail", args=[self.thread.pk]),
+        )
+
+    def test_conversation_action_object_is_prefetched(self) -> None:
+        self.send(self.borrower)
+
+        notifications = list(app_channel_qs(self.new_message_notifications()))
+
+        with self.assertNumQueries(0):
+            self.assertEqual(notifications[0].action_object, self.thread)

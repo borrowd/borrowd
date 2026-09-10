@@ -14,8 +14,12 @@ from django.db.models import (
     When,
 )
 from django.db.models.functions import Coalesce
+from django.db.transaction import atomic
 from django_stubs_ext import WithAnnotations
 
+from borrowd_notifications.message_notifications import (
+    clear_message_notification_through,
+)
 from borrowd_users.models import BorrowdUser
 
 from .exceptions import InvalidReadCursor, MessagingDisabled, NotThreadParticipant
@@ -32,44 +36,61 @@ def mark_thread_read(
     *,
     through_message_id: int,
 ) -> bool:
-    """Acknowledge rendered messages, returning whether the stored cursor advanced.
+    """Update/Save the newest message the viewer has seen.
 
-    Zero means no messages have been rendered. The caller's thread instance is
-    not refreshed; acknowledgments from other tabs may have advanced it already.
+    `through_message_id` must belong to this conversation.
+    Passing `through_message_id=0` means no messages were shown yet,
+    so this function makes no change and returns False.
+    Otherwise, it returns True only when the saved cursor moves forward.
+    When the cursor moves forward, covered notification state is cleared in the same transaction.
+    The passed `thread` object is not refreshed.
     """
     if not settings.MESSAGING_ENABLED:
         raise MessagingDisabled("Messaging is not enabled.")
 
-    if viewer.pk == thread.lender_id:
-        field = "lender_last_read_message_id"
-    elif viewer.pk == thread.borrower_id:
-        field = "borrower_last_read_message_id"
-    else:
-        raise NotThreadParticipant(
-            f"User {viewer.pk} is not a participant of ChatThread {thread.pk}."
-        )
+    with atomic():
+        # Sending and reading lock the same conversation, so they finish one at a time:
+        # https://docs.djangoproject.com/en/5.2/ref/models/querysets/#select-for-update
+        locked_thread = ChatThread.objects.select_for_update().get(pk=thread.pk)
 
-    if through_message_id == 0:
-        return False
-    if (
-        through_message_id < 0
-        or not Message.objects.filter(
-            thread_id=thread.pk, pk=through_message_id
-        ).exists()
-    ):
-        raise InvalidReadCursor(
-            "Read cursor must identify a message in this conversation."
-        )
+        if viewer.pk == locked_thread.lender_id:
+            field = "lender_last_read_message_id"
+        elif viewer.pk == locked_thread.borrower_id:
+            field = "borrower_last_read_message_id"
+        else:
+            raise NotThreadParticipant(
+                f"User {viewer.pk} is not a participant of ChatThread {thread.pk}."
+            )
 
-    # Compare in the UPDATE so concurrent or delayed acknowledgments cannot
-    # overwrite a newer cursor, even when the caller holds an older instance.
-    return bool(
-        ChatThread.objects.filter(pk=thread.pk)
-        .filter(
-            Q(**{f"{field}__isnull": True}) | Q(**{f"{field}__lt": through_message_id})
+        if through_message_id == 0:
+            return False
+        if (
+            through_message_id < 0
+            or not Message.objects.filter(
+                thread_id=locked_thread.pk, pk=through_message_id
+            ).exists()
+        ):
+            raise InvalidReadCursor(
+                "Read cursor must identify a message in this conversation."
+            )
+
+        # Compare in the UPDATE so concurrent or delayed acknowledgments cannot
+        # overwrite a newer cursor, even when the caller holds an older instance.
+        advanced = bool(
+            ChatThread.objects.filter(pk=locked_thread.pk)
+            .filter(
+                Q(**{f"{field}__isnull": True})
+                | Q(**{f"{field}__lt": through_message_id})
+            )
+            .update(**{field: through_message_id})
         )
-        .update(**{field: through_message_id})
-    )
+        if advanced:
+            clear_message_notification_through(
+                locked_thread,
+                viewer,
+                through_message_id=through_message_id,
+            )
+        return advanced
 
 
 def threads_with_unread_state(
