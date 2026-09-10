@@ -13,9 +13,6 @@
          hx-trigger="focus"
          hx-target="#notification-popup-content"
          hx-swap="innerHTML">
-        {# messaging:read is broadcast by the conversation read endpoint. Without
-           it the bell waits up to 30s to notice a conversation was read, while
-           the Messages count in the side nav updates straight away. #}
         <div id="notification-indicator"
              hx-get="{% url 'notification-bell-count' %}"
              hx-trigger="load, every 30s, messaging:read from:document"
