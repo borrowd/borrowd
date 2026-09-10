@@ -3215,8 +3215,8 @@ class GroupNeedsModeratorNotificationLinkTests(TestCase):
         self.assertEqual(_notification_action_url(notification), f"/groups/{group.pk}/")
 
 
-class NewMessagePushExclusionTests(TestCase):
-    """Messaging is in-app and email only in v1, enforced server-side."""
+class NewMessagePushPreferenceTests(TestCase):
+    """Message notifications follow the standard opt-in push preference."""
 
     def setUp(self) -> None:
         self.user = BorrowdUser.objects.create_user(
@@ -3224,47 +3224,21 @@ class NewMessagePushExclusionTests(TestCase):
         )
         self.client.force_login(self.user)
 
-    def test_new_message_is_excluded_from_push(self) -> None:
-        self.assertIn(
-            NotificationType.NEW_MESSAGE, NotificationType.push_excluded_types()
-        )
-
-    def test_delivery_never_uses_push_even_if_the_row_says_so(self) -> None:
-        NotificationPreference.objects.update_or_create(
+    def test_push_starts_disabled(self) -> None:
+        preference = NotificationPreference.objects.get(
             user=self.user,
             notification_type=NotificationType.NEW_MESSAGE.value,
-            defaults={
-                "in_app_enabled": True,
-                "email_enabled": True,
-                "push_enabled": True,
-            },
         )
 
         channels = NotificationService._get_enabled_channels(
             self.user, NotificationType.NEW_MESSAGE
         )
 
+        self.assertFalse(preference.push_enabled)
         self.assertNotIn(ChannelType.PUSH, channels)
         self.assertEqual(channels, {ChannelType.APP, ChannelType.EMAIL})
 
-    def test_other_types_still_deliver_over_push(self) -> None:
-        NotificationPreference.objects.update_or_create(
-            user=self.user,
-            notification_type=NotificationType.ITEM_REQUEST_ACCEPTED.value,
-            defaults={
-                "in_app_enabled": True,
-                "email_enabled": True,
-                "push_enabled": True,
-            },
-        )
-
-        channels = NotificationService._get_enabled_channels(
-            self.user, NotificationType.ITEM_REQUEST_ACCEPTED
-        )
-
-        self.assertIn(ChannelType.PUSH, channels)
-
-    def test_toggling_push_on_is_refused(self) -> None:
+    def test_single_toggle_can_enable_push(self) -> None:
         response = self.client.post(
             reverse("notification-toggle"),
             {
@@ -3274,23 +3248,20 @@ class NewMessagePushExclusionTests(TestCase):
             },
         )
 
-        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.status_code, 204)
+        preference = NotificationPreference.objects.get(
+            user=self.user,
+            notification_type=NotificationType.NEW_MESSAGE.value,
+        )
+        self.assertTrue(preference.push_enabled)
+        self.assertIn(
+            ChannelType.PUSH,
+            NotificationService._get_enabled_channels(
+                self.user, NotificationType.NEW_MESSAGE
+            ),
+        )
 
-    def test_app_and_email_toggles_still_work(self) -> None:
-        for channel in (ChannelType.APP, ChannelType.EMAIL):
-            with self.subTest(channel=channel):
-                response = self.client.post(
-                    reverse("notification-toggle"),
-                    {
-                        "notification_type": NotificationType.NEW_MESSAGE.value,
-                        "channel": channel.value,
-                        "enabled": "false",
-                    },
-                )
-
-                self.assertEqual(response.status_code, 204)
-
-    def test_bulk_push_skips_the_excluded_type(self) -> None:
+    def test_bulk_toggle_can_enable_push(self) -> None:
         response = self.client.post(
             reverse("notification-bulk-toggle"),
             {"scope": "master", "channel": ChannelType.PUSH.value, "enabled": "true"},
@@ -3300,20 +3271,15 @@ class NewMessagePushExclusionTests(TestCase):
         pref = NotificationPreference.objects.get(
             user=self.user, notification_type=NotificationType.NEW_MESSAGE.value
         )
-        self.assertFalse(pref.push_enabled)
+        self.assertTrue(pref.push_enabled)
 
-    def test_the_page_offers_no_push_toggle_for_messages(self) -> None:
+    def test_preferences_page_offers_a_push_toggle(self) -> None:
         response = self.client.get(reverse("notification-preferences"))
 
-        messages_type = next(
-            type_ctx
-            for category in response.context["categories"]
-            for type_ctx in category["types"]
-            if type_ctx["type_value"] == NotificationType.NEW_MESSAGE.value
+        self.assertContains(
+            response,
+            "toggle('NEW_MESSAGE', 'PUSH', 'push', $event.target.checked)",
         )
-        self.assertFalse(messages_type["supports_push"])
-        self.assertTrue(messages_type["app_enabled"])
-        self.assertTrue(messages_type["email_enabled"])
 
 
 class NewMessageFixture(TestCase):
