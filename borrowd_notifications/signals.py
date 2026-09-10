@@ -16,6 +16,7 @@ django-notifications repo: https://github.com/django-notifications/django-notifi
 from typing import Any, cast
 
 from django.conf import settings
+from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
 from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
@@ -67,21 +68,48 @@ def _notify_subscribers_if_available(item: Item) -> None:
             )
 
 
-def _notify_new_message(message: Message) -> None:
-    """Tell the other participant that a message is waiting for them."""
-    thread: ChatThread = message.thread
-    recipient = (
-        thread.borrower if message.sender_id == thread.lender_id else thread.lender
+def _refreshed_existing_notification(
+    recipient: BorrowdUser, thread: ChatThread, new_message: Message
+) -> bool:
+    """Retarget the recipient's unread notification for this conversation onto `new_message`.
+
+    If an unread notification for this conversation already exists, this method
+    updates the notification to point at `new_message` and returns True.
+
+    If an unread notification for this conversation does NOT exist, this method writes nothing
+    and returns False.
+    """
+    refreshed: int = Notification.objects.filter(
+        recipient=recipient,
+        unread=True,
+        verb=NotificationType.NEW_MESSAGE.value,
+        action_object_content_type=ContentType.objects.get_for_model(ChatThread),
+        action_object_object_id=str(thread.pk),
+    ).update(
+        target_object_id=str(new_message.pk),
+        timestamp=new_message.created_at,
     )
+    return bool(refreshed)
+
+
+def _notify_new_message(new_message: Message) -> None:
+    """Tell the other participant that a message is waiting for them."""
+    thread: ChatThread = new_message.thread
+    recipient = (
+        thread.borrower if new_message.sender_id == thread.lender_id else thread.lender
+    )
+    if _refreshed_existing_notification(recipient, thread, new_message):
+        return
+
     item_name = thread.item.name if thread.item is not None else "an item"
     notify.send(
-        message.sender,
+        new_message.sender,
         recipient=[recipient],
         verb=NotificationType.NEW_MESSAGE.value,
         # The thread carries the link; the message fixes the read boundary.
         action_object=thread,
-        target=message,
-        description=f"{message.sender.first_name} sent you a message about {item_name}",
+        target=new_message,
+        description=f"{new_message.sender.first_name} sent you a message about {item_name}",
     )
 
 
