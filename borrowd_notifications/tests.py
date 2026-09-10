@@ -25,6 +25,7 @@ from borrowd_items.models import (
     Transaction,
     TransactionStatus,
 )
+from borrowd_messaging.models import ChatThread, Message
 from borrowd_notifications.channels import (
     AppNotificationStrategy,
     EmailNotificationStrategy,
@@ -3310,3 +3311,105 @@ class NewMessagePushExclusionTests(TestCase):
         self.assertFalse(messages_type["supports_push"])
         self.assertTrue(messages_type["app_enabled"])
         self.assertTrue(messages_type["email_enabled"])
+
+
+@override_settings(MESSAGING_ENABLED=True)
+class NewMessageNotificationTests(TestCase):
+    """Nudging the other participant when a message arrives."""
+
+    def setUp(self) -> None:
+        self.lender = BorrowdUser.objects.create_user(
+            username="nm-lender", email="nm-lender@example.com", password="x"
+        )
+        self.lender.first_name = "Ada"
+        self.lender.save()
+        self.borrower = BorrowdUser.objects.create_user(
+            username="nm-borrower", email="nm-borrower@example.com", password="x"
+        )
+        self.borrower.first_name = "Grace"
+        self.borrower.save()
+        self.item = Item.objects.create(
+            name="Drill",
+            description="A drill",
+            owner=self.lender,
+            created_by=self.lender,
+            updated_by=self.lender,
+        )
+        self.thread = ChatThread.objects.create(
+            item=self.item,
+            lender=self.lender,
+            borrower=self.borrower,
+            created_by=self.borrower,
+            updated_by=self.borrower,
+        )
+
+    def new_message_notifications(self) -> Any:
+        return Notification.objects.filter(verb=NotificationType.NEW_MESSAGE.value)
+
+    def send(self, sender: BorrowdUser, body: str = "Free Saturday?") -> Message:
+        # Dispatch runs on commit, which TestCase never reaches on its own.
+        with self.captureOnCommitCallbacks(execute=True):
+            return Message.objects.create(thread=self.thread, sender=sender, body=body)
+
+    def test_the_other_participant_is_notified(self) -> None:
+        message = self.send(self.borrower)
+
+        notification = self.new_message_notifications().get()
+        self.assertEqual(notification.recipient, self.lender)
+        self.assertEqual(notification.actor, self.borrower)
+        self.assertEqual(notification.action_object, self.thread)
+        self.assertEqual(notification.target, message)
+
+    def test_the_sender_is_never_notified(self) -> None:
+        self.send(self.borrower)
+
+        self.assertFalse(
+            self.new_message_notifications().filter(recipient=self.borrower).exists()
+        )
+
+    def test_a_system_notice_notifies_nobody(self) -> None:
+        with self.captureOnCommitCallbacks(execute=True):
+            Message.objects.create(
+                thread=self.thread,
+                sender=self.lender,
+                body="This conversation was closed.",
+                is_system=True,
+            )
+
+        self.assertFalse(self.new_message_notifications().exists())
+
+    def test_editing_a_message_does_not_notify_again(self) -> None:
+        message = self.send(self.borrower)
+        with self.captureOnCommitCallbacks(execute=True):
+            message.body = "Free Sunday?"
+            message.save()
+
+        self.assertEqual(self.new_message_notifications().count(), 1)
+
+    @override_settings(MESSAGING_ENABLED=False)
+    def test_nothing_is_sent_while_messaging_is_off(self) -> None:
+        self.send(self.borrower)
+
+        self.assertFalse(self.new_message_notifications().exists())
+
+    def test_the_lender_can_notify_the_borrower_too(self) -> None:
+        self.send(self.lender, "Yes, any time after Friday.")
+
+        notification = self.new_message_notifications().get()
+        self.assertEqual(notification.recipient, self.borrower)
+
+    def test_the_copy_names_the_sender_and_the_item(self) -> None:
+        self.send(self.borrower)
+
+        notification = self.new_message_notifications().get()
+        self.assertEqual(
+            notification.description, "Grace sent you a message about Drill"
+        )
+
+    def test_a_removed_item_still_produces_a_nudge(self) -> None:
+        ChatThread.objects.filter(pk=self.thread.pk).update(item=None)
+        self.thread.refresh_from_db()
+
+        self.send(self.borrower)
+
+        self.assertEqual(self.new_message_notifications().count(), 1)
