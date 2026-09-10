@@ -6,6 +6,8 @@ from unittest.mock import patch
 
 from django.conf import settings
 from django.core import mail
+from django.db import IntegrityError
+from django.db.transaction import atomic
 from django.http import HttpResponseBase
 from django.templatetags.static import static
 from django.test import TestCase, TransactionTestCase, override_settings
@@ -38,6 +40,8 @@ from borrowd_users.models import BorrowdUser
 
 from .models import (
     ChannelType,
+    ConversationNudge,
+    ConversationNudgeStatus,
     NotificationData,
     NotificationMetadata,
     NotificationPreference,
@@ -3346,6 +3350,95 @@ class NewMessageFixture(TestCase):
         # Dispatch runs on commit, which TestCase never reaches on its own.
         with self.captureOnCommitCallbacks(execute=True):
             return Message.objects.create(thread=self.thread, sender=sender, body=body)
+
+
+@override_settings(MESSAGING_ENABLED=False)
+class ConversationNudgeModelTests(NewMessageFixture):
+    """Database rules for conversation-notification cycles."""
+
+    def test_new_nudge_starts_active(self) -> None:
+        message = self.send(self.borrower)
+
+        nudge = ConversationNudge.objects.create(
+            recipient=self.lender,
+            thread=self.thread,
+            latest_message=message,
+        )
+
+        self.assertEqual(nudge.status, ConversationNudgeStatus.ACTIVE)
+        self.assertIsNone(nudge.cleared_at)
+
+    def test_recipient_has_only_one_active_nudge_per_conversation(self) -> None:
+        first_message = self.send(self.borrower, "Free Saturday?")
+        second_message = self.send(self.borrower, "Or Sunday?")
+        ConversationNudge.objects.create(
+            recipient=self.lender,
+            thread=self.thread,
+            latest_message=first_message,
+        )
+
+        with self.assertRaises(IntegrityError), atomic():
+            ConversationNudge.objects.create(
+                recipient=self.lender,
+                thread=self.thread,
+                latest_message=second_message,
+            )
+
+    def test_cleared_nudge_allows_a_new_active_cycle(self) -> None:
+        first_message = self.send(self.borrower, "Free Saturday?")
+        first_nudge = ConversationNudge.objects.create(
+            recipient=self.lender,
+            thread=self.thread,
+            latest_message=first_message,
+        )
+        ConversationNudge.objects.filter(pk=first_nudge.pk).update(
+            status=ConversationNudgeStatus.CLEARED,
+            cleared_at=timezone.now(),
+        )
+        second_message = self.send(self.borrower, "Or Sunday?")
+
+        second_nudge = ConversationNudge.objects.create(
+            recipient=self.lender,
+            thread=self.thread,
+            latest_message=second_message,
+        )
+
+        self.assertEqual(second_nudge.status, ConversationNudgeStatus.ACTIVE)
+        self.assertEqual(ConversationNudge.objects.count(), 2)
+
+    def test_each_participant_can_have_an_active_nudge(self) -> None:
+        borrower_message = self.send(self.borrower)
+        lender_message = self.send(self.lender)
+
+        ConversationNudge.objects.create(
+            recipient=self.lender,
+            thread=self.thread,
+            latest_message=borrower_message,
+        )
+        ConversationNudge.objects.create(
+            recipient=self.borrower,
+            thread=self.thread,
+            latest_message=lender_message,
+        )
+
+        self.assertEqual(
+            ConversationNudge.objects.filter(
+                thread=self.thread,
+                status=ConversationNudgeStatus.ACTIVE,
+            ).count(),
+            2,
+        )
+
+    def test_cleared_nudge_requires_clear_time(self) -> None:
+        message = self.send(self.borrower)
+
+        with self.assertRaises(IntegrityError), atomic():
+            ConversationNudge.objects.create(
+                recipient=self.lender,
+                thread=self.thread,
+                latest_message=message,
+                status=ConversationNudgeStatus.CLEARED,
+            )
 
 
 @override_settings(MESSAGING_ENABLED=True)
