@@ -26,6 +26,7 @@ from borrowd_items.models import (
     TransactionStatus,
 )
 from borrowd_messaging.models import ChatThread, Message
+from borrowd_messaging.read_state import mark_thread_read
 from borrowd_notifications.channels import (
     AppNotificationStrategy,
     EmailNotificationStrategy,
@@ -3503,3 +3504,81 @@ class NewMessageCoalescingTests(NewMessageFixture):
         self.assertEqual(
             self.new_message_notifications().filter(recipient=self.borrower).count(), 1
         )
+
+
+@override_settings(MESSAGING_ENABLED=True)
+class NewMessageReadSyncTests(NewMessageFixture):
+    """Reading a conversation clears the notification it raised."""
+
+    def read_through(self, reader: BorrowdUser, message: Message) -> None:
+        mark_thread_read(self.thread, reader, through_message_id=message.pk)
+
+    def test_reading_the_conversation_clears_the_notification(self) -> None:
+        message = self.send(self.borrower)
+
+        self.read_through(self.lender, message)
+
+        self.assertFalse(self.new_message_notifications().filter(unread=True).exists())
+
+    def test_a_late_acknowledgment_leaves_a_newer_notification_alone(self) -> None:
+        first = self.send(self.borrower, "Free Saturday?")
+        second = self.send(self.borrower, "Or Sunday?")
+
+        # An acknowledgment for the older message arrives after the newer one.
+        self.read_through(self.lender, first)
+
+        notification = self.new_message_notifications().get()
+        self.assertTrue(notification.unread)
+        self.assertEqual(notification.target, second)
+
+    def test_catching_up_afterwards_clears_it(self) -> None:
+        first = self.send(self.borrower, "Free Saturday?")
+        second = self.send(self.borrower, "Or Sunday?")
+        self.read_through(self.lender, first)
+
+        self.read_through(self.lender, second)
+
+        self.assertFalse(self.new_message_notifications().filter(unread=True).exists())
+
+    def test_the_other_participants_notification_is_untouched(self) -> None:
+        from_borrower = self.send(self.borrower, "Free Saturday?")
+        self.send(self.lender, "Yes, after Friday.")
+
+        self.read_through(self.lender, from_borrower)
+
+        self.assertTrue(
+            self.new_message_notifications()
+            .filter(recipient=self.borrower, unread=True)
+            .exists()
+        )
+
+    def test_reading_a_conversation_with_no_notification_is_harmless(self) -> None:
+        message = self.send(self.borrower)
+        self.new_message_notifications().get().mark_as_read()
+
+        self.read_through(self.lender, message)
+
+        self.assertFalse(self.new_message_notifications().filter(unread=True).exists())
+
+    def test_a_repeated_acknowledgment_does_not_move_the_cursor_or_notification(
+        self,
+    ) -> None:
+        message = self.send(self.borrower)
+        self.read_through(self.lender, message)
+
+        # The second call finds nothing to advance, so no signal is sent.
+        self.read_through(self.lender, message)
+
+        self.assertEqual(self.new_message_notifications().count(), 1)
+
+    def test_the_read_endpoint_clears_it_too(self) -> None:
+        message = self.send(self.borrower)
+        self.client.force_login(self.lender)
+
+        response = self.client.post(
+            reverse("chat-thread-read", args=[self.thread.pk]),
+            {"through": message.pk},
+        )
+
+        self.assertEqual(response.status_code, 204)
+        self.assertFalse(self.new_message_notifications().filter(unread=True).exists())

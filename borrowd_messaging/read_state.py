@@ -14,6 +14,7 @@ from django.db.models import (
     When,
 )
 from django.db.models.functions import Coalesce
+from django.dispatch import Signal
 from django_stubs_ext import WithAnnotations
 
 from borrowd_users.models import BorrowdUser
@@ -24,6 +25,12 @@ from .models import ChatThread, Message
 
 class ThreadReadState(TypedDict):
     has_unread_messages: bool
+
+
+# Sent once a reader's cursor actually moves forward. Messaging does not know
+# what listens; borrowd_notifications uses it to clear a read conversation's
+# notification without messaging having to import that app.
+thread_read = Signal()
 
 
 def mark_thread_read(
@@ -63,13 +70,21 @@ def mark_thread_read(
 
     # Compare in the UPDATE so concurrent or delayed acknowledgments cannot
     # overwrite a newer cursor, even when the caller holds an older instance.
-    return bool(
+    advanced = bool(
         ChatThread.objects.filter(pk=thread.pk)
         .filter(
             Q(**{f"{field}__isnull": True}) | Q(**{f"{field}__lt": through_message_id})
         )
         .update(**{field: through_message_id})
     )
+    if advanced:
+        thread_read.send(
+            sender=ChatThread,
+            thread=thread,
+            reader=viewer,
+            through_message_id=through_message_id,
+        )
+    return advanced
 
 
 def threads_with_unread_state(
