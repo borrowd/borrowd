@@ -3313,9 +3313,11 @@ class NewMessagePushExclusionTests(TestCase):
         self.assertTrue(messages_type["email_enabled"])
 
 
-@override_settings(MESSAGING_ENABLED=True)
-class NewMessageNotificationTests(TestCase):
-    """Nudging the other participant when a message arrives."""
+class NewMessageFixture(TestCase):
+    """A two-person conversation about one Item, and helpers to talk in it.
+
+    Carries no tests of its own; the classes below supply those.
+    """
 
     def setUp(self) -> None:
         self.lender = BorrowdUser.objects.create_user(
@@ -3350,6 +3352,11 @@ class NewMessageNotificationTests(TestCase):
         # Dispatch runs on commit, which TestCase never reaches on its own.
         with self.captureOnCommitCallbacks(execute=True):
             return Message.objects.create(thread=self.thread, sender=sender, body=body)
+
+
+@override_settings(MESSAGING_ENABLED=True)
+class NewMessageNotificationTests(NewMessageFixture):
+    """Nudging the other participant when a message arrives."""
 
     def test_the_other_participant_is_notified(self) -> None:
         message = self.send(self.borrower)
@@ -3413,3 +3420,86 @@ class NewMessageNotificationTests(TestCase):
         self.send(self.borrower)
 
         self.assertEqual(self.new_message_notifications().count(), 1)
+
+
+@override_settings(MESSAGING_ENABLED=True)
+class NewMessageCoalescingTests(NewMessageFixture):
+    """One waiting nudge per conversation, refreshed rather than repeated."""
+
+    def test_a_second_message_refreshes_instead_of_duplicating(self) -> None:
+        self.send(self.borrower, "Free Saturday?")
+        second = self.send(self.borrower, "Or Sunday?")
+
+        notification = self.new_message_notifications().get()
+        self.assertEqual(notification.target, second)
+        self.assertEqual(notification.timestamp, second.created_at)
+
+    def test_a_burst_stays_one_notification(self) -> None:
+        for index in range(5):
+            self.send(self.borrower, f"Message {index}")
+
+        self.assertEqual(self.new_message_notifications().count(), 1)
+
+    def test_only_the_first_message_sends_an_email(self) -> None:
+        mail.outbox.clear()
+        self.send(self.borrower, "Free Saturday?")
+        after_first = len(mail.outbox)
+        self.send(self.borrower, "Or Sunday?")
+
+        self.assertEqual(after_first, 1)
+        self.assertEqual(len(mail.outbox), 1)
+
+    def test_a_read_notification_does_not_get_reused(self) -> None:
+        self.send(self.borrower, "Free Saturday?")
+        first = self.new_message_notifications().get()
+        first.mark_as_read()
+
+        self.send(self.borrower, "Or Sunday?")
+
+        self.assertEqual(self.new_message_notifications().count(), 2)
+        self.assertEqual(
+            self.new_message_notifications().filter(unread=True).count(), 1
+        )
+
+    def test_a_read_notification_sends_a_fresh_email(self) -> None:
+        self.send(self.borrower, "Free Saturday?")
+        self.new_message_notifications().get().mark_as_read()
+        mail.outbox.clear()
+
+        self.send(self.borrower, "Or Sunday?")
+
+        self.assertEqual(len(mail.outbox), 1)
+
+    def test_each_conversation_keeps_its_own_notification(self) -> None:
+        other_item = Item.objects.create(
+            name="Ladder",
+            description="A ladder",
+            owner=self.lender,
+            created_by=self.lender,
+            updated_by=self.lender,
+        )
+        other_thread = ChatThread.objects.create(
+            item=other_item,
+            lender=self.lender,
+            borrower=self.borrower,
+            created_by=self.borrower,
+            updated_by=self.borrower,
+        )
+        self.send(self.borrower, "About the drill")
+        with self.captureOnCommitCallbacks(execute=True):
+            Message.objects.create(
+                thread=other_thread, sender=self.borrower, body="About the ladder"
+            )
+
+        self.assertEqual(self.new_message_notifications().count(), 2)
+
+    def test_each_participant_keeps_their_own_notification(self) -> None:
+        self.send(self.borrower, "Free Saturday?")
+        self.send(self.lender, "Yes, after Friday.")
+
+        self.assertEqual(
+            self.new_message_notifications().filter(recipient=self.lender).count(), 1
+        )
+        self.assertEqual(
+            self.new_message_notifications().filter(recipient=self.borrower).count(), 1
+        )
