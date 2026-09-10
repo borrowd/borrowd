@@ -14,6 +14,7 @@ from django.db.models import (
     When,
 )
 from django.db.models.functions import Coalesce
+from django.db.transaction import atomic
 from django.dispatch import Signal
 from django_stubs_ext import WithAnnotations
 
@@ -54,41 +55,47 @@ def mark_thread_read(
     if not settings.MESSAGING_ENABLED:
         raise MessagingDisabled("Messaging is not enabled.")
 
-    if viewer.pk == thread.lender_id:
-        field = "lender_last_read_message_id"
-    elif viewer.pk == thread.borrower_id:
-        field = "borrower_last_read_message_id"
-    else:
-        raise NotThreadParticipant(
-            f"User {viewer.pk} is not a participant of ChatThread {thread.pk}."
-        )
+    with atomic():
+        # Sending and reading lock the same conversation, so they finish one at a time:
+        # https://docs.djangoproject.com/en/5.2/ref/models/querysets/#select-for-update
+        locked_thread = ChatThread.objects.select_for_update().get(pk=thread.pk)
 
-    if through_message_id == 0:
-        return False
-    if through_message_id < 0 or not cursor_names_message_in_thread(
-        thread.pk, through_message_id
-    ):
-        raise InvalidReadCursor(
-            "Read cursor must identify a message in this conversation."
-        )
+        if viewer.pk == locked_thread.lender_id:
+            field = "lender_last_read_message_id"
+        elif viewer.pk == locked_thread.borrower_id:
+            field = "borrower_last_read_message_id"
+        else:
+            raise NotThreadParticipant(
+                f"User {viewer.pk} is not a participant of ChatThread {thread.pk}."
+            )
 
-    # Compare in the UPDATE so concurrent or delayed acknowledgments cannot
-    # overwrite a newer cursor, even when the caller holds an older instance.
-    advanced = bool(
-        ChatThread.objects.filter(pk=thread.pk)
-        .filter(
-            Q(**{f"{field}__isnull": True}) | Q(**{f"{field}__lt": through_message_id})
+        if through_message_id == 0:
+            return False
+        if through_message_id < 0 or not cursor_names_message_in_thread(
+            locked_thread.pk, through_message_id
+        ):
+            raise InvalidReadCursor(
+                "Read cursor must identify a message in this conversation."
+            )
+
+        # Compare in the UPDATE so concurrent or delayed acknowledgments cannot
+        # overwrite a newer cursor, even when the caller holds an older instance.
+        advanced = bool(
+            ChatThread.objects.filter(pk=locked_thread.pk)
+            .filter(
+                Q(**{f"{field}__isnull": True})
+                | Q(**{f"{field}__lt": through_message_id})
+            )
+            .update(**{field: through_message_id})
         )
-        .update(**{field: through_message_id})
-    )
-    if advanced:
-        thread_read.send(
-            sender=ChatThread,
-            thread=thread,
-            reader=viewer,
-            through_message_id=through_message_id,
-        )
-    return advanced
+        if advanced:
+            thread_read.send(
+                sender=ChatThread,
+                thread=locked_thread,
+                reader=viewer,
+                through_message_id=through_message_id,
+            )
+        return advanced
 
 
 def threads_with_unread_state(
