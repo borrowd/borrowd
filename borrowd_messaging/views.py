@@ -37,6 +37,7 @@ from .exceptions import (
     PreRequestChatUnavailable,
     ThreadNotWritable,
 )
+from .filters import ConversationFilter
 from .mixins import MessagingEnabledMixin
 from .models import MESSAGE_BODY_MAX_LENGTH, ChatThread
 from .read_state import mark_thread_read, unread_threads_for
@@ -401,6 +402,13 @@ class ChatThreadListView(
 
     template_name = "messaging/chatthread_list.html"
 
+    def _tab_url(self, section: str) -> str:
+        """Keep the filters when switching tabs, but start again at page one."""
+        params = self.request.GET.copy()
+        params["section"] = section
+        params.pop("page", None)
+        return f"?{params.urlencode()}"
+
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
         viewer = get_authenticated_user(self.request)
@@ -408,7 +416,14 @@ class ChatThreadListView(
         if selected not in _HUB_SECTIONS:
             selected = _HUB_SECTIONS[0]
 
-        threads = threads_for_hub(viewer)
+        all_threads = threads_for_hub(viewer)
+        conversations = ConversationFilter(
+            self.request.GET, queryset=all_threads, request=self.request
+        )
+        filters_applied = any(
+            conversations.form.data.get(field) for field in conversations.filters
+        )
+        threads = conversations.qs
         active = threads.filter(archived_at__isnull=True)
         archived = threads.filter(archived_at__isnull=False)
         shown, hidden = (
@@ -416,13 +431,26 @@ class ChatThreadListView(
         )
 
         page = Paginator(shown, _HUB_PAGE_SIZE).get_page(self.request.GET.get("page"))
+        context["conversation_filter"] = conversations
+        context["filters_applied"] = filters_applied
+        context["clear_filters_url"] = f"?section={selected}"
         context["conversation_tabs"] = [
-            {"name": name, "title": name.title(), "is_selected": name == selected}
+            {
+                "name": name,
+                "title": name.title(),
+                "is_selected": name == selected,
+                "url": self._tab_url(name),
+            }
             for name in _HUB_SECTIONS
         ]
         context["selected_section"] = selected
         context["page_obj"] = page
         context["cards"] = build_hub_cards(page, viewer)
-        # Tell a first-time viewer they have nothing anywhere, not just on this tab.
-        context["has_conversations"] = bool(page.paginator.count) or hidden.exists()
+        # Tell a first-time viewer they have nothing anywhere, not just on this
+        # tab. Filters must not hide the form, or there is no way to clear them.
+        context["has_conversations"] = (
+            bool(page.paginator.count)
+            or hidden.exists()
+            or (filters_applied and all_threads.exists())
+        )
         return context

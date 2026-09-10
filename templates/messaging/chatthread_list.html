@@ -1,5 +1,7 @@
 {% extends "layouts/default.html" %}
 
+{% load heroicons %}
+
 {% block head_title %}
     Messages
 {% endblock %}
@@ -17,12 +19,61 @@
                             <span class="join-item btn btn-primary btn-sm h-10 px-4"
                                   aria-current="page">{{ tab.title }}</span>
                         {% else %}
-                            <a href="?section={{ tab.name }}"
+                            <a href="{{ tab.url }}"
                                class="join-item btn btn-sm h-10 border-base-300 bg-base-300 px-4 text-base-content shadow-sm hover:bg-base-200">{{ tab.title }}</a>
                         {% endif %}
                     {% endfor %}
                 </div>
             </nav>
+
+            {# A plain <details> keeps the toggle working without JavaScript.
+               It starts open when something is filtered, so the values and the
+               way to clear them are never hidden. #}
+            <details class="collapse collapse-arrow mt-4 border border-base-300 bg-base-100"
+                     {% if filters_applied %}open{% endif %}>
+                <summary class="collapse-title min-h-0 py-3 text-sm font-medium">
+                    Filters
+                </summary>
+                <div class="collapse-content">
+                    {# Applying carries the open tab and drops the page, so
+                       results always start from the first page. #}
+                    <form method="get" class="flex flex-wrap items-end gap-x-2 gap-y-4">
+                        <input type="hidden" name="section" value="{{ selected_section }}" />
+                        <label class="input input-bordered flex grow items-center">
+                            {% heroicon_mini "magnifying-glass" class="size-4 opacity-50" %}
+                            <input type="text"
+                                   name="{{ conversation_filter.form.item.html_name }}"
+                                   id="{{ conversation_filter.form.item.id_for_label }}"
+                                   class="grow"
+                                   value="{{ conversation_filter.form.item.value|default:'' }}"
+                                   placeholder="Item name" />
+                        </label>
+                        <label class="input input-bordered flex grow items-center">
+                            {% heroicon_mini "user" class="size-4 opacity-50" %}
+                            <input type="text"
+                                   name="{{ conversation_filter.form.person.html_name }}"
+                                   id="{{ conversation_filter.form.person.id_for_label }}"
+                                   class="grow"
+                                   value="{{ conversation_filter.form.person.value|default:'' }}"
+                                   placeholder="Person" />
+                        </label>
+                        <label class="label cursor-pointer w-full">
+                            <input type="checkbox"
+                                   class="checkbox checkbox-sm"
+                                   name="{{ conversation_filter.form.unread.html_name }}"
+                                   id="{{ conversation_filter.form.unread.id_for_label }}"
+                                   {% if conversation_filter.form.unread.value %}checked{% endif %} />
+                            <span class="label-text">Unread only</span>
+                        </label>
+                        <button type="submit" class="btn btn-primary w-32">
+                            Apply
+                        </button>
+                        {% if filters_applied %}
+                            <a href="{{ clear_filters_url }}" class="btn btn-outline w-32">Clear filters</a>
+                        {% endif %}
+                    </form>
+                </div>
+            </details>
 
             {% if cards %}
                 <div class="mt-4 flex flex-col gap-2">
@@ -36,7 +87,11 @@
 
             {% else %}
                 <p class="mt-4 text-sm opacity-70">
-                    No {{ selected_section }} conversations.
+                    {% if filters_applied %}
+                        No conversations match your filters.
+                    {% else %}
+                        No {{ selected_section }} conversations.
+                    {% endif %}
                 </p>
             {% endif %}
         {% else %}
