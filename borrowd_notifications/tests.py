@@ -1,12 +1,15 @@
 import importlib
 import json
+from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
+from threading import Barrier
 from typing import Any
+from unittest import skipUnless
 from unittest.mock import patch
 
 from django.conf import settings
 from django.core import mail
-from django.db import IntegrityError
+from django.db import IntegrityError, close_old_connections, connection, connections
 from django.db.transaction import atomic
 from django.http import HttpResponseBase
 from django.templatetags.static import static
@@ -38,6 +41,7 @@ from borrowd_notifications.channels import (
 from borrowd_notifications.services import NotificationService
 from borrowd_users.models import BorrowdUser
 
+from .message_notifications import create_or_refresh_message_notification
 from .models import (
     ChannelType,
     ConversationNudge,
@@ -3449,10 +3453,12 @@ class NewMessageNotificationTests(NewMessageFixture):
         message = self.send(self.borrower)
 
         notification = self.new_message_notifications().get()
+        nudge = ConversationNudge.objects.get()
         self.assertEqual(notification.recipient, self.lender)
         self.assertEqual(notification.actor, self.borrower)
         self.assertEqual(notification.action_object, self.thread)
-        self.assertEqual(notification.target, message)
+        self.assertEqual(notification.target, nudge)
+        self.assertEqual(nudge.latest_message, message)
 
     def test_the_sender_is_never_notified(self) -> None:
         self.send(self.borrower)
@@ -3471,6 +3477,7 @@ class NewMessageNotificationTests(NewMessageFixture):
             )
 
         self.assertFalse(self.new_message_notifications().exists())
+        self.assertFalse(ConversationNudge.objects.exists())
 
     def test_editing_a_message_does_not_notify_again(self) -> None:
         message = self.send(self.borrower)
@@ -3485,6 +3492,7 @@ class NewMessageNotificationTests(NewMessageFixture):
         self.send(self.borrower)
 
         self.assertFalse(self.new_message_notifications().exists())
+        self.assertFalse(ConversationNudge.objects.exists())
 
     def test_the_lender_can_notify_the_borrower_too(self) -> None:
         self.send(self.lender, "Yes, any time after Friday.")
@@ -3518,7 +3526,9 @@ class NewMessageCoalescingTests(NewMessageFixture):
         second = self.send(self.borrower, "Or Sunday?")
 
         notification = self.new_message_notifications().get()
-        self.assertEqual(notification.target, second)
+        nudge = ConversationNudge.objects.get()
+        self.assertEqual(notification.target, nudge)
+        self.assertEqual(nudge.latest_message, second)
         self.assertEqual(notification.timestamp, second.created_at)
 
     def test_a_burst_stays_one_notification(self) -> None:
@@ -3526,6 +3536,20 @@ class NewMessageCoalescingTests(NewMessageFixture):
             self.send(self.borrower, f"Message {index}")
 
         self.assertEqual(self.new_message_notifications().count(), 1)
+
+    def test_an_older_callback_does_not_move_the_nudge_backwards(self) -> None:
+        with self.settings(MESSAGING_ENABLED=False):
+            first = self.send(self.borrower, "Free Saturday?")
+            second = self.send(self.borrower, "Or Sunday?")
+
+        with self.captureOnCommitCallbacks(execute=True):
+            create_or_refresh_message_notification(second)
+            create_or_refresh_message_notification(first)
+
+        notification = self.new_message_notifications().get()
+        nudge = ConversationNudge.objects.get()
+        self.assertEqual(nudge.latest_message, second)
+        self.assertEqual(notification.timestamp, second.created_at)
 
     def test_only_the_first_message_sends_an_email(self) -> None:
         mail.outbox.clear()
@@ -3539,10 +3563,15 @@ class NewMessageCoalescingTests(NewMessageFixture):
     def test_a_read_notification_does_not_get_reused(self) -> None:
         self.send(self.borrower, "Free Saturday?")
         first = self.new_message_notifications().get()
+        first_nudge = ConversationNudge.objects.get()
         first.mark_as_read()
 
         self.send(self.borrower, "Or Sunday?")
 
+        first_nudge.refresh_from_db()
+        self.assertEqual(first_nudge.status, ConversationNudgeStatus.CLEARED)
+        self.assertIsNotNone(first_nudge.cleared_at)
+        self.assertEqual(ConversationNudge.objects.count(), 2)
         self.assertEqual(self.new_message_notifications().count(), 2)
         self.assertEqual(
             self.new_message_notifications().filter(unread=True).count(), 1
@@ -3592,6 +3621,57 @@ class NewMessageCoalescingTests(NewMessageFixture):
         )
 
 
+@skipUnless(connection.vendor == "postgresql", "Requires PostgreSQL row locks.")
+@override_settings(MESSAGING_ENABLED=False)
+class ConcurrentMessageNotificationTests(TransactionTestCase):
+    """Concurrent callbacks keep one active notification at the newest message."""
+
+    def setUp(self) -> None:
+        self.lender = BorrowdUser.objects.create_user(username="concurrent-lender")
+        self.borrower = BorrowdUser.objects.create_user(username="concurrent-borrower")
+        self.thread = ChatThread.objects.create(
+            lender=self.lender,
+            borrower=self.borrower,
+            created_by=self.borrower,
+            updated_by=self.borrower,
+        )
+        self.messages = [
+            Message.objects.create(thread=self.thread, sender=self.borrower, body=body)
+            for body in ("Free Saturday?", "Or Sunday?")
+        ]
+        NotificationPreference.objects.filter(
+            user=self.lender,
+            notification_type=NotificationType.NEW_MESSAGE.value,
+        ).update(in_app_enabled=False, email_enabled=False)
+
+    def test_concurrent_callbacks_keep_the_newest_message(self) -> None:
+        ready = Barrier(2, timeout=10)
+
+        def notify_for(message_id: int) -> None:
+            close_old_connections()
+            try:
+                message = Message.objects.select_related("sender").get(pk=message_id)
+                ready.wait()
+                create_or_refresh_message_notification(message)
+            finally:
+                connections.close_all()
+
+        with self.settings(MESSAGING_ENABLED=True):
+            with ThreadPoolExecutor(max_workers=2) as executor:
+                list(
+                    executor.map(notify_for, [message.pk for message in self.messages])
+                )
+
+        nudge = ConversationNudge.objects.get()
+        self.assertEqual(nudge.latest_message, self.messages[-1])
+        self.assertEqual(
+            Notification.objects.filter(
+                verb=NotificationType.NEW_MESSAGE.value
+            ).count(),
+            1,
+        )
+
+
 @override_settings(MESSAGING_ENABLED=True)
 class NewMessageReadSyncTests(NewMessageFixture):
     """Reading a conversation clears the notification it raised."""
@@ -3601,9 +3681,13 @@ class NewMessageReadSyncTests(NewMessageFixture):
 
     def test_reading_the_conversation_clears_the_notification(self) -> None:
         message = self.send(self.borrower)
+        nudge = ConversationNudge.objects.get()
 
         self.read_through(self.lender, message)
 
+        nudge.refresh_from_db()
+        self.assertEqual(nudge.status, ConversationNudgeStatus.CLEARED)
+        self.assertIsNotNone(nudge.cleared_at)
         self.assertFalse(self.new_message_notifications().filter(unread=True).exists())
 
     def test_a_late_acknowledgment_leaves_a_newer_notification_alone(self) -> None:
@@ -3614,8 +3698,11 @@ class NewMessageReadSyncTests(NewMessageFixture):
         self.read_through(self.lender, first)
 
         notification = self.new_message_notifications().get()
+        nudge = ConversationNudge.objects.get()
         self.assertTrue(notification.unread)
-        self.assertEqual(notification.target, second)
+        self.assertEqual(notification.target, nudge)
+        self.assertEqual(nudge.latest_message, second)
+        self.assertEqual(nudge.status, ConversationNudgeStatus.ACTIVE)
 
     def test_catching_up_afterwards_clears_it(self) -> None:
         first = self.send(self.borrower, "Free Saturday?")

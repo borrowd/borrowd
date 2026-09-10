@@ -23,7 +23,6 @@ from borrowd_items.models import (
     Transaction,
     TransactionStatus,
 )
-from borrowd_messaging.models import Message
 from borrowd_users.models import BorrowdUser
 
 """
@@ -133,13 +132,12 @@ class NotificationType(models.TextChoices):
     @staticmethod
     def _get_template_context_for(notification: Notification) -> dict[str, Any]:
         """Extract context from the notification's action_object."""
+
         context = {}
-        # The target is the latest Message, which gives the read boundary; the
-        # action_object is its ChatThread, which gives the link.
         if notification.verb == NotificationType.NEW_MESSAGE.value and isinstance(
-            notification.target, Message
+            notification.target, ConversationNudge
         ):
-            thread = notification.action_object
+            thread = notification.target.thread
             item = thread.item
             return {
                 "recipient_name": notification.recipient.first_name,

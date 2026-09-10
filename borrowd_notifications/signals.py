@@ -15,8 +15,6 @@ django-notifications repo: https://github.com/django-notifications/django-notifi
 
 from typing import Any, cast
 
-from django.conf import settings
-from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
 from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
@@ -37,6 +35,10 @@ from borrowd_messaging.models import ChatThread, Message
 from borrowd_messaging.read_state import thread_read
 from borrowd_users.models import BorrowdUser
 
+from .message_notifications import (
+    clear_message_notification_through,
+    create_or_refresh_message_notification,
+)
 from .models import NotificationMetadata, NotificationType
 from .services import NotificationService
 
@@ -69,87 +71,33 @@ def _notify_subscribers_if_available(item: Item) -> None:
             )
 
 
-def _refreshed_existing_notification(
-    recipient: BorrowdUser, thread: ChatThread, new_message: Message
-) -> bool:
-    """Retarget the recipient's unread notification for this conversation onto `new_message`.
-
-    If an unread notification for this conversation already exists, this method
-    updates the notification to point at `new_message` and returns True.
-
-    If an unread notification for this conversation does NOT exist, this method writes nothing
-    and returns False.
-    """
-    refreshed: int = Notification.objects.filter(
-        recipient=recipient,
-        unread=True,
-        verb=NotificationType.NEW_MESSAGE.value,
-        action_object_content_type=ContentType.objects.get_for_model(ChatThread),
-        action_object_object_id=str(thread.pk),
-    ).update(
-        target_object_id=str(new_message.pk),
-        timestamp=new_message.created_at,
-    )
-    return bool(refreshed)
-
-
-def _notify_new_message(new_message: Message) -> None:
-    """Tell the other participant that a message is waiting for them."""
-    thread: ChatThread = new_message.thread
-    recipient = (
-        thread.borrower if new_message.sender_id == thread.lender_id else thread.lender
-    )
-    if _refreshed_existing_notification(recipient, thread, new_message):
-        return
-
-    item_name = thread.item.name if thread.item is not None else "an item"
-    notify.send(
-        new_message.sender,
-        recipient=[recipient],
-        verb=NotificationType.NEW_MESSAGE.value,
-        # The thread carries the link; the message fixes the read boundary.
-        action_object=thread,
-        target=new_message,
-        description=f"{new_message.sender.first_name} sent you a message about {item_name}",
-    )
-
-
 @receiver(post_save, sender=Message)
-def notify_recipient_of_new_message(
+def schedule_new_message_notification(
     sender: type[Message], instance: Message, created: bool, **kwargs: Any
 ) -> None:
-    """Nudge the other participant when a human sends a message.
-    Skipped for the sender's own message, and for system notices.
-    """
-    if not created or instance.is_system or not settings.MESSAGING_ENABLED:
+    """Create notification state after a new message commits."""
+    if not created:
         return
 
-    transaction.on_commit(lambda: _notify_new_message(instance))
+    # Callbacks run only after a successful commit:
+    # https://docs.djangoproject.com/en/5.2/topics/db/transactions/#performing-actions-after-commit
+    transaction.on_commit(lambda: create_or_refresh_message_notification(instance))
 
 
 @receiver(thread_read)
-def clear_new_message_notification(
+def clear_notification_for_read_messages(
     sender: type[ChatThread],
     thread: ChatThread,
     reader: BorrowdUser,
     through_message_id: int,
     **kwargs: Any,
 ) -> None:
-    """Clear the reader's notification once they have caught up with it."""
-    notification = Notification.objects.filter(
-        recipient=reader,
-        unread=True,
-        verb=NotificationType.NEW_MESSAGE.value,
-        action_object_content_type=ContentType.objects.get_for_model(ChatThread),
-        action_object_object_id=str(thread.pk),
-    ).first()
-    if notification is None:
-        return
-
-    # target_object_id is a CharField, so compare the ids as numbers rather
-    # than letting the database order "9" after "10".
-    if int(notification.target_object_id) <= through_message_id:
-        notification.mark_as_read()
+    """Clear notification state after the reader's cursor advances."""
+    clear_message_notification_through(
+        thread,
+        reader,
+        through_message_id=through_message_id,
+    )
 
 
 @receiver(post_save, sender=Notification)
