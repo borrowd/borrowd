@@ -32,6 +32,7 @@ from borrowd_items.models import (
 )
 from borrowd_messaging.models import ChatThread, Message
 from borrowd_messaging.read_state import mark_thread_read
+from borrowd_messaging.services import MessagingService
 from borrowd_notifications.channels import (
     AppNotificationStrategy,
     EmailNotificationStrategy,
@@ -3350,10 +3351,20 @@ class NewMessageFixture(TestCase):
     def new_message_notifications(self) -> Any:
         return Notification.objects.filter(verb=NotificationType.NEW_MESSAGE.value)
 
-    def send(self, sender: BorrowdUser, body: str = "Free Saturday?") -> Message:
-        # Dispatch runs on commit, which TestCase never reaches on its own.
+    def store(self, sender: BorrowdUser, body: str = "Free Saturday?") -> Message:
+        """Store a fixture message without running messaging integrations."""
+        return Message.objects.create(thread=self.thread, sender=sender, body=body)
+
+    def send(
+        self,
+        sender: BorrowdUser,
+        body: str = "Free Saturday?",
+        *,
+        thread: ChatThread | None = None,
+    ) -> Message:
+        """Send through the public messaging service and run commit callbacks."""
         with self.captureOnCommitCallbacks(execute=True):
-            return Message.objects.create(thread=self.thread, sender=sender, body=body)
+            return MessagingService.send_message(thread or self.thread, sender, body)
 
 
 @override_settings(MESSAGING_ENABLED=False)
@@ -3361,7 +3372,7 @@ class ConversationNudgeModelTests(NewMessageFixture):
     """Database rules for conversation-notification cycles."""
 
     def test_new_nudge_starts_active(self) -> None:
-        message = self.send(self.borrower)
+        message = self.store(self.borrower)
 
         nudge = ConversationNudge.objects.create(
             recipient=self.lender,
@@ -3373,8 +3384,8 @@ class ConversationNudgeModelTests(NewMessageFixture):
         self.assertIsNone(nudge.cleared_at)
 
     def test_recipient_has_only_one_active_nudge_per_conversation(self) -> None:
-        first_message = self.send(self.borrower, "Free Saturday?")
-        second_message = self.send(self.borrower, "Or Sunday?")
+        first_message = self.store(self.borrower, "Free Saturday?")
+        second_message = self.store(self.borrower, "Or Sunday?")
         ConversationNudge.objects.create(
             recipient=self.lender,
             thread=self.thread,
@@ -3389,7 +3400,7 @@ class ConversationNudgeModelTests(NewMessageFixture):
             )
 
     def test_cleared_nudge_allows_a_new_active_cycle(self) -> None:
-        first_message = self.send(self.borrower, "Free Saturday?")
+        first_message = self.store(self.borrower, "Free Saturday?")
         first_nudge = ConversationNudge.objects.create(
             recipient=self.lender,
             thread=self.thread,
@@ -3399,7 +3410,7 @@ class ConversationNudgeModelTests(NewMessageFixture):
             status=ConversationNudgeStatus.CLEARED,
             cleared_at=timezone.now(),
         )
-        second_message = self.send(self.borrower, "Or Sunday?")
+        second_message = self.store(self.borrower, "Or Sunday?")
 
         second_nudge = ConversationNudge.objects.create(
             recipient=self.lender,
@@ -3411,8 +3422,8 @@ class ConversationNudgeModelTests(NewMessageFixture):
         self.assertEqual(ConversationNudge.objects.count(), 2)
 
     def test_each_participant_can_have_an_active_nudge(self) -> None:
-        borrower_message = self.send(self.borrower)
-        lender_message = self.send(self.lender)
+        borrower_message = self.store(self.borrower)
+        lender_message = self.store(self.lender)
 
         ConversationNudge.objects.create(
             recipient=self.lender,
@@ -3434,7 +3445,7 @@ class ConversationNudgeModelTests(NewMessageFixture):
         )
 
     def test_cleared_nudge_requires_clear_time(self) -> None:
-        message = self.send(self.borrower)
+        message = self.store(self.borrower)
 
         with self.assertRaises(IntegrityError), atomic():
             ConversationNudge.objects.create(
@@ -3448,6 +3459,12 @@ class ConversationNudgeModelTests(NewMessageFixture):
 @override_settings(MESSAGING_ENABLED=True)
 class NewMessageNotificationTests(NewMessageFixture):
     """Nudging the other participant when a message arrives."""
+
+    def test_storing_a_message_directly_does_not_run_integrations(self) -> None:
+        self.store(self.borrower)
+
+        self.assertFalse(self.new_message_notifications().exists())
+        self.assertFalse(ConversationNudge.objects.exists())
 
     def test_the_other_participant_is_notified(self) -> None:
         message = self.send(self.borrower)
@@ -3489,7 +3506,8 @@ class NewMessageNotificationTests(NewMessageFixture):
 
     @override_settings(MESSAGING_ENABLED=False)
     def test_nothing_is_sent_while_messaging_is_off(self) -> None:
-        self.send(self.borrower)
+        message = self.store(self.borrower)
+        create_or_refresh_message_notification(message)
 
         self.assertFalse(self.new_message_notifications().exists())
         self.assertFalse(ConversationNudge.objects.exists())
@@ -3539,8 +3557,8 @@ class NewMessageCoalescingTests(NewMessageFixture):
 
     def test_an_older_callback_does_not_move_the_nudge_backwards(self) -> None:
         with self.settings(MESSAGING_ENABLED=False):
-            first = self.send(self.borrower, "Free Saturday?")
-            second = self.send(self.borrower, "Or Sunday?")
+            first = self.store(self.borrower, "Free Saturday?")
+            second = self.store(self.borrower, "Or Sunday?")
 
         with self.captureOnCommitCallbacks(execute=True):
             create_or_refresh_message_notification(second)
@@ -3602,10 +3620,7 @@ class NewMessageCoalescingTests(NewMessageFixture):
             updated_by=self.borrower,
         )
         self.send(self.borrower, "About the drill")
-        with self.captureOnCommitCallbacks(execute=True):
-            Message.objects.create(
-                thread=other_thread, sender=self.borrower, body="About the ladder"
-            )
+        self.send(self.borrower, "About the ladder", thread=other_thread)
 
         self.assertEqual(self.new_message_notifications().count(), 2)
 
