@@ -15,6 +15,7 @@ django-notifications repo: https://github.com/django-notifications/django-notifi
 
 from typing import Any, cast
 
+from django.conf import settings
 from django.db import transaction
 from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
@@ -31,6 +32,7 @@ from borrowd_items.models import (
     Transaction,
     TransactionStatus,
 )
+from borrowd_messaging.models import ChatThread, Message
 from borrowd_users.models import BorrowdUser
 
 from .models import NotificationMetadata, NotificationType
@@ -63,6 +65,37 @@ def _notify_subscribers_if_available(item: Item) -> None:
                 notified_at=timezone.now(),
                 status=AvailabilitySubscriptionStatus.NOTIFIED,
             )
+
+
+def _notify_new_message(message: Message) -> None:
+    """Tell the other participant that a message is waiting for them."""
+    thread: ChatThread = message.thread
+    recipient = (
+        thread.borrower if message.sender_id == thread.lender_id else thread.lender
+    )
+    item_name = thread.item.name if thread.item is not None else "an item"
+    notify.send(
+        message.sender,
+        recipient=[recipient],
+        verb=NotificationType.NEW_MESSAGE.value,
+        # The thread carries the link; the message fixes the read boundary.
+        action_object=thread,
+        target=message,
+        description=f"{message.sender.first_name} sent you a message about {item_name}",
+    )
+
+
+@receiver(post_save, sender=Message)
+def notify_recipient_of_new_message(
+    sender: type[Message], instance: Message, created: bool, **kwargs: Any
+) -> None:
+    """Nudge the other participant when a human sends a message.
+    Skipped for the sender's own message, and for system notices.
+    """
+    if not created or instance.is_system or not settings.MESSAGING_ENABLED:
+        return
+
+    transaction.on_commit(lambda: _notify_new_message(instance))
 
 
 @receiver(post_save, sender=Notification)
