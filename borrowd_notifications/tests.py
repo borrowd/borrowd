@@ -49,6 +49,7 @@ from .views import (
     NOTIFICATION_CATEGORIES,
     _notification_action_url,
     _notification_avatar_content,
+    app_channel_qs,
 )
 
 
@@ -3092,15 +3093,7 @@ class PUSHNotificationStrategyTests(TransactionTestCase):
 
 
 class NotificationActionUrlTests(TestCase):
-    """Guards _notification_action_url's dispatch on action_object type.
-
-    Every notify.send() call across the app (borrowd_notifications,
-    borrowd_groups, and borrowd_users/services.py) sets action_object to an
-    Item, a Membership, or a BorrowdGroup. If a future call site sets some
-    other type without _notification_action_url being updated to match, the
-    resulting notification silently renders as a non-clickable card with no
-    error anywhere -- these tests fail loudly instead.
-    """
+    """Destinations for each supported notification action-object model."""
 
     def setUp(self) -> None:
         self.user = BorrowdUser.objects.create_user(
@@ -3599,3 +3592,37 @@ class NewMessageReadSyncTests(NewMessageFixture):
             response,
             'hx-trigger="load, every 30s, messaging:read from:document"',
         )
+
+
+@override_settings(MESSAGING_ENABLED=True)
+class NewMessageNotificationLinkTests(NewMessageFixture):
+    """Links from new-message notifications to their conversations."""
+
+    def test_new_message_notification_links_to_conversation(self) -> None:
+        self.send(self.borrower)
+
+        notification = self.new_message_notifications().get()
+
+        self.assertEqual(
+            _notification_action_url(notification),
+            reverse("chat-thread-detail", args=[self.thread.pk]),
+        )
+
+    def test_archived_conversation_notification_remains_clickable(self) -> None:
+        self.send(self.borrower)
+        ChatThread.objects.filter(pk=self.thread.pk).update(archived_at=timezone.now())
+
+        notification = self.new_message_notifications().get()
+
+        self.assertEqual(
+            _notification_action_url(notification),
+            reverse("chat-thread-detail", args=[self.thread.pk]),
+        )
+
+    def test_conversation_action_object_is_prefetched(self) -> None:
+        self.send(self.borrower)
+
+        notifications = list(app_channel_qs(self.new_message_notifications()))
+
+        with self.assertNumQueries(0):
+            self.assertEqual(notifications[0].action_object, self.thread)
