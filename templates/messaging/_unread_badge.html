@@ -1,0 +1,6 @@
+<span class="sr-only">{{ unread_conversation_count }} unread conversation{{ unread_conversation_count|pluralize }}</span>
+{% if unread_conversation_count %}
+    <span class="badge badge-primary badge-xs"
+          aria-hidden="true"
+          data-testid="nav-messages-unread-count">{{ unread_conversation_count }}</span>
+{% endif %}

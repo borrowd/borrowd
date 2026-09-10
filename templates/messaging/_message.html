@@ -4,6 +4,7 @@ messaging/_messages.html uses this template for initial page loads and send/poll
 {% if message.is_system %}
     {# System notices are centered and do not show a participant avatar. #}
     <li id="message-{{ message.pk }}"
+        {% if forloop.last %} hx-post="{% url 'chat-thread-read' message.thread_id %}" hx-trigger="load" hx-vals='{"through":"{{ message.pk }}"}' hx-swap="none" {% endif %}
         class="my-2 self-center text-center text-xs opacity-60">
         {{ message.body }}
         <time class="ml-1" datetime="{{ message.created_at|date:'c' }}">
@@ -16,6 +17,7 @@ messaging/_messages.html uses this template for initial page loads and send/poll
     `viewer` should be passed in by the parent template/component e.g.:
     `include "messaging/_message.html" with message=message viewer=user.`#}
     <li id="message-{{ message.pk }}"
+        {% if forloop.last %} hx-post="{% url 'chat-thread-read' message.thread_id %}" hx-trigger="load" hx-vals='{"through":"{{ message.pk }}"}' hx-swap="none" {% endif %}
         class="chat {% if message.sender_id == viewer.pk %}chat-end{% else %}chat-start{% endif %}">
         <div class="chat-image">
             <c-avatar class="w-10 h-10 rounded-full"
