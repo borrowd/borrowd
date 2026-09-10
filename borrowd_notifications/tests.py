@@ -3582,3 +3582,20 @@ class NewMessageReadSyncTests(NewMessageFixture):
 
         self.assertEqual(response.status_code, 204)
         self.assertFalse(self.new_message_notifications().filter(unread=True).exists())
+
+    def test_the_bell_refreshes_as_soon_as_a_conversation_is_read(self) -> None:
+        """The read endpoint broadcasts messaging:read; the bell listens for it.
+
+        Without this the bell waits for its 30s tick while the Messages count
+        in the side nav has already updated.
+        """
+        self.client.force_login(self.lender)
+
+        response = self.client.get(reverse("item-list"))
+
+        # The pill's own trigger carries a bracket filter, so this exact string
+        # can only be the bell's.
+        self.assertContains(
+            response,
+            'hx-trigger="load, every 30s, messaging:read from:document"',
+        )
