@@ -15,9 +15,11 @@ from django.db.models import (
 )
 from django.db.models.functions import Coalesce
 from django.db.transaction import atomic
-from django.dispatch import Signal
 from django_stubs_ext import WithAnnotations
 
+from borrowd_notifications.message_notifications import (
+    clear_message_notification_through,
+)
 from borrowd_users.models import BorrowdUser
 
 from .exceptions import InvalidReadCursor, MessagingDisabled, NotThreadParticipant
@@ -28,20 +30,20 @@ class ThreadReadState(TypedDict):
     has_unread_messages: bool
 
 
-# Supposed to be sent after the cursor advances
-thread_read = Signal()
-
-
 def mark_thread_read(
     thread: ChatThread,
     viewer: BorrowdUser,
     *,
     through_message_id: int,
 ) -> bool:
-    """Acknowledge rendered messages, returning whether the stored cursor advanced.
+    """Update/Save the newest message the viewer has seen.
 
-    Zero means no messages have been rendered. The caller's thread instance is
-    not refreshed; acknowledgments from other tabs may have advanced it already.
+    `through_message_id` must belong to this conversation.
+    Passing `through_message_id=0` means no messages were shown yet,
+    so this function makes no change and returns False.
+    Otherwise, it returns True only when the saved cursor moves forward.
+    When the cursor moves forward, covered notification state is cleared in the same transaction.
+    The passed `thread` object is not refreshed.
     """
     if not settings.MESSAGING_ENABLED:
         raise MessagingDisabled("Messaging is not enabled.")
@@ -83,10 +85,9 @@ def mark_thread_read(
             .update(**{field: through_message_id})
         )
         if advanced:
-            thread_read.send(
-                sender=ChatThread,
-                thread=locked_thread,
-                reader=viewer,
+            clear_message_notification_through(
+                locked_thread,
+                viewer,
                 through_message_id=through_message_id,
             )
         return advanced

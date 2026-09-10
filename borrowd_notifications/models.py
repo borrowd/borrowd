@@ -32,7 +32,8 @@ from borrowd_users.models import BorrowdUser
         2. Add its in-app message template to _MESSAGE_TEMPLATES and add the
            required values to NotificationType._get_template_context_for().
         3. Emit it with notify.send(). The description passed there is the email
-           subject line. Emitters currently live in borrowd_notifications/signals.py,
+           subject line. Emitters live in borrowd_notifications/signals.py,
+           borrowd_notifications/message_notifications.py,
            borrowd_groups/signals.py, and borrowd_users/services.py.
         4. Add matching email body templates at
            templates/notifications/messages/<notification_type>.html and .txt.

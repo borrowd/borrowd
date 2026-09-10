@@ -31,14 +31,8 @@ from borrowd_items.models import (
     Transaction,
     TransactionStatus,
 )
-from borrowd_messaging.models import ChatThread, Message
-from borrowd_messaging.read_state import thread_read
 from borrowd_users.models import BorrowdUser
 
-from .message_notifications import (
-    clear_message_notification_through,
-    create_or_refresh_message_notification,
-)
 from .models import NotificationMetadata, NotificationType
 from .services import NotificationService
 
@@ -69,35 +63,6 @@ def _notify_subscribers_if_available(item: Item) -> None:
                 notified_at=timezone.now(),
                 status=AvailabilitySubscriptionStatus.NOTIFIED,
             )
-
-
-@receiver(post_save, sender=Message)
-def schedule_new_message_notification(
-    sender: type[Message], instance: Message, created: bool, **kwargs: Any
-) -> None:
-    """Create notification state after a new message commits."""
-    if not created:
-        return
-
-    # Callbacks run only after a successful commit:
-    # https://docs.djangoproject.com/en/5.2/topics/db/transactions/#performing-actions-after-commit
-    transaction.on_commit(lambda: create_or_refresh_message_notification(instance))
-
-
-@receiver(thread_read)
-def clear_notification_for_read_messages(
-    sender: type[ChatThread],
-    thread: ChatThread,
-    reader: BorrowdUser,
-    through_message_id: int,
-    **kwargs: Any,
-) -> None:
-    """Clear notification state after the reader's cursor advances."""
-    clear_message_notification_through(
-        thread,
-        reader,
-        through_message_id=through_message_id,
-    )
 
 
 @receiver(post_save, sender=Notification)

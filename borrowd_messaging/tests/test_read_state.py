@@ -1,6 +1,7 @@
 from concurrent.futures import ThreadPoolExecutor
 from threading import Barrier, Event
 from unittest import skipUnless
+from unittest.mock import patch
 
 from django.db import close_old_connections, connection, connections
 from django.test import TransactionTestCase, override_settings
@@ -13,7 +14,6 @@ from borrowd_messaging.exceptions import (
 from borrowd_messaging.models import ArchiveReason, ChatThread, Message
 from borrowd_messaging.read_state import (
     mark_thread_read,
-    thread_read,
     threads_with_unread_state,
     unread_threads_for,
 )
@@ -71,15 +71,41 @@ class ReadCursorTests(MessagingTestCase):
         self.assertEqual(self.thread.borrower_last_read_message_id, newer_message.pk)
 
     def test_repeated_acknowledgments_are_idempotent(self) -> None:
-        mark_thread_read(self.thread, self.borrower, through_message_id=self.message.pk)
-
-        self.assertFalse(
+        with patch(
+            "borrowd_messaging.read_state.clear_message_notification_through"
+        ) as clear_notification:
             mark_thread_read(
-                self.thread, self.borrower, through_message_id=self.message.pk
+                self.thread,
+                self.borrower,
+                through_message_id=self.message.pk,
             )
-        )
+
+            self.assertFalse(
+                mark_thread_read(
+                    self.thread,
+                    self.borrower,
+                    through_message_id=self.message.pk,
+                )
+            )
+
+        clear_notification.assert_called_once()
         self.thread.refresh_from_db()
         self.assertEqual(self.thread.borrower_last_read_message_id, self.message.pk)
+
+    def test_notification_state_failure_rolls_back_the_cursor(self) -> None:
+        with patch(
+            "borrowd_messaging.read_state.clear_message_notification_through",
+            side_effect=RuntimeError("notification state unavailable"),
+        ):
+            with self.assertRaises(RuntimeError):
+                mark_thread_read(
+                    self.thread,
+                    self.borrower,
+                    through_message_id=self.message.pk,
+                )
+
+        self.thread.refresh_from_db()
+        self.assertIsNone(self.thread.borrower_last_read_message_id)
 
     def test_zero_leaves_empty_and_existing_cursors_unchanged(self) -> None:
         empty_thread = self.make_thread(item=self.make_item(name="Ladder"))
@@ -425,10 +451,16 @@ class ConcurrentReadCursorTests(TransactionTestCase):
         send_started = Event()
         send_finished = Event()
 
-        def pause_read_follow_up(sender: type[ChatThread], **kwargs: object) -> None:
+        def pause_read_follow_up(
+            thread: ChatThread,
+            reader: BorrowdUser,
+            *,
+            through_message_id: int,
+        ) -> bool:
             read_follow_up_started.set()
             if not allow_read_to_commit.wait(timeout=10):
                 raise TimeoutError("Timed out waiting to finish the read transaction.")
+            return False
 
         def acknowledge_message() -> bool:
             close_old_connections()
@@ -455,13 +487,10 @@ class ConcurrentReadCursorTests(TransactionTestCase):
             finally:
                 connections.close_all()
 
-        receiver_id = "test_pause_read_follow_up"
-        thread_read.connect(
-            pause_read_follow_up,
-            dispatch_uid=receiver_id,
-            weak=False,
-        )
-        try:
+        with patch(
+            "borrowd_messaging.read_state.clear_message_notification_through",
+            side_effect=pause_read_follow_up,
+        ):
             with ThreadPoolExecutor(max_workers=2) as executor:
                 try:
                     read_result = executor.submit(acknowledge_message)
@@ -474,9 +503,6 @@ class ConcurrentReadCursorTests(TransactionTestCase):
 
                 self.assertTrue(read_result.result(timeout=10))
                 sent_message_id = send_result.result(timeout=10)
-        finally:
-            allow_read_to_commit.set()
-            thread_read.disconnect(dispatch_uid=receiver_id)
 
         thread.refresh_from_db()
         self.assertEqual(thread.borrower_last_read_message_id, message.pk)
