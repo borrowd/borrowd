@@ -3,23 +3,32 @@ from typing import Any
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied
-from django.db.models import Max, Q, QuerySet
-from django.db.models.functions import Coalesce
+from django.core.paginator import Paginator
+from django.db.models import Q, QuerySet
 from django.http import HttpRequest, HttpResponse, HttpResponseBadRequest
 from django.shortcuts import redirect, render
 from django.template.loader import render_to_string
+from django.urls import reverse
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import ensure_csrf_cookie
-from django.views.generic import DetailView, ListView, View
+from django.views.generic import DetailView, TemplateView, View
 
 from borrowd.util import BorrowdTemplateFinderMixin
-from borrowd_items.models import Item, ItemAction, ItemStatus, TransactionStatus
+from borrowd_items.models import Item, ItemAction, ItemStatus
 from borrowd_permissions.mixins import CachedObjectMixin, LoginOr404PermissionMixin
 from borrowd_permissions.models import ChatThreadOLP, ItemOLP
 from borrowd_users.models import BorrowdUser
 from borrowd_users.request import get_authenticated_user
 
+from .conversation_summaries import (
+    build_hub_cards,
+    conversation_status,
+    has_removed_item,
+    item_thumbnail_url,
+    listed_item,
+    threads_for_hub,
+)
 from .exceptions import (
     ConversationGroupSelectionRequired,
     InvalidConversationGroup,
@@ -34,6 +43,8 @@ from .read_state import mark_thread_read, unread_threads_for
 from .services import MessagingService
 
 _INVALID_CURSOR_MESSAGE = "`after` must be a message id from this conversation."
+_HUB_PAGE_SIZE = 25
+_HUB_SECTIONS = ("active", "archived")
 
 
 class _InvalidCursor(ValueError):
@@ -136,12 +147,31 @@ class ChatThreadDetailView(
             "sender__profile"
         ).order_by("id")
         context["message_body_max_length"] = MESSAGE_BODY_MAX_LENGTH
-        transaction = chat_thread.transaction
-        context["is_disputed"] = (
-            transaction is not None and transaction.status == TransactionStatus.DISPUTED
-        )
         context["pre_request_action"] = self._pre_request_action(chat_thread, user)
+        context.update(self._item_preview(chat_thread, user))
         return context
+
+    @staticmethod
+    def _item_preview(
+        chat_thread: ChatThread,
+        user: BorrowdUser,
+    ) -> dict[str, Any]:
+        """The Item context pinned above the conversation."""
+        item = chat_thread.item
+        listed = listed_item(chat_thread)
+        status_label, status_kind = conversation_status(chat_thread)
+        return {
+            "item_name": item.name if item is not None else None,
+            "item_thumbnail_url": item_thumbnail_url(item),
+            "item_removed": has_removed_item(chat_thread),
+            # Link only where the viewer may actually go: a removed Item 404s,
+            # and so does one whose group the viewer has since left.
+            "item_url": reverse("item-detail", args=[listed.pk])
+            if listed is not None and user.has_perm(ItemOLP.VIEW, listed)
+            else None,
+            "conversation_status_label": status_label,
+            "conversation_status_kind": status_kind,
+        }
 
     @staticmethod
     def _pre_request_action(
@@ -308,13 +338,9 @@ class ChatThreadPollView(
         if not newer and not chat_thread.is_archived:
             return HttpResponse(status=204)
 
-        is_disputed = (
-            chat_thread.transaction_id is not None
-            and ChatThread.objects.filter(
-                pk=chat_thread.pk,
-                transaction__status=TransactionStatus.DISPUTED,
-            ).exists()
-        )
+        # get_object() read this thread fresh, so its status is current: a
+        # dispute raised or resolved mid-conversation reaches the reader here.
+        status_label, status_kind = conversation_status(chat_thread)
 
         # An archived thread is finished; nobody can write to it again, so hand
         # over whatever the reader is missing and shut the poller down.
@@ -328,7 +354,8 @@ class ChatThreadPollView(
             {
                 "chat_thread": chat_thread,
                 "chat_messages": newer,
-                "is_disputed": is_disputed,
+                "conversation_status_label": status_label,
+                "conversation_status_kind": status_kind,
                 "viewer": get_authenticated_user(request),
             },
             status=286 if chat_thread.is_archived else 200,
@@ -368,21 +395,34 @@ class ChatThreadPreRequestCloseView(
 class ChatThreadListView(
     MessagingEnabledMixin,
     LoginRequiredMixin,
-    ListView[ChatThread],
+    TemplateView,
 ):
-    """List every conversation the user participates in, newest activity first."""
+    """Show the viewer's conversations under an Active or Archived tab."""
 
     template_name = "messaging/chatthread_list.html"
-    context_object_name = "chat_threads"
 
-    def get_queryset(self) -> QuerySet[ChatThread]:
-        user = get_authenticated_user(self.request)
-        return (
-            ChatThread.objects.filter(Q(lender=user) | Q(borrower=user))
-            .select_related("item", "lender__profile", "borrower__profile")
-            # Sort on the last message, falling back to creation for threads with no msgs
-            .annotate(
-                last_activity_at=Coalesce(Max("messages__created_at"), "created_at")
-            )
-            .order_by("-last_activity_at", "-pk")
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+        context = super().get_context_data(**kwargs)
+        viewer = get_authenticated_user(self.request)
+        selected = self.request.GET.get("section")
+        if selected not in _HUB_SECTIONS:
+            selected = _HUB_SECTIONS[0]
+
+        threads = threads_for_hub(viewer)
+        active = threads.filter(archived_at__isnull=True)
+        archived = threads.filter(archived_at__isnull=False)
+        shown, hidden = (
+            (active, archived) if selected == "active" else (archived, active)
         )
+
+        page = Paginator(shown, _HUB_PAGE_SIZE).get_page(self.request.GET.get("page"))
+        context["conversation_tabs"] = [
+            {"name": name, "title": name.title(), "is_selected": name == selected}
+            for name in _HUB_SECTIONS
+        ]
+        context["selected_section"] = selected
+        context["page_obj"] = page
+        context["cards"] = build_hub_cards(page, viewer)
+        # Tell a first-time viewer they have nothing anywhere, not just on this tab.
+        context["has_conversations"] = bool(page.paginator.count) or hidden.exists()
+        return context

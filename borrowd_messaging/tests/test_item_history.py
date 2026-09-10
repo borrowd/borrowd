@@ -6,6 +6,7 @@ from django.utils import timezone
 from guardian.shortcuts import assign_perm
 
 from borrowd_messaging.models import ArchiveReason, ChatThread, Message
+from borrowd_messaging.read_state import mark_thread_read
 from borrowd_permissions.models import ItemOLP
 
 from .base import MessagingTestCase
@@ -46,6 +47,41 @@ class ItemConversationPreviewTests(MessagingTestCase):
                 response,
                 reverse("chat-thread-detail", args=[thread.pk]),
             )
+
+    def test_unacknowledged_conversations_are_marked_unread(self) -> None:
+        thread = self.make_thread()
+        message = Message.objects.create(
+            thread=thread, sender=self.borrower, body="Is this free on Saturday?"
+        )
+        self.client.force_login(self.lender)
+
+        response = self.client.get(self.url)
+
+        self.assertTrue(
+            response.context["item_conversation_summaries"][0].has_unread_messages
+        )
+        self.assertContains(response, "Unread.")
+
+        mark_thread_read(thread, self.lender, through_message_id=message.pk)
+
+        response = self.client.get(self.url)
+
+        self.assertFalse(
+            response.context["item_conversation_summaries"][0].has_unread_messages
+        )
+        self.assertNotContains(response, "Unread.")
+
+    def test_a_viewer_with_no_conversations_runs_no_summary_query(self) -> None:
+        """The Item query's own EXISTS decides this before any summary work."""
+        self.make_thread()
+        viewer = self.make_user("uninvolved")
+        assign_perm(ItemOLP.VIEW, viewer, self.item)
+        self.client.force_login(viewer)
+
+        with patch("borrowd_items.views.threads_for_item") as conversation_threads:
+            self.client.get(self.url)
+
+        conversation_threads.assert_not_called()
 
     def test_borrower_sees_only_their_own_conversation(self) -> None:
         own_thread = self.make_thread()

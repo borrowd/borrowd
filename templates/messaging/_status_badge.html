@@ -1,0 +1,11 @@
+{% comment %}
+Where one conversation stands, styled by kind.
+
+Parameters:
+- status_label: user-facing text, e.g. Active, Disputed, Returned
+- status_kind: one of active, archived, disputed, prerequest
+{% endcomment %}
+
+<span class="badge badge-sm shrink-0 {% if status_kind == 'active' %}badge-success badge-soft{% elif status_kind == 'disputed' %}badge-warning badge-soft{% elif status_kind == 'prerequest' %}badge-info badge-soft{% else %}badge-ghost{% endif %}">
+    {{ status_label }}
+</span>

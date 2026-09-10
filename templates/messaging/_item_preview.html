@@ -1,0 +1,30 @@
+{% comment %}
+The Item this conversation is about, pinned above the messages.
+
+The name links to the Item page only when the viewer may still open it: a removed
+Item 404s, and a participant who left the Item's group keeps the conversation but
+loses the Item. A removed Item still shows its name and photo, muted.
+{% endcomment %}
+
+{% load static %}
+
+<div class="flex items-center gap-3 rounded-xl border border-base-300 bg-base-100 p-2">
+    {% static 'items/categories/logo-tools.png' as fallback_image %}
+    <img src="{{ item_thumbnail_url|default:fallback_image }}"
+         alt="{{ item_name|default:'Item image' }}"
+         loading="lazy"
+         class="h-12 w-12 shrink-0 rounded-lg object-cover {% if item_removed %}opacity-60 grayscale{% endif %}" />
+
+    <span class="min-w-0 grow">
+        {% if item_url %}
+            <a href="{{ item_url }}"
+               class="block truncate font-medium hover:underline">{{ item_name }}</a>
+        {% else %}
+            <span class="block truncate font-medium {% if item_removed %}text-base-content/60{% endif %}">{% firstof item_name "Item unavailable" %}</span>
+        {% endif %}
+        <span class="block truncate text-sm text-base-content/70">{{ other_participant.profile.full_name }}</span>
+    </span>
+
+    {% include "messaging/_conversation_status.html" %}
+
+</div>

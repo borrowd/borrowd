@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Literal, cast
 
-from django.db.models import DateTimeField, OuterRef, Q, QuerySet, Subquery
+from django.db.models import DateTimeField, OuterRef, QuerySet, Subquery
 from django.db.models.functions import Coalesce
 
 from borrowd_items.models import Item, TransactionStatus
@@ -11,6 +11,7 @@ from borrowd_users.models import BorrowdUser
 
 from .exceptions import NotThreadParticipant
 from .models import ArchiveReason, ChatThread, Message
+from .read_state import threads_with_unread_state
 
 ConversationStatusKind = Literal["active", "archived", "disputed", "prerequest"]
 
@@ -28,7 +29,7 @@ _ARCHIVE_STATUS_LABELS: dict[str, str] = {
 
 @dataclass(frozen=True)
 class ConversationSummary:
-    """The data shared by Item conversation cards and history rows."""
+    """Viewer-specific data used to display one conversation."""
 
     thread_id: int
     other_participant: BorrowdUser
@@ -38,6 +39,17 @@ class ConversationSummary:
     last_message_preview: str | None
     status_label: str
     status_kind: ConversationStatusKind
+    has_unread_messages: bool
+
+
+@dataclass(frozen=True)
+class HubConversationCard:
+    """A conversation summary plus the Item displayed with it in the hub."""
+
+    summary: ConversationSummary
+    item_name: str | None
+    item_thumbnail_url: str | None
+    item_removed: bool
 
 
 def threads_for_item(
@@ -49,19 +61,98 @@ def threads_for_item(
     Each row includes the related data and latest-message values needed by
     build_conversation_summaries.
     """
+    return _prepare_threads_for_summaries(
+        threads_with_unread_state(viewer).filter(item=item)
+    )
+
+
+def threads_for_hub(viewer: BorrowdUser) -> QuerySet[ChatThread]:
+    """Return all threads the viewer participates in for the Messages hub.
+
+    Each row includes summary data, its Item, and Item photos. Paginate before
+    evaluating the queryset so photos are fetched for only one page of Items.
+    """
+    return (
+        _prepare_threads_for_summaries(threads_with_unread_state(viewer))
+        .select_related("item")
+        .prefetch_related("item__photos")
+    )
+
+
+def build_hub_cards(
+    threads: Iterable[ChatThread],
+    viewer: BorrowdUser,
+) -> list[HubConversationCard]:
+    """Pair each conversation summary with the Item context shown beside it."""
+    loaded = list(threads)
+    summaries = build_conversation_summaries(loaded, viewer)
+    cards: list[HubConversationCard] = []
+    for thread, summary in zip(loaded, summaries, strict=True):
+        item = thread.item
+        cards.append(
+            HubConversationCard(
+                summary=summary,
+                item_name=item.name if item is not None else None,
+                item_thumbnail_url=item_thumbnail_url(item),
+                item_removed=has_removed_item(thread),
+            )
+        )
+    return cards
+
+
+def listed_item(thread: ChatThread) -> Item | None:
+    """The conversation's Item while it is still listed.
+
+    Only a listed Item has a page to link to; a removed one 404s.
+    """
+    item = thread.item
+    return item if item is not None and item.deleted_at is None else None
+
+
+def has_removed_item(thread: ChatThread) -> bool:
+    """Return whether this conversation's Item was soft-deleted.
+
+    Items are soft-deleted, so a removed Item keeps its name and photo. Only a
+    hard delete leaves nothing, and that clears the link instead.
+    """
+    return thread.item is not None and thread.item.deleted_at is not None
+
+
+def item_thumbnail_url(item: Item | None) -> str | None:
+    """Read the Item's first photo. A missing file must not break the page.
+
+    Callers listing many Items should prefetch photos; one Item costs one query
+    either way.
+    """
+    if item is None:
+        return None
+    photo = next(iter(item.photos.all()), None)
+    if photo is None:
+        return None
+    try:
+        return cast(str, photo.thumbnail.url)
+    except FileNotFoundError:
+        return None
+
+
+def _prepare_threads_for_summaries(
+    threads: QuerySet[ChatThread],
+) -> QuerySet[ChatThread]:
+    """Add preview and activity data, then order newest activity first."""
+    # Preview: highest message ID.
     latest_message = Message.objects.filter(thread_id=OuterRef("pk")).order_by("-pk")
+    # Activity date: latest message timestamp.
+    latest_activity = latest_message.order_by("-created_at", "-pk")
 
     return (
-        ChatThread.objects.filter(item=item)
-        .filter(Q(lender=viewer) | Q(borrower=viewer))
-        .select_related(
+        threads.select_related(
             "lender__profile",
             "borrower__profile",
             "transaction",
         )
         .annotate(
             summary_last_message_at=Subquery(
-                latest_message.values("created_at")[:1],
+                latest_activity.values("created_at")[:1],
                 output_field=DateTimeField(),
             ),
             summary_last_message_preview=Subquery(latest_message.values("body")[:1]),
@@ -92,7 +183,7 @@ def build_conversation_summaries(
                 f"User {viewer.pk} is not a participant of ChatThread {thread.pk}."
             )
 
-        status_label, status_kind = _conversation_status(thread)
+        status_label, status_kind = conversation_status(thread)
         summaries.append(
             ConversationSummary(
                 thread_id=thread.pk,
@@ -109,14 +200,19 @@ def build_conversation_summaries(
                 ),
                 status_label=status_label,
                 status_kind=status_kind,
+                has_unread_messages=cast(
+                    bool,
+                    getattr(thread, "has_unread_messages"),
+                ),
             )
         )
     return summaries
 
 
-def _conversation_status(
+def conversation_status(
     thread: ChatThread,
 ) -> tuple[str, ConversationStatusKind]:
+    """Where this conversation stands, as a label and a kind for styling."""
     if thread.is_archived:
         reason = thread.archive_reason
         return (
