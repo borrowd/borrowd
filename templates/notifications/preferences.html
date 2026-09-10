@@ -108,15 +108,10 @@
                                            @change="toggle('{{ type.type_value|escapejs }}', 'EMAIL', 'email', $event.target.checked)"
                                            class="toggle toggle-primary toggle-sm">
                                 {% endif %}
-                                {% if type.supports_push %}
-                                    <input type="checkbox"
-                                           :checked="prefs['{{ type.type_value|escapejs }}'].push"
-                                           @change="toggle('{{ type.type_value|escapejs }}', 'PUSH', 'push', $event.target.checked)"
-                                           class="toggle toggle-primary toggle-sm">
-                                {% else %}
-                                    {# Messaging is in-app and email only in v1. #}
-                                    <span class="toggle toggle-sm invisible" aria-hidden="true"></span>
-                                {% endif %}
+                                <input type="checkbox"
+                                       :checked="prefs['{{ type.type_value|escapejs }}'].push"
+                                       @change="toggle('{{ type.type_value|escapejs }}', 'PUSH', 'push', $event.target.checked)"
+                                       class="toggle toggle-primary toggle-sm">
                             </div>
                         </div>
                     {% endfor %}
@@ -171,13 +166,13 @@
                 masterEnabled(field) {
                     return field !== 'push'
                         ? Object.values(this.prefs).filter(p => !p.is_mandatory).some(p => p[field])
-                        : Object.values(this.prefs).filter(p => p.supports_push).some(p => p[field]);
+                        : Object.values(this.prefs).some(p => p[field]);
                 },
 
                 categoryEnabled(slug, field) {
                     const relevant = field !== 'push'
                         ? Object.values(this.prefs).filter(p => p.category === slug && !p.is_mandatory)
-                        : Object.values(this.prefs).filter(p => p.category === slug && p.supports_push);
+                        : Object.values(this.prefs).filter(p => p.category === slug);
                     return relevant.length === 0 || relevant.some(p => p[field]);
                 },
 
