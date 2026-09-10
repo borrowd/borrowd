@@ -409,6 +409,75 @@ class NotificationPreference(Model):
         ]
 
 
+class ConversationNudgeStatus(TextChoices):
+    """Lifecycle states for one conversation-notification cycle."""
+
+    ACTIVE = "ACTIVE", "Active"
+    CLEARED = "CLEARED", "Cleared"
+
+
+class ConversationNudge(Model):
+    """Tracks one recipient's notification for an unread conversation period."""
+
+    recipient = ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=CASCADE,
+        related_name="conversation_nudges",
+        help_text="User who may receive this conversation notification.",
+    )
+    thread = ForeignKey(
+        "borrowd_messaging.ChatThread",
+        on_delete=CASCADE,
+        related_name="notification_nudges",
+        help_text="Conversation represented by this nudge.",
+    )
+    latest_message = ForeignKey(
+        "borrowd_messaging.Message",
+        on_delete=models.PROTECT,
+        related_name="+",
+        help_text="Newest message covered by this nudge.",
+    )
+    status = models.CharField(
+        max_length=16,
+        choices=ConversationNudgeStatus.choices,
+        default=ConversationNudgeStatus.ACTIVE,
+        help_text="Whether this nudge can still be refreshed.",
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        help_text="When this notification cycle started.",
+    )
+    cleared_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When the recipient read through the covered message.",
+    )
+
+    class Meta:
+        constraints = [
+            # Completed cycles remain as history while only one cycle stays active:
+            # https://docs.djangoproject.com/en/5.2/ref/models/constraints/#uniqueconstraint
+            models.UniqueConstraint(
+                fields=["recipient", "thread"],
+                condition=models.Q(status=ConversationNudgeStatus.ACTIVE),
+                name="unique_active_nudge_per_recipient_thread",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(
+                        status=ConversationNudgeStatus.ACTIVE,
+                        cleared_at__isnull=True,
+                    )
+                    | models.Q(
+                        status=ConversationNudgeStatus.CLEARED,
+                        cleared_at__isnull=False,
+                    )
+                ),
+                name="conversation_nudge_clear_time_matches_status",
+            ),
+        ]
+
+
 class NotificationMetadata(Model):
     """Borrow'd-specific state for a third-party notification."""
 
