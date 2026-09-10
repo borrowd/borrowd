@@ -11,12 +11,19 @@ from django.views.generic import DetailView, ListView, View
 from django.views.generic.detail import SingleObjectMixin
 
 from borrowd.util import BorrowdTemplateFinderMixin
-from borrowd_items.models import TransactionStatus
+from borrowd_items.models import Item, ItemAction, ItemStatus, TransactionStatus
 from borrowd_permissions.mixins import LoginOr404PermissionMixin
-from borrowd_permissions.models import ChatThreadOLP
+from borrowd_permissions.models import ChatThreadOLP, ItemOLP
+from borrowd_users.models import BorrowdUser
 from borrowd_users.request import get_authenticated_user
 
-from .exceptions import InvalidMessageBody, ThreadNotWritable
+from .exceptions import (
+    ConversationGroupSelectionRequired,
+    InvalidConversationGroup,
+    InvalidMessageBody,
+    PreRequestChatUnavailable,
+    ThreadNotWritable,
+)
 from .mixins import MessagingEnabledMixin
 from .models import MESSAGE_BODY_MAX_LENGTH, ChatThread
 from .services import MessagingService
@@ -54,6 +61,58 @@ class _CachedChatThreadMixin(SingleObjectMixin[ChatThread]):
             return self.object
         self.object = super().get_object(queryset)
         return self.object
+
+
+class _CachedItemMixin(SingleObjectMixin[Item]):
+    """Reuse the Item resolved during the object-permission check."""
+
+    object: Item
+    pk_url_kwarg = "item_pk"
+
+    def get_object(self, queryset: QuerySet[Item] | None = None) -> Item:
+        if hasattr(self, "object"):
+            return self.object
+        self.object = super().get_object(queryset)
+        return self.object
+
+
+class ChatThreadPreRequestOpenView(
+    MessagingEnabledMixin,
+    LoginOr404PermissionMixin,
+    _CachedItemMixin,
+    View,
+):
+    """Create or resume the borrower's pre-request conversation for an Item."""
+
+    model = Item
+    permission_required = ItemOLP.VIEW
+    http_method_names = ["post"]
+
+    def get_queryset(self) -> QuerySet[Item]:
+        return super().get_queryset().select_related("owner__profile")
+
+    def post(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
+        borrower = get_authenticated_user(request)
+        item = self.get_object()
+
+        try:
+            selected_group = MessagingService.conversation_group_selection(
+                request.POST.get("conversation_group")
+            )
+            chat_thread = MessagingService.get_or_create_prerequest_thread(
+                borrower,
+                item,
+                selected_group=selected_group,
+            )
+        except (
+            ConversationGroupSelectionRequired,
+            InvalidConversationGroup,
+            PreRequestChatUnavailable,
+        ) as exc:
+            messages.error(request, str(exc))
+            return redirect("item-detail", pk=item.pk)
+
+        return redirect("chat-thread-detail", pk=chat_thread.pk)
 
 
 class ChatThreadDetailView(
@@ -99,7 +158,35 @@ class ChatThreadDetailView(
         context["is_disputed"] = (
             transaction is not None and transaction.status == TransactionStatus.DISPUTED
         )
+        context["pre_request_action"] = self._pre_request_action(chat_thread, user)
         return context
+
+    @staticmethod
+    def _pre_request_action(
+        chat_thread: ChatThread,
+        user: BorrowdUser,
+    ) -> ItemAction | None:
+        item = chat_thread.item
+        if (
+            chat_thread.is_archived
+            or chat_thread.transaction_id is not None
+            or user.pk != chat_thread.borrower_id
+            or item is None
+            or item.deleted_at is not None
+            or item.status != ItemStatus.AVAILABLE
+            or item.owner_id != chat_thread.lender_id
+            or not user.has_perm(ItemOLP.VIEW, item)
+        ):
+            return None
+
+        actions = item.get_actions_for(user)
+        for request_action in (
+            ItemAction.REQUEST_ITEM,
+            ItemAction.REQUEST_GIVEAWAY,
+        ):
+            if request_action in actions:
+                return request_action
+        return None
 
 
 class ChatThreadSendView(

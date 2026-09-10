@@ -1,10 +1,13 @@
 from typing import Any
 from urllib.parse import urlencode
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.messages.api import MessageFailure
+from django.core.exceptions import PermissionDenied
 from django.core.files.uploadedfile import UploadedFile
 from django.db.models import QuerySet
+from django.db.transaction import atomic
 from django.forms import ModelForm
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect
@@ -25,6 +28,13 @@ from borrowd.validators import ALLOWED_IMAGE_ACCEPT, MAX_PHOTO_SIZE_BYTES
 from borrowd_community_requests.exceptions import CannotActOnOwnRequestException
 from borrowd_community_requests.models import CommunityRequest
 from borrowd_groups.models import Membership, MembershipStatus
+from borrowd_messaging.exceptions import (
+    ConversationGroupSelectionRequired,
+    InvalidConversationGroup,
+    PreRequestChatUnavailable,
+)
+from borrowd_messaging.models import ChatThread
+from borrowd_messaging.services import MessagingService
 from borrowd_permissions.mixins import (
     LoginOr403PermissionMixin,
     LoginOr404PermissionMixin,
@@ -45,7 +55,13 @@ from .forms import (
     ItemForm,
     ItemPhotoForm,
 )
-from .models import Item, ItemAction, ItemPhoto, ItemStatus
+from .models import (
+    TERMINAL_TRANSACTION_STATUSES,
+    Item,
+    ItemAction,
+    ItemPhoto,
+    ItemStatus,
+)
 
 _MOBILE_UA_KEYWORDS = ("mobile", "android", "iphone", "ipad", "ipod")
 
@@ -53,6 +69,13 @@ PAGE_SIZE_MOBILE_DEFAULT = 6
 PAGE_SIZE_DESKTOP_DEFAULT = 12
 PAGE_SIZE_MIN = 4
 PAGE_SIZE_MAX = 48
+
+_TRANSACTION_REQUEST_ACTIONS = frozenset(
+    {
+        ItemAction.REQUEST_ITEM,
+        ItemAction.REQUEST_GIVEAWAY,
+    }
+)
 
 
 def _build_item_action_success_message(item_name: str, action: ItemAction) -> str:
@@ -166,14 +189,34 @@ def borrow_item(request: HttpRequest, pk: int) -> HttpResponse:
         return HttpResponse("Not found", status=404)
 
     try:
-        item.process_action(user=user, action=action)
+        if settings.MESSAGING_ENABLED and action in _TRANSACTION_REQUEST_ACTIONS:
+            with atomic():
+                if item.get_requesting_user() is not None:
+                    raise ItemAlreadyRequested
+                selected_group = MessagingService.conversation_group_selection(
+                    request.POST.get("conversation_group")
+                )
+                MessagingService.prepare_thread_for_request(
+                    user,
+                    item,
+                    selected_group=selected_group,
+                )
+                item.process_action(user=user, action=action)
+        else:
+            item.process_action(user=user, action=action)
+    except (
+        ConversationGroupSelectionRequired,
+        InvalidConversationGroup,
+        PreRequestChatUnavailable,
+    ) as exc:
+        _add_message_safe(request, messages.ERROR, str(exc))
     except ItemAlreadyRequested:
         _add_message_safe(
             request,
             messages.WARNING,
             "Sorry! Another user requested this item just before you.",
         )
-    except InvalidItemAction:
+    except (InvalidItemAction, PermissionDenied):
         _add_message_safe(
             request,
             messages.ERROR,
@@ -343,8 +386,78 @@ class ItemDetailView(
             fallback_url=reverse("item-list"),
             allowed_url_names=BROWSABLE_BACK_TARGETS,
         )
+        context.update(self._messaging_context(user))
 
         return context
+
+    def _messaging_context(self, user: BorrowdUser) -> dict[str, object]:
+        """Return the conversation action shown on this Item detail page."""
+        item = self.object
+        if not settings.MESSAGING_ENABLED or item.owner_id == user.pk:
+            return {}
+
+        transaction_thread = (
+            ChatThread.objects.filter(
+                item=item,
+                borrower=user,
+                transaction__isnull=False,
+            )
+            .exclude(transaction__status__in=TERMINAL_TRANSACTION_STATUSES)
+            .only("pk")
+            .first()
+        )
+        if transaction_thread is not None:
+            return {
+                "item_conversation_url": reverse(
+                    "chat-thread-detail", args=[transaction_thread.pk]
+                ),
+                "item_conversation_label": "View conversation",
+            }
+
+        if item.deleted_at is not None or item.status != ItemStatus.AVAILABLE:
+            return {}
+
+        prerequest_thread = (
+            ChatThread.objects.filter(
+                item=item,
+                borrower=user,
+                transaction__isnull=True,
+                archived_at__isnull=True,
+            )
+            .only("pk")
+            .first()
+        )
+        eligible_groups = (
+            ()
+            if prerequest_thread is not None
+            else tuple(MessagingService.eligible_conversation_groups(user, item))
+        )
+        request_group_choices = eligible_groups if len(eligible_groups) > 1 else ()
+        request_context: dict[str, object] = {
+            "request_conversation_group_choices": request_group_choices,
+        }
+
+        if not item.owner.profile.allow_pre_request_chat:
+            return request_context
+
+        if prerequest_thread is not None:
+            request_context.update(
+                {
+                    "item_conversation_url": reverse(
+                        "chat-thread-detail", args=[prerequest_thread.pk]
+                    ),
+                    "item_conversation_label": "Message lender",
+                }
+            )
+            return request_context
+
+        request_context.update(
+            {
+                "show_message_lender": True,
+                "conversation_group_choices": request_group_choices,
+            }
+        )
+        return request_context
 
 
 # django-filter is untyped (see the django_filters note in mypy.ini), so
@@ -393,7 +506,25 @@ class ItemListView(
 
         # Build card contexts for all items
         items = list(context["object_list"])
-        context["item_cards"] = build_item_cards_for_items(items, user, "search")
+        item_cards = build_item_cards_for_items(items, user, "search")
+        requestable_items = [
+            card["item"]
+            for card in item_cards
+            if any(
+                action in _TRANSACTION_REQUEST_ACTIONS
+                for action in card["action_context"].actions
+            )
+        ]
+        request_group_choices = (
+            MessagingService.request_group_choices_for_items(user, requestable_items)
+            if settings.MESSAGING_ENABLED
+            else {}
+        )
+        for card in item_cards:
+            card["request_conversation_group_choices"] = request_group_choices.get(
+                card["pk"], ()
+            )
+        context["item_cards"] = item_cards
         context["user_has_items"] = Item.objects.filter(
             owner=user,
         ).exists()

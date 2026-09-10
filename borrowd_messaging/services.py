@@ -5,7 +5,7 @@ from django.db.models import QuerySet
 from django.db.transaction import atomic
 from django.utils import timezone
 
-from borrowd_groups.models import BorrowdGroup, MembershipStatus
+from borrowd_groups.models import BorrowdGroup, Membership, MembershipStatus
 from borrowd_items.models import Item, ItemStatus, Transaction
 from borrowd_permissions.models import ItemOLP
 from borrowd_users.models import BorrowdUser
@@ -48,6 +48,28 @@ _DISPUTE_NOTICE = (
 
 
 class MessagingService:
+    @staticmethod
+    def conversation_group_selection(
+        raw_group_id: str | None,
+    ) -> BorrowdGroup | None:
+        """Resolve an optional submitted group ID to a Group."""
+        if raw_group_id is None or raw_group_id == "":
+            return None
+
+        try:
+            group_id = int(raw_group_id)
+        except ValueError as exc:
+            raise InvalidConversationGroup(
+                "The selected group is not available for this conversation."
+            ) from exc
+
+        selected_group = BorrowdGroup.objects.filter(pk=group_id).first()
+        if selected_group is None:
+            raise InvalidConversationGroup(
+                "The selected group is not available for this conversation."
+            )
+        return selected_group
+
     @staticmethod
     def _conversation_context_values(
         item: Item,
@@ -101,6 +123,86 @@ class MessagingService:
 
         return groups.order_by("name", "pk")
 
+    @staticmethod
+    def request_group_choices_for_items(
+        borrower: BorrowdUser,
+        items: list[Item],
+    ) -> dict[int, tuple[BorrowdGroup, ...]]:
+        """
+        Return ambiguous Group choices for direct requests in one batch.
+
+        Items with an active pre-request thread already have conversation
+        context. Zero or one eligible Group can also be resolved without a
+        choice, so neither case is included in the result.
+        """
+        items_by_id = {item.pk: item for item in items}
+        if not items_by_id:
+            return {}
+
+        existing_thread_item_ids = set(
+            ChatThread.objects.filter(
+                borrower=borrower,
+                item_id__in=items_by_id,
+                archived_at__isnull=True,
+                transaction__isnull=True,
+            ).values_list("item_id", flat=True)
+        )
+        items_needing_context = {
+            item_id: item
+            for item_id, item in items_by_id.items()
+            if item_id not in existing_thread_item_ids
+        }
+        if not items_needing_context:
+            return {}
+
+        borrower_groups = list(
+            BorrowdGroup.objects.filter(
+                membership__user=borrower,
+                membership__status=MembershipStatus.ACTIVE,
+                deleted_at__isnull=True,
+                perms_group__isnull=False,
+            ).order_by("name", "pk")
+        )
+        if len(borrower_groups) < 2:
+            return {}
+
+        group_ids = [group.pk for group in borrower_groups]
+        owner_group_pairs = set(
+            Membership.objects.filter(
+                user_id__in={item.owner_id for item in items_needing_context.values()},
+                group_id__in=group_ids,
+                status=MembershipStatus.ACTIVE,
+            ).values_list("user_id", "group_id")
+        )
+
+        explicitly_shared_item_ids = [
+            item.pk
+            for item in items_needing_context.values()
+            if not item.share_with_all_groups
+        ]
+        explicit_item_group_pairs = set(
+            BorrowdGroup.objects.filter(
+                shared_items__pk__in=explicitly_shared_item_ids,
+                pk__in=group_ids,
+            ).values_list("shared_items__pk", "pk")
+        )
+
+        choices: dict[int, tuple[BorrowdGroup, ...]] = {}
+        for item_id, item in items_needing_context.items():
+            eligible_groups = tuple(
+                group
+                for group in borrower_groups
+                if (item.owner_id, group.pk) in owner_group_pairs
+                and (
+                    item.share_with_all_groups
+                    or (item_id, group.pk) in explicit_item_group_pairs
+                )
+            )
+            if len(eligible_groups) > 1:
+                choices[item_id] = eligible_groups
+
+        return choices
+
     @classmethod
     def resolve_conversation_group(
         cls,
@@ -146,6 +248,81 @@ class MessagingService:
             transaction__isnull=True,
         ).first()
 
+    @staticmethod
+    def _validate_thread_participants(borrower: BorrowdUser, item: Item) -> None:
+        """Validate the participants and Item shared by thread entry paths."""
+        if not settings.MESSAGING_ENABLED:
+            raise MessagingDisabled("Messaging is not enabled.")
+        if borrower.pk == item.owner_id:
+            raise PermissionDenied("Owners cannot open a chat about their own item.")
+        if not borrower.has_perm(ItemOLP.VIEW, item):
+            raise PermissionDenied("Cannot open a chat about an unviewable item.")
+        if item.deleted_at is not None or item.status != ItemStatus.AVAILABLE:
+            raise PreRequestChatUnavailable("This item is not available.")
+
+    @classmethod
+    def _get_or_create_prerequest_thread(
+        cls,
+        borrower: BorrowdUser,
+        item: Item,
+        selected_group: BorrowdGroup | None,
+        *,
+        enforce_pre_request_preference: bool,
+    ) -> ChatThread:
+        """
+        Get or create a pre-request thread while locking the given Item's row
+        """
+        try:
+            with atomic():
+                try:
+                    # https://docs.djangoproject.com/en/5.2/ref/models/querysets/#select-for-update
+                    locked_item = (
+                        Item.all_objects.select_for_update(of=("self",))
+                        .select_related("owner__profile")
+                        .get(pk=item.pk)
+                    )
+                except Item.DoesNotExist as exc:
+                    raise PreRequestChatUnavailable(
+                        "This item is not available."
+                    ) from exc
+
+                cls._validate_thread_participants(borrower, locked_item)
+
+                existing = cls._active_prerequest_thread(borrower, locked_item)
+                if existing is not None:
+                    return existing
+
+                if (
+                    enforce_pre_request_preference
+                    and not locked_item.owner.profile.allow_pre_request_chat
+                ):
+                    raise PreRequestChatUnavailable(
+                        "This user has turned off messages about their items."
+                    )
+
+                conversation_group = cls.resolve_conversation_group(
+                    borrower,
+                    locked_item,
+                    selected_group=selected_group,
+                )
+
+                return ChatThread.objects.create(
+                    item=locked_item,
+                    lender=locked_item.owner,
+                    borrower=borrower,
+                    created_by=borrower,
+                    updated_by=borrower,
+                    **cls._conversation_context_values(
+                        locked_item,
+                        conversation_group,
+                    ),
+                )
+        except IntegrityError:
+            thread = cls._active_prerequest_thread(borrower, item)
+            if thread is None:
+                raise
+            return thread
+
     @classmethod
     def get_or_create_prerequest_thread(
         cls,
@@ -158,45 +335,32 @@ class MessagingService:
         creating one if they have none. Multiple eligible groups require an
         explicit selection for a new conversation.
         """
-        if not settings.MESSAGING_ENABLED:
-            raise MessagingDisabled("Messaging is not enabled.")
-        if borrower.pk == item.owner_id:
-            raise PermissionDenied("Owners cannot open a chat about their own item.")
-        if not borrower.has_perm(ItemOLP.VIEW, item):
-            raise PermissionDenied("Cannot open a chat about an unviewable item.")
-        if item.deleted_at is not None or item.status != ItemStatus.AVAILABLE:
-            raise PreRequestChatUnavailable("This item is not available.")
-        if not item.owner.profile.allow_pre_request_chat:
-            raise PreRequestChatUnavailable(
-                "This user has turned off messages about their items."
-            )
-
-        existing = cls._active_prerequest_thread(borrower, item)
-        if existing is not None:
-            return existing
-
-        conversation_group = cls.resolve_conversation_group(
+        return cls._get_or_create_prerequest_thread(
             borrower,
             item,
             selected_group=selected_group,
+            enforce_pre_request_preference=True,
         )
 
-        try:
-            with atomic():
-                return ChatThread.objects.create(
-                    item=item,
-                    lender=item.owner,
-                    borrower=borrower,
-                    created_by=borrower,
-                    updated_by=borrower,
-                    **cls._conversation_context_values(item, conversation_group),
-                )
-        except IntegrityError:
-            # Race condition catch.
-            thread = cls._active_prerequest_thread(borrower, item)
-            if thread is None:
-                raise
-            return thread
+    @classmethod
+    def prepare_thread_for_request(
+        cls,
+        borrower: BorrowdUser,
+        item: Item,
+        selected_group: BorrowdGroup | None = None,
+    ) -> ChatThread:
+        """
+        Create or reuse the thread that an immediate Item request will claim.
+
+        Direct requests are independent of the lender's pre-request-chat
+        preference because they start the normal Transaction lifecycle.
+        """
+        return cls._get_or_create_prerequest_thread(
+            borrower,
+            item,
+            selected_group=selected_group,
+            enforce_pre_request_preference=False,
+        )
 
     @classmethod
     def send_message(

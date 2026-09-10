@@ -7,7 +7,7 @@ from django.utils import timezone
 from guardian.shortcuts import assign_perm
 
 from borrowd_groups.models import BorrowdGroup
-from borrowd_items.models import ItemStatus, ListingType
+from borrowd_items.models import Item, ItemStatus, ListingType
 from borrowd_messaging.exceptions import (
     ConversationGroupSelectionRequired,
     InvalidMessageBody,
@@ -184,6 +184,18 @@ class GetOrCreatePreRequestThreadTests(MessagingTestCase):
         with self.assertRaises(PreRequestChatUnavailable):
             MessagingService.get_or_create_prerequest_thread(self.borrower, self.item)
 
+    def test_stale_item_is_reloaded_before_thread_creation(self) -> None:
+        # Simulate deletion after the caller loaded its Item instance. Updating
+        # through the queryset deliberately leaves self.item stale and avoids
+        # letting the deletion signal hide an incorrectly created new thread.
+        Item.all_objects.filter(pk=self.item.pk).update(deleted_at=timezone.now())
+        self.assertIsNone(self.item.deleted_at)
+
+        with self.assertRaises(PreRequestChatUnavailable):
+            MessagingService.get_or_create_prerequest_thread(self.borrower, self.item)
+
+        self.assertFalse(ChatThread.objects.exists())
+
     def test_lender_can_turn_off_pre_request_chat(self) -> None:
         profile = self.lender.profile
         profile.allow_pre_request_chat = False
@@ -222,6 +234,72 @@ class GetOrCreatePreRequestThreadTests(MessagingTestCase):
             self.assertRaises(IntegrityError),
         ):
             MessagingService.get_or_create_prerequest_thread(self.borrower, self.item)
+
+
+@override_settings(MESSAGING_ENABLED=True)
+class PrepareThreadForRequestTests(MessagingTestCase):
+    def setUp(self) -> None:
+        super().setUp()
+        assign_perm(ItemOLP.VIEW, self.borrower, self.item)
+
+    def _make_eligible_group(self, name: str) -> BorrowdGroup:
+        group = self.make_group(name=name)
+        group.add_user(self.borrower)
+        return group
+
+    def test_requires_a_choice_for_a_new_ambiguous_thread(self) -> None:
+        self._make_eligible_group("Group A")
+        self._make_eligible_group("Group B")
+
+        with self.assertRaises(ConversationGroupSelectionRequired):
+            MessagingService.prepare_thread_for_request(self.borrower, self.item)
+
+        self.assertFalse(ChatThread.objects.exists())
+
+    def test_snapshots_the_selected_group(self) -> None:
+        self._make_eligible_group("Group A")
+        selected = self._make_eligible_group("Group B")
+
+        thread = MessagingService.prepare_thread_for_request(
+            self.borrower,
+            self.item,
+            selected_group=selected,
+        )
+
+        self.assertEqual(thread.conversation_group, selected)
+        self.assertEqual(thread.conversation_group_source_id, selected.pk)
+        self.assertEqual(thread.conversation_group_name, "Group B")
+
+    def test_existing_thread_does_not_require_a_new_choice(self) -> None:
+        original_group = self._make_eligible_group("Original Group")
+        existing = self.make_thread(
+            conversation_group=original_group,
+            conversation_group_source_id=original_group.pk,
+            conversation_group_name=original_group.name,
+        )
+        self._make_eligible_group("Another Group")
+
+        prepared = MessagingService.prepare_thread_for_request(
+            self.borrower,
+            self.item,
+        )
+
+        self.assertEqual(prepared, existing)
+        self.assertEqual(prepared.conversation_group, original_group)
+        self.assertEqual(ChatThread.objects.count(), 1)
+
+    def test_lender_preference_does_not_block_a_transaction_request(self) -> None:
+        profile = self.lender.profile
+        profile.allow_pre_request_chat = False
+        profile.save(update_fields=["allow_pre_request_chat"])
+
+        thread = MessagingService.prepare_thread_for_request(
+            self.borrower,
+            self.item,
+        )
+
+        self.assertEqual(thread.borrower, self.borrower)
+        self.assertIsNone(thread.transaction)
 
 
 @override_settings(MESSAGING_ENABLED=True)
