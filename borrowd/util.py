@@ -35,6 +35,7 @@ BROWSABLE_BACK_TARGETS = frozenset(
         "notification-inbox",
         "settings-security",
         "notification-preferences",
+        "settings-messaging",
         "settings-account",
     }
 )
