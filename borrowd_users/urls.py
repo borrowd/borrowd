@@ -2,7 +2,6 @@ from django.urls import path
 
 from .views import (
     CustomSignupView,
-    delete_account_view,
     delete_profile_photo_view,
     inventory_view,
     profile_deleted_view,
@@ -20,6 +19,5 @@ urlpatterns = [
     path("search-terms/export/", search_terms_export_view, name="search-terms-export"),
     path("signup/", CustomSignupView.as_view(), name="custom_signup"),
     path("inventory/", inventory_view, name="profile-inventory"),
-    path("delete/", delete_account_view, name="account-delete"),
     path("<int:user_id>/", public_profile_view, name="public-profile"),
 ]
