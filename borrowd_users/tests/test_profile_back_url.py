@@ -51,6 +51,7 @@ class ProfileBackUrlTests(TestCase):
             "notification-inbox",
             "settings-security",
             "notification-preferences",
+            "settings-messaging",
             "settings-account",
         ):
             with self.subTest(url_name=url_name):

@@ -12,6 +12,11 @@
                 <div class="join">
                     {% include "settings/_tab.html" with url_name="settings-security" label=_("Security") %}
                     {% include "settings/_tab.html" with url_name="notification-preferences" label=_("Notifications") %}
+
+                    {% if messaging_enabled %}
+                        {% include "settings/_tab.html" with url_name="settings-messaging" label=_("Messaging") %}
+
+                    {% endif %}
                     {% include "settings/_tab.html" with url_name="settings-account" label=_("Account") %}
 
                 </div>
