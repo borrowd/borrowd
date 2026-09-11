@@ -1,0 +1,24 @@
+{% extends "layouts/default.html" %}
+
+{% load i18n %}
+
+{% block content %}
+    <div class="flex flex-col w-full max-w-2xl mx-auto px-4 py-4 gap-6 self-start">
+        <div class="flex flex-col gap-4">
+            <h1 class="text-xl font-semibold">
+                {% trans "Settings" %}
+            </h1>
+            <nav class="overflow-x-auto" aria-label="{% trans 'Settings sections' %}">
+                <div class="join">
+                    {% include "settings/_tab.html" with url_name="settings-security" label=_("Security") %}
+                    {% include "settings/_tab.html" with url_name="notification-preferences" label=_("Notifications") %}
+                    {% include "settings/_tab.html" with url_name="settings-account" label=_("Account") %}
+
+                </div>
+            </nav>
+        </div>
+
+        {% block settings_content %}
+        {% endblock %}
+    </div>
+{% endblock %}
