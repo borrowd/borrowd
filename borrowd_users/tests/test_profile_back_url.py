@@ -1,7 +1,7 @@
 """
 Tests for the profile page's back arrow: it must not send the user back to a
-form they just submitted (password change, profile edit), and it must honor
-the pages users actually arrive from.
+form they just submitted, and it must honor the pages users actually arrive
+from.
 """
 
 from django.test import TestCase
@@ -29,11 +29,7 @@ class ProfileBackUrlTests(TestCase):
         return str(response.context["back_url"])
 
     def test_back_url_does_not_point_at_password_change_form(self) -> None:
-        """
-        The original repro: profile -> password change -> submit -> land on
-        profile -> back arrow. The Referer at that point is the password-change
-        form itself, which isn't a sane back target.
-        """
+        """The password-change form is never a sane back target."""
         self.assertEqual(
             self._get_profile(reverse("account_change_password")),
             reverse("item-list"),
@@ -53,7 +49,9 @@ class ProfileBackUrlTests(TestCase):
         for url_name in (
             "community-request-list",
             "notification-inbox",
+            "settings-security",
             "notification-preferences",
+            "settings-account",
         ):
             with self.subTest(url_name=url_name):
                 referer_url = reverse(url_name)

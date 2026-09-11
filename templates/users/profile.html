@@ -9,45 +9,9 @@
 
 {% block content %}
     <div x-data="{ openDrawer: null }"
-         class="flex flex-col w-full max-w-2xl mx-auto px-4 py-4 gap-6">
+         class="flex flex-col w-full max-w-2xl mx-auto px-4 py-4 gap-6 self-start">
 
         {% include "components/page_header.html" with title=_("Profile") back_url=back_url %}
-
-        {# ── Push notifications blocked in this browser ───────────────────
-           Server-side we only know push_enabled preferences are on; whether
-           this specific browser is actually able to receive them is a
-           client-only fact (Notification permission / active subscription),
-           so the CTA itself is entirely client-driven, gated by the
-           has_push_preference_enabled flag from the view. #}
-        {% if has_push_preference_enabled %}
-            <div x-data="pushPermissionCta()"
-                 x-show="show"
-                 x-cloak
-                 role="alert"
-                 class="alert alert-warning flex items-start gap-3 rounded-md">
-                {% heroicon_outline "bell-slash" class="w-5 h-5 shrink-0 mt-0.5" %}
-                <div class="flex flex-col gap-2 flex-1">
-                    <span class="text-sm">
-                        <template x-if="permissionDenied">
-                            <span>
-                                {% trans "Push notifications are on in your settings, but this browser is blocking them. Enable notifications for this site in your browser settings to receive them here." %}
-                            </span>
-                        </template>
-                        <template x-if="!permissionDenied">
-                            <span>
-                                {% trans "Push notifications are on in your settings, but this browser isn't set up to receive them yet." %}
-                            </span>
-                        </template>
-                    </span>
-                    <button type="button"
-                            x-show="!permissionDenied"
-                            @click="enable()"
-                            class="btn btn-sm btn-warning self-start rounded-sm">
-                        {% trans "Enable browser notifications" %}
-                    </button>
-                </div>
-            </div>
-        {% endif %}
 
         {# ── Personal Information ──────────────────────────────────────── #}
         <section class="flex flex-col gap-2">
@@ -187,44 +151,6 @@
             </div>
         </section>
 
-        {# ── Security ──────────────────────────────────────────────────── #}
-        <section class="flex flex-col gap-2">
-            <p class="text-xs font-semibold text-base-content px-1">
-                {% trans "Security" %}
-            </p>
-
-            {% url 'account_change_password' as change_password_url %}
-            {% if change_password_url %}
-                <c-profile.nav-row href="{{ change_password_url }}" label="Change password" />
-            {% endif %}
-        </section>
-
-        {# ── Notifications ─────────────────────────────────────────────── #}
-        <section class="flex flex-col gap-2">
-            <p class="text-xs font-semibold text-base-content px-1">
-                {% trans "Notifications" %}
-            </p>
-            <c-profile.nav-row href="{% url 'notification-preferences' %}"
-                               label="Notification settings" />
-        </section>
-
-        {# ── Account ───────────────────────────────────────────────────── #}
-        <section class="flex flex-col gap-2">
-            <p class="text-xs font-semibold text-base-content px-1">
-                {% trans "Account" %}
-            </p>
-
-            <div class="card bg-primary-content border border-gray-200 shadow-sm rounded-md flex flex-row items-center justify-between px-4 py-3">
-                <span class="text-sm font-medium text-base-content">{% trans "Delete account" %}</span>
-                <button type="button"
-                        onclick="openDeleteAccountModal()"
-                        class="btn btn-soft btn-error font-semibold rounded-sm">
-                    {% heroicon_mini "trash" class="size-3" %}
-                    {% trans "Delete" %}
-                </button>
-            </div>
-        </section>
-
     </div>
 
     {# ── Delete profile picture confirmation modal ────────────────── #}
@@ -263,168 +189,7 @@
         </form>
     </dialog>
 
-    {# ── Delete account confirmation modal ────────────────── #}
-    <dialog id="delete-account-modal" class="modal modal-bottom sm:modal-middle">
-        <div class="modal-box rounded-t-2xl sm:rounded-2xl p-6 max-w-lg max-h-[70rem]">
-            <form method="dialog">
-                <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">
-                    {% heroicon_mini "x-mark" class="w-3 h-3" %}
-                </button>
-            </form>
-
-            {% if is_borrowing %}
-                {# ── Borrowing: deletion blocked ────────────────── #}
-                <h3 class="text-xl font-bold leading-7 p-5">
-                    {% trans "You currently have pending transactions" %}
-                </h3>
-                <p class="px-5 py-2 leading-7 text-xl">
-                    {% trans "To delete your profile, you'll need to return the items you've borrowed or cancel any pending transactions. Once the owner confirms the return, you'll be able to delete your profile." %}
-                </p>
-                <div class="modal-action justify-end pt-6">
-                    <form method="dialog">
-                        <button class="btn btn-ghost font-semibold">
-                            {% trans "Close" %}
-                        </button>
-                    </form>
-                </div>
-            {% else %}
-                {% if is_lending %}
-                    {# Items out on loan: nudge to retrieve, but allow #}
-                    <h3 class="text-xl font-bold leading-7 p-5">
-                        {% trans "You're still lending items" %}
-                    </h3>
-                    <p class="px-5 py-2 leading-7 text-xl">
-                        {% trans "If you delete your profile, your listed items will also be removed. We recommend retrieving your items before deleting your profile." %}
-                    </p>
-                {% elif has_items %}
-                    {# Owns only idle items: warn they'll be removed, but allow #}
-                    <h3 class="text-xl font-bold leading-7 p-5">
-                        {% trans "Your listed items will be removed" %}
-                    </h3>
-                    <p class="px-5 py-2 leading-7 text-xl">
-                        {% trans "If you delete your profile, the items you've listed on Borrow'd will be removed too." %}
-                    </p>
-                {% else %}
-                    <h3 class="text-xl font-bold leading-7 p-5">
-                        {% trans "Are you sure you want to delete your profile?" %}
-                    </h3>
-                {% endif %}
-
-                <form method="post" action="{% url 'account-delete' %}" class="px-5">
-                    {% csrf_token %}
-                    <label for="confirm-username" class="block text-sm font-medium pb-1">
-                        {% blocktrans with username=profile.user.username %}To confirm, type {{ username }} below{% endblocktrans %}
-                    </label>
-                    <input type="text"
-                           id="confirm-username"
-                           name="confirm_username"
-                           autocomplete="off"
-                           autocapitalize="off"
-                           spellcheck="false"
-                           data-expected-username="{{ profile.user.username }}"
-                           oninput="syncDeleteAccountButton(this)"
-                           class="input input-bordered w-full" />
-
-                    <div class="modal-action justify-end pt-6 gap-3">
-                        <button type="button"
-                                onclick="document.getElementById('delete-account-modal').close()"
-                                class="btn btn-ghost font-semibold">
-                            {% trans "Cancel" %}
-                        </button>
-                        <button type="submit"
-                                id="delete-account-submit"
-                                class="btn btn-soft btn-error font-semibold"
-                                disabled>
-                            {% heroicon_mini "trash" class="size-3" %}
-                            {% trans "Delete" %}
-                        </button>
-                    </div>
-                </form>
-            {% endif %}
-
-        </div>
-        <form method="dialog" class="modal-backdrop">
-            <button>
-                close
-            </button>
-        </form>
-    </dialog>
-
     <script>
-  function pushPermissionCta() {
-    return {
-      show: false,
-      permissionDenied: false,
-
-      async init() {
-        if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
-          return;
-        }
-        await this._refresh();
-
-        // The browser permission can be flipped from site settings without a
-        // page reload (e.g. re-allowing after a prior block). Re-check live
-        // so the banner doesn't stay stuck on the state captured at init().
-        if ('permissions' in navigator) {
-          const status = await navigator.permissions.query({ name: 'notifications' });
-          status.onchange = () => this._refresh();
-        }
-      },
-
-      async _refresh() {
-        if (Notification.permission === 'denied') {
-          this.permissionDenied = true;
-          this.show = true;
-          return;
-        }
-        this.permissionDenied = false;
-        try {
-          const reg = await navigator.serviceWorker.getRegistration('/sw.js');
-          const sub = reg ? await reg.pushManager.getSubscription() : null;
-          this.show = !sub;
-        } catch (e) {
-          console.error('Push subscription check failed:', e);
-        }
-      },
-
-      async enable() {
-        try {
-          const reg = await navigator.serviceWorker.register('/sw.js');
-          const permission = await Notification.requestPermission();
-          if (permission !== 'granted') {
-            this.permissionDenied = true;
-            return;
-          }
-          let sub = await reg.pushManager.getSubscription();
-          if (!sub) {
-            sub = await reg.pushManager.subscribe({
-              userVisibleOnly: true,
-              applicationServerKey: this._urlBase64ToUint8Array('{{ vapid_public_key }}'),
-            });
-          }
-          await fetch('{% url "push-subscribe" %}', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-CSRFToken': window.getCsrfToken(),
-            },
-            body: JSON.stringify(sub.toJSON()),
-          });
-          this.show = false;
-        } catch (e) {
-          console.error('Push subscription failed:', e);
-        }
-      },
-
-      _urlBase64ToUint8Array(base64String) {
-        const padding = '='.repeat((4 - base64String.length % 4) % 4);
-        const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
-        const rawData = atob(base64);
-        return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
-      },
-    };
-  }
-
   const imageInput = document.getElementById('id_image');
   const avatarPreview = document.getElementById('avatar-preview');
   const avatarPlaceholder = avatarPreview ? avatarPreview.nextElementSibling : null;
@@ -507,10 +272,6 @@
     document.getElementById('delete-avatar-modal').showModal();
   }
 
-  function openDeleteAccountModal() {
-    document.getElementById('delete-account-modal').showModal();
-  }
-
   function confirmDeleteAvatar() {
     const modal = document.getElementById('delete-avatar-modal');
     const csrfToken = window.getCsrfToken();
@@ -532,14 +293,6 @@
     })
     .catch(function () { showToast('An error occurred while deleting your profile picture.', 'error'); })
     .finally(function () { modal.close(); });
-  }
-
-  // Enable the delete button only once the typed username matches. This is a
-  // UX guard; delete_account_view re-checks the same thing server-side.
-  function syncDeleteAccountButton(input) {
-    const submit = document.getElementById('delete-account-submit');
-    if (!submit) return;
-    submit.disabled = input.value.trim() !== input.dataset.expectedUsername;
   }
     </script>
 {% endblock %}
