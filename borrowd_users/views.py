@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from allauth.account.views import PasswordChangeView
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
@@ -11,13 +12,14 @@ from django.http import (
     Http404,
     HttpRequest,
     HttpResponse,
+    HttpResponseBadRequest,
     HttpResponseBase,
     HttpResponseForbidden,
     JsonResponse,
 )
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse, reverse_lazy
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_http_methods, require_POST
 from django.views.generic import CreateView
 
 from borrowd.util import BROWSABLE_BACK_TARGETS, resolve_back_url
@@ -411,6 +413,35 @@ def inventory_view(request: HttpRequest) -> HttpResponse:
 @login_required
 def security_settings_view(request: HttpRequest) -> HttpResponse:
     return render(request, "settings/security.html")
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def messaging_settings_view(request: HttpRequest) -> HttpResponse:
+    """The lender's pre-request chat preference, saved one toggle at a time."""
+    if not settings.MESSAGING_ENABLED:
+        raise Http404
+
+    user = get_authenticated_user(request)
+    profile = user.profile
+
+    if request.method == "POST":
+        enabled = request.POST.get("enabled")
+        if enabled not in ("true", "false"):
+            return HttpResponseBadRequest()
+
+        profile.allow_pre_request_chat = enabled == "true"
+        profile.updated_by = user
+        profile.save(
+            update_fields=["allow_pre_request_chat", "updated_by", "updated_at"]
+        )
+        return HttpResponse(status=204)
+
+    return render(
+        request,
+        "settings/messaging.html",
+        {"allow_pre_request_chat": profile.allow_pre_request_chat},
+    )
 
 
 @login_required

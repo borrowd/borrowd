@@ -1,0 +1,59 @@
+{% extends "layouts/settings.html" %}
+
+{% load i18n %}
+
+{% block head_title %}
+    {% trans "Messaging settings" %}
+{% endblock %}
+
+{% block settings_content %}
+    <section x-data="preRequestChatToggle({{ allow_pre_request_chat|yesno:'true,false' }})"
+             class="flex flex-col gap-2">
+        <p class="text-xs font-semibold text-base-content px-1">
+            {% trans "Chat Preferences" %}
+        </p>
+        <div class="card bg-primary-content rounded-md border border-gray-200 shadow-sm">
+            <label for="allow-pre-request-chat"
+                   class="flex items-center justify-between gap-4 px-4 py-3 cursor-pointer">
+                <span class="flex flex-col gap-0.5">
+                    <span class="text-sm">{% trans "Allow pre-request messages" %}</span>
+                    <span class="text-xs text-base-content/60">
+                        {% trans "When off, borrowers can still request your items but cannot message you before making a request." %}
+                    </span>
+                </span>
+                <input type="checkbox"
+                       id="allow-pre-request-chat"
+                       class="toggle toggle-primary toggle-sm shrink-0"
+                       :checked="enabled"
+                       @change="save($event.target.checked)"
+                       {% if allow_pre_request_chat %}checked{% endif %}>
+            </label>
+        </div>
+    </section>
+
+    <script>
+        function preRequestChatToggle(initial) {
+            return {
+                enabled: initial,
+
+                async save(enabled) {
+                    this.enabled = enabled;
+                    try {
+                        const response = await fetch('{% url "settings-messaging" %}', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/x-www-form-urlencoded',
+                                'X-CSRFToken': window.getCsrfToken(),
+                            },
+                            body: new URLSearchParams({ enabled: enabled ? 'true' : 'false' }),
+                        });
+                        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    } catch (e) {
+                        this.enabled = !enabled;
+                        showToast('{% trans "Could not save your chat preference. Please try again." %}', 'error');
+                    }
+                },
+            };
+        }
+    </script>
+{% endblock %}
