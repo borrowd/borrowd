@@ -142,7 +142,7 @@ class ChatThreadDetailView(
         context = super().get_context_data(**kwargs)
         user = get_authenticated_user(self.request)
         chat_thread = self.object
-        context["other_party"] = (
+        context["other_participant"] = (
             chat_thread.borrower
             if user.pk == chat_thread.lender_id
             else chat_thread.lender

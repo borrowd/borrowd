@@ -1,0 +1,41 @@
+{% extends "items/layout.html" %}
+
+{% load heroicons %}
+
+{% block head_title %}
+    Item conversations
+{% endblock %}
+
+{% block items_content %}
+    <div class="flex flex-col gap-4 py-8">
+        <div class="relative flex w-full items-center">
+            <c-button-nav url="{% url 'item-detail' item.pk %}"
+                          class="absolute left-0 top-0 translate-y-1.5">
+                {% heroicon_outline "arrow-left" class="size-6" stroke_width=1.5 %}
+            </c-button-nav>
+            <c-h1 class="w-full text-center text-[24px] font-normal">
+                Conversations
+            </c-h1>
+        </div>
+
+        <p class="text-center text-sm text-base-content/70">
+            {{ item.name }}
+        </p>
+
+        {% if item_conversation_summaries %}
+            <div class="flex flex-col gap-2">
+                {% for summary in item_conversation_summaries %}
+                    {% include "messaging/_thread_summary_card.html" with summary=summary only %}
+
+                {% endfor %}
+            </div>
+
+            {% include "components/pagination.html" with page_obj=page_obj query_params=request.GET %}
+
+        {% else %}
+            <p class="py-12 text-center text-sm text-base-content/70">
+                No conversations yet.
+            </p>
+        {% endif %}
+    </div>
+{% endblock %}
