@@ -15,6 +15,7 @@ from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.generic import DetailView, TemplateView, View
 
 from borrowd.util import BorrowdTemplateFinderMixin
+from borrowd_items.card_helpers import item_thumbnail_url
 from borrowd_items.models import Item, ItemAction, ItemStatus
 from borrowd_permissions.mixins import CachedObjectMixin, LoginOr404PermissionMixin
 from borrowd_permissions.models import ChatThreadOLP, ItemOLP
@@ -25,7 +26,6 @@ from .conversation_summaries import (
     build_hub_cards,
     conversation_status,
     has_removed_item,
-    item_thumbnail_url,
     listed_item,
     threads_for_hub,
 )
@@ -164,7 +164,9 @@ class ChatThreadDetailView(
         status_label, status_kind = conversation_status(chat_thread)
         return {
             "item_name": item.name if item is not None else None,
-            "item_thumbnail_url": item_thumbnail_url(item),
+            "item_thumbnail_url": item_thumbnail_url(item)
+            if item is not None
+            else None,
             "item_removed": has_removed_item(chat_thread),
             # Link only where the viewer may actually go: a removed Item 404s,
             # and so does one whose group the viewer has since left.
@@ -215,7 +217,13 @@ class ChatThreadUnreadBadgeView(MessagingEnabledMixin, LoginRequiredMixin, View)
         count = unread_threads_for(get_authenticated_user(request)).count()
         return HttpResponse(
             render_to_string(
-                "messaging/_unread_badge.html", {"unread_conversation_count": count}
+                "messaging/_unread_badge.html",
+                {
+                    "unread_conversation_count": count,
+                    "unread_conversation_label": "conversation"
+                    if count == 1
+                    else "conversations",
+                },
             )
         )
 

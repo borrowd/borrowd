@@ -5,7 +5,7 @@ These functions provide consistent context building for item card rendering
 used throughout the application.
 """
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from django.db.models import QuerySet
 from django.urls import reverse
@@ -499,6 +499,23 @@ def get_banner_info_for_item(
     }
 
 
+def item_thumbnail_url(item: Item) -> str | None:
+    """Read the Item's first photo. A missing file must not break the page.
+
+    item.photos.first() would build a fresh ordered queryset and bypass any
+    prefetch_related("photos") the caller set up; this reads the prefetch
+    cache when present. Callers listing many Items should prefetch photos;
+    one Item costs one query either way.
+    """
+    first_photo = next(iter(item.photos.all()), None)
+    if first_photo is None:
+        return None
+    try:
+        return cast(str, first_photo.thumbnail.url)
+    except FileNotFoundError:
+        return None
+
+
 def build_item_card_context(
     item: "Item",
     user: "BorrowdUser",
@@ -552,10 +569,6 @@ def build_item_card_context(
             waiting_text=action_context.waiting_text,
         )
 
-    # item.photos.first() would build a fresh ordered queryset and bypass
-    # any prefetch_related("photos") the caller set up; this reads the
-    # prefetch cache when present.
-    first_photo = next(iter(item.photos.all()), None)
     banner_info = get_banner_info_for_item(item, user, precomputed=precomputed)
     card_ids = build_card_ids(context, item.pk)
 
@@ -570,10 +583,7 @@ def build_item_card_context(
     # https://docs.djangoproject.com/en/6.0/ref/utils/#django.utils.html.format_html
     banner_icon = format_html(BANNER_ICONS.get(banner_type, ""))
 
-    try:
-        image = first_photo.thumbnail.url if first_photo else ""
-    except FileNotFoundError:
-        image = ""
+    image = item_thumbnail_url(item) or ""
 
     ctx: dict[str, Any] = {
         "item": item,
