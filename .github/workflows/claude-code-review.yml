@@ -2,7 +2,7 @@ name: Claude Code Review
 
 on:
   pull_request:
-    types: [opened, synchronize]
+    types: [opened, synchronize, ready_for_review]
 
 concurrency:
   group: claude-review-${{ github.workflow }}-${{ github.event.pull_request.number }}
@@ -10,7 +10,9 @@ concurrency:
 
 jobs:
   review:
+    if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
       pull-requests: write
@@ -23,6 +25,8 @@ jobs:
 
       - name: Run Claude Code Review
         uses: anthropics/claude-code-action@v1
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt: |
@@ -52,9 +56,17 @@ jobs:
               no-ops some of these constraints).
 
             Report correctness bugs first, then reuse/simplification/
-            efficiency issues. Do not comment on formatting, import order,
-            or anything `ruff`/`djlint`/pre-commit already enforce. If you
-            find nothing worth flagging, post a short comment saying so
-            instead of staying silent.
+            efficiency issues. Cap nit-level findings at 5 -- if you find
+            more, note the remaining count in the summary instead of
+            listing them all. Do not comment on formatting, import order,
+            or anything `ruff`/`djlint`/pre-commit already enforce.
+
+            Post your findings as a single comment on PR
+            #${{ github.event.pull_request.number }} via
+            `gh pr comment ${{ github.event.pull_request.number }} --body-file <file>`
+            (write the body to a temp file first rather than passing it
+            inline). If you find nothing worth flagging, post a short
+            comment saying so instead of staying silent.
           claude_args: |
-            --allowedTools "Read,Grep,Glob,Bash(git diff:*),Bash(git log:*)"
+            --max-turns 15
+            --allowedTools "Read,Grep,Glob,Bash(git diff:*),Bash(git log:*),Bash(gh pr comment:*)"
