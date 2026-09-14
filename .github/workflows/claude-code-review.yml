@@ -1,0 +1,72 @@
+name: Claude Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review]
+
+concurrency:
+  group: claude-review-${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: write
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Run Claude Code Review
+        uses: anthropics/claude-code-action@v1
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            Review only the diff introduced by this pull request (not the
+            whole repository). Follow the conventions in AGENTS.md, in
+            particular:
+
+            - mypy --strict type-hinting rules (don't annotate model fields
+              or managers; use get_authenticated_user for request.user in
+              login-protected views; `# type: ignore` needs an error code
+              and justification).
+            - The soft-delete convention (created_by/created_at/updated_by/
+              updated_at/deleted_at/deleted_by) -- flag any raw `.delete()`
+              call on a model that supports it unless a hard delete is
+              clearly intended.
+            - Domain-specific exceptions must subclass BorrowdException.
+            - Evergreen naming/comments (no references to past PRs or "new"/
+              "updated" in names or comments).
+            - Data migrations: a RunPython migration using
+              `apps.get_model(...)` gets a frozen historical model whose
+              `.save()` won't dispatch signals to live receivers -- flag any
+              migration that needs live-model signal side effects but uses
+              `apps.get_model()` instead of importing the live class.
+            - Locking/Postgres-only behavior: flag any new use of
+              `select_for_update()`, raw SQL, or migration change that
+              hasn't been noted as tested against Postgres (SQLite silently
+              no-ops some of these constraints).
+
+            Report correctness bugs first, then reuse/simplification/
+            efficiency issues. Cap nit-level findings at 5 -- if you find
+            more, note the remaining count in the summary instead of
+            listing them all. Do not comment on formatting, import order,
+            or anything `ruff`/`djlint`/pre-commit already enforce.
+
+            Post your findings as a single comment on PR
+            #${{ github.event.pull_request.number }} via
+            `gh pr comment ${{ github.event.pull_request.number }} --body-file <file>`
+            (write the body to a temp file first rather than passing it
+            inline). If you find nothing worth flagging, post a short
+            comment saying so instead of staying silent.
+          claude_args: |
+            --max-turns 15
+            --allowedTools "Read,Grep,Glob,Bash(git diff:*),Bash(git log:*),Bash(gh pr comment:*)"
