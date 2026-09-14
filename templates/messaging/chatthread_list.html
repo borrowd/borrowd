@@ -39,24 +39,16 @@
                        results always start from the first page. #}
                     <form method="get" class="flex flex-wrap items-end gap-x-2 gap-y-4">
                         <input type="hidden" name="section" value="{{ selected_section }}" />
-                        <label class="input input-bordered flex grow items-center">
-                            {% heroicon_mini "magnifying-glass" class="size-4 opacity-50" %}
-                            <input type="text"
-                                   name="{{ conversation_filter.form.item.html_name }}"
-                                   id="{{ conversation_filter.form.item.id_for_label }}"
-                                   class="grow"
-                                   value="{{ conversation_filter.form.item.value|default:'' }}"
-                                   placeholder="Item name" />
-                        </label>
-                        <label class="input input-bordered flex grow items-center">
-                            {% heroicon_mini "user" class="size-4 opacity-50" %}
-                            <input type="text"
-                                   name="{{ conversation_filter.form.person.html_name }}"
-                                   id="{{ conversation_filter.form.person.id_for_label }}"
-                                   class="grow"
-                                   value="{{ conversation_filter.form.person.value|default:'' }}"
-                                   placeholder="Person" />
-                        </label>
+                        <c-form.icon-input icon="magnifying-glass"
+                                           name="{{ conversation_filter.form.item.html_name }}"
+                                           id="{{ conversation_filter.form.item.id_for_label }}"
+                                           value="{{ conversation_filter.form.item.value }}"
+                                           placeholder="Item name" />
+                        <c-form.icon-input icon="user"
+                                           name="{{ conversation_filter.form.person.html_name }}"
+                                           id="{{ conversation_filter.form.person.id_for_label }}"
+                                           value="{{ conversation_filter.form.person.value }}"
+                                           placeholder="Person" />
                         <label class="label cursor-pointer w-full">
                             <input type="checkbox"
                                    class="checkbox checkbox-sm"
