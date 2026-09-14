@@ -431,15 +431,14 @@ class ChatThreadListView(
         conversations = ConversationFilter(
             self.request.GET, queryset=all_threads, request=self.request
         )
-        filters_applied = any(
-            conversations.form.data.get(field) for field in conversations.filters
-        )
         threads = conversations.qs
+        filters_applied = any(
+            conversations.form.cleaned_data.get(field)
+            for field in conversations.filters
+        )
         active = threads.filter(archived_at__isnull=True)
         archived = threads.filter(archived_at__isnull=False)
-        shown, hidden = (
-            (active, archived) if selected == "active" else (archived, active)
-        )
+        shown = active if selected == "active" else archived
 
         page = Paginator(shown, _HUB_PAGE_SIZE).get_page(self.request.GET.get("page"))
         context["conversation_filter"] = conversations
@@ -459,9 +458,5 @@ class ChatThreadListView(
         context["cards"] = build_hub_cards(page, viewer)
         # Tell a first-time viewer they have nothing anywhere, not just on this
         # tab. Filters must not hide the form, or there is no way to clear them.
-        context["has_conversations"] = (
-            bool(page.paginator.count)
-            or hidden.exists()
-            or (filters_applied and all_threads.exists())
-        )
+        context["has_conversations"] = all_threads.exists()
         return context
