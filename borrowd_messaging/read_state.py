@@ -26,6 +26,13 @@ class ThreadReadState(TypedDict):
     has_unread_messages: bool
 
 
+def cursor_names_message_in_thread(thread_id: int, cursor: int) -> bool:
+    """Whether 0 (nothing rendered yet) or an id of a message in this thread."""
+    return (
+        cursor == 0 or Message.objects.filter(thread_id=thread_id, pk=cursor).exists()
+    )
+
+
 def mark_thread_read(
     thread: ChatThread,
     viewer: BorrowdUser,
@@ -51,11 +58,8 @@ def mark_thread_read(
 
     if through_message_id == 0:
         return False
-    if (
-        through_message_id < 0
-        or not Message.objects.filter(
-            thread_id=thread.pk, pk=through_message_id
-        ).exists()
+    if through_message_id < 0 or not cursor_names_message_in_thread(
+        thread.pk, through_message_id
     ):
         raise InvalidReadCursor(
             "Read cursor must identify a message in this conversation."

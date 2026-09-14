@@ -24,35 +24,37 @@ from .exceptions import (
     ConversationGroupSelectionRequired,
     InvalidConversationGroup,
     InvalidMessageBody,
-    InvalidReadCursor,
     PreRequestChatUnavailable,
     ThreadNotWritable,
 )
 from .mixins import MessagingEnabledMixin
 from .models import MESSAGE_BODY_MAX_LENGTH, ChatThread
-from .read_state import mark_thread_read, unread_threads_for
+from .read_state import (
+    cursor_names_message_in_thread,
+    mark_thread_read,
+    unread_threads_for,
+)
 from .services import MessagingService
-
-_INVALID_CURSOR_MESSAGE = "`after` must be a message id from this conversation."
 
 
 class _InvalidCursor(ValueError):
     pass
 
 
-def _parse_cursor(raw_cursor: str | None, chat_thread: ChatThread) -> int:
+def _parse_cursor(
+    raw_cursor: str | None, chat_thread: ChatThread, *, param: str = "after"
+) -> int:
+    message = f"`{param}` must be a message id from this conversation."
     if raw_cursor is None:
-        raise _InvalidCursor(_INVALID_CURSOR_MESSAGE)
+        raise _InvalidCursor(message)
 
     try:
         cursor = int(raw_cursor)
     except ValueError as exc:
-        raise _InvalidCursor(_INVALID_CURSOR_MESSAGE) from exc
+        raise _InvalidCursor(message) from exc
 
-    if cursor < 0 or (
-        cursor != 0 and not chat_thread.messages.filter(pk=cursor).exists()
-    ):
-        raise _InvalidCursor(_INVALID_CURSOR_MESSAGE)
+    if cursor < 0 or not cursor_names_message_in_thread(chat_thread.pk, cursor):
+        raise _InvalidCursor(message)
     return cursor
 
 
@@ -205,22 +207,19 @@ class ChatThreadReadView(
         return super().get_queryset().filter(Q(lender=viewer) | Q(borrower=viewer))
 
     def post(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
-        raw_cursor = request.POST.get("through")
+        chat_thread = self.get_object()
         try:
-            if raw_cursor is None:
-                raise ValueError
-            through = int(raw_cursor)
-        except ValueError:
-            return HttpResponseBadRequest("`through` must be a message id.")
-
-        try:
-            mark_thread_read(
-                self.get_object(),
-                get_authenticated_user(request),
-                through_message_id=through,
+            through = _parse_cursor(
+                request.POST.get("through"), chat_thread, param="through"
             )
-        except InvalidReadCursor as exc:
+        except _InvalidCursor as exc:
             return HttpResponseBadRequest(str(exc))
+
+        mark_thread_read(
+            chat_thread,
+            get_authenticated_user(request),
+            through_message_id=through,
+        )
 
         response = HttpResponse(status=204)
         response["HX-Trigger"] = "messaging:read"
@@ -292,6 +291,7 @@ class ChatThreadPollView(
 
     def get(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
         chat_thread = self.get_object()
+        viewer = get_authenticated_user(request)
         try:
             after = _parse_cursor(request.GET.get("after"), chat_thread)
         except _InvalidCursor as exc:
@@ -329,7 +329,7 @@ class ChatThreadPollView(
                 "chat_thread": chat_thread,
                 "chat_messages": newer,
                 "is_disputed": is_disputed,
-                "viewer": get_authenticated_user(request),
+                "viewer": viewer,
             },
             status=286 if chat_thread.is_archived else 200,
         )
