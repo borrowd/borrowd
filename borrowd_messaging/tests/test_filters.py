@@ -180,6 +180,12 @@ class UnreadFilterTests(MessagingTestCase):
         self.assertEqual(self.thread_ids("?unread=on&item=drill"), [self.unread.pk])
         self.assertEqual(self.thread_ids("?unread=on&item=ladder"), [])
 
+    def test_a_bookmarked_zero_turns_it_off(self) -> None:
+        """A hand-edited "?unread=0" must not be read as checked."""
+        self.assertEqual(
+            set(self.thread_ids("?unread=0")), {self.unread.pk, self.read.pk}
+        )
+
 
 @override_settings(MESSAGING_ENABLED=True)
 class ClearFiltersTests(MessagingTestCase):
@@ -200,6 +206,13 @@ class ClearFiltersTests(MessagingTestCase):
 
     def test_an_empty_filter_value_is_not_treated_as_filtering(self) -> None:
         response = self.client.get(self.url, {"item": "", "person": ""})
+
+        self.assertFalse(response.context["filters_applied"])
+        self.assertNotContains(response, "Clear filters")
+
+    def test_a_whitespace_only_value_is_not_treated_as_filtering(self) -> None:
+        """CharField strips whitespace, so this never actually filters anything."""
+        response = self.client.get(self.url, {"item": "   "})
 
         self.assertFalse(response.context["filters_applied"])
         self.assertNotContains(response, "Clear filters")

@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, ClassVar
 
-from django.db.models import Q, QuerySet
+from django.db.models import Case, F, Q, QuerySet, When
 from django.forms import CheckboxInput
 from django_filters import BooleanFilter, CharFilter, FilterSet
 from django_stubs_ext import WithAnnotations
@@ -13,6 +13,24 @@ from .models import ChatThread
 from .read_state import ThreadReadState
 
 
+class _UnreadCheckboxInput(CheckboxInput):
+    """A checkbox whose bookmarked query value stays honest when hand-edited.
+
+    A real checkbox only ever submits "on" (checked) or nothing (unchecked),
+    but this filter's URL is meant to be bookmarkable, so a hand-edited
+    "?unread=0" must also read as unchecked rather than as CheckboxInput's
+    default fallback of `bool("0")`, which is True.
+    """
+
+    _FALSY_VALUES: ClassVar[set[str]] = {"0", "no", "off"}
+
+    def value_from_datadict(self, data: Any, files: Any, name: str) -> bool:
+        value = data.get(name)
+        if isinstance(value, str) and value.lower() in self._FALSY_VALUES:
+            return False
+        return super().value_from_datadict(data, files, name)
+
+
 # django-filter is untyped (see the django_filters note in mypy.ini), so
 # subclassing it trips strict mode's "subclass of Any" check.
 class ConversationFilter(FilterSet):  # type: ignore[misc]
@@ -21,7 +39,7 @@ class ConversationFilter(FilterSet):  # type: ignore[misc]
     item = CharFilter(label="Item", method="filter_by_item")
     person = CharFilter(label="Person", method="filter_by_person")
     unread = BooleanFilter(
-        label="Unread only", method="filter_by_unread", widget=CheckboxInput
+        label="Unread only", method="filter_by_unread", widget=_UnreadCheckboxInput
     )
 
     def filter_by_item(
@@ -48,22 +66,19 @@ class ConversationFilter(FilterSet):  # type: ignore[misc]
         if not value:
             return queryset
         viewer = get_authenticated_user(self.request)
+        queryset = queryset.alias(
+            other_first_name=Case(
+                When(lender=viewer, then=F("borrower__first_name")),
+                default=F("lender__first_name"),
+            ),
+            other_last_name=Case(
+                When(lender=viewer, then=F("borrower__last_name")),
+                default=F("lender__last_name"),
+            ),
+        )
         for term in value.split():
             queryset = queryset.filter(
-                (
-                    Q(borrower=viewer)
-                    & (
-                        Q(lender__first_name__icontains=term)
-                        | Q(lender__last_name__icontains=term)
-                    )
-                )
-                | (
-                    Q(lender=viewer)
-                    & (
-                        Q(borrower__first_name__icontains=term)
-                        | Q(borrower__last_name__icontains=term)
-                    )
-                )
+                Q(other_first_name__icontains=term) | Q(other_last_name__icontains=term)
             )
         return queryset
 
