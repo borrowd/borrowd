@@ -2,6 +2,35 @@
 
 import django.db.models.deletion
 from django.db import migrations, models
+from django.db.backends.base.schema import BaseDatabaseSchemaEditor
+from django.db.migrations.state import StateApps
+from django.db.models import OuterRef, Subquery
+
+
+def backfill_read_cursors(
+    apps: StateApps,
+    schema_editor: BaseDatabaseSchemaEditor,
+) -> None:
+    """Point each cursor at the last message sent by the read cutoff, if any."""
+    ChatThread = apps.get_model("borrowd_messaging", "ChatThread")
+    Message = apps.get_model("borrowd_messaging", "Message")
+    database = schema_editor.connection.alias
+
+    for cursor_field, cutoff_field in (
+        ("lender_last_read_message", "lender_last_read_at"),
+        ("borrower_last_read_message", "borrower_last_read_at"),
+    ):
+        last_read_message = (
+            Message.objects.using(database)
+            .filter(thread_id=OuterRef("pk"), created_at__lte=OuterRef(cutoff_field))
+            .order_by("-id")
+            .values("pk")[:1]
+        )
+        (
+            ChatThread.objects.using(database)
+            .filter(**{f"{cutoff_field}__isnull": False})
+            .update(**{cursor_field: Subquery(last_read_message)})
+        )
 
 
 class Migration(migrations.Migration):
@@ -10,14 +39,6 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RemoveField(
-            model_name="chatthread",
-            name="borrower_last_read_at",
-        ),
-        migrations.RemoveField(
-            model_name="chatthread",
-            name="lender_last_read_at",
-        ),
         migrations.AddField(
             model_name="chatthread",
             name="borrower_last_read_message",
@@ -43,5 +64,14 @@ class Migration(migrations.Migration):
                 related_name="+",
                 to="borrowd_messaging.message",
             ),
+        ),
+        migrations.RunPython(backfill_read_cursors, migrations.RunPython.noop),
+        migrations.RemoveField(
+            model_name="chatthread",
+            name="borrower_last_read_at",
+        ),
+        migrations.RemoveField(
+            model_name="chatthread",
+            name="lender_last_read_at",
         ),
     ]
