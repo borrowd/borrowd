@@ -6,6 +6,7 @@ from typing import Literal, cast
 from django.db.models import DateTimeField, OuterRef, QuerySet, Subquery
 from django.db.models.functions import Coalesce
 
+from borrowd_items.card_helpers import item_thumbnail_url
 from borrowd_items.models import Item, TransactionStatus
 from borrowd_users.models import BorrowdUser
 
@@ -93,7 +94,9 @@ def build_hub_cards(
             HubConversationCard(
                 summary=summary,
                 item_name=item.name if item is not None else None,
-                item_thumbnail_url=item_thumbnail_url(item),
+                item_thumbnail_url=item_thumbnail_url(item)
+                if item is not None
+                else None,
                 item_removed=has_removed_item(thread),
             )
         )
@@ -116,23 +119,6 @@ def has_removed_item(thread: ChatThread) -> bool:
     hard delete leaves nothing, and that clears the link instead.
     """
     return thread.item is not None and thread.item.deleted_at is not None
-
-
-def item_thumbnail_url(item: Item | None) -> str | None:
-    """Read the Item's first photo. A missing file must not break the page.
-
-    Callers listing many Items should prefetch photos; one Item costs one query
-    either way.
-    """
-    if item is None:
-        return None
-    photo = next(iter(item.photos.all()), None)
-    if photo is None:
-        return None
-    try:
-        return cast(str, photo.thumbnail.url)
-    except FileNotFoundError:
-        return None
 
 
 def _prepare_threads_for_summaries(

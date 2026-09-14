@@ -116,7 +116,7 @@ class ChatThread(Model):
         null=True,
         blank=True,
         default=None,
-        on_delete=SET_NULL,
+        on_delete=PROTECT,
         related_name="+",
         help_text="The greatest message the lender has acknowledged rendering.",
     )
@@ -125,7 +125,7 @@ class ChatThread(Model):
         null=True,
         blank=True,
         default=None,
-        on_delete=SET_NULL,
+        on_delete=PROTECT,
         related_name="+",
         help_text="The greatest message the borrower has acknowledged rendering.",
     )
