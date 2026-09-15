@@ -46,6 +46,8 @@ _DISPUTE_NOTICE = (
     " conversation respectful; this chat history is retained."
 )
 
+_REQUEST_NOTICE = "This item has been requested."
+
 
 class MessagingService:
     @staticmethod
@@ -430,18 +432,21 @@ class MessagingService:
 
         thread = cls._active_prerequest_thread(transaction.party2, transaction.item)
         if thread is not None:
-            # Conditional so two concurrent requests can't claim the same
-            # thread. The caller decides whether a failed claim creates one.
-            claimed = ChatThread.objects.filter(
-                pk=thread.pk, transaction__isnull=True
-            ).update(
-                transaction=transaction,
-                updated_by=transaction.party2,
-                updated_at=timezone.now(),
-            )
-            if claimed:
-                thread.refresh_from_db()
-                return thread
+            with atomic():
+                # Conditional so two concurrent requests can't claim the same
+                # thread. The caller decides whether a failed claim creates one.
+                claimed = ChatThread.objects.filter(
+                    pk=thread.pk, transaction__isnull=True
+                ).update(
+                    transaction=transaction,
+                    updated_by=transaction.party2,
+                    updated_at=timezone.now(),
+                )
+                if claimed:
+                    thread.refresh_from_db()
+                    # Posted once, by the winning claim. Open pages' polls pick it up.
+                    cls.post_system_message(thread, _REQUEST_NOTICE)
+                    return thread
 
         return None
 

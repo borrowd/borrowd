@@ -401,6 +401,17 @@ class AttachExistingPreRequestThreadTests(MessagingTestCase):
         thread.refresh_from_db()
         self.assertEqual(thread.transaction, transaction)
 
+    def test_claiming_a_conversation_announces_the_request_once(self) -> None:
+        transaction = self.make_transaction()
+        thread = self.make_thread()
+
+        MessagingService.attach_existing_prerequest_thread_to(transaction)
+        MessagingService.attach_existing_prerequest_thread_to(transaction)
+
+        notice = thread.messages.get()
+        self.assertTrue(notice.is_system)
+        self.assertEqual(notice.body, "This item has been requested.")
+
     def test_returns_none_without_creating_a_conversation(self) -> None:
         transaction = self.make_transaction()
 
@@ -436,6 +447,7 @@ class AttachExistingPreRequestThreadTests(MessagingTestCase):
         self.assertEqual(ChatThread.objects.count(), 1)
         thread.refresh_from_db()
         self.assertEqual(thread.transaction, winner)
+        self.assertFalse(thread.messages.exists())
 
 
 @override_settings(MESSAGING_ENABLED=True)
@@ -455,7 +467,10 @@ class AttachThreadToTransactionTests(MessagingTestCase):
 
         self.assertEqual(attached.pk, thread.pk)
         self.assertEqual(ChatThread.objects.count(), 1)
-        self.assertEqual(list(attached.messages.order_by("id")), [message])
+        self.assertEqual(
+            list(attached.messages.order_by("id").values_list("body", flat=True)),
+            [message.body, "This item has been requested."],
+        )
 
     def test_creates_a_thread_when_there_was_no_conversation(self) -> None:
         transaction = self.make_transaction()

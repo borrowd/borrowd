@@ -1,5 +1,6 @@
 {# The poll endpoint's (ChatThreadPollView) response appends unseen messages,
-refreshes the conversation status, and replaces the composer if the thread became archived. #}
+refreshes the conversation status, removes the pre-request actions once a request owns the thread,
+and replaces the composer if the thread became archived. #}
 
 {% include "messaging/_messages.html" with chat_messages=chat_messages viewer=viewer %}
 
@@ -8,4 +9,7 @@ refreshes the conversation status, and replaces the composer if the thread becam
 {% if chat_thread.is_archived %}
     {% include "messaging/_composer_archived.html" with oob=True %}
 
+{% elif chat_thread.transaction_id %}
+    <div id="chat-pre-request-actions" hx-swap-oob="true">
+    </div>
 {% endif %}
