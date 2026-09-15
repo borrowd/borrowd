@@ -1,21 +1,28 @@
 from datetime import timedelta
 from html.parser import HTMLParser
-from typing import Protocol
+from io import BytesIO
+from tempfile import mkdtemp
+from typing import Any, Protocol
 from unittest.mock import patch
 
 from django.core.exceptions import PermissionDenied
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import connection
 from django.test import override_settings
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
+from guardian.shortcuts import assign_perm, remove_perm
+from PIL import Image
 
-from borrowd_items.models import Transaction, TransactionStatus
+from borrowd_items.models import ItemPhoto, Transaction, TransactionStatus
 from borrowd_messaging.models import (
     MESSAGE_BODY_MAX_LENGTH,
     ArchiveReason,
+    ChatThread,
     Message,
 )
+from borrowd_messaging.read_state import mark_thread_read
 from borrowd_messaging.services import MessagingService
 from borrowd_messaging.views import (
     ChatThreadDetailView,
@@ -23,6 +30,7 @@ from borrowd_messaging.views import (
     ChatThreadPreRequestCloseView,
     ChatThreadSendView,
 )
+from borrowd_permissions.models import ItemOLP
 from borrowd_users.models import BorrowdUser
 
 from .base import MessagingTestCase
@@ -140,18 +148,26 @@ class ChatThreadDetailViewTests(MessagingTestCase):
         response = self.client.get(self.url)
 
         self.assertIsNone(self.thread.item_id)
-        self.assertContains(response, "This item is no longer available.")
+        self.assertContains(response, "Item unavailable")
         self.assertNotContains(response, item_name)
 
-    def test_header_handles_a_soft_deleted_item(self) -> None:
-        item_name = self.item.name
+    def test_header_keeps_a_soft_deleted_item_name(self) -> None:
         self.item.soft_delete(deleted_by=self.lender)
         self.client.force_login(self.borrower)
 
         response = self.client.get(self.url)
 
-        self.assertContains(response, "This item is no longer available.")
-        self.assertNotContains(response, item_name)
+        self.assertEqual(response.context["item_name"], self.item.name)
+        self.assertTrue(response.context["item_removed"])
+
+    def test_header_says_so_when_the_item_row_is_gone(self) -> None:
+        self.item.delete()
+        self.client.force_login(self.borrower)
+
+        response = self.client.get(self.url)
+
+        self.assertIsNone(response.context["item_name"])
+        self.assertFalse(response.context["item_removed"])
 
     def test_lender_sees_the_thread(self) -> None:
         self.client.force_login(self.lender)
@@ -442,7 +458,7 @@ class ChatThreadPollViewTests(MessagingTestCase):
         self.assertContains(response, "Saturday works.")
         self.assertLess(body.index("Free Saturday?"), body.index("Saturday works."))
 
-    def test_poll_adds_the_dispute_badge(self) -> None:
+    def test_poll_refreshes_the_status_when_a_dispute_is_raised(self) -> None:
         seen = self.send(self.borrower, "Free Saturday?")
         self.dispute()
         self.client.force_login(self.borrower)
@@ -452,11 +468,13 @@ class ChatThreadPollViewTests(MessagingTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Disputed")
         self.assertEqual(
-            _element_attributes(response, "chat-dispute-indicator").get("hx-swap-oob"),
+            _element_attributes(response, "chat-conversation-status").get(
+                "hx-swap-oob"
+            ),
             "true",
         )
 
-    def test_final_poll_removes_the_dispute_badge(self) -> None:
+    def test_final_poll_replaces_the_status_with_the_archive_reason(self) -> None:
         transaction = self.dispute()
         dispute_notice = Message.objects.filter(thread=self.thread).latest("pk")
         transaction.status = TransactionStatus.RETURNED
@@ -468,10 +486,13 @@ class ChatThreadPollViewTests(MessagingTestCase):
 
         self.assertEqual(response.status_code, 286)
         self.assertEqual(
-            _element_attributes(response, "chat-dispute-indicator").get("hx-swap-oob"),
+            _element_attributes(response, "chat-conversation-status").get(
+                "hx-swap-oob"
+            ),
             "true",
         )
         self.assertNotContains(response, "Disputed", status_code=286)
+        self.assertContains(response, "Returned", status_code=286)
 
     def test_archiving_delivers_notice_replaces_composer_and_stops_poller(
         self,
@@ -489,6 +510,8 @@ class ChatThreadPollViewTests(MessagingTestCase):
             _element_attributes(response, "chat-composer").get("hx-swap-oob"),
             "true",
         )
+        # The swapped-in composer names the reason, like the pinned badge does.
+        self.assertContains(response, "archived (Closed)", status_code=286)
 
     def test_settled_archived_thread_stops_the_poller_with_nothing_to_add(self) -> None:
         self.send(self.borrower, "Free Saturday?")
@@ -549,7 +572,7 @@ class ArchivedThreadReadOnlyTests(MessagingTestCase):
 
         response = self.client.get(reverse("chat-thread-detail", args=[self.thread.pk]))
 
-        self.assertContains(response, "This conversation is archived.")
+        self.assertContains(response, "This conversation is archived (Closed).")
         self.assertNotContains(response, 'name="body"')
         self.assertNotContains(
             response, reverse("chat-thread-poll", args=[self.thread.pk])
@@ -661,7 +684,7 @@ class ChatThreadCloseButtonTests(MessagingTestCase):
 
 
 @override_settings(MESSAGING_ENABLED=True)
-class DisputeBadgeTests(MessagingTestCase):
+class ConversationStatusTests(MessagingTestCase):
     def setUp(self) -> None:
         super().setUp()
         self.thread = self.make_thread()
@@ -673,7 +696,7 @@ class DisputeBadgeTests(MessagingTestCase):
         transaction.save()
         self.thread.refresh_from_db()
 
-    def test_disputed_thread_shows_the_badge(self) -> None:
+    def test_disputed_thread_shows_the_disputed_status(self) -> None:
         self.dispute()
         self.client.force_login(self.borrower)
 
@@ -690,12 +713,57 @@ class DisputeBadgeTests(MessagingTestCase):
 
         self.assertEqual(response.status_code, 200)
 
-    def test_ordinary_transaction_has_no_badge(self) -> None:
+    def test_ordinary_transaction_reads_as_active(self) -> None:
         self.make_transaction()
         self.thread.refresh_from_db()
         self.client.force_login(self.borrower)
 
-        self.assertNotContains(self.client.get(self.url), "Disputed")
+        response = self.client.get(self.url)
+
+        self.assertContains(response, "Active")
+        self.assertNotContains(response, "Disputed")
+
+    def test_thread_without_a_request_reads_as_pre_request(self) -> None:
+        self.client.force_login(self.borrower)
+
+        self.assertContains(self.client.get(self.url), "Pre-request")
+
+    def test_archived_thread_shows_its_archive_reason(self) -> None:
+        MessagingService.archive_thread(self.thread, ArchiveReason.CLOSED)
+        self.client.force_login(self.borrower)
+
+        self.assertContains(self.client.get(self.url), "Closed")
+
+    def test_the_composer_is_replaced_by_the_archive_reason(self) -> None:
+        for reason, label in (
+            (ArchiveReason.RETURNED, "Returned"),
+            (ArchiveReason.REJECTED, "Declined"),
+            (ArchiveReason.ITEM_DELETED, "Item deleted"),
+        ):
+            with self.subTest(reason=reason):
+                thread = self.make_thread(item=self.make_item(name=f"Item {reason}"))
+                MessagingService.archive_thread(thread, reason)
+                self.client.force_login(self.borrower)
+
+                response = self.client.get(
+                    reverse("chat-thread-detail", args=[thread.pk])
+                )
+
+                self.assertContains(response, f"archived ({label})")
+                self.assertNotContains(
+                    response, "This conversation is archived. You can still read it."
+                )
+
+    def test_an_archived_thread_without_a_reason_stays_generic(self) -> None:
+        ChatThread.objects.filter(pk=self.thread.pk).update(
+            archived_at=timezone.now(), archive_reason=None
+        )
+        self.client.force_login(self.borrower)
+
+        self.assertContains(
+            self.client.get(self.url),
+            "This conversation is archived. You can still read it.",
+        )
 
 
 @override_settings(MESSAGING_ENABLED=True)
@@ -703,6 +771,33 @@ class ChatThreadListViewTests(MessagingTestCase):
     def setUp(self) -> None:
         super().setUp()
         self.url = reverse("chat-thread-list")
+
+    def cards(self, query: str = "") -> list[Any]:
+        """Fetch the hub and return the cards on the selected tab."""
+        return list(self.client.get(f"{self.url}{query}").context["cards"])
+
+    def thread_ids(self, query: str = "") -> list[int]:
+        return [card.summary.thread_id for card in self.cards(query)]
+
+    def make_archived_threads(self, count: int) -> None:
+        """Archived threads escape the one-active-pre-request-thread constraint."""
+        ChatThread.objects.bulk_create(
+            ChatThread(
+                item=self.item,
+                lender=self.lender,
+                borrower=self.borrower,
+                created_by=self.borrower,
+                updated_by=self.borrower,
+                archived_at=timezone.now(),
+                archive_reason=ArchiveReason.CLOSED,
+            )
+            for _ in range(count)
+        )
+
+    def make_active_threads(self, count: int) -> None:
+        """One active pre-request thread per Item, so each needs its own Item."""
+        for index in range(count):
+            self.make_thread(item=self.make_item(name=f"Item {index}"))
 
     def test_lists_the_threads_you_are_in(self) -> None:
         thread = self.make_thread()
@@ -739,31 +834,36 @@ class ChatThreadListViewTests(MessagingTestCase):
         thread.refresh_from_db()
         self.client.force_login(self.borrower)
 
-        response = self.client.get(self.url)
+        # Removing the Item archives its conversation, so it moves tabs.
+        response = self.client.get(self.url, {"section": "archived"})
 
         self.assertIsNone(thread.item_id)
-        self.assertContains(response, "This item is no longer available.")
+        self.assertContains(response, "Item unavailable")
         self.assertNotContains(response, item_name)
         self.assertContains(response, reverse("chat-thread-detail", args=[thread.pk]))
 
-    def test_lists_a_thread_for_a_soft_deleted_item(self) -> None:
+    def test_a_soft_deleted_item_keeps_its_name_on_the_card(self) -> None:
         thread = self.make_thread()
         item_name = self.item.name
         self.item.soft_delete(deleted_by=self.lender)
         self.client.force_login(self.borrower)
 
-        response = self.client.get(self.url)
+        response = self.client.get(self.url, {"section": "archived"})
 
-        self.assertContains(response, "This item is no longer available.")
-        self.assertNotContains(response, item_name)
+        # Items are soft-deleted, so the row is still there to read.
+        card = response.context["cards"][0]
+        self.assertEqual((card.item_name, card.item_removed), (item_name, True))
+        self.assertContains(response, item_name)
         self.assertContains(response, reverse("chat-thread-detail", args=[thread.pk]))
 
-    def test_labels_an_archived_thread(self) -> None:
+    def test_labels_an_archived_thread_with_its_reason(self) -> None:
         thread = self.make_thread()
         MessagingService.archive_thread(thread, ArchiveReason.CLOSED)
         self.client.force_login(self.borrower)
 
-        self.assertContains(self.client.get(self.url), "Archived")
+        self.assertContains(
+            self.client.get(self.url, {"section": "archived"}), "Closed"
+        )
 
     def test_thread_with_newest_message_comes_first(self) -> None:
         chatty = self.make_thread(item=self.make_item(name="Projector"))
@@ -771,12 +871,7 @@ class ChatThreadListViewTests(MessagingTestCase):
         Message.objects.create(thread=chatty, sender=self.borrower, body="Two")
         self.client.force_login(self.borrower)
 
-        response = self.client.get(self.url)
-
-        self.assertEqual(
-            list(response.context["chat_threads"]),
-            [chatty, quiet],
-        )
+        self.assertEqual(self.thread_ids(), [chatty.pk, quiet.pk])
 
     def test_new_empty_thread_comes_before_an_older_message_thread(self) -> None:
         older = self.make_thread(item=self.make_item(name="Ladder"))
@@ -789,17 +884,100 @@ class ChatThreadListViewTests(MessagingTestCase):
         newer = self.make_thread(item=self.make_item(name="Projector"))
         self.client.force_login(self.borrower)
 
-        response = self.client.get(self.url)
-
-        self.assertEqual(
-            list(response.context["chat_threads"]),
-            [newer, older],
-        )
+        self.assertEqual(self.thread_ids(), [newer.pk, older.pk])
 
     def test_empty_state(self) -> None:
         self.client.force_login(self.borrower)
 
         self.assertContains(self.client.get(self.url), "no conversations yet")
+
+    def test_each_tab_shows_only_its_own_conversations(self) -> None:
+        active = self.make_thread()
+        self.make_archived_threads(1)
+        archived = ChatThread.objects.get(archived_at__isnull=False)
+        self.client.force_login(self.borrower)
+
+        self.assertEqual(self.thread_ids(), [active.pk])
+        self.assertEqual(self.thread_ids("?section=archived"), [archived.pk])
+
+    def test_active_is_the_tab_an_unknown_section_falls_back_to(self) -> None:
+        active = self.make_thread()
+        self.make_archived_threads(1)
+        self.client.force_login(self.borrower)
+
+        for query in ("", "?section=", "?section=nonsense"):
+            self.assertEqual(self.thread_ids(query), [active.pk])
+
+    def test_an_empty_tab_says_so_while_the_other_tab_has_conversations(self) -> None:
+        self.make_thread()
+        self.client.force_login(self.borrower)
+
+        response = self.client.get(self.url, {"section": "archived"})
+
+        self.assertContains(response, "No archived conversations.")
+        self.assertNotContains(response, "no conversations yet")
+
+    def test_a_tab_holds_twenty_five_conversations_per_page(self) -> None:
+        self.make_archived_threads(26)
+        oldest = ChatThread.objects.filter(archived_at__isnull=False).earliest("pk")
+        self.client.force_login(self.borrower)
+
+        response = self.client.get(self.url, {"section": "archived"})
+        page = response.context["page_obj"]
+
+        self.assertEqual(len(self.thread_ids("?section=archived")), 25)
+        self.assertEqual((page.number, page.paginator.num_pages), (1, 2))
+        self.assertEqual(self.thread_ids("?section=archived&page=2"), [oldest.pk])
+
+    def test_page_links_stay_on_the_selected_tab(self) -> None:
+        self.make_archived_threads(26)
+        self.client.force_login(self.borrower)
+
+        response = self.client.get(self.url, {"section": "archived", "page": "2"})
+
+        self.assertContains(response, "?page=1&section=archived")
+
+    def test_switching_tabs_starts_again_at_the_first_page(self) -> None:
+        self.make_archived_threads(26)
+        self.make_active_threads(26)
+        self.client.force_login(self.borrower)
+
+        response = self.client.get(self.url, {"section": "archived", "page": "2"})
+
+        self.assertEqual(response.context["page_obj"].number, 2)
+        # The tab link carries no page, so the other tab opens at its first page.
+        self.assertContains(response, 'href="?section=active"')
+        self.assertEqual(
+            self.client.get(self.url, {"section": "active"}).context["page_obj"].number,
+            1,
+        )
+
+    def test_a_conversation_with_incoming_messages_is_marked_unread(self) -> None:
+        thread = self.make_thread()
+        message = Message.objects.create(
+            thread=thread, sender=self.lender, body="Hello"
+        )
+        self.client.force_login(self.borrower)
+
+        self.assertTrue(self.cards()[0].summary.has_unread_messages)
+
+        mark_thread_read(thread, self.borrower, through_message_id=message.pk)
+
+        self.assertFalse(self.cards()[0].summary.has_unread_messages)
+
+    def test_page_cost_does_not_grow_with_the_number_of_conversations(self) -> None:
+        self.make_active_threads(1)
+        self.make_archived_threads(1)
+        self.client.force_login(self.borrower)
+        with CaptureQueriesContext(connection) as one_conversation:
+            self.client.get(self.url)
+
+        self.make_active_threads(24)
+        self.make_archived_threads(24)
+        with CaptureQueriesContext(connection) as a_full_page:
+            self.client.get(self.url)
+
+        self.assertEqual(len(a_full_page), len(one_conversation))
 
     def test_anonymous_user_is_sent_to_login(self) -> None:
         self.assertEqual(self.client.get(self.url).status_code, 302)
@@ -816,3 +994,95 @@ class ChatThreadListViewTests(MessagingTestCase):
         self.assertNotContains(
             self.client.get(reverse("item-list")), reverse("chat-thread-list")
         )
+
+
+@override_settings(MESSAGING_ENABLED=True, MEDIA_ROOT=mkdtemp())
+class ConversationItemPreviewTests(MessagingTestCase):
+    """The Item card pinned above a conversation."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        self.thread = self.make_thread()
+        self.url = reverse("chat-thread-detail", args=[self.thread.pk])
+        assign_perm(ItemOLP.VIEW, self.borrower, self.item)
+
+    def add_photo(self) -> ItemPhoto:
+        image = Image.new("RGB", (40, 40), color="red")
+        content = BytesIO()
+        image.save(content, format="JPEG")
+        return ItemPhoto.objects.create(
+            item=self.item,
+            image=SimpleUploadedFile(
+                name="photo.jpg", content=content.getvalue(), content_type="image/jpeg"
+            ),
+            created_by=self.lender,
+            updated_by=self.lender,
+        )
+
+    def test_preview_names_the_item_and_links_to_its_page(self) -> None:
+        photo = self.add_photo()
+        self.client.force_login(self.borrower)
+
+        response = self.client.get(self.url)
+
+        self.assertContains(response, self.item.name)
+        self.assertContains(response, photo.thumbnail.url)
+        self.assertContains(response, reverse("item-detail", args=[self.item.pk]))
+
+    def test_preview_shows_the_other_participant(self) -> None:
+        self.client.force_login(self.borrower)
+
+        self.assertContains(self.client.get(self.url), self.lender.profile.full_name())
+
+    def test_an_item_without_a_photo_still_renders(self) -> None:
+        self.client.force_login(self.borrower)
+
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, self.item.name)
+
+    def test_a_removed_item_keeps_its_name_but_offers_no_link(self) -> None:
+        self.item.soft_delete(deleted_by=self.lender)
+        self.client.force_login(self.borrower)
+
+        response = self.client.get(self.url)
+
+        # The Item page 404s once it is removed, so the name is not a link.
+        self.assertEqual(response.context["item_name"], self.item.name)
+        self.assertTrue(response.context["item_removed"])
+        self.assertIsNone(response.context["item_url"])
+        self.assertContains(response, self.item.name)
+
+    def test_an_item_whose_row_is_gone_says_so(self) -> None:
+        item_name = self.item.name
+        self.item.delete()
+        self.client.force_login(self.borrower)
+
+        response = self.client.get(self.url)
+
+        self.assertIsNone(response.context["item_name"])
+        self.assertContains(response, "Item unavailable")
+        self.assertNotContains(response, item_name)
+
+    def test_a_viewer_who_lost_item_access_keeps_the_name_without_a_link(self) -> None:
+        remove_perm(ItemOLP.VIEW, self.borrower, self.item)
+        self.client.force_login(self.borrower)
+
+        response = self.client.get(self.url)
+
+        self.assertContains(response, self.item.name)
+        self.assertNotContains(response, reverse("item-detail", args=[self.item.pk]))
+
+    def test_the_preview_costs_no_query_per_photo(self) -> None:
+        self.add_photo()
+        self.client.force_login(self.borrower)
+        with CaptureQueriesContext(connection) as one_photo:
+            self.client.get(self.url)
+
+        for _ in range(4):
+            self.add_photo()
+        with CaptureQueriesContext(connection) as many_photos:
+            self.client.get(self.url)
+
+        self.assertEqual(len(many_photos), len(one_photo))
