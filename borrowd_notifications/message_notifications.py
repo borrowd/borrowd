@@ -87,15 +87,20 @@ def _refresh_active_nudge(
     return True
 
 
-def create_or_refresh_message_notification(message: Message) -> None:
-    """Create one notification cycle, or move its active nudge to this message."""
+def create_or_refresh_message_notification(
+    message: Message, *, locked_thread: ChatThread | None = None
+) -> None:
+    """Create one notification cycle, or move its active nudge to this message.
+
+    Pass `locked_thread` when the caller already holds the conversation lock.
+    """
     if message.is_system or not settings.MESSAGING_ENABLED:
         return
 
     with transaction.atomic():
         # The thread is a stable lock even when no active nudge exists yet:
         # https://docs.djangoproject.com/en/5.2/ref/models/querysets/#select-for-update
-        thread = (
+        thread = locked_thread or (
             ChatThread.objects.select_for_update(of=("self",))
             .select_related("borrower", "lender", "item")
             .get(pk=message.thread_id)
@@ -141,10 +146,18 @@ def clear_message_notification_through(
     reader: BorrowdUser,
     *,
     through_message_id: int,
+    thread_is_locked: bool = False,
 ) -> bool:
-    """Clear the active nudge when the reader has seen its latest message."""
+    """Clear the active nudge when the reader has seen its latest message.
+
+    Set `thread_is_locked` when the caller already holds the conversation lock.
+    """
     with transaction.atomic():
-        locked_thread = ChatThread.objects.select_for_update().get(pk=thread.pk)
+        locked_thread = (
+            thread
+            if thread_is_locked
+            else ChatThread.objects.select_for_update().get(pk=thread.pk)
+        )
         nudge = (
             ConversationNudge.objects.select_for_update()
             .filter(

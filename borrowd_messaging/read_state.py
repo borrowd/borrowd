@@ -55,22 +55,24 @@ def mark_thread_read(
     if not settings.MESSAGING_ENABLED:
         raise MessagingDisabled("Messaging is not enabled.")
 
+    # Participants never change, so the caller's instance answers this.
+    if viewer.pk == thread.lender_id:
+        field = "lender_last_read_message_id"
+    elif viewer.pk == thread.borrower_id:
+        field = "borrower_last_read_message_id"
+    else:
+        raise NotThreadParticipant(
+            f"User {viewer.pk} is not a participant of ChatThread {thread.pk}."
+        )
+
+    if through_message_id == 0:
+        return False
+
     with atomic():
         # Sending and reading lock the same conversation, so they finish one at a time:
         # https://docs.djangoproject.com/en/5.2/ref/models/querysets/#select-for-update
         locked_thread = ChatThread.objects.select_for_update().get(pk=thread.pk)
 
-        if viewer.pk == locked_thread.lender_id:
-            field = "lender_last_read_message_id"
-        elif viewer.pk == locked_thread.borrower_id:
-            field = "borrower_last_read_message_id"
-        else:
-            raise NotThreadParticipant(
-                f"User {viewer.pk} is not a participant of ChatThread {thread.pk}."
-            )
-
-        if through_message_id == 0:
-            return False
         if through_message_id < 0 or not cursor_names_message_in_thread(
             locked_thread.pk, through_message_id
         ):
@@ -93,6 +95,7 @@ def mark_thread_read(
                 locked_thread,
                 viewer,
                 through_message_id=through_message_id,
+                thread_is_locked=True,
             )
         return advanced
 
