@@ -7,6 +7,10 @@ from django.db.models import Max, Q, QuerySet
 from django.db.models.functions import Coalesce
 from django.http import HttpRequest, HttpResponse, HttpResponseBadRequest
 from django.shortcuts import redirect, render
+from django.template.loader import render_to_string
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import never_cache
+from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.generic import DetailView, ListView, View
 
 from borrowd.util import BorrowdTemplateFinderMixin
@@ -25,28 +29,32 @@ from .exceptions import (
 )
 from .mixins import MessagingEnabledMixin
 from .models import MESSAGE_BODY_MAX_LENGTH, ChatThread
+from .read_state import (
+    cursor_names_message_in_thread,
+    mark_thread_read,
+    unread_threads_for,
+)
 from .services import MessagingService
-
-_INVALID_CURSOR_MESSAGE = "`after` must be a message id from this conversation."
 
 
 class _InvalidCursor(ValueError):
     pass
 
 
-def _parse_cursor(raw_cursor: str | None, chat_thread: ChatThread) -> int:
+def _parse_cursor(
+    raw_cursor: str | None, chat_thread: ChatThread, *, param: str = "after"
+) -> int:
+    message = f"`{param}` must be a message id from this conversation."
     if raw_cursor is None:
-        raise _InvalidCursor(_INVALID_CURSOR_MESSAGE)
+        raise _InvalidCursor(message)
 
     try:
         cursor = int(raw_cursor)
     except ValueError as exc:
-        raise _InvalidCursor(_INVALID_CURSOR_MESSAGE) from exc
+        raise _InvalidCursor(message) from exc
 
-    if cursor < 0 or (
-        cursor != 0 and not chat_thread.messages.filter(pk=cursor).exists()
-    ):
-        raise _InvalidCursor(_INVALID_CURSOR_MESSAGE)
+    if cursor < 0 or not cursor_names_message_in_thread(chat_thread.pk, cursor):
+        raise _InvalidCursor(message)
     return cursor
 
 
@@ -90,6 +98,7 @@ class ChatThreadPreRequestOpenView(
         return redirect("chat-thread-detail", pk=chat_thread.pk)
 
 
+@method_decorator(ensure_csrf_cookie, name="dispatch")
 class ChatThreadDetailView(
     MessagingEnabledMixin,
     LoginOr404PermissionMixin,
@@ -164,6 +173,59 @@ class ChatThreadDetailView(
         return None
 
 
+@method_decorator(never_cache, name="dispatch")
+class ChatThreadUnreadBadgeView(MessagingEnabledMixin, LoginRequiredMixin, View):
+    """Return only the viewer's badge contents, without page context processors."""
+
+    http_method_names = ["get"]
+    # A fragment request must not swap a redirected login page into the menu.
+    raise_exception = True
+
+    def get(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
+        count = unread_threads_for(get_authenticated_user(request)).count()
+        return HttpResponse(
+            render_to_string(
+                "messaging/_unread_badge.html", {"unread_conversation_count": count}
+            )
+        )
+
+
+class ChatThreadReadView(
+    MessagingEnabledMixin,
+    LoginOr404PermissionMixin,
+    CachedObjectMixin[ChatThread],
+    View,
+):
+    """Acknowledge the browser's rendered boundary, including archived threads."""
+
+    model = ChatThread
+    permission_required = ChatThreadOLP.VIEW
+    http_method_names = ["post"]
+
+    def get_queryset(self) -> QuerySet[ChatThread]:
+        viewer = get_authenticated_user(self.request)
+        return super().get_queryset().filter(Q(lender=viewer) | Q(borrower=viewer))
+
+    def post(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
+        chat_thread = self.get_object()
+        try:
+            through = _parse_cursor(
+                request.POST.get("through"), chat_thread, param="through"
+            )
+        except _InvalidCursor as exc:
+            return HttpResponseBadRequest(str(exc))
+
+        mark_thread_read(
+            chat_thread,
+            get_authenticated_user(request),
+            through_message_id=through,
+        )
+
+        response = HttpResponse(status=204)
+        response["HX-Trigger"] = "messaging:read"
+        return response
+
+
 class ChatThreadSendView(
     MessagingEnabledMixin,
     LoginOr404PermissionMixin,
@@ -229,6 +291,7 @@ class ChatThreadPollView(
 
     def get(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
         chat_thread = self.get_object()
+        viewer = get_authenticated_user(request)
         try:
             after = _parse_cursor(request.GET.get("after"), chat_thread)
         except _InvalidCursor as exc:
@@ -266,7 +329,7 @@ class ChatThreadPollView(
                 "chat_thread": chat_thread,
                 "chat_messages": newer,
                 "is_disputed": is_disputed,
-                "viewer": get_authenticated_user(request),
+                "viewer": viewer,
             },
             status=286 if chat_thread.is_archived else 200,
         )

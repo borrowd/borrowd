@@ -3,7 +3,6 @@ from django.db.transaction import atomic
 from django.utils import timezone
 
 from borrowd_items.models import ListingType
-from borrowd_messaging.exceptions import NotThreadParticipant
 from borrowd_messaging.models import ArchiveReason, Message
 from borrowd_messaging.tests.base import MessagingTestCase
 
@@ -129,45 +128,11 @@ class ChatThreadModelTests(MessagingTestCase):
 
         self.assertTrue(thread.is_archived)
 
-    def test_mark_read_writes_the_callers_own_column(self) -> None:
+    def test_read_cursors_default_to_unacknowledged(self) -> None:
         thread = self.make_thread()
 
-        thread.mark_read(self.borrower)
-        thread.refresh_from_db()
-
-        self.assertIsNotNone(thread.borrower_last_read_at)
-        self.assertIsNone(thread.lender_last_read_at)
-        self.assertEqual(
-            thread.last_read_at_for(self.borrower), thread.borrower_last_read_at
-        )
-
-    def test_mark_read_by_lender_writes_lender_column(self) -> None:
-        thread = self.make_thread()
-
-        thread.mark_read(self.lender)
-        thread.refresh_from_db()
-
-        self.assertIsNotNone(thread.lender_last_read_at)
-        self.assertIsNone(thread.borrower_last_read_at)
-
-    def test_mark_read_leaves_the_audit_fields_alone(self) -> None:
-        thread = self.make_thread()
-        updated_at = thread.updated_at
-
-        thread.mark_read(self.borrower)
-        thread.refresh_from_db()
-
-        self.assertEqual(thread.updated_at, updated_at)
-        self.assertEqual(thread.updated_by, self.borrower)
-
-    def test_read_helpers_reject_non_participants(self) -> None:
-        outsider = self.make_user("outsider")
-        thread = self.make_thread()
-
-        with self.assertRaises(NotThreadParticipant):
-            thread.mark_read(outsider)
-        with self.assertRaises(NotThreadParticipant):
-            thread.last_read_at_for(outsider)
+        self.assertIsNone(thread.lender_last_read_message_id)
+        self.assertIsNone(thread.borrower_last_read_message_id)
 
 
 class MessageModelTests(MessagingTestCase):

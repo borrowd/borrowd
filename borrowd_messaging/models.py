@@ -1,5 +1,3 @@
-from datetime import datetime
-
 from django.db.models import (
     DO_NOTHING,
     PROTECT,
@@ -19,10 +17,8 @@ from django.db.models import (
     TextChoices,
     UniqueConstraint,
 )
-from django.utils import timezone
 
 from borrowd_items.models import ListingType
-from borrowd_messaging.exceptions import NotThreadParticipant
 from borrowd_permissions.models import ChatThreadOLP
 from borrowd_users.models import BorrowdUser
 
@@ -115,17 +111,23 @@ class ChatThread(Model):
         default=None,
         help_text="Why the thread was archived. NULL for active threads.",
     )
-    lender_last_read_at = DateTimeField(
+    lender_last_read_message = ForeignKey(
+        to="Message",
         null=True,
         blank=True,
         default=None,
-        help_text="When the lender last opened the thread. NULL means never.",
+        on_delete=SET_NULL,
+        related_name="+",
+        help_text="The greatest message the lender has acknowledged rendering.",
     )
-    borrower_last_read_at = DateTimeField(
+    borrower_last_read_message = ForeignKey(
+        to="Message",
         null=True,
         blank=True,
         default=None,
-        help_text="When the borrower last opened the thread. NULL means never.",
+        on_delete=SET_NULL,
+        related_name="+",
+        help_text="The greatest message the borrower has acknowledged rendering.",
     )
     created_by = ForeignKey(
         BorrowdUser,
@@ -190,25 +192,6 @@ class ChatThread(Model):
     @property
     def is_archived(self) -> bool:
         return self.archived_at is not None
-
-    def _last_read_field_for(self, user: BorrowdUser) -> str:
-        if user.pk == self.lender_id:
-            return "lender_last_read_at"
-        if user.pk == self.borrower_id:
-            return "borrower_last_read_at"
-        raise NotThreadParticipant(
-            f"User {user.pk} is not a participant of ChatThread {self.pk}."
-        )
-
-    def last_read_at_for(self, user: BorrowdUser) -> datetime | None:
-        value: datetime | None = getattr(self, self._last_read_field_for(user))
-        return value
-
-    def mark_read(self, user: BorrowdUser) -> None:
-        field = self._last_read_field_for(user)
-        now = timezone.now()
-        setattr(self, field, now)
-        ChatThread.objects.filter(pk=self.pk).update(**{field: now})
 
 
 MESSAGE_BODY_MAX_LENGTH = 2000
