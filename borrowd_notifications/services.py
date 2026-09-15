@@ -5,7 +5,7 @@ from typing import Any
 import sentry_sdk
 from django.conf import settings
 from django.core.mail import send_mail
-from django.db.models import Q
+from django.db.models import F, Q
 from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils import timezone
@@ -20,6 +20,7 @@ from borrowd_notifications.channels import (
 )
 from borrowd_notifications.models import (
     ChannelType,
+    ConversationNudge,
     NotificationMetadata,
     NotificationPreference,
     NotificationState,
@@ -32,6 +33,7 @@ logger = logging.getLogger(__name__)
 _DEDUP_WINDOW = timedelta(minutes=10)
 _EMAIL_HOURLY_LIMIT = 10
 _SUMMARY_DIGEST_DELAY = timedelta(hours=1)
+_RECENTLY_READ_WINDOW = timedelta(minutes=5)
 
 
 class NotificationService:
@@ -139,6 +141,28 @@ class NotificationService:
             sentry_sdk.capture_exception(exc)
             logger.exception("Notification dispatch failed (pk=%s)", notification.pk)
 
+    @staticmethod
+    def _recently_read_the_conversation(notification: Notification) -> bool:
+        """Whether the recipient read a message sent in the last few minutes."""
+        since = timezone.now() - _RECENTLY_READ_WINDOW
+        return bool(
+            ConversationNudge.objects.filter(
+                pk=notification.target_object_id,
+                recipient_id=notification.recipient_id,
+            )
+            .filter(
+                Q(
+                    thread__lender_id=F("recipient_id"),
+                    thread__lender_last_read_message__created_at__gte=since,
+                )
+                | Q(
+                    thread__borrower_id=F("recipient_id"),
+                    thread__borrower_last_read_message__created_at__gte=since,
+                )
+            )
+            .exists()
+        )
+
     @classmethod
     def _dispatch(cls, notification: Notification) -> None:
         if notification.actor == notification.recipient:
@@ -154,6 +178,13 @@ class NotificationService:
             return
 
         channels = cls._get_enabled_channels(notification.recipient, notification_type)
+        # Mid-conversation, the open page already shows each new message.
+        if (
+            notification_type is NotificationType.NEW_MESSAGE
+            and ChannelType.EMAIL in channels
+            and cls._recently_read_the_conversation(notification)
+        ):
+            channels.discard(ChannelType.EMAIL)
         summary_digest: dict[str, object] | None = None
 
         if ChannelType.EMAIL in channels and cls._is_email_throttled(

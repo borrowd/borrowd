@@ -3737,6 +3737,37 @@ class NewMessageReadSyncTests(NewMessageFixture):
         self.assertEqual(response.status_code, 204)
         self.assertFalse(self.new_message_notifications().filter(unread=True).exists())
 
+    def test_a_live_conversation_emails_only_the_first_message(self) -> None:
+        mail.outbox.clear()
+        for body in ("Free Saturday?", "Around ten?", "See you then."):
+            message = self.send(self.borrower, body)
+            self.read_through(self.lender, message)
+
+        self.assertEqual(len(mail.outbox), 1)
+
+    def test_a_recent_reader_still_gets_the_in_app_notification(self) -> None:
+        first = self.send(self.borrower, "Free Saturday?")
+        self.read_through(self.lender, first)
+        mail.outbox.clear()
+
+        self.send(self.borrower, "Around ten?")
+
+        notification = self.new_message_notifications().get(unread=True)
+        self.assertEqual(len(mail.outbox), 0)
+        self.assertTrue(notification.borrowd_metadata.visible_in_app)
+
+    def test_emails_again_once_the_last_read_message_is_old(self) -> None:
+        first = self.send(self.borrower, "Free Saturday?")
+        self.read_through(self.lender, first)
+        Message.objects.filter(pk=first.pk).update(
+            created_at=timezone.now() - timedelta(minutes=6)
+        )
+        mail.outbox.clear()
+
+        self.send(self.borrower, "Around ten?")
+
+        self.assertEqual(len(mail.outbox), 1)
+
     def test_the_bell_refreshes_as_soon_as_a_conversation_is_read(self) -> None:
         """The read endpoint broadcasts messaging:read; the bell listens for it.
 
