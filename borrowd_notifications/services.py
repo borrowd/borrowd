@@ -66,6 +66,15 @@ class NotificationService:
         result: dict[str, Any] = notification.data.get("channels", {})
         return result
 
+    @classmethod
+    def was_delivered(cls, notification: Notification) -> bool:
+        """Whether any channel has reported success for this notification."""
+        return any(
+            isinstance(result, dict)
+            and result.get("status") == NotificationState.SUCCESS.value
+            for result in cls._channel_results(notification).values()
+        )
+
     @staticmethod
     def _get_enabled_channels(
         user: BorrowdUser, notification_type: NotificationType

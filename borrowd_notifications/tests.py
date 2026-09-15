@@ -3544,6 +3544,25 @@ class NewMessageCoalescingTests(NewMessageFixture):
         self.assertEqual(after_first, 1)
         self.assertEqual(len(mail.outbox), 1)
 
+    def test_turning_notifications_back_on_delivers_the_next_message(self) -> None:
+        preference, _ = NotificationPreference.objects.get_or_create(
+            user=self.lender,
+            notification_type=NotificationType.NEW_MESSAGE.value,
+        )
+        preference.in_app_enabled = preference.email_enabled = False
+        preference.save()
+        self.send(self.borrower, "Free Saturday?")
+        mail.outbox.clear()
+
+        preference.in_app_enabled = preference.email_enabled = True
+        preference.save()
+        self.send(self.borrower, "Or Sunday?")
+
+        notification = self.new_message_notifications().get()
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertTrue(notification.borrowd_metadata.visible_in_app)
+        self.assertEqual(ConversationNudge.objects.count(), 1)
+
     def test_a_read_notification_does_not_get_reused(self) -> None:
         self.send(self.borrower, "Free Saturday?")
         first = self.new_message_notifications().get()
