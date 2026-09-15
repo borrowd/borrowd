@@ -1,3 +1,7 @@
+import html
+import re
+
+from django.http import QueryDict
 from django.test import override_settings
 from django.urls import reverse
 
@@ -77,6 +81,19 @@ class ItemNameFilterTests(MessagingTestCase):
 
         self.assertEqual(len(response.context["cards"]), 25)
         self.assertContains(response, "item=drill")
+
+    def test_page_links_keep_reserved_characters_in_the_filter(self) -> None:
+        for index in range(26):
+            self.make_thread(item=self.make_item(name=f"C++ & C# 100% {index}"))
+
+        body = self.client.get(self.url, {"item": "C++ & C# 100%"}).content.decode()
+        links = [
+            QueryDict(html.unescape(href)[1:])
+            for href in re.findall(r'href="(\?[^"]*)"', body)
+        ]
+        page_two = next(params for params in links if params.get("page") == "2")
+
+        self.assertEqual(page_two["item"], "C++ & C# 100%")
 
     def test_applying_a_filter_keeps_the_open_tab(self) -> None:
         response = self.client.get(self.url, {"section": "archived"})

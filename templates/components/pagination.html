@@ -12,7 +12,7 @@ Parameters:
   - .has_next: boolean
   - .previous_page_number: int (if has_previous)
   - .next_page_number: int (if has_next)
-- query_params: Optional dict of query params to preserve (e.g., {"search": "drill", "categories": "3"})
+- query_params: QueryDict of params to keep on every page link, usually request.GET (required)
 
 Usage:
     {% include "components/pagination.html" with page_obj=page_obj query_params=request.GET %}
@@ -36,7 +36,7 @@ Usage:
                     </span>
                 {% else %}
                     {# Other pages — base-200 styling #}
-                    <a href="?page={{ page_num }}{% if query_params %}{% for key, values in query_params.lists %}{% if key != 'page' %}{% for value in values %}&{{ key }}={{ value }}{% endfor %}{% endif %}{% endfor %}{% endif %}"
+                    <a href="{% querystring query_params page=page_num %}"
                        class="join-item btn btn-sm h-10 min-w-8 bg-base-300 border-base-300 px-2 hover:bg-base-200 shadow-sm text-base-content sm:min-w-[2.5rem]">
                         {{ page_num }}
                     </a>
