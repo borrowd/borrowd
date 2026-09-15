@@ -6,6 +6,7 @@ from borrowd_messaging.read_state import mark_thread_read
 from borrowd_messaging.services import MessagingService
 
 from .base import MessagingTestCase
+from .test_views import _element_attributes
 
 
 @override_settings(MESSAGING_ENABLED=True)
@@ -197,6 +198,13 @@ class ClearFiltersTests(MessagingTestCase):
 
     def test_no_clear_control_until_something_is_filtered(self) -> None:
         self.assertNotContains(self.client.get(self.url), "Clear filters")
+
+    def test_unfiltered_text_inputs_start_empty(self) -> None:
+        response = self.client.get(self.url)
+
+        for input_id in ("id_item", "id_person"):
+            with self.subTest(input_id=input_id):
+                self.assertEqual(_element_attributes(response, input_id)["value"], "")
 
     def test_an_applied_filter_offers_a_way_out(self) -> None:
         response = self.client.get(self.url, {"item": "drill"})
