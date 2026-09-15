@@ -176,6 +176,10 @@ def _build_preferences_context(user: BorrowdUser) -> dict[str, Any]:
     categories = []
 
     for cat in NOTIFICATION_CATEGORIES:
+        # No toggles for a feature the flag keeps switched off.
+        if cat["slug"] == "messages" and not settings.MESSAGING_ENABLED:
+            continue
+
         cat_optional_app = True
         cat_optional_email = True
         cat_optional_push = True

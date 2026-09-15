@@ -3273,12 +3273,41 @@ class NewMessagePushPreferenceTests(TestCase):
         )
         self.assertTrue(pref.push_enabled)
 
+    @override_settings(MESSAGING_ENABLED=True)
     def test_preferences_page_offers_a_push_toggle(self) -> None:
         response = self.client.get(reverse("notification-preferences"))
 
         self.assertContains(
             response,
             "toggle('NEW_MESSAGE', 'PUSH', 'push', $event.target.checked)",
+        )
+
+
+class MessageCategoryVisibilityTests(TestCase):
+    """The Messages toggles follow the messaging feature flag."""
+
+    def setUp(self) -> None:
+        self.user = BorrowdUser.objects.create_user(
+            username="prefs-viewer", email="prefs-viewer@example.com", password="x"
+        )
+        self.client.force_login(self.user)
+
+    @override_settings(MESSAGING_ENABLED=True)
+    def test_the_category_shows_while_messaging_is_on(self) -> None:
+        response = self.client.get(reverse("notification-preferences"))
+
+        self.assertContains(response, "New message in a conversation")
+        self.assertIn(
+            NotificationType.NEW_MESSAGE.value, response.context["prefs_json"]
+        )
+
+    @override_settings(MESSAGING_ENABLED=False)
+    def test_the_category_is_hidden_while_messaging_is_off(self) -> None:
+        response = self.client.get(reverse("notification-preferences"))
+
+        self.assertNotContains(response, "New message in a conversation")
+        self.assertNotIn(
+            NotificationType.NEW_MESSAGE.value, response.context["prefs_json"]
         )
 
 
