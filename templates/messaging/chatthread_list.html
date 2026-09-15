@@ -42,12 +42,12 @@
                         <c-form.icon-input icon="magnifying-glass"
                                            name="{{ conversation_filter.form.item.html_name }}"
                                            id="{{ conversation_filter.form.item.id_for_label }}"
-                                           value="{{ conversation_filter.form.item.value }}"
+                                           value="{{ conversation_filter.form.item.value|default_if_none:'' }}"
                                            placeholder="Item name" />
                         <c-form.icon-input icon="user"
                                            name="{{ conversation_filter.form.person.html_name }}"
                                            id="{{ conversation_filter.form.person.id_for_label }}"
-                                           value="{{ conversation_filter.form.person.value }}"
+                                           value="{{ conversation_filter.form.person.value|default_if_none:'' }}"
                                            placeholder="Person" />
                         <label class="label cursor-pointer w-full">
                             <input type="checkbox"
