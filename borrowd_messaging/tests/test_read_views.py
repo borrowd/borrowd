@@ -170,7 +170,7 @@ class ChatThreadReadViewTests(MessagingTestCase):
         newest_attrs = _element_attributes(detail, f"message-{newest.pk}")
         self.assertNotIn("hx-post", older_attrs)
         self.assertEqual(newest_attrs["hx-post"], self.url)
-        self.assertEqual(newest_attrs["hx-trigger"], "load")
+        self.assertEqual(newest_attrs["hx-trigger"], "load, read-ack:send")
         self.assertEqual(newest_attrs["hx-vals"], f'{{"through":"{newest.pk}"}}')
         self.assertEqual(newest_attrs["hx-swap"], "none")
 
@@ -212,7 +212,7 @@ class ChatThreadReadViewTests(MessagingTestCase):
         self.assertEqual(response.status_code, 286)
         notice_attrs = _element_attributes(response, f"message-{notice.pk}")
         self.assertEqual(notice_attrs["hx-post"], self.url)
-        self.assertEqual(notice_attrs["hx-trigger"], "load")
+        self.assertEqual(notice_attrs["hx-trigger"], "load, read-ack:send")
         self.assertEqual(notice_attrs["hx-vals"], f'{{"through":"{notice.pk}"}}')
         self.thread.refresh_from_db()
         self.assertIsNone(self.thread.borrower_last_read_message_id)
