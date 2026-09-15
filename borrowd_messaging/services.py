@@ -397,13 +397,17 @@ class MessagingService:
         return message
 
     @classmethod
-    def attach_thread_to(cls, transaction: Transaction) -> ChatThread:
+    def attach_thread_to(
+        cls, transaction: Transaction, actor: BorrowdUser | None = None
+    ) -> ChatThread:
         """
         Give a new Transaction its thread:
         the open pre-request conversation if there is one,
         otherwise a fresh thread.
+        `actor` is stamped on the thread and defaults to the borrower.
         """
-        thread = cls.attach_existing_prerequest_thread_to(transaction)
+        actor = actor or transaction.party2
+        thread = cls.attach_existing_prerequest_thread_to(transaction, actor)
         if thread is not None:
             return thread
 
@@ -412,19 +416,20 @@ class MessagingService:
             item=transaction.item,
             lender=transaction.party1,
             borrower=transaction.party2,
-            created_by=transaction.party2,
-            updated_by=transaction.party2,
+            created_by=actor,
+            updated_by=actor,
             **cls._transaction_conversation_context_values(transaction),
         )
 
     @classmethod
     def attach_existing_prerequest_thread_to(
-        cls, transaction: Transaction
+        cls, transaction: Transaction, actor: BorrowdUser | None = None
     ) -> ChatThread | None:
         """
         Give a Transaction its existing pre-request thread, if one exists.
 
         Unlike attach_thread_to, this method never creates a thread.
+        `actor` is stamped on the claimed thread and defaults to the borrower.
         """
         existing = ChatThread.objects.filter(transaction=transaction).first()
         if existing is not None:
@@ -438,7 +443,7 @@ class MessagingService:
                 pk=thread.pk, transaction__isnull=True
             ).update(
                 transaction=transaction,
-                updated_by=transaction.party2,
+                updated_by=actor or transaction.party2,
                 updated_at=timezone.now(),
             )
             if claimed:
