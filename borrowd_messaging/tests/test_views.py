@@ -965,7 +965,7 @@ class ChatThreadListViewTests(MessagingTestCase):
 
         response = self.client.get(self.url, {"section": "archived", "page": "2"})
 
-        self.assertContains(response, "?page=1&section=archived")
+        self.assertContains(response, 'href="?section=archived&amp;page=1"')
 
     def test_switching_tabs_starts_again_at_the_first_page(self) -> None:
         self.make_archived_threads(26)
