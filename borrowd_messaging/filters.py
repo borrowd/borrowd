@@ -31,6 +31,9 @@ class _UnreadCheckboxInput(CheckboxInput):
         return super().value_from_datadict(data, files, name)
 
 
+_PERSON_SEARCH_MAX_TERMS = 4
+
+
 # django-filter is untyped (see the django_filters note in mypy.ini), so
 # subclassing it trips strict mode's "subclass of Any" check.
 class ConversationFilter(FilterSet):  # type: ignore[misc]
@@ -62,6 +65,7 @@ class ConversationFilter(FilterSet):  # type: ignore[misc]
         `Profile.full_name` is built in Python, so there is no single column to
         search. Every word has to match a first or last name instead, which
         makes "ada lovelace" and "lovelace ada" both find the same person.
+        Only the first few distinct words count, so the query stays small.
         """
         if not value:
             return queryset
@@ -76,11 +80,14 @@ class ConversationFilter(FilterSet):  # type: ignore[misc]
                 default=F("lender__last_name"),
             ),
         )
-        for term in value.split():
-            queryset = queryset.filter(
+        # icontains ignores case, so "Ada ada" is one word.
+        terms = list(dict.fromkeys(value.lower().split()))[:_PERSON_SEARCH_MAX_TERMS]
+        return queryset.filter(
+            *(
                 Q(other_first_name__icontains=term) | Q(other_last_name__icontains=term)
+                for term in terms
             )
-        return queryset
+        )
 
     def filter_by_unread(
         self,
