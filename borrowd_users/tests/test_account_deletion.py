@@ -504,7 +504,7 @@ class DeleteAccountViewTests(TestCase):
         self.client.force_login(self.user)
         response = self.client.post(self.url, {"confirm_username": "wrong"})
 
-        self.assertRedirects(response, reverse("profile"))
+        self.assertRedirects(response, reverse("settings-account"))
         self.user.refresh_from_db()
         self.assertTrue(self.user.is_active)
         self.assertEqual(self.user.username, "viewuser")
@@ -538,7 +538,7 @@ class DeleteAccountViewTests(TestCase):
         # match against the logged-in user.
         response = self.client.post(self.url, {"confirm_username": "victim"})
 
-        self.assertRedirects(response, reverse("profile"))
+        self.assertRedirects(response, reverse("settings-account"))
         victim.refresh_from_db()
         self.user.refresh_from_db()
         self.assertTrue(victim.is_active)
@@ -574,15 +574,16 @@ class PublicProfileAfterDeletionTests(TestCase):
 
 
 @override_settings(MEDIA_ROOT=_TEST_MEDIA_ROOT)
-class ProfileViewDeleteFlagsTests(TestCase):
-    """The modal-driving flags on the profile page."""
+class AccountSettingsDeleteFlagsTests(TestCase):
+    """The modal-driving flags on the account settings page."""
 
     def setUp(self) -> None:
         self.user = _make_user("flaguser")
         self.client.force_login(self.user)
+        self.url = reverse("settings-account")
 
     def test_clean_account_flags(self) -> None:
-        response = self.client.get(reverse("profile"))
+        response = self.client.get(self.url)
         self.assertFalse(response.context["is_borrowing"])
         self.assertFalse(response.context["is_lending"])
         self.assertFalse(response.context["has_items"])
@@ -591,7 +592,7 @@ class ProfileViewDeleteFlagsTests(TestCase):
         # Owns an item that isn't out on loan: warn it'll be removed, but don't
         # claim they're "still lending".
         _make_item(self.user)
-        response = self.client.get(reverse("profile"))
+        response = self.client.get(self.url)
         self.assertFalse(response.context["is_borrowing"])
         self.assertFalse(response.context["is_lending"])
         self.assertTrue(response.context["has_items"])
@@ -609,7 +610,7 @@ class ProfileViewDeleteFlagsTests(TestCase):
             created_by=self.user,
             updated_by=self.user,
         )
-        response = self.client.get(reverse("profile"))
+        response = self.client.get(self.url)
         self.assertTrue(response.context["is_borrowing"])
 
     def test_active_lend_sets_is_lending(self) -> None:
@@ -625,7 +626,7 @@ class ProfileViewDeleteFlagsTests(TestCase):
             created_by=self.user,
             updated_by=self.user,
         )
-        response = self.client.get(reverse("profile"))
+        response = self.client.get(self.url)
         self.assertTrue(response.context["is_lending"])
         self.assertTrue(response.context["has_items"])
 
@@ -642,6 +643,6 @@ class ProfileViewDeleteFlagsTests(TestCase):
             created_by=self.user,
             updated_by=self.user,
         )
-        response = self.client.get(reverse("profile"))
+        response = self.client.get(self.url)
         self.assertFalse(response.context["is_lending"])
         self.assertTrue(response.context["has_items"])

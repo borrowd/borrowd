@@ -33,7 +33,9 @@ BROWSABLE_BACK_TARGETS = frozenset(
         "public-profile",
         "community-request-list",
         "notification-inbox",
+        "settings-security",
         "notification-preferences",
+        "settings-account",
     }
 )
 
