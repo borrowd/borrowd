@@ -5,7 +5,9 @@ const path = require('node:path');
 const {
   READ_ACK_SEND_EVENT,
   isRetryableFailure,
+  newestUnsentReadAck,
   nextRetryDelayMs,
+  readAckAllowed,
 } = require('./read-ack-retry.js');
 
 test('nextRetryDelayMs backs off exponentially from the base delay', () => {
@@ -24,6 +26,28 @@ test('isRetryableFailure retries dropped requests and server errors only', () =>
   assert.equal(isRetryableFailure('htmx:responseError', 502), true);
   assert.equal(isRetryableFailure('htmx:responseError', 400), false);
   assert.equal(isRetryableFailure('htmx:responseError', 403), false);
+});
+
+test('readAckAllowed only while the page is visible and focused', () => {
+  const page = (visibilityState, focused) => ({
+    visibilityState,
+    hasFocus: () => focused,
+  });
+
+  assert.equal(readAckAllowed(page('visible', true)), true);
+  assert.equal(readAckAllowed(page('visible', false)), false);
+  assert.equal(readAckAllowed(page('hidden', true)), false);
+  assert.equal(readAckAllowed(page('hidden', false)), false);
+});
+
+test('newestUnsentReadAck picks the newest ack only while it is unsent', () => {
+  const older = { dataset: {} };
+  const newest = { dataset: {} };
+
+  assert.equal(newestUnsentReadAck([older, newest]), newest);
+  newest.dataset.readAckSent = 'true';
+  assert.equal(newestUnsentReadAck([older, newest]), null);
+  assert.equal(newestUnsentReadAck([]), null);
 });
 
 // htmx runs a `load` trigger once, so a retry only sends if the element listens for its event.
