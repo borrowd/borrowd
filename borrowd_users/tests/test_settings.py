@@ -1,6 +1,6 @@
 """
-Tests for the settings section: its routes, the section tabs, and the controls
-that moved there off the profile page.
+Tests for the settings section: its routes, the section tabs, and the
+security, notification, and account controls it hosts.
 """
 
 from django.test import TestCase
@@ -66,7 +66,7 @@ class SettingsRoutingTests(SettingsTestCase):
 
 
 class ProfileWithoutSettingsTests(SettingsTestCase):
-    def test_profile_drops_the_settings_controls(self) -> None:
+    def test_profile_has_no_settings_controls(self) -> None:
         response = self.client.get(reverse("profile"))
 
         for url_name in (
