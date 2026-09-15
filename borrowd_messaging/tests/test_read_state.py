@@ -122,6 +122,12 @@ class ReadCursorTests(MessagingTestCase):
         self.thread.refresh_from_db()
         self.assertEqual(self.thread.borrower_last_read_message_id, self.message.pk)
 
+    def test_a_zero_cursor_does_not_touch_the_database(self) -> None:
+        with self.assertNumQueries(0):
+            self.assertFalse(
+                mark_thread_read(self.thread, self.borrower, through_message_id=0)
+            )
+
     def test_invalid_cursors_leave_read_state_unchanged(self) -> None:
         other_thread = self.make_thread(item=self.make_item(name="Ladder"))
         foreign_message = Message.objects.create(
@@ -456,6 +462,7 @@ class ConcurrentReadCursorTests(TransactionTestCase):
             reader: BorrowdUser,
             *,
             through_message_id: int,
+            thread_is_locked: bool = False,
         ) -> bool:
             read_follow_up_started.set()
             if not allow_read_to_commit.wait(timeout=10):

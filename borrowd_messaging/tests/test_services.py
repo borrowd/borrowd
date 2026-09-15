@@ -398,7 +398,7 @@ class SendMessageTests(MessagingTestCase):
                 "hello",
             )
 
-        create_notification.assert_called_once_with(message)
+        create_notification.assert_called_once_with(message, locked_thread=self.thread)
 
     def test_notification_state_failure_rolls_back_the_message(self) -> None:
         with patch(
