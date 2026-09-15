@@ -8,7 +8,7 @@ const {
   newestUnsentReadAck,
   nextRetryDelayMs,
   readAckAllowed,
-} = require('./read-ack-retry.js');
+} = require('./read-ack.js');
 
 test('nextRetryDelayMs backs off exponentially from the base delay', () => {
   assert.equal(nextRetryDelayMs(0), 1000);

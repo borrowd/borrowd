@@ -78,7 +78,7 @@ if (typeof document !== 'undefined') {
 }
 
 // Exposes the pure, DOM-free helpers to Node's built-in test runner
-// (static/js/read-ack-retry.test.js) without affecting the browser bundle --
+// (static/js/read-ack.test.js) without affecting the browser bundle --
 // `module` is undefined there.
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
