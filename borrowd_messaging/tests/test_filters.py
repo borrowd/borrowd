@@ -139,6 +139,14 @@ class PersonFilterTests(MessagingTestCase):
     def test_every_word_has_to_match(self) -> None:
         self.assertEqual(self.thread_ids("?person=ada+turing"), [])
 
+    def test_only_the_first_four_distinct_words_count(self) -> None:
+        self.assertEqual(
+            self.thread_ids("?person=ada+lovelace+love+lace+zzz"), [self.with_ada.pk]
+        )
+
+    def test_repeated_words_do_not_use_up_the_limit(self) -> None:
+        self.assertEqual(self.thread_ids("?person=ada+ADA+ada+ada+zzz"), [])
+
     def test_ignores_capitalisation(self) -> None:
         self.assertEqual(self.thread_ids("?person=LOVELACE"), [self.with_ada.pk])
 
