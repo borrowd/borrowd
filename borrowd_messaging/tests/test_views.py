@@ -391,6 +391,7 @@ class ChatThreadActivePageTests(MessagingTestCase):
             response, "onclick=\"showModal('close-conversation-modal')\""
         )
         self.assertContains(response, 'id="close-conversation-modal"')
+        self.assertContains(response, 'id="chat-pre-request-actions"')
 
 
 @override_settings(MESSAGING_ENABLED=True)
@@ -457,6 +458,35 @@ class ChatThreadPollViewTests(MessagingTestCase):
         self.assertContains(response, "Free Saturday?")
         self.assertContains(response, "Saturday works.")
         self.assertLess(body.index("Free Saturday?"), body.index("Saturday works."))
+
+    def test_poll_announces_a_request_and_removes_the_pre_request_actions(self) -> None:
+        seen = self.send(self.borrower, "Free Saturday?")
+        self.make_transaction()
+        self.client.force_login(self.lender)
+
+        response = self.client.get(self.url, {"after": seen.pk})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "This item has been requested.")
+        self.assertContains(response, "Active")
+        actions = _element_attributes(response, "chat-pre-request-actions")
+        self.assertEqual(actions["hx-swap-oob"], "true")
+        self.assertNotContains(response, "Close conversation")
+        self.assertNotContains(response, 'id="chat-composer"')
+
+    def test_archived_poll_leaves_the_pre_request_actions_to_the_composer_swap(
+        self,
+    ) -> None:
+        seen = self.send(self.borrower, "Free Saturday?")
+        self.make_transaction()
+        MessagingService.archive_thread(self.thread, ArchiveReason.CANCELLED)
+        self.client.force_login(self.lender)
+
+        response = self.client.get(self.url, {"after": seen.pk})
+
+        self.assertNotContains(
+            response, 'id="chat-pre-request-actions"', status_code=286
+        )
 
     def test_poll_refreshes_the_status_when_a_dispute_is_raised(self) -> None:
         seen = self.send(self.borrower, "Free Saturday?")
