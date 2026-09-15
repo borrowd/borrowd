@@ -30,6 +30,7 @@ from borrowd_items.models import (
     Transaction,
     TransactionStatus,
 )
+from borrowd_messaging.exceptions import NotThreadParticipant
 from borrowd_messaging.models import ChatThread, Message
 from borrowd_messaging.read_state import mark_thread_read
 from borrowd_messaging.services import MessagingService
@@ -3454,6 +3455,15 @@ class ConversationNudgeModelTests(NewMessageFixture):
 @override_settings(MESSAGING_ENABLED=True)
 class NewMessageNotificationTests(NewMessageFixture):
     """Nudging the other participant when a message arrives."""
+
+    def test_a_message_from_an_outsider_is_refused(self) -> None:
+        outsider = BorrowdUser.objects.create_user(
+            username="nm-outsider", email="nm-outsider@example.com", password="x"
+        )
+        message = self.store(outsider)
+
+        with self.assertRaises(NotThreadParticipant):
+            create_or_refresh_message_notification(message)
 
     def test_storing_a_message_directly_does_not_run_integrations(self) -> None:
         self.store(self.borrower)

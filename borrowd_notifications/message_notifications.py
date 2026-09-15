@@ -10,6 +10,7 @@ from django.utils import timezone
 from notifications.models import Notification
 from notifications.signals import notify
 
+from borrowd_messaging.exceptions import NotThreadParticipant
 from borrowd_messaging.models import ChatThread, Message
 from borrowd_users.models import BorrowdUser
 
@@ -23,7 +24,9 @@ def _message_recipient(thread: ChatThread, sender_id: int) -> BorrowdUser:
         return thread.borrower
     if sender_id == thread.borrower_id:
         return thread.lender
-    raise ValueError(f"Message sender is not a participant of ChatThread {thread.pk}.")
+    raise NotThreadParticipant(
+        f"User {sender_id} is not a participant of ChatThread {thread.pk}."
+    )
 
 
 def _notification_subject(message: Message, thread: ChatThread) -> str:
