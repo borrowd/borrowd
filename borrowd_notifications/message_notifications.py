@@ -14,6 +14,7 @@ from borrowd_messaging.models import ChatThread, Message
 from borrowd_users.models import BorrowdUser
 
 from .models import ConversationNudge, ConversationNudgeStatus, NotificationType
+from .services import NotificationService
 
 
 def _message_recipient(thread: ChatThread, sender_id: int) -> BorrowdUser:
@@ -53,25 +54,36 @@ def _clear_nudge(nudge: ConversationNudge) -> None:
     _notifications_for(nudge).filter(unread=True).update(unread=False)
 
 
+def _redeliver_if_still_unread(notification_id: int) -> None:
+    """Send a notification again, now that the recipient's channels may allow it."""
+    notification = Notification.objects.filter(pk=notification_id, unread=True).first()
+    if notification is not None:
+        NotificationService.send_notification(notification)
+
+
 def _refresh_active_nudge(
     nudge: ConversationNudge,
     message: Message,
     subject: str,
 ) -> bool:
     """Move an unread notification forward, returning whether one existed."""
-    refreshed = (
-        _notifications_for(nudge)
-        .filter(unread=True)
-        .update(
-            description=subject,
-            timestamp=message.created_at,
-        )
-    )
-    if not refreshed:
+    notification = _notifications_for(nudge).filter(unread=True).first()
+    if notification is None:
         return False
 
+    Notification.objects.filter(pk=notification.pk).update(
+        description=subject,
+        timestamp=message.created_at,
+    )
     nudge.latest_message = message
     nudge.save(update_fields=["latest_message"])
+
+    if not NotificationService.was_delivered(notification):
+        # Nothing reached the recipient when this cycle started, so try again.
+        notification_id = notification.pk
+        transaction.on_commit(
+            lambda: _redeliver_if_still_unread(notification_id), robust=True
+        )
     return True
 
 
