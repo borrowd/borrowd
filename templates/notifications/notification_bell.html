@@ -15,7 +15,7 @@
          hx-swap="innerHTML">
         <div id="notification-indicator"
              hx-get="{% url 'notification-bell-count' %}"
-             hx-trigger="load, every 30s"
+             hx-trigger="load, every 30s, messaging:read from:document"
              hx-target="this"
              hx-swap="innerHTML">
             {% include "notifications/_notification_count_indicator.html" %}
