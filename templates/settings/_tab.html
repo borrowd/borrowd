@@ -1,0 +1,8 @@
+{% url url_name as tab_url %}
+{% if request.resolver_match.url_name == url_name %}
+    <span class="join-item btn btn-primary btn-sm h-10 px-4"
+          aria-current="page">{{ label }}</span>
+{% else %}
+    <a href="{{ tab_url }}"
+       class="join-item btn btn-sm h-10 border-base-300 bg-base-300 px-4 text-base-content shadow-sm hover:bg-base-200">{{ label }}</a>
+{% endif %}
