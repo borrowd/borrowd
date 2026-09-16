@@ -91,9 +91,22 @@
                     {% if messaging_enabled %}
                         <li>
                             <a href="{% url 'chat-thread-list' %}"
-                               class="flex items-center gap-3 py-3">
-                                {% heroicon_outline "chat-bubble-left-right" class="size-5" %}
-                                <span>Messages</span>
+                               class="flex items-center justify-between gap-3 py-3">
+                                <span class="flex items-center gap-3">
+                                    {% heroicon_outline "chat-bubble-left-right" class="size-5" %}
+                                    <span>Messages</span>
+                                </span>
+                                <span id="nav-messages-unread"
+                                      aria-live="polite"
+                                      aria-atomic="true"
+                                      hx-get="{% url 'chat-thread-unread-badge' %}"
+                                      hx-trigger="every 30s [document.visibilityState === 'visible'], messaging:read[document.visibilityState === 'visible'] from:document, visibilitychange[document.visibilityState === 'visible'] from:document, online[document.visibilityState === 'visible'] from:window, pageshow[persisted &amp;&amp; document.visibilityState === 'visible'] from:window"
+                                      hx-sync="this:queue last"
+                                      hx-swap="innerHTML"
+                                      hx-request='{"timeout":10000}'>
+                                    {% include "messaging/_unread_badge.html" %}
+
+                                </span>
                             </a>
                         </li>
                     {% endif %}
