@@ -31,9 +31,12 @@ class Command(BaseCommand):
 
     def handle(self, *args: Any, **options: Any) -> None:
         # Removing an Item archives its conversations, so don't open a new one.
+        # A soft-deleted Transaction is gone as far as the app is concerned.
         missing_ids = list(
             Transaction.objects.filter(
-                chat_thread__isnull=True, item__deleted_at__isnull=True
+                chat_thread__isnull=True,
+                deleted_at__isnull=True,
+                item__deleted_at__isnull=True,
             )
             .exclude(status__in=TERMINAL_TRANSACTION_STATUSES)
             .order_by("pk")
@@ -88,6 +91,7 @@ class Command(BaseCommand):
             )
             if (
                 transaction is None
+                or transaction.deleted_at is not None
                 or transaction.status in TERMINAL_TRANSACTION_STATUSES
                 or transaction.item.deleted_at is not None
                 or ChatThread.objects.filter(transaction=transaction).exists()
