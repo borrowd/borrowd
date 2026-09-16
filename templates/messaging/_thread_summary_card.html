@@ -1,5 +1,25 @@
+{% load static %}
+
+{% comment %}
+Parameters:
+- summary: a ConversationSummary (borrowd_messaging/conversation_summaries.py)
+- show_item: Optional flag adding the Item thumbnail and name. Item pages are
+  already scoped to one Item, so they leave it off.
+- item_name: Item name, or empty only when the Item row itself is gone
+- item_thumbnail_url: first Item photo; the shared Item placeholder stands in
+- item_removed: Optional flag muting a removed Item, which keeps its name
+{% endcomment %}
+
 <a href="{% url 'chat-thread-detail' summary.thread_id %}"
    class="flex items-center gap-3 rounded-xl border border-base-300 bg-base-100 p-3 transition hover:border-base-content/30 hover:bg-base-200/50">
+    {% if show_item %}
+        {% static 'items/categories/logo-tools.png' as fallback_image %}
+        <img src="{{ item_thumbnail_url|default:fallback_image }}"
+             alt="{{ item_name|default:'Item image' }}"
+             loading="lazy"
+             class="h-12 w-12 shrink-0 rounded-lg object-cover {% if item_removed %}opacity-60 grayscale{% endif %}" />
+    {% endif %}
+
     <c-avatar class="h-12 w-12 shrink-0 rounded-full"
               src="{% if summary.other_participant.profile.image %}{{ summary.other_participant.profile.image.url }}{% endif %}"
               name="{{ summary.other_participant.profile.full_name }}"
@@ -7,11 +27,21 @@
 
     <span class="min-w-0 grow">
         <span class="flex items-start justify-between gap-2">
-            <span class="truncate font-medium">{{ summary.other_participant.profile.full_name }}</span>
-            <span class="badge badge-sm shrink-0 {% if summary.status_kind == 'active' %}badge-success badge-soft{% elif summary.status_kind == 'disputed' %}badge-warning badge-soft{% elif summary.status_kind == 'prerequest' %}badge-info badge-soft{% else %}badge-ghost{% endif %}">
-                {{ summary.status_label }}
+            <span class="truncate {% if summary.has_unread_messages %}font-semibold{% else %}font-medium{% endif %}">
+                {% if summary.has_unread_messages %}
+                    <span class="mr-1 inline-block size-2 rounded-full bg-primary align-middle"
+                          aria-hidden="true"></span>
+                    <span class="sr-only">Unread.</span>
+                {% endif %}
+                {{ summary.other_participant.profile.full_name }}
             </span>
+            {% include "messaging/_status_badge.html" with status_label=summary.status_label status_kind=summary.status_kind only %}
+
         </span>
+
+        {% if show_item %}
+            <span class="mt-0.5 block truncate text-sm {% if item_removed %}text-base-content/60{% endif %}">{% firstof item_name "Item unavailable" %}</span>
+        {% endif %}
 
         <span class="mt-0.5 block text-xs text-base-content/60">
             {{ summary.started_at|date:"M j, Y" }} –

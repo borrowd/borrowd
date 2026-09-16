@@ -49,13 +49,17 @@ class ItemLifecycleTests(MessagingTestCase):
 
         self.item.soft_delete(deleted_by=self.lender)
 
-        for thread in (transaction_thread, prerequest_thread):
+        archived = ARCHIVE_MESSAGES[ArchiveReason.ITEM_DELETED]
+        expected_bodies = (
+            (transaction_thread, ["This item has been requested.", archived]),
+            (prerequest_thread, [archived]),
+        )
+        for thread, bodies in expected_bodies:
             thread.refresh_from_db()
             self.assertEqual(thread.archive_reason, ArchiveReason.ITEM_DELETED)
-            self.assertEqual(thread.messages.count(), 1)
             self.assertEqual(
-                thread.messages.get().body,
-                ARCHIVE_MESSAGES[ArchiveReason.ITEM_DELETED],
+                list(thread.messages.order_by("id").values_list("body", flat=True)),
+                bodies,
             )
         self.assertEqual(transaction_thread.transaction, transaction)
 
@@ -327,7 +331,8 @@ class TransactionLifecycleWhileFeatureFlagIsOffTests(MessagingTestCase):
 
         thread.refresh_from_db()
         self.assertFalse(thread.is_archived)
-        message = thread.messages.get()
+        message = thread.messages.order_by("id").last()
+        assert message is not None
         self.assertTrue(message.is_system)
         self.assertIn("dispute has been raised", message.body)
 
@@ -340,8 +345,11 @@ class TransactionLifecycleWhileFeatureFlagIsOffTests(MessagingTestCase):
         thread.refresh_from_db()
         self.assertEqual(thread.archive_reason, ArchiveReason.RETURNED)
         self.assertEqual(
-            thread.messages.get().body,
-            ARCHIVE_MESSAGES[ArchiveReason.RETURNED],
+            list(thread.messages.order_by("id").values_list("body", flat=True)),
+            [
+                "This item has been requested.",
+                ARCHIVE_MESSAGES[ArchiveReason.RETURNED],
+            ],
         )
 
     def test_a_terminal_status_does_not_create_a_thread(self) -> None:
