@@ -25,6 +25,7 @@
                        id="allow-pre-request-chat"
                        class="toggle toggle-primary toggle-sm shrink-0"
                        :checked="enabled"
+                       :disabled="saving"
                        @change="save($event.target.checked)"
                        {% if allow_pre_request_chat %}checked{% endif %}>
             </label>
@@ -35,22 +36,28 @@
         function preRequestChatToggle(initial) {
             return {
                 enabled: initial,
+                saving: false,
 
                 async save(enabled) {
                     this.enabled = enabled;
+                    this.saving = true;
                     try {
                         const response = await fetch('{% url "settings-messaging" %}', {
                             method: 'POST',
+                            redirect: 'manual',
                             headers: {
                                 'Content-Type': 'application/x-www-form-urlencoded',
                                 'X-CSRFToken': window.getCsrfToken(),
                             },
                             body: new URLSearchParams({ enabled: enabled ? 'true' : 'false' }),
                         });
-                        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                        // Only 204 means saved: an expired session answers with a redirect.
+                        if (response.status !== 204) throw new Error(`HTTP ${response.status}`);
                     } catch (e) {
                         this.enabled = !enabled;
                         showToast('{% trans "Could not save your chat preference. Please try again." %}', 'error');
+                    } finally {
+                        this.saving = false;
                     }
                 },
             };
