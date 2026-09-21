@@ -1,0 +1,13 @@
+{% load heroicons %}
+
+<c-vars icon="" name="" id="" value="" placeholder="" />
+
+<label class="input input-bordered flex grow items-center">
+    {% heroicon_mini icon class="size-4 opacity-50" %}
+    <input type="text"
+           name="{{ name }}"
+           id="{{ id }}"
+           class="grow"
+           value="{{ value|default:'' }}"
+           placeholder="{{ placeholder }}" />
+</label>
