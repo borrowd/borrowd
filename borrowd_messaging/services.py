@@ -7,6 +7,9 @@ from django.utils import timezone
 
 from borrowd_groups.models import BorrowdGroup, Membership, MembershipStatus
 from borrowd_items.models import Item, ItemStatus, Transaction
+from borrowd_notifications.message_notifications import (
+    create_or_refresh_message_notification,
+)
 from borrowd_permissions.models import ItemOLP
 from borrowd_users.models import BorrowdUser
 from borrowd_users.system import get_system_user
@@ -368,9 +371,7 @@ class MessagingService:
     def send_message(
         cls, thread: ChatThread, sender: BorrowdUser, body: str
     ) -> Message:
-        """
-        Write one message to a thread.
-        """
+        """Store a human message and create or refresh its notification state."""
         if not settings.MESSAGING_ENABLED:
             raise MessagingDisabled("Messaging is not enabled.")
         if sender.pk not in (thread.lender_id, thread.borrower_id):
@@ -379,7 +380,13 @@ class MessagingService:
             )
         with atomic():
             # the thread may have been archived since the caller loaded it.
-            current = ChatThread.objects.select_for_update().get(pk=thread.pk)
+            # select_related feeds the notification helper below; `of` keeps the
+            # lock on the thread row, since a removed item leaves an outer join.
+            current = (
+                ChatThread.objects.select_for_update(of=("self",))
+                .select_related("borrower", "lender", "item")
+                .get(pk=thread.pk)
+            )
             if current.is_archived:
                 raise ThreadNotWritable(f"ChatThread {thread.pk} is archived.")
 
@@ -392,6 +399,7 @@ class MessagingService:
                 )
 
             message = Message.objects.create(thread=current, sender=sender, body=body)
+            create_or_refresh_message_notification(message, locked_thread=current)
 
         cls._dispatch(message)
         return message
