@@ -12,10 +12,12 @@ from django.test import SimpleTestCase
 from borrowd_items.models import (
     BORROWER_TRANSACTION_STATUSES,
     DUAL_CONFIRMATION_TRANSACTION_STATUSES,
+    ITEM_STATUS_FOR_TRANSACTION,
     OPEN_TRANSACTION_STATUSES,
     PRE_COLLECTION_TRANSACTION_STATUSES,
     REQUEST_TRANSACTION_STATUSES,
     TERMINAL_TRANSACTION_STATUSES,
+    ItemStatus,
     TransactionStatus,
 )
 
@@ -78,3 +80,19 @@ class TransactionStatusSetTests(SimpleTestCase):
             [status.value for status in PRE_COLLECTION_TRANSACTION_STATUSES],
             [10, 15, 30],
         )
+
+
+class ItemStatusProjectionTests(SimpleTestCase):
+    def test_every_transaction_status_maps_to_an_item_status(self) -> None:
+        """
+        sync_item_status looks the status up directly, so a gap here is a
+        KeyError in the middle of a lifecycle action rather than a failed test.
+        """
+        self.assertEqual(set(ITEM_STATUS_FOR_TRANSACTION), set(TransactionStatus))
+
+    def test_a_finished_transaction_frees_the_item(self) -> None:
+        for status in TERMINAL_TRANSACTION_STATUSES:
+            with self.subTest(status.name):
+                self.assertEqual(
+                    ITEM_STATUS_FOR_TRANSACTION[status], ItemStatus.AVAILABLE
+                )

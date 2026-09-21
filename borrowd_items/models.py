@@ -817,7 +817,7 @@ class Item(Model):
             )
 
         if action == ItemAction.REQUEST_ITEM:
-            Transaction.objects.create(
+            created_tx = Transaction.objects.create(
                 item=self,
                 # By convention "party1" is the owner/lender/giver.
                 party1=self.owner,
@@ -827,12 +827,11 @@ class Item(Model):
                 # This is default; just being explicit
                 status=TransactionStatus.REQUESTED,
             )
-            self.status = ItemStatus.REQUESTED
-            self.save()
+            sync_item_status(self, created_tx)
             return
 
         if action == ItemAction.REQUEST_GIVEAWAY:
-            Transaction.objects.create(
+            created_tx = Transaction.objects.create(
                 item=self,
                 # By convention "party1" is the owner/lender/giver.
                 party1=self.owner,
@@ -841,8 +840,7 @@ class Item(Model):
                 updated_by=user,
                 status=TransactionStatus.GIVEAWAY_REQUESTED,
             )
-            self.status = ItemStatus.REQUESTED
-            self.save()
+            sync_item_status(self, created_tx)
             return
 
         if (
@@ -890,15 +888,11 @@ class Item(Model):
                     current_tx.status = TransactionStatus.REJECTED
                     current_tx.updated_by = user
                     current_tx.save()
-                    self.status = ItemStatus.AVAILABLE
-                    self.save()
                 case ItemAction.ACCEPT_REQUEST:
                     # The owner/lender/giver accepts the Request.
                     current_tx.status = TransactionStatus.ACCEPTED
                     current_tx.updated_by = user
                     current_tx.save()
-                    self.status = ItemStatus.RESERVED
-                    self.save()
                 case ItemAction.MARK_COLLECTED:
                     # Either party can assert collection.
                     current_tx.status = TransactionStatus.COLLECTION_ASSERTED
@@ -909,8 +903,6 @@ class Item(Model):
                     current_tx.status = TransactionStatus.COLLECTED
                     current_tx.updated_by = user
                     current_tx.save()
-                    self.status = ItemStatus.BORROWED
-                    self.save()
                 case ItemAction.MARK_RETURNED:
                     # The borrower's assertion still needs the lender's confirmation.
                     current_tx.status = TransactionStatus.RETURN_ASSERTED
@@ -918,8 +910,6 @@ class Item(Model):
                     current_tx.save()
                 case ItemAction.CONFIRM_RETURNED | ItemAction.RESOLVE_DISPUTE_RETURNED:
                     # The other party confirms return or lender resolved dispute happily
-                    self.status = ItemStatus.AVAILABLE
-                    self.save()
                     current_tx.status = TransactionStatus.RETURNED
                     current_tx.updated_by = user
                     current_tx.save()
@@ -971,12 +961,8 @@ class Item(Model):
                     current_tx.status = TransactionStatus.REJECTED
                     current_tx.updated_by = user
                     current_tx.save()
-                    self.status = ItemStatus.AVAILABLE
-                    self.save()
                 case ItemAction.CANCEL_REQUEST:
                     # The requestor cancels the Request.
-                    self.status = ItemStatus.AVAILABLE
-                    self.save()
                     current_tx.status = TransactionStatus.CANCELLED
                     current_tx.updated_by = user
                     current_tx.save()
@@ -1003,6 +989,11 @@ class Item(Model):
                     raise ValueError(
                         f"Unexpected action '{action}' for Item '{self}' and User '{user}'"
                     )
+
+            # Every arm above moves the transaction on; the item's status is a
+            # summary of that, so it is derived here once instead of being
+            # chosen again in each arm.
+            sync_item_status(self, current_tx)
 
     def groups_allowed_to_view(self) -> "QuerySet[BorrowdGroup]":
         """
@@ -1246,6 +1237,38 @@ PRE_COLLECTION_TRANSACTION_STATUSES = tuple(
 )
 
 
+# Item.status is a summary of the item's current transaction, not state of its
+# own. This is the whole mapping; no caller should pick an ItemStatus by hand.
+ITEM_STATUS_FOR_TRANSACTION: dict[TransactionStatus, ItemStatus] = {
+    **{status: ItemStatus.AVAILABLE for status in TERMINAL_TRANSACTION_STATUSES},
+    TransactionStatus.REQUESTED: ItemStatus.REQUESTED,
+    TransactionStatus.GIVEAWAY_REQUESTED: ItemStatus.REQUESTED,
+    TransactionStatus.ACCEPTED: ItemStatus.RESERVED,
+    TransactionStatus.COLLECTION_ASSERTED: ItemStatus.RESERVED,
+    TransactionStatus.COLLECTED: ItemStatus.BORROWED,
+    TransactionStatus.GIVEAWAY_OFFERED: ItemStatus.BORROWED,
+    TransactionStatus.RETURN_REQUESTED: ItemStatus.BORROWED,
+    TransactionStatus.RETURN_ASSERTED: ItemStatus.BORROWED,
+    TransactionStatus.DISPUTED: ItemStatus.BORROWED,
+}
+
+
+def sync_item_status(item: Item, tx: "Transaction") -> None:
+    """
+    Point item.status at whatever its transaction now says it should be.
+
+    A soft-deleted item keeps the status it had. It is out of circulation
+    either way, and a departed owner's items are deleted while their
+    transactions are still being closed out.
+    """
+    if item.deleted_at is not None:
+        return
+    status = ITEM_STATUS_FOR_TRANSACTION[TransactionStatus(tx.status)]
+    if item.status != status:
+        item.status = status
+        item.save(update_fields=("status", "updated_at"))
+
+
 class ResolutionReason(TextChoices):
     """
     Why a Transaction was force-resolved instead of completing the normal flow.
@@ -1400,13 +1423,10 @@ class Transaction(Model):
         with transaction.atomic():
             item: Item = self.item
             item.refresh_from_db()
-            if item.deleted_at is None:  # item not deleted
-                item.status = ItemStatus.AVAILABLE
-                item.save()
-
             self.status = TransactionStatus.RESOLVED
             self.resolution_reason = reason
             self.updated_by = resolved_by
+            sync_item_status(item, self)
             self.save()
 
     @staticmethod

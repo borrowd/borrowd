@@ -12,9 +12,9 @@ from borrowd_items.models import (
     AvailabilitySubscription,
     AvailabilitySubscriptionStatus,
     Item,
-    ItemStatus,
     Transaction,
     TransactionStatus,
+    sync_item_status,
 )
 from borrowd_notifications.models import NotificationType
 
@@ -76,14 +76,12 @@ def _cancel_open_transactions(user: BorrowdUser, deleted_by: BorrowdUser) -> Non
 
     for txn in open_transactions:
         item = txn.item
+        txn.status = TransactionStatus.CANCELLED
+        txn.updated_by = deleted_by
         # Free the counterparty's item back up. The leaving user's own items are
         # about to be soft-deleted, so there's no point flipping their status.
         if item.owner != user:
-            item.status = ItemStatus.AVAILABLE
-            item.save()
-
-        txn.status = TransactionStatus.CANCELLED
-        txn.updated_by = deleted_by
+            sync_item_status(item, txn)
         txn.save()
 
         _notify_counterparty_of_cancellation(txn, user)
