@@ -11,7 +11,7 @@
     },
     "description": "Contributions are welcome! See [CONTRIBUTING.md](docs/CONTRIBUTING.md) to get started!",
     "devDependencies": {
-        "vite": "^6.3.5"
+        "vite": "^6.4.3"
     },
     "directories": {
         "test": "tests"
