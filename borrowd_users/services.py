@@ -8,6 +8,7 @@ from notifications.signals import notify
 
 from borrowd_groups.models import Membership, MembershipStatus
 from borrowd_items.models import (
+    PRE_COLLECTION_TRANSACTION_STATUSES,
     AvailabilitySubscription,
     AvailabilitySubscriptionStatus,
     Item,
@@ -19,14 +20,6 @@ from borrowd_notifications.models import NotificationType
 
 from .exceptions import AccountDeletionBlocked
 from .models import BorrowdUser
-
-# Pre-collection transactions: nothing has changed hands, so these are simply
-# cancelled on deletion (and the counterparty's item freed).
-_OPEN_TRANSACTION_STATUSES = (
-    TransactionStatus.REQUESTED,
-    TransactionStatus.GIVEAWAY_REQUESTED,
-    TransactionStatus.ACCEPTED,
-)
 
 # A borrower is physically on the hook for an item once collection starts and
 # stays so until the lender confirms the return. Deletion is blocked while a
@@ -78,7 +71,7 @@ def _cancel_open_transactions(user: BorrowdUser, deleted_by: BorrowdUser) -> Non
     """Cancel pre-collection requests and notify the other party."""
     open_transactions = Transaction.objects.filter(
         Q(party1=user) | Q(party2=user),
-        status__in=_OPEN_TRANSACTION_STATUSES,
+        status__in=PRE_COLLECTION_TRANSACTION_STATUSES,
     ).select_related("item", "item__owner", "party1", "party2")
 
     for txn in open_transactions:

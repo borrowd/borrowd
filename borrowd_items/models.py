@@ -746,8 +746,8 @@ class Item(Model):
         Returns the transaction involving this item regardless of the user
         """
         try:
-            # Use `first()` so unexpected data issues (multiple non-terminal transactions)
-            # don't 500 the page; the most recent active transaction wins.
+            # Use `first()` so unexpected data issues (more than one open
+            # transaction) don't 500 the page; the most recent one wins.
             return (
                 Transaction.objects.select_related(
                     "party1",
@@ -755,7 +755,7 @@ class Item(Model):
                     "party2",
                     "party2__profile",
                 )
-                .filter(Q(item=self) & ~Q(status__in=TERMINAL_TRANSACTION_STATUSES))
+                .filter(Q(item=self) & Q(status__in=OPEN_TRANSACTION_STATUSES))
                 .order_by("-created_at")
                 .first()
             )
@@ -776,7 +776,7 @@ class Item(Model):
             return Transaction.objects.get(
                 Q(item=self)
                 & (Q(party1=user) | Q(party2=user))
-                & ~Q(status__in=TERMINAL_TRANSACTION_STATUSES)
+                & Q(status__in=OPEN_TRANSACTION_STATUSES)
             )
         except Transaction.DoesNotExist:
             return None
@@ -1212,16 +1212,37 @@ REQUEST_TRANSACTION_STATUSES = (
     TransactionStatus.GIVEAWAY_REQUESTED,
 )
 
+# Everything that still counts as the item's current transaction. Derived, so
+# classifying a new status means adding it to TERMINAL or leaving it out,
+# never editing a second list.
+OPEN_TRANSACTION_STATUSES = tuple(
+    status
+    for status in TransactionStatus
+    if status not in TERMINAL_TRANSACTION_STATUSES
+)
+
 # A transaction in one of these statuses has an assigned borrower (party2)
 # holding, or about to hold, the item.
-BORROWER_TRANSACTION_STATUSES = (
-    TransactionStatus.ACCEPTED,
-    TransactionStatus.COLLECTION_ASSERTED,
-    TransactionStatus.COLLECTED,
-    TransactionStatus.GIVEAWAY_OFFERED,
-    TransactionStatus.RETURN_REQUESTED,
-    TransactionStatus.RETURN_ASSERTED,
-    TransactionStatus.DISPUTED,
+BORROWER_TRANSACTION_STATUSES = tuple(
+    status
+    for status in OPEN_TRANSACTION_STATUSES
+    if status not in REQUEST_TRANSACTION_STATUSES
+)
+
+# Collection has started, so every remaining step needs both parties to act.
+# Neither one can finish the transaction on their own.
+DUAL_CONFIRMATION_TRANSACTION_STATUSES = tuple(
+    status
+    for status in BORROWER_TRANSACTION_STATUSES
+    if status != TransactionStatus.ACCEPTED
+)
+
+# Nothing has changed hands yet, so these can be cancelled outright without
+# anyone having to hand an item back.
+PRE_COLLECTION_TRANSACTION_STATUSES = tuple(
+    status
+    for status in OPEN_TRANSACTION_STATUSES
+    if status not in DUAL_CONFIRMATION_TRANSACTION_STATUSES
 )
 
 
