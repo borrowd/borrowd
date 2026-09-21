@@ -2,7 +2,6 @@ from dataclasses import dataclass
 from typing import Any
 
 from allauth.account.views import PasswordChangeView
-from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
@@ -31,7 +30,6 @@ from borrowd_items.card_helpers import (
     with_card_relations_for_transactions,
 )
 from borrowd_items.models import Item, ItemStatus, Transaction
-from borrowd_notifications.models import NotificationPreference
 
 from .exceptions import AccountDeletionBlocked
 from .forms import (
@@ -135,17 +133,6 @@ def build_profile_context(
         profile_context["email"] = subject_user.email
         profile_context["profile"] = profile
 
-        # Drives the delete-account modal. Borrowing blocks deletion; items still
-        # out on loan nudge the user to retrieve them first; owning only idle items
-        # just warns they'll be removed; with nothing at all it's a plain confirm.
-        profile_context["is_borrowing"] = Transaction.get_active_borrows_for_user(
-            subject_user
-        ).exists()
-        profile_context["is_lending"] = Transaction.get_active_lends_for_user(
-            subject_user
-        ).exists()
-        profile_context["has_items"] = Item.objects.filter(owner=subject_user).exists()
-
     return profile_context
 
 
@@ -208,13 +195,7 @@ def profile_view(request: HttpRequest) -> HttpResponse:
     profile_context = build_profile_context(user, user)
     profile_context["form"] = form
 
-    profile_context["has_push_preference_enabled"] = (
-        NotificationPreference.objects.filter(user=user, push_enabled=True).exists()
-    )
-    profile_context["vapid_public_key"] = settings.VAPID_PUBLIC_KEY
-
-    # Profile is a common redirect target after form submissions (password
-    # change, profile edit itself), so its back arrow can't just call
+    # Saving the profile redirects back here, so its back arrow can't just call
     # history.back() -- that would send the user right back to the form they
     # just submitted.
     profile_context["back_url"] = resolve_back_url(
@@ -428,6 +409,29 @@ def inventory_view(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
+def security_settings_view(request: HttpRequest) -> HttpResponse:
+    return render(request, "settings/security.html")
+
+
+@login_required
+def account_settings_view(request: HttpRequest) -> HttpResponse:
+    user = get_authenticated_user(request)
+
+    # Drives the delete-account modal. Borrowing blocks deletion; items still
+    # out on loan nudge the user to retrieve them first; owning only idle items
+    # just warns they'll be removed; with nothing at all it's a plain confirm.
+    return render(
+        request,
+        "settings/account.html",
+        {
+            "is_borrowing": Transaction.get_active_borrows_for_user(user).exists(),
+            "is_lending": Transaction.get_active_lends_for_user(user).exists(),
+            "has_items": Item.objects.filter(owner=user).exists(),
+        },
+    )
+
+
+@login_required
 @require_POST
 def delete_account_view(request: HttpRequest) -> HttpResponse:
     """
@@ -441,13 +445,13 @@ def delete_account_view(request: HttpRequest) -> HttpResponse:
         messages.error(
             request, "That username didn't match, so your account was not deleted."
         )
-        return redirect("profile")
+        return redirect("settings-account")
 
     try:
         soft_delete_account(user, deleted_by=user)
     except AccountDeletionBlocked as exc:
         messages.error(request, str(exc))
-        return redirect("profile")
+        return redirect("settings-account")
 
     logout(request)
     return redirect("profile-deleted")
@@ -511,7 +515,7 @@ class CustomPasswordChangeView(PasswordChangeView):
     per ux.
     """
 
-    success_url = reverse_lazy("profile")
+    success_url = reverse_lazy("settings-security")
 
     def form_invalid(self, form: ChangePasswordForm) -> HttpResponse:
         """Add warning message when password validation fails."""

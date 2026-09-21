@@ -64,6 +64,7 @@ urlpatterns: list[URLPattern | URLResolver] = [
     path("groups/", include("borrowd_groups.urls")),
     path("messages/", include("borrowd_messaging.urls")),
     path("notifications/", include("borrowd_notifications.inbox_urls")),
+    path("settings/", include("borrowd_users.settings_urls")),
     path("settings/", include("borrowd_notifications.urls")),
     path("push/", include("borrowd_notifications.push_urls")),
     path("sw.js", service_worker, name="service-worker"),
