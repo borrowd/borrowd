@@ -4,3 +4,4 @@ import "./toast.js";
 import "./qrcode-render.js";
 import "./htmx-csrf.js";
 import "./image-resize.js";
+import "./read-ack.js";
