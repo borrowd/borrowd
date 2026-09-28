@@ -78,9 +78,7 @@ class MembershipApprovalFlowTests(TestCase):
 
         membership = Membership.objects.get(user=self.requester, group=group)
 
-        self.assertRedirects(
-            response, reverse("borrowd_groups:group-detail", args=[group.pk])
-        )
+        self.assertRedirects(response, reverse("item-list"))
         self.assertEqual(membership.status, MembershipStatus.ACTIVE)
         self.assertTrue(self.requester.has_perm(BorrowdGroupOLP.VIEW, group))
 

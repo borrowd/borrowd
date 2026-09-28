@@ -425,8 +425,8 @@ class GroupJoinView(LoginRequiredMixin, View):
         else:
             messages.success(request, f"Thanks for joining {group.name}!")
 
-        # Redirect to the group detail page
-        return redirect("borrowd_groups:group-detail", pk=group.pk)
+        # Send new members to item search to browse what's shared with them
+        return redirect("item-list")
 
 
 def get_memberships_with_pending_actions(memberships: list[Membership]) -> set[int]:
