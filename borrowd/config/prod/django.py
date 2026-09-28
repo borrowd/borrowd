@@ -45,7 +45,7 @@ if env("PLATFORM_APPLICATION_NAME") is not None:
     # This should already be set correctly by the base config, but including this as insurance
     SECRET_KEY = env("PLATFORM_PROJECT_ENTROPY")
 
-    EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+    EMAIL_BACKEND = "borrowd.mail.RetryingSMTPEmailBackend"
     EMAIL_HOST = env("PLATFORM_SMTP_HOST", default=None)
     EMAIL_PORT = 25
     DEFAULT_FROM_EMAIL = "noreply@borrowd.org"
@@ -53,6 +53,9 @@ if env("PLATFORM_APPLICATION_NAME") is not None:
     # TLS should be enabled whenever a 3rd-party SMTP service (e.g. SendGrid) is configured
     EMAIL_USE_TLS = False
     EMAIL_USE_SSL = False
+    # Without this, smtplib's connect/read calls can hang indefinitely — the retrying
+    # backend above only makes sense once a stuck connection is guaranteed to fail fast.
+    EMAIL_TIMEOUT = 10
 
     # This variable must always match the primary database relationship name, configured in .platform.app.yaml
     PLATFORMSH_DB_RELATIONSHIP = "db"

@@ -191,6 +191,7 @@ dependencies = [
     { name = "psycopg", extra = ["binary"] },
     { name = "pywebpush" },
     { name = "sentry-sdk", extra = ["django"] },
+    { name = "tenacity" },
 ]
 
 [package.dev-dependencies]
@@ -222,6 +223,7 @@ requires-dist = [
     { name = "psycopg", extras = ["binary"], specifier = ">=3.1" },
     { name = "pywebpush", specifier = ">=2.3.0" },
     { name = "sentry-sdk", extras = ["django"], specifier = ">=2.48.0" },
+    { name = "tenacity", specifier = ">=9.0.0" },
 ]
 
 [package.metadata.requires-dev]
@@ -1328,6 +1330,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/9b/3b/98ea1cfc04dc9805d58c5a96dd006f5d88a5a32b7b05e1f5a1c00363bb9a/swapper-1.4.0.tar.gz", hash = "sha256:9e083af114ee0593241a7b877e3e0e7d3a580454f5d59016c667a5563306f8fe", size = 12668, upload-time = "2024-08-14T19:36:07.539Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/e9/53/c59363308ef97507a680372471e25e1ebab2e706a45a7c416eea6474c928/swapper-1.4.0-py2.py3-none-any.whl", hash = "sha256:57b8378aad234242542fe32dc6e8cff0ed24b63493d20b3c88ee01f894b9345e", size = 7106, upload-time = "2024-08-14T19:36:06.247Z" },
+]
+
+[[package]]
+name = "tenacity"
+version = "9.1.4"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/47/c6/ee486fd809e357697ee8a44d3d69222b344920433d3b6666ccd9b374630c/tenacity-9.1.4.tar.gz", hash = "sha256:adb31d4c263f2bd041081ab33b498309a57c77f9acf2db65aadf0898179cf93a", size = 49413, upload-time = "2026-02-07T10:45:33.841Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d7/c1/eb8f9debc45d3b7918a32ab756658a0904732f75e555402972246b0b8e71/tenacity-9.1.4-py3-none-any.whl", hash = "sha256:6095a360c919085f28c6527de529e76a06ad89b23659fa881ae0649b867a9d55", size = 28926, upload-time = "2026-02-07T10:45:32.24Z" },
 ]
 
 [[package]]

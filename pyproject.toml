@@ -27,6 +27,7 @@ dependencies = [
     "heroicons[django]>=2.14.0",
     "pywebpush>=2.3.0",
     "django-stubs-ext>=6.0.5",
+    "tenacity>=9.0.0",
 ]
 
 [dependency-groups]
