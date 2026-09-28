@@ -43,7 +43,9 @@ class RetryingSMTPEmailBackendTests(SimpleTestCase):
         self.assertEqual(result, 1)
         self.assertEqual(mock_send.call_count, 2)
 
-    def test_retries_up_to_three_attempts_then_reraises(self) -> None:
+    def test_retries_up_to_two_attempts_then_reraises(self) -> None:
+        # Capped at 2 attempts (not 3) so the worst case stays under gunicorn's
+        # default 30s worker timeout -- see RetryingSMTPEmailBackend's comment.
         backend = RetryingSMTPEmailBackend()
         with (
             patch.object(
@@ -55,7 +57,7 @@ class RetryingSMTPEmailBackendTests(SimpleTestCase):
         ):
             backend.send_messages([_make_message()])
 
-        self.assertEqual(mock_send.call_count, 3)
+        self.assertEqual(mock_send.call_count, 2)
 
     def test_retries_bare_network_error_then_succeeds(self) -> None:
         backend = RetryingSMTPEmailBackend()
@@ -90,6 +92,21 @@ class RetryingSMTPEmailBackendTests(SimpleTestCase):
             EmailBackend,
             "send_messages",
             side_effect=[SMTPResponseException(421, b"service not available"), 1],
+        ) as mock_send:
+            result = backend.send_messages([_make_message()])
+
+        self.assertEqual(result, 1)
+        self.assertEqual(mock_send.call_count, 2)
+
+    def test_retries_on_temporary_recipients_refused(self) -> None:
+        backend = RetryingSMTPEmailBackend()
+        with patch.object(
+            EmailBackend,
+            "send_messages",
+            side_effect=[
+                SMTPRecipientsRefused({"to@example.com": (450, b"mailbox full")}),
+                1,
+            ],
         ) as mock_send:
             result = backend.send_messages([_make_message()])
 
