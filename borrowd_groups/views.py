@@ -425,7 +425,7 @@ class GroupJoinView(LoginRequiredMixin, View):
         else:
             messages.success(request, f"Thanks for joining {group.name}!")
 
-        # Redirect to item search, since a new group has no items yet
+        # Send new members to item search to browse what's shared with them
         return redirect("item-list")
 
 
