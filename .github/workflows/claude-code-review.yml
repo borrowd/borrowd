@@ -69,4 +69,4 @@ jobs:
             comment saying so instead of staying silent.
           claude_args: |
             --max-turns 15
-            --allowedTools "Read,Grep,Glob,Bash(git diff:*),Bash(git log:*),Bash(gh pr comment:*)"
+            --allowedTools "Read,Grep,Glob,Write,Bash(git diff:*),Bash(git log:*),Bash(gh pr comment:*)"
