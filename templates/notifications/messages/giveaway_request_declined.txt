@@ -1,6 +1,6 @@
 Hi {{ recipient_name }},
 
-{{ gifter_name }} has declined your request for {{ item_name }}.
+Your request for {{ item_name }} was declined.
 
 There's plenty more being shared in your groups - keep browsing!
 

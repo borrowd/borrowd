@@ -353,3 +353,16 @@ class GiveawayRequestPageRenderingTest(GiveawayRequestFlowTestBase):
         self.assertContains(response, "wants your giveaway!")
         self.assertContains(response, "Approve")
         self.assertContains(response, "Decline")
+
+    def test_040_requester_detail_page_never_reveals_owner_name(self) -> None:
+        """The owner's name must not appear anywhere in the requester's
+        rendered item-detail page while their giveaway request is pending
+        -- it's only earned once the owner accepts."""
+        if ItemAction.REQUEST_GIVEAWAY in self.item.get_actions_for(self.requester):
+            self.item.process_action(
+                user=self.requester, action=ItemAction.REQUEST_GIVEAWAY
+            )
+        self.assertEqual(self.current_tx().status, TransactionStatus.GIVEAWAY_REQUESTED)
+        self.client.force_login(self.requester)
+        response = self.client.get(reverse("item-detail", args=[self.item.pk]))
+        self.assertNotContains(response, self.owner.first_name)

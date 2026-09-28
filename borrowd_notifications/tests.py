@@ -605,6 +605,17 @@ class TransactionNotificationTests(TestCase):
         self.assertEqual(notifications.first().actor, self.owner)
         self.assertEqual(Notification.objects.filter(recipient=self.owner).count(), 0)
 
+    def test_rejected_context_excludes_owner_name(self) -> None:
+        """A rejected requester isn't entitled to the owner's name, and the
+        ITEM_REQUEST_DENIED template doesn't display one, so it must not be
+        computed into the persisted notification context either."""
+        self._create_transaction(TransactionStatus.REJECTED)
+        notification = Notification.objects.get(
+            recipient=self.borrower, verb=NotificationType.ITEM_REQUEST_DENIED.value
+        )
+        context = NotificationType._get_template_context_for(notification)
+        self.assertNotIn("item_owner_name", context)
+
     def test_collection_asserted_notifies_owner(self) -> None:
         """Counterpartie receives COLLECTION_ASSERTED from the asserter; asserter receives nothing."""
         transaction = self._create_transaction(TransactionStatus.COLLECTION_ASSERTED)
@@ -864,6 +875,37 @@ class GiveawayRequestNotificationTests(TestCase):
         message = ntype.message_template.format(**context)
         self.assertIn(self.requester.first_name, message)
         self.assertIn(self.item.name, message)
+
+    def test_decline_context_and_message_exclude_gifter_name(self) -> None:
+        """A declined requester isn't entitled to the gifter's name, so it
+        must not be computed into the persisted notification context, nor
+        appear in the rendered in-app message."""
+        tx = self._create_request()
+        tx.status = TransactionStatus.REJECTED
+        tx.save()
+
+        notification = Notification.objects.get(
+            recipient=self.requester,
+            verb=NotificationType.GIVEAWAY_REQUEST_DECLINED.value,
+        )
+        ntype = NotificationType(notification.verb)
+        context = NotificationType._get_template_context_for(notification)
+        self.assertNotIn("gifter_name", context)
+
+        message = ntype.message_template.format(**context)
+        self.assertNotIn(self.owner.first_name, message)
+
+    def test_decline_email_excludes_gifter_name(self) -> None:
+        """The declined-request email must not name the gifter either."""
+        tx = self._create_request()
+        with self.captureOnCommitCallbacks(execute=True):
+            tx.status = TransactionStatus.REJECTED
+            tx.save()
+
+        self.assertEqual(len(mail.outbox), 1)
+        email = mail.outbox[0]
+        self.assertEqual(email.to, [self.requester.email])
+        self.assertNotIn(self.owner.first_name, email.body)
 
 
 class CommunityRequestPostedNotificationTests(TestCase):

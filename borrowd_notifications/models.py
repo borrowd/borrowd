@@ -164,14 +164,17 @@ class NotificationType(models.TextChoices):
             NotificationType.GIVEAWAY_COMPLETED.value,
         ) and isinstance(notification.target, Transaction):
             giveaway: Transaction = notification.target
-            return {
+            giveaway_context = {
                 "recipient_name": notification.recipient.first_name,
-                "gifter_name": giveaway.party1.first_name,
                 "receiver_name": giveaway.party2.first_name,
                 "item_name": giveaway.item.name,
                 "item_url": settings.BASE_URL
                 + reverse("item-detail", args=[giveaway.item.pk]),
             }
+            # A declined requester isn't entitled to the gifter's name.
+            if notification.verb != NotificationType.GIVEAWAY_REQUEST_DECLINED.value:
+                giveaway_context["gifter_name"] = giveaway.party1.first_name
+            return giveaway_context
         if isinstance(notification.target, Transaction):
             transaction: Transaction = notification.target
             match transaction.status:
@@ -195,11 +198,13 @@ class NotificationType(models.TextChoices):
                         }
                     )
                 case TransactionStatus.REJECTED:
+                    # No item_owner_name here: a rejected requester isn't
+                    # entitled to the owner's name, and the message template
+                    # for this status doesn't display one.
                     context.update(
                         {
                             "requester_name": transaction.party2.first_name,
                             "item_name": transaction.item.name,
-                            "item_owner_name": transaction.party1.first_name,
                         }
                     )
                 case (
@@ -339,7 +344,7 @@ _MESSAGE_TEMPLATES: dict[NotificationType, str] = {
     NotificationType.GIVEAWAY_DECLINED: "{receiver_name} declined your giveaway offer for {item_name}",
     NotificationType.GIVEAWAY_REQUEST_RECEIVED: "{receiver_name} would like your {item_name}!",
     NotificationType.GIVEAWAY_REQUEST_APPROVED: "{gifter_name} approved your request - {item_name} is yours!",
-    NotificationType.GIVEAWAY_REQUEST_DECLINED: "{gifter_name} declined your request for {item_name}",
+    NotificationType.GIVEAWAY_REQUEST_DECLINED: "Your request for {item_name} was declined",
     NotificationType.GIVEAWAY_COMPLETED: "You gave {item_name} to {receiver_name}",
     NotificationType.NEW_MESSAGE: "{sender_name} sent you a message about {item_name}",
 }
