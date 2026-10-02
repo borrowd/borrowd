@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Optional, cast
 
 from django.conf import settings
@@ -1228,16 +1228,18 @@ class Transaction(Model):
 
         raise ValueError("User is not a party to this transaction.")
 
-    def dispute_wait_has_elapsed(self) -> bool:
+    def dispute_wait_has_elapsed(self, now: datetime | None = None) -> bool:
         """
         Whether the lender has waited long enough since requesting a return
         to be allowed to raise a dispute. Wait time is (RETURN_DISPUTE_WAIT_DAYS)
+
+        Pass `now` to decide against a time captured by the caller.
         """
 
         if self.return_requested_at is None:
             return False
         wait = timedelta(days=settings.RETURN_DISPUTE_WAIT_DAYS)
-        return timezone.now() - self.return_requested_at >= wait
+        return (now or timezone.now()) - self.return_requested_at >= wait
 
     def force_resolve(
         self, *, resolved_by: BorrowdUser, reason: ResolutionReason
