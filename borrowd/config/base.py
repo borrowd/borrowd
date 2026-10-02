@@ -264,8 +264,7 @@ MESSAGING_ENABLED = not IS_RUNNING_MANAGE_PY_TESTS and env.bool(
 )
 
 # borrowd_items settings
-# Evaluate the transition table beside the hand-written action rules and
-# report any disagreement. The hand-written answer is served either way.
+# Report disagreements between the action rules and the transition table.
 ITEMS_FLOW_PARITY_CHECK = env.bool("ITEMS_FLOW_PARITY_CHECK", default=True)
 
 # borrowd_beta settings
