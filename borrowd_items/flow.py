@@ -1,11 +1,4 @@
-"""
-Which lifecycle actions a party may take on an open Transaction.
-
-TRANSITIONS has one row per edge of the lifecycle. `eligible_transitions` is
-the only way to ask what is allowed: it applies participation, roles, guards
-and the inactive-counterparty preemption. It reads the Transaction it is
-handed and the time it is given, and writes nothing.
-"""
+"""The Transaction lifecycle as a table: who may take each edge, and when."""
 
 from __future__ import annotations
 
@@ -39,12 +32,10 @@ Guard = Callable[["Transaction", "BorrowdUser", datetime], bool]
 
 
 def _counterparty_of(tx: Transaction, user: BorrowdUser) -> BorrowdUser:
-    """The other party to `tx`. `user` must be one of the two."""
     return tx.party2 if user.pk == tx.party1_id else tx.party1
 
 
 def _other_party_acted_last(tx: Transaction, user: BorrowdUser, now: datetime) -> bool:
-    # Whoever asserted a step cannot also be the one to confirm it.
     return tx.updated_by_id != user.pk
 
 
@@ -69,8 +60,7 @@ class Transition:
 
 # Order within a source is the order the actions are shown to the user.
 TRANSITIONS: Final[tuple[Transition, ...]] = (
-    # A counterparty whose account is gone can never complete a handshake, so
-    # the remaining party may close the transaction out alone.
+    # The counterparty's account is gone, so the other party may close out alone.
     *(
         Transition(
             source,
@@ -242,11 +232,7 @@ def _actor_matches(spec: Transition, tx: Transaction, user: BorrowdUser) -> bool
 def eligible_transitions(
     tx: Transaction, user: BorrowdUser, *, now: datetime
 ) -> tuple[Transition, ...]:
-    """
-    The transitions `user` may take on `tx` as of `now`, in display order.
-
-    Empty for anyone who is not a party, and for a finished transaction.
-    """
+    """Transitions `user` may take on `tx` as of `now`, in display order."""
     if user.pk not in (tx.party1_id, tx.party2_id):
         return ()
     eligible = tuple(

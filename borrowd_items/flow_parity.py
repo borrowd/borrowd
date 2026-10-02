@@ -1,7 +1,4 @@
-"""
-Runs the hand-written action rules beside the transition table and reports any
-disagreement between them. The hand-written answer is the one that is served.
-"""
+"""Checks the hand-written action rules against the transition table."""
 
 from __future__ import annotations
 
@@ -26,10 +23,7 @@ if TYPE_CHECKING:
 # Under the project logger, which is configured at INFO.
 logger = logging.getLogger("borrowd.items.flow_parity")
 
-# The two rule sets name the lender differently: the table by the
-# Transaction's party1, the hand-written rules by the Item's owner. When those
-# are not the same user the data is inconsistent, which is a different problem
-# from a wrong table row.
+# party1 is not the item's owner: bad data, not a wrong table row.
 LENDER_IS_NOT_OWNER = "lender_is_not_owner"
 ACTIONS_DIFFER = "actions_differ"
 
@@ -44,12 +38,7 @@ _comparisons: Counter[tuple[str, str, Actions]] = Counter()
 def actions_for_open_transaction(
     item: Item, tx: Transaction, user: BorrowdUser
 ) -> Actions:
-    """
-    The actions `user`, a party to `tx`, may take on it.
-
-    Both rule sets see the same Transaction and the same captured time, so a
-    disagreement is about the rules and never about when each one looked.
-    """
+    """The hand-written answer, compared against the table at one captured time."""
     now = timezone.now()
     served = legacy_actions_for(item, tx, user, now=now)
     if settings.ITEMS_FLOW_PARITY_CHECK:
@@ -60,12 +49,7 @@ def actions_for_open_transaction(
 def legacy_actions_for(
     item: Item, tx: Transaction, user: BorrowdUser, *, now: datetime
 ) -> Actions:
-    """
-    The hand-written rules. Only ever asked about a party to `tx`.
-
-    The status tuple below is spelled out on purpose: this is the reference
-    the table is checked against, so it shares no derived set with it.
-    """
+    """The legacy hand-written rules."""
     # If the other party's account is inactive (they closed it), the
     # dual-confirmation handshake can never complete.
     # therefore, let the remaining party close the loan out single-handed.
@@ -224,8 +208,7 @@ def _count_comparison(status: str, role: str, served: Actions, *, log: bool) -> 
     key = (status, role, served)
     _comparisons[key] += 1
     if log and _comparisons[key] == 1:
-        # One line per combination per process: enough to tell afterwards
-        # which states real traffic actually exercised.
+        # Logged once per combination, to show which states traffic reached.
         logger.info(
             "item flow parity first compared: status=%s role=%s served=%s",
             status,

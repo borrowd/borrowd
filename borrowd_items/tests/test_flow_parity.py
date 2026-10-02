@@ -1,7 +1,4 @@
-"""
-The hand-written action rules and the transition table must agree, and a
-disagreement must be impossible to miss.
-"""
+"""The hand-written action rules and the transition table must agree."""
 
 from datetime import timedelta
 from itertools import product
@@ -44,11 +41,6 @@ class ParityGridTests(ParityTestCase):
     def test_table_agrees_with_the_hand_written_rules_for_every_party_state(
         self,
     ) -> None:
-        """
-        Every open status, for each party, whoever acted last, either side of
-        the dispute wait, with the counterparty active or gone. The Item's
-        owner is the Transaction's lender throughout.
-        """
         compared = 0
         for status, role, last_actor, wait_elapsed, counterparty_active in product(
             OPEN_TRANSACTION_STATUSES,
@@ -84,11 +76,7 @@ class ParityGridTests(ParityTestCase):
 
 
 class LenderIsNotOwnerTests(ParityTestCase):
-    """
-    The Item's owner has been changed underneath an open Transaction. The
-    table keeps following the Transaction's parties; the hand-written rules
-    follow the owner.
-    """
+    """The Item's owner was changed under an open Transaction."""
 
     def setUp(self) -> None:
         super().setUp()
