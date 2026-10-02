@@ -12,6 +12,7 @@ from django.test import SimpleTestCase
 from borrowd_items.models import (
     BORROWER_TRANSACTION_STATUSES,
     DUAL_CONFIRMATION_TRANSACTION_STATUSES,
+    GROUP_LEAVE_BLOCKING_TRANSACTION_STATUSES,
     ITEM_STATUS_FOR_TRANSACTION,
     OPEN_TRANSACTION_STATUSES,
     PRE_COLLECTION_TRANSACTION_STATUSES,
@@ -79,6 +80,16 @@ class TransactionStatusSetTests(SimpleTestCase):
         self.assertEqual(
             [status.value for status in PRE_COLLECTION_TRANSACTION_STATUSES],
             [10, 15, 30],
+        )
+
+    def test_group_leave_blockers_are_a_subset_of_the_in_hand_statuses(self) -> None:
+        self.assertEqual(
+            [status.value for status in GROUP_LEAVE_BLOCKING_TRANSACTION_STATUSES],
+            [50, 60],
+        )
+        self.assertLessEqual(
+            set(GROUP_LEAVE_BLOCKING_TRANSACTION_STATUSES),
+            set(DUAL_CONFIRMATION_TRANSACTION_STATUSES),
         )
 
 

@@ -1236,6 +1236,13 @@ PRE_COLLECTION_TRANSACTION_STATUSES = tuple(
     if status not in DUAL_CONFIRMATION_TRANSACTION_STATUSES
 )
 
+# A member cannot leave a group while they share a transaction in one of these
+# statuses with another member. Deliberately narrower than DUAL_CONFIRMATION.
+GROUP_LEAVE_BLOCKING_TRANSACTION_STATUSES = (
+    TransactionStatus.COLLECTED,
+    TransactionStatus.RETURN_ASSERTED,
+)
+
 
 # Item.status is a summary of the item's current transaction, not state of its
 # own. This is the whole mapping; no caller should pick an ItemStatus by hand.
@@ -1443,13 +1450,8 @@ class Transaction(Model):
         """
 
         return Transaction.objects.filter(
-            Q(
-                status__in=[
-                    TransactionStatus.REQUESTED,
-                    TransactionStatus.GIVEAWAY_REQUESTED,
-                ]
-            )
-            & (Q(party1=user) | Q(party2=user))
+            Q(party1=user) | Q(party2=user),
+            status__in=REQUEST_TRANSACTION_STATUSES,
         )
 
     @staticmethod
@@ -1457,28 +1459,13 @@ class Transaction(Model):
         """
         Returns Transactions where the given User is the active borrower (party 2)
 
-        "Active" is defined by exclusion: every state except the closed ones
-        (RETURNED, REJECTED, CANCELLED, RESOLVED, OWNERSHIP_TRANSFERRED) and the
-        not-yet-accepted REQUESTED and GIVEAWAY_REQUESTED. In-flight states like
-        COLLECTION_ASSERTED, RETURN_REQUESTED, and DISPUTED all count as active borrows.
+        Active borrows have an assigned borrower and are past the request stage.
+        Transaction status includes collection assertions before both parties
+        have confirmed collection, as well as return requests and disputes.
         """
         return Transaction.objects.filter(
-            Q(party2=user)
-            # We filter by transaction status rather than item status so that
-            # intermediate states like COLLECTION_ASSERTED appear as active
-            # borrows before both parties have confirmed collection.
-            & ~Q(
-                # exclude these states
-                status__in=[
-                    TransactionStatus.RETURNED,
-                    TransactionStatus.REQUESTED,
-                    TransactionStatus.GIVEAWAY_REQUESTED,
-                    TransactionStatus.REJECTED,
-                    TransactionStatus.CANCELLED,
-                    TransactionStatus.RESOLVED,
-                    TransactionStatus.OWNERSHIP_TRANSFERRED,
-                ]
-            )
+            party2=user,
+            status__in=BORROWER_TRANSACTION_STATUSES,
         )
 
     @staticmethod
@@ -1486,24 +1473,12 @@ class Transaction(Model):
         """
         Returns Transactions where the given User is the active lender (party 1)
 
-        "Active" is defined by exclusion: every state except the closed ones
-        (RETURNED, REJECTED, CANCELLED, RESOLVED, OWNERSHIP_TRANSFERRED) and the
-        not-yet-accepted REQUESTED and GIVEAWAY_REQUESTED. In-flight states like
-        COLLECTION_ASSERTED, RETURN_REQUESTED, and DISPUTED all count as active lends.
+        Active lends have an assigned borrower and are past the request stage,
+        including collection assertions, return requests and disputes.
         """
         return Transaction.objects.filter(
-            Q(party1=user)
-            & ~Q(
-                status__in=[
-                    TransactionStatus.RETURNED,
-                    TransactionStatus.REQUESTED,
-                    TransactionStatus.GIVEAWAY_REQUESTED,
-                    TransactionStatus.REJECTED,
-                    TransactionStatus.CANCELLED,
-                    TransactionStatus.RESOLVED,
-                    TransactionStatus.OWNERSHIP_TRANSFERRED,
-                ]
-            )
+            party1=user,
+            status__in=BORROWER_TRANSACTION_STATUSES,
         )
 
     @staticmethod

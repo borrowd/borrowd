@@ -4,6 +4,7 @@ from django.core.management.base import BaseCommand, CommandError, CommandParser
 from django.db import transaction as db_transaction
 
 from borrowd_items.models import (
+    OPEN_TRANSACTION_STATUSES,
     TERMINAL_TRANSACTION_STATUSES,
     Transaction,
     TransactionStatus,
@@ -37,8 +38,8 @@ class Command(BaseCommand):
                 chat_thread__isnull=True,
                 deleted_at__isnull=True,
                 item__deleted_at__isnull=True,
+                status__in=OPEN_TRANSACTION_STATUSES,
             )
-            .exclude(status__in=TERMINAL_TRANSACTION_STATUSES)
             .order_by("pk")
             .values_list("pk", flat=True)
         )
