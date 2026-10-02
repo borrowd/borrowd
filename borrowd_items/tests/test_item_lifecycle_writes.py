@@ -1,10 +1,9 @@
 """
-What each lifecycle action writes, pinned.
+Lifecycle outcomes and audit fields for borrowing, gifting and resolution.
 
-`Item.status` is a summary of the item's current transaction, but every action
-has historically set it by hand, which is how the two drift. This table is the
-record of what the hand-written version does, so that routing those writes
-through a single projection can be shown to change nothing.
+`Item.status` summarizes the item's current transaction. The expectations
+below specify the observable writes independently of the transition rules
+and projection implementation.
 
 Arranging a starting state by assigning `status` directly is fine here; the
 assertions are about what `process_action` writes, not how we got there.
@@ -24,6 +23,7 @@ from borrowd_items.models import (
     Item,
     ItemAction,
     ItemStatus,
+    ResolutionReason,
     Transaction,
     TransactionStatus,
 )
@@ -60,6 +60,7 @@ class LifecycleWrite:
     stamps: tuple[str, ...] = ()
     item_soft_deleted_after: bool = False
     owner_after: str = LENDER
+    resolution_reason_after: ResolutionReason | None = None
     label: str = field(default="", compare=False)
 
 
@@ -280,6 +281,7 @@ EXPECTED_WRITES: tuple[LifecycleWrite, ...] = (
         TransactionStatus.RESOLVED,
         ItemStatus.BORROWED,
         item_soft_deleted_after=True,
+        resolution_reason_after=ResolutionReason.DISPUTE_ITEM_NOT_RETURNED,
     ),
 )
 
@@ -329,13 +331,21 @@ class ItemLifecycleWriteTests(TestCase):
                     )
                     txn.save(update_fields=("return_requested_at",))
 
-                item.process_action(user=self._party(write.actor), action=write.action)
+                actor = self._party(write.actor)
+                action_started = timezone.now()
+                item.process_action(user=actor, action=write.action)
+                action_finished = timezone.now()
 
                 txn.refresh_from_db()
                 item.refresh_from_db()
                 self.assertEqual(
                     txn.status, write.transaction_status_after, f"{name}: tx status"
                 )
+                self.assertEqual(txn.updated_by_id, actor.pk, f"{name}: audit actor")
+                self.assertEqual(txn.created_by_id, self.lender.pk)
+                self.assertEqual(txn.party1_id, self.lender.pk)
+                self.assertEqual(txn.party2_id, self.borrower.pk)
+                self.assertEqual(txn.resolution_reason, write.resolution_reason_after)
                 self.assertEqual(
                     item.status, write.item_status_after, f"{name}: item status"
                 )
@@ -351,3 +361,96 @@ class ItemLifecycleWriteTests(TestCase):
                 )
                 for stamp in write.stamps:
                     self.assertIsNotNone(getattr(txn, stamp), f"{name}: {stamp}")
+                for stamp in ("return_requested_at", "disputed_at"):
+                    if stamp in write.stamps:
+                        self.assertGreaterEqual(getattr(txn, stamp), action_started)
+                        self.assertLessEqual(getattr(txn, stamp), action_finished)
+                if "dispute_raised_by" in write.stamps:
+                    self.assertEqual(txn.dispute_raised_by_id, actor.pk)
+                if write.item_soft_deleted_after:
+                    self.assertEqual(item.deleted_by_id, actor.pk)
+
+    def test_inactive_counterparty_resolution_writes_for_every_eligible_state(
+        self,
+    ) -> None:
+        # Literal cases keep the expected eligibility independent of derived sets.
+        states = (
+            (TransactionStatus.COLLECTION_ASSERTED, ItemStatus.RESERVED),
+            (TransactionStatus.COLLECTED, ItemStatus.BORROWED),
+            (TransactionStatus.GIVEAWAY_OFFERED, ItemStatus.BORROWED),
+            (TransactionStatus.RETURN_REQUESTED, ItemStatus.BORROWED),
+            (TransactionStatus.RETURN_ASSERTED, ItemStatus.BORROWED),
+            (TransactionStatus.DISPUTED, ItemStatus.BORROWED),
+        )
+        for status, item_status in states:
+            for actor_name in (LENDER, BORROWER):
+                for counterparty_deleted in (False, True):
+                    with (
+                        self.subTest(
+                            status=status,
+                            actor=actor_name,
+                            counterparty_deleted=counterparty_deleted,
+                        ),
+                        rolled_back(),
+                    ):
+                        # Rollback restores rows, not the model instances in memory.
+                        self.lender.refresh_from_db()
+                        self.borrower.refresh_from_db()
+                        actor = self._party(actor_name)
+                        counterparty = (
+                            self.borrower if actor_name == LENDER else self.lender
+                        )
+                        counterparty.is_active = False
+                        if counterparty_deleted:
+                            counterparty.deleted_at = timezone.now()
+                        counterparty.save(update_fields=("is_active", "deleted_at"))
+
+                        item = Item.objects.create(
+                            name="Drill",
+                            description="A useful thing",
+                            owner=self.lender,
+                            status=item_status,
+                            created_by=self.lender,
+                            updated_by=self.lender,
+                        )
+                        owner_deleted = actor_name == BORROWER and counterparty_deleted
+                        if owner_deleted:
+                            item.soft_delete(deleted_by=self.lender)
+                        deleted_at_before = item.deleted_at
+                        deleted_by_before = item.deleted_by_id
+                        txn = Transaction.objects.create(
+                            item=item,
+                            party1=self.lender,
+                            party2=self.borrower,
+                            status=status,
+                            created_by=self.lender,
+                            updated_by=counterparty,
+                        )
+
+                        self.assertEqual(
+                            item.get_actions_for(actor),
+                            (ItemAction.RESOLVE_TRANSACTION,),
+                        )
+                        item.process_action(actor, ItemAction.RESOLVE_TRANSACTION)
+
+                        txn.refresh_from_db()
+                        item.refresh_from_db()
+                        self.assertEqual(txn.status, TransactionStatus.RESOLVED)
+                        self.assertEqual(txn.updated_by_id, actor.pk)
+                        self.assertEqual(txn.created_by_id, self.lender.pk)
+                        self.assertEqual(txn.party1_id, self.lender.pk)
+                        self.assertEqual(txn.party2_id, self.borrower.pk)
+                        self.assertEqual(
+                            txn.resolution_reason,
+                            ResolutionReason.OWNER_ACCOUNT_DELETED
+                            if owner_deleted
+                            else ResolutionReason.COUNTERPARTY_UNRESPONSIVE,
+                        )
+                        self.assertEqual(
+                            item.status,
+                            item_status if owner_deleted else ItemStatus.AVAILABLE,
+                        )
+                        self.assertEqual(item.owner_id, self.lender.pk)
+                        self.assertEqual(item.deleted_at, deleted_at_before)
+                        self.assertEqual(item.deleted_by_id, deleted_by_before)
+                        self.assertIsNone(item.get_current_transaction_for_user(actor))
