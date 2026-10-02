@@ -1,4 +1,4 @@
-"""Transaction transitions, allowed actors, and eligibility checks."""
+"""The Transaction lifecycle as a table: who may take each edge, and what it writes."""
 
 from __future__ import annotations
 
@@ -8,16 +8,21 @@ from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING, Final
 
+from django.db import transaction
+
+from .exceptions import InvalidItemAction
 from .statuses import (
     DUAL_CONFIRMATION_TRANSACTION_STATUSES,
     ItemAction,
+    ResolutionReason,
     TransactionStatus,
+    sync_item_status,
 )
 
 if TYPE_CHECKING:
     from borrowd_users.models import BorrowdUser
 
-    from .models import Transaction
+    from .models import Item, Transaction
 
 
 class Actor(Enum):
@@ -47,6 +52,54 @@ def _counterparty_inactive(tx: Transaction, user: BorrowdUser, now: datetime) ->
     return not _counterparty_of(tx, user).is_active
 
 
+# Sets Transaction fields before the save.
+Prepare = Callable[["Transaction", "BorrowdUser", datetime], None]
+# Runs after the save, in the same database transaction.
+AfterSave = Callable[["Item", "Transaction", "BorrowdUser"], None]
+
+
+def _stamp_return_requested(tx: Transaction, user: BorrowdUser, now: datetime) -> None:
+    tx.return_requested_at = now
+
+
+def _stamp_dispute(tx: Transaction, user: BorrowdUser, now: datetime) -> None:
+    tx.disputed_at = now
+    tx.dispute_raised_by = user
+
+
+def _record_item_not_returned(
+    tx: Transaction, user: BorrowdUser, now: datetime
+) -> None:
+    tx.resolution_reason = ResolutionReason.DISPUTE_ITEM_NOT_RETURNED
+
+
+def _record_why_resolved_alone(
+    tx: Transaction, user: BorrowdUser, now: datetime
+) -> None:
+    counterparty = _counterparty_of(tx, user)
+    owner_deleted = (
+        counterparty.pk == tx.party1_id and counterparty.deleted_at is not None
+    )
+    tx.resolution_reason = (
+        ResolutionReason.OWNER_ACCOUNT_DELETED
+        if owner_deleted
+        else ResolutionReason.COUNTERPARTY_UNRESPONSIVE
+    )
+
+
+def _give_item_to_actor(item: Item, tx: Transaction, user: BorrowdUser) -> None:
+    item._transfer_ownership(new_owner=user, by=user)
+
+
+def _give_item_to_borrower(item: Item, tx: Transaction, user: BorrowdUser) -> None:
+    item._transfer_ownership(new_owner=tx.party2, by=user)
+
+
+def _remove_lost_item(item: Item, tx: Transaction, user: BorrowdUser) -> None:
+    # After the save, so the thread archives as resolved, not as item-deleted.
+    item.soft_delete(deleted_by=user)
+
+
 @dataclass(frozen=True)
 class Transition:
     source: TransactionStatus
@@ -57,6 +110,8 @@ class Transition:
     # If any eligible transition has preempts=True, offer only those transitions.
     # For example, an inactive counterparty leaves resolution as the only action.
     preempts: bool = False
+    prepare: Prepare | None = None
+    after_save: AfterSave | None = None
 
 
 # Transitions with the same source are listed in display order.
@@ -69,6 +124,7 @@ TRANSITIONS: Final[tuple[Transition, ...]] = (
             TransactionStatus.RESOLVED,
             guard=_counterparty_inactive,
             preempts=True,
+            prepare=_record_why_resolved_alone,
         )
         for source in DUAL_CONFIRMATION_TRANSACTION_STATUSES
     ),
@@ -103,6 +159,7 @@ TRANSITIONS: Final[tuple[Transition, ...]] = (
         ItemAction.APPROVE_GIVEAWAY_REQUEST,
         TransactionStatus.OWNERSHIP_TRANSFERRED,
         Actor.LENDER,
+        after_save=_give_item_to_borrower,
     ),
     Transition(
         TransactionStatus.GIVEAWAY_REQUESTED,
@@ -140,6 +197,7 @@ TRANSITIONS: Final[tuple[Transition, ...]] = (
         ItemAction.REQUEST_RETURN,
         TransactionStatus.RETURN_REQUESTED,
         Actor.LENDER,
+        prepare=_stamp_return_requested,
     ),
     Transition(
         TransactionStatus.COLLECTED,
@@ -159,6 +217,7 @@ TRANSITIONS: Final[tuple[Transition, ...]] = (
         ItemAction.ACCEPT_GIVEAWAY,
         TransactionStatus.OWNERSHIP_TRANSFERRED,
         Actor.BORROWER,
+        after_save=_give_item_to_actor,
     ),
     Transition(
         TransactionStatus.GIVEAWAY_OFFERED,
@@ -173,6 +232,7 @@ TRANSITIONS: Final[tuple[Transition, ...]] = (
         TransactionStatus.DISPUTED,
         Actor.LENDER,
         _dispute_wait_elapsed,
+        prepare=_stamp_dispute,
     ),
     Transition(
         TransactionStatus.RETURN_REQUESTED,
@@ -191,6 +251,7 @@ TRANSITIONS: Final[tuple[Transition, ...]] = (
         ItemAction.FLAG_CANNOT_RETURN,
         TransactionStatus.DISPUTED,
         Actor.BORROWER,
+        prepare=_stamp_dispute,
     ),
     # The borrower says it is back; the lender confirms or denies.
     Transition(
@@ -199,6 +260,7 @@ TRANSITIONS: Final[tuple[Transition, ...]] = (
         TransactionStatus.DISPUTED,
         Actor.LENDER,
         _other_party_acted_last,
+        prepare=_stamp_dispute,
     ),
     Transition(
         TransactionStatus.RETURN_ASSERTED,
@@ -212,6 +274,8 @@ TRANSITIONS: Final[tuple[Transition, ...]] = (
         ItemAction.RESOLVE_DISPUTE_NOT_RETURNED,
         TransactionStatus.RESOLVED,
         Actor.LENDER,
+        prepare=_record_item_not_returned,
+        after_save=_remove_lost_item,
     ),
     Transition(
         TransactionStatus.DISPUTED,
@@ -252,3 +316,38 @@ def available_actions(
 ) -> tuple[ItemAction, ...]:
     """Return the action names from eligible_transitions in display order."""
     return tuple(spec.action for spec in eligible_transitions(tx, user, now=now))
+
+
+def execute_transition(
+    item: Item,
+    tx: Transaction,
+    user: BorrowdUser,
+    action: ItemAction,
+    *,
+    now: datetime,
+) -> Transition:
+    """Apply `action` atomically. Raises InvalidItemAction unless it is eligible."""
+    spec = next(
+        (
+            candidate
+            for candidate in eligible_transitions(tx, user, now=now)
+            if candidate.action == action
+        ),
+        None,
+    )
+    if spec is None:
+        raise InvalidItemAction(
+            f"User '{user}' cannot perform action '{action}' on "
+            f"Item '{item}' at this time."
+        )
+
+    with transaction.atomic():
+        tx.status = spec.target
+        tx.updated_by = user
+        if spec.prepare is not None:
+            spec.prepare(tx, user, now)
+        tx.save()
+        if spec.after_save is not None:
+            spec.after_save(item, tx, user)
+        sync_item_status(item, tx)
+    return spec
