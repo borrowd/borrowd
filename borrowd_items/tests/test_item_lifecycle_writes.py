@@ -1,12 +1,6 @@
 """
-Lifecycle outcomes and audit fields for borrowing, gifting and resolution.
-
-`Item.status` summarizes the item's current transaction. The expectations
-below specify the observable writes independently of the transition rules
-and projection implementation.
-
-Arranging a starting state by assigning `status` directly is fine here; the
-assertions are about what `process_action` writes, not how we got there.
+What each lifecycle action writes. Starting states are set up directly; the
+assertions are about what `process_action` writes from there.
 """
 
 from collections.abc import Iterator

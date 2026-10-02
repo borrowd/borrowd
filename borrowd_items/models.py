@@ -746,8 +746,8 @@ class Item(Model):
         Returns the transaction involving this item regardless of the user
         """
         try:
-            # Use `first()` so unexpected data issues (more than one open
-            # transaction) don't 500 the page; the most recent one wins.
+            # Use `first()` so unexpected data issues (multiple non-terminal transactions)
+            # don't 500 the page; the most recent active transaction wins.
             return (
                 Transaction.objects.select_related(
                     "party1",
@@ -990,9 +990,6 @@ class Item(Model):
                         f"Unexpected action '{action}' for Item '{self}' and User '{user}'"
                     )
 
-            # Every arm above moves the transaction on; the item's status is a
-            # summary of that, so it is derived here once instead of being
-            # chosen again in each arm.
             sync_item_status(self, current_tx)
 
     def groups_allowed_to_view(self) -> "QuerySet[BorrowdGroup]":
@@ -1203,9 +1200,7 @@ REQUEST_TRANSACTION_STATUSES = (
     TransactionStatus.GIVEAWAY_REQUESTED,
 )
 
-# Everything that still counts as the item's current transaction. Derived, so
-# classifying a new status means adding it to TERMINAL or leaving it out,
-# never editing a second list.
+# Derived, so a new status counts as open unless it is added to TERMINAL.
 OPEN_TRANSACTION_STATUSES = tuple(
     status
     for status in TransactionStatus
@@ -1220,32 +1215,28 @@ BORROWER_TRANSACTION_STATUSES = tuple(
     if status not in REQUEST_TRANSACTION_STATUSES
 )
 
-# Collection has started, so every remaining step needs both parties to act.
-# Neither one can finish the transaction on their own.
+# Collection has started; every remaining step needs both parties.
 DUAL_CONFIRMATION_TRANSACTION_STATUSES = tuple(
     status
     for status in BORROWER_TRANSACTION_STATUSES
     if status != TransactionStatus.ACCEPTED
 )
 
-# Nothing has changed hands yet, so these can be cancelled outright without
-# anyone having to hand an item back.
+# Nothing has changed hands yet.
 PRE_COLLECTION_TRANSACTION_STATUSES = tuple(
     status
     for status in OPEN_TRANSACTION_STATUSES
     if status not in DUAL_CONFIRMATION_TRANSACTION_STATUSES
 )
 
-# A member cannot leave a group while they share a transaction in one of these
-# statuses with another member. Deliberately narrower than DUAL_CONFIRMATION.
+# A member cannot leave a group while they share a transaction in one of these statuses with another member.
 GROUP_LEAVE_BLOCKING_TRANSACTION_STATUSES = (
     TransactionStatus.COLLECTED,
     TransactionStatus.RETURN_ASSERTED,
 )
 
 
-# Item.status is a summary of the item's current transaction, not state of its
-# own. This is the whole mapping; no caller should pick an ItemStatus by hand.
+# Item.status is derived from its transaction; nothing sets it by hand.
 ITEM_STATUS_FOR_TRANSACTION: dict[TransactionStatus, ItemStatus] = {
     **{status: ItemStatus.AVAILABLE for status in TERMINAL_TRANSACTION_STATUSES},
     TransactionStatus.REQUESTED: ItemStatus.REQUESTED,
@@ -1261,13 +1252,7 @@ ITEM_STATUS_FOR_TRANSACTION: dict[TransactionStatus, ItemStatus] = {
 
 
 def sync_item_status(item: Item, tx: "Transaction") -> None:
-    """
-    Point item.status at whatever its transaction now says it should be.
-
-    A soft-deleted item keeps the status it had. It is out of circulation
-    either way, and a departed owner's items are deleted while their
-    transactions are still being closed out.
-    """
+    """Set item.status from tx. A soft-deleted item is left as it is."""
     if item.deleted_at is not None:
         return
     status = ITEM_STATUS_FOR_TRANSACTION[TransactionStatus(tx.status)]

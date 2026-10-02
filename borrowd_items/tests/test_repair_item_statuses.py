@@ -1,7 +1,4 @@
-"""
-Item.status is a stored copy of what the item's transaction says, so it can
-drift. These cover the command that re-derives it.
-"""
+"""The command that re-derives Item.status from its transaction."""
 
 from io import StringIO
 

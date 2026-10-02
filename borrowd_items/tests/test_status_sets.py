@@ -1,11 +1,4 @@
-"""
-The transaction status sets are derived from each other, so that classifying a
-new TransactionStatus is a one-line edit rather than a hunt through the tree.
-
-These tests are what make that safe: they pin the partitions, so a status added
-without being classified fails here instead of silently falling out of a set
-that some caller depends on.
-"""
+"""The status sets are derived from each other; these pin the partitions."""
 
 from django.test import SimpleTestCase
 
@@ -95,10 +88,7 @@ class TransactionStatusSetTests(SimpleTestCase):
 
 class ItemStatusProjectionTests(SimpleTestCase):
     def test_every_transaction_status_maps_to_an_item_status(self) -> None:
-        """
-        sync_item_status looks the status up directly, so a gap here is a
-        KeyError in the middle of a lifecycle action rather than a failed test.
-        """
+        """A gap would be a KeyError in the middle of a lifecycle action."""
         self.assertEqual(set(ITEM_STATUS_FOR_TRANSACTION), set(TransactionStatus))
 
     def test_a_finished_transaction_frees_the_item(self) -> None:
