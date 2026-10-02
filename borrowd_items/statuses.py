@@ -1,10 +1,4 @@
-"""
-Lifecycle vocabulary: the statuses, actions and status sets for Items and
-Transactions, and the projection from a Transaction's status to its Item's.
-
-Imports nothing from the models at runtime, so both the models and the
-transition rules can depend on it.
-"""
+"""Lifecycle statuses, actions and status sets."""
 
 from typing import TYPE_CHECKING
 
@@ -117,9 +111,7 @@ REQUEST_TRANSACTION_STATUSES = (
     TransactionStatus.GIVEAWAY_REQUESTED,
 )
 
-# Everything that still counts as the item's current transaction. Derived, so
-# classifying a new status means adding it to TERMINAL or leaving it out,
-# never editing a second list.
+# Derived, so a new status counts as open unless it is added to TERMINAL.
 OPEN_TRANSACTION_STATUSES = tuple(
     status
     for status in TransactionStatus
@@ -134,16 +126,14 @@ BORROWER_TRANSACTION_STATUSES = tuple(
     if status not in REQUEST_TRANSACTION_STATUSES
 )
 
-# Collection has started, so every remaining step needs both parties to act.
-# Neither one can finish the transaction on their own.
+# Collection has started; every remaining step needs both parties.
 DUAL_CONFIRMATION_TRANSACTION_STATUSES = tuple(
     status
     for status in BORROWER_TRANSACTION_STATUSES
     if status != TransactionStatus.ACCEPTED
 )
 
-# Nothing has changed hands yet, so these can be cancelled outright without
-# anyone having to hand an item back.
+# Nothing has changed hands yet. Cancellable.
 PRE_COLLECTION_TRANSACTION_STATUSES = tuple(
     status
     for status in OPEN_TRANSACTION_STATUSES
@@ -157,8 +147,7 @@ GROUP_LEAVE_BLOCKING_TRANSACTION_STATUSES = (
 )
 
 
-# Item.status is a summary of the item's current transaction, not state of its
-# own. This is the whole mapping; no caller should pick an ItemStatus by hand.
+# Item.status is derived from its transaction; nothing should set status by hand.
 ITEM_STATUS_FOR_TRANSACTION: dict[TransactionStatus, ItemStatus] = {
     **{status: ItemStatus.AVAILABLE for status in TERMINAL_TRANSACTION_STATUSES},
     TransactionStatus.REQUESTED: ItemStatus.REQUESTED,
@@ -174,13 +163,7 @@ ITEM_STATUS_FOR_TRANSACTION: dict[TransactionStatus, ItemStatus] = {
 
 
 def sync_item_status(item: "Item", tx: "Transaction") -> None:
-    """
-    Point item.status at whatever its transaction now says it should be.
-
-    A soft-deleted item keeps the status it had. It is out of circulation
-    either way, and a departed owner's items are deleted while their
-    transactions are still being closed out.
-    """
+    """Set item.status from tx. A soft-deleted item is left as it is."""
     if item.deleted_at is not None:
         return
     status = ITEM_STATUS_FOR_TRANSACTION[TransactionStatus(tx.status)]

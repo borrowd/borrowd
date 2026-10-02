@@ -1,9 +1,4 @@
-"""
-The transition table, tested through `eligible_transitions`.
-
-Nothing here touches the database: the rules read a Transaction and a time,
-so unsaved instances are enough.
-"""
+"""The transition table, through `eligible_transitions`. No database needed."""
 
 from datetime import datetime, timedelta
 from datetime import timezone as dt_timezone
@@ -35,8 +30,7 @@ WAIT = timedelta(days=settings.RETURN_DISPUTE_WAIT_DAYS)
 LENDER = "lender"
 BORROWER = "borrower"
 
-# Spelled out rather than derived, so the table is checked against something
-# other than the set it is built from.
+# Literal on purpose: an independent check on the derived set.
 IN_HAND_STATUSES = (
     TransactionStatus.COLLECTION_ASSERTED,
     TransactionStatus.COLLECTED,
@@ -269,7 +263,6 @@ class TransitionTableTests(SimpleTestCase):
         self.assertEqual([spec for spec in TRANSITIONS if spec.preempts], resolution)
 
     def test_targets_match_what_the_lifecycle_actually_writes(self) -> None:
-        """Each edge's target is checked against the recorded writes."""
         recorded = {
             (write.source, write.action): write.transaction_status_after
             for write in EXPECTED_WRITES
