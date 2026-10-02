@@ -19,8 +19,9 @@ class Command(BaseCommand):
         "transaction lifecycle rather than state of its own, so drift is "
         "always repairable: the transaction is the record, the item status is "
         "the copy. An item with no open transaction is AVAILABLE. Soft-deleted "
-        "items are skipped, matching sync_item_status. Safe to re-run; "
-        "already-correct rows are a no-op."
+        "items are skipped, matching sync_item_status. Already-correct rows "
+        "are a no-op. Run repairs only while lifecycle writes are paused; "
+        "dry-run results can change while the application is accepting writes."
     )
 
     def add_arguments(self, parser: CommandParser) -> None:
@@ -33,8 +34,8 @@ class Command(BaseCommand):
     def handle(self, *args: Any, **options: Any) -> None:
         dry_run = options["dry_run"]
 
-        # One pass over the open transactions, so the scan below is a single
-        # consistent snapshot rather than a query per item.
+        # Batch the transaction scan to avoid a query per item. This snapshot
+        # is not synchronized with the later item reads or concurrent actions.
         open_statuses_by_item: dict[int, list[TransactionStatus]] = {}
         for item_id, status in Transaction.objects.filter(
             status__in=OPEN_TRANSACTION_STATUSES
