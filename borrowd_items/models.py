@@ -31,6 +31,7 @@ from borrowd_permissions.models import ItemOLP
 from borrowd_users.models import BorrowdUser
 
 from .exceptions import InvalidItemAction, ItemAlreadyRequested
+from .flow import execute_transition
 from .flow_parity import actions_for_open_transaction
 from .processors import AutoOrientProcessor
 
@@ -731,116 +732,7 @@ class Item(Model):
             # partly to keep mypy happy.
             raise ValueError("No existing Transaction")
 
-        with transaction.atomic():
-            match action:
-                case ItemAction.REJECT_REQUEST:
-                    # The owner/lender/giver rejects the Request.
-                    current_tx.status = TransactionStatus.REJECTED
-                    current_tx.updated_by = user
-                    current_tx.save()
-                case ItemAction.ACCEPT_REQUEST:
-                    # The owner/lender/giver accepts the Request.
-                    current_tx.status = TransactionStatus.ACCEPTED
-                    current_tx.updated_by = user
-                    current_tx.save()
-                case ItemAction.MARK_COLLECTED:
-                    # Either party can assert collection.
-                    current_tx.status = TransactionStatus.COLLECTION_ASSERTED
-                    current_tx.updated_by = user
-                    current_tx.save()
-                case ItemAction.CONFIRM_COLLECTED:
-                    # The other party confirms collection.
-                    current_tx.status = TransactionStatus.COLLECTED
-                    current_tx.updated_by = user
-                    current_tx.save()
-                case ItemAction.MARK_RETURNED:
-                    # The borrower's assertion still needs the lender's confirmation.
-                    current_tx.status = TransactionStatus.RETURN_ASSERTED
-                    current_tx.updated_by = user
-                    current_tx.save()
-                case ItemAction.CONFIRM_RETURNED | ItemAction.RESOLVE_DISPUTE_RETURNED:
-                    # The other party confirms return or lender resolved dispute happily
-                    current_tx.status = TransactionStatus.RETURNED
-                    current_tx.updated_by = user
-                    current_tx.save()
-                case ItemAction.REQUEST_RETURN:
-                    # The lender asks for the item back from the borrower
-                    current_tx.status = TransactionStatus.RETURN_REQUESTED
-                    current_tx.return_requested_at = timezone.now()
-                    current_tx.updated_by = user
-                    current_tx.save()
-                case ItemAction.FLAG_CANNOT_RETURN | ItemAction.RAISE_DISPUTE:
-                    # Either side escalates to a dispute
-                    current_tx.status = TransactionStatus.DISPUTED
-                    current_tx.disputed_at = timezone.now()
-                    current_tx.dispute_raised_by = user
-                    current_tx.updated_by = user
-                    current_tx.save()
-                case ItemAction.RESOLVE_DISPUTE_NOT_RETURNED:
-                    # Close out the transaction before removing the lost Item.
-                    current_tx.force_resolve(
-                        resolved_by=user,
-                        reason=ResolutionReason.DISPUTE_ITEM_NOT_RETURNED,
-                    )
-                    self.soft_delete(deleted_by=user)
-                case ItemAction.OFFER_GIVEAWAY:
-                    # The lender offers to give the item to the borrower permanently.
-                    # Item stays BORROWED until the borrower accepts.
-                    current_tx.status = TransactionStatus.GIVEAWAY_OFFERED
-                    current_tx.updated_by = user
-                    current_tx.save()
-                case ItemAction.DECLINE_GIVEAWAY:
-                    # The borrower turns down the gift; the loan continues.
-                    current_tx.status = TransactionStatus.COLLECTED
-                    current_tx.updated_by = user
-                    current_tx.save()
-                case ItemAction.ACCEPT_GIVEAWAY:
-                    # The borrower accepts; ownership transfers for good.
-                    current_tx.status = TransactionStatus.OWNERSHIP_TRANSFERRED
-                    current_tx.updated_by = user
-                    current_tx.save()
-                    self._transfer_ownership(new_owner=user, by=user)
-                case ItemAction.APPROVE_GIVEAWAY_REQUEST:
-                    # The owner hands the item over; ownership transfers for good.
-                    current_tx.status = TransactionStatus.OWNERSHIP_TRANSFERRED
-                    current_tx.updated_by = user
-                    current_tx.save()
-                    self._transfer_ownership(new_owner=current_tx.party2, by=user)
-                case ItemAction.DECLINE_GIVEAWAY_REQUEST:
-                    # The owner turns down the request; the listing reopens.
-                    current_tx.status = TransactionStatus.REJECTED
-                    current_tx.updated_by = user
-                    current_tx.save()
-                case ItemAction.CANCEL_REQUEST:
-                    # The requestor cancels the Request.
-                    current_tx.status = TransactionStatus.CANCELLED
-                    current_tx.updated_by = user
-                    current_tx.save()
-                case ItemAction.RESOLVE_TRANSACTION:
-                    # Counterparty's account is gone, so the normal confirm step
-                    # can't happen; close the loan out single-handed.
-                    counterparty = (
-                        current_tx.party1
-                        if current_tx.party2 == user
-                        else current_tx.party2
-                    )
-                    owner_deleted = (
-                        counterparty == current_tx.party1
-                        and counterparty.deleted_at is not None
-                    )
-                    reason = (
-                        ResolutionReason.OWNER_ACCOUNT_DELETED
-                        if owner_deleted
-                        else ResolutionReason.COUNTERPARTY_UNRESPONSIVE
-                    )
-                    current_tx.force_resolve(resolved_by=user, reason=reason)
-                case _:
-                    # We shouldn't get here...
-                    raise ValueError(
-                        f"Unexpected action '{action}' for Item '{self}' and User '{user}'"
-                    )
-
-            sync_item_status(self, current_tx)
+        execute_transition(self, current_tx, user, action, now=timezone.now())
 
     def groups_allowed_to_view(self) -> "QuerySet[BorrowdGroup]":
         """
