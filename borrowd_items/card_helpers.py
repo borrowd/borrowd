@@ -13,15 +13,12 @@ from django.utils.html import format_html
 from django.utils.text import capfirst
 
 from .models import (
-    BORROWER_TRANSACTION_STATUSES,
     OPEN_TRANSACTION_STATUSES,
-    REQUEST_TRANSACTION_STATUSES,
     AvailabilitySubscription,
     AvailabilitySubscriptionStatus,
     Item,
     ItemAction,
     ItemActionContext,
-    ItemStatus,
     PrecomputedItemState,
     Transaction,
     TransactionStatus,
@@ -119,35 +116,6 @@ def with_card_relations_for_transactions(
     )
 
 
-def _state_from_transaction(
-    transaction: Transaction | None,
-    *,
-    has_active_subscription: bool = False,
-) -> PrecomputedItemState:
-    """
-    Derive card state from an already-loaded transaction without querying the db.
-
-    Both action context and banner rendering need borrower/requester/current
-    transaction state, so centralizing the derivation lets them share the same
-    in-memory facts.
-    """
-    current_borrower = None
-    requesting_user = None
-
-    if transaction is not None:
-        if transaction.status in REQUEST_TRANSACTION_STATUSES:
-            requesting_user = transaction.party2
-        elif transaction.status in BORROWER_TRANSACTION_STATUSES:
-            current_borrower = transaction.party2
-
-    return PrecomputedItemState(
-        current_borrower=current_borrower,
-        requesting_user=requesting_user,
-        current_transaction=transaction,
-        has_active_subscription=has_active_subscription,
-    )
-
-
 def active_subscription_item_ids(
     item_ids: list[int],
     user: "BorrowdUser",
@@ -201,7 +169,7 @@ def _precompute_item_states_for_items(
         subscription_item_ids = active_subscription_item_ids(item_ids, user)
 
     return {
-        item_id: _state_from_transaction(
+        item_id: PrecomputedItemState.from_transaction(
             transaction_by_item.get(item_id),
             has_active_subscription=item_id in subscription_item_ids,
         )
@@ -228,43 +196,12 @@ def _precompute_item_states_for_transactions(
         subscription_item_ids = active_subscription_item_ids(item_ids, user)
 
     return {
-        transaction.pk: _state_from_transaction(
+        transaction.pk: PrecomputedItemState.from_transaction(
             transaction,
             has_active_subscription=transaction.item_id in subscription_item_ids,
         )
         for transaction in transactions
     }
-
-
-def _precompute_item_state(
-    item: "Item",
-    user: "BorrowdUser",
-) -> PrecomputedItemState:
-    """
-    Build card state for a single item when no batch state was cached or supplied.
-
-    This preserves the standalone build_item_card_context() API while keeping
-    its action-context and banner paths on one shared state object.
-    """
-    current_transaction = item.get_current_transaction()
-    needs_subscription_state = item.owner_id != user.id and (
-        current_transaction is not None or item.status != ItemStatus.AVAILABLE
-    )
-    has_active_subscription = (
-        bool(
-            AvailabilitySubscription.objects.filter(
-                item=item,
-                user=user,
-                status=AvailabilitySubscriptionStatus.ACTIVE,
-            ).exists()
-        )
-        if needs_subscription_state
-        else False
-    )
-    return _state_from_transaction(
-        current_transaction,
-        has_active_subscription=has_active_subscription,
-    )
 
 
 def build_card_ids(context: str, pk: int) -> dict[str, str]:
@@ -352,7 +289,7 @@ def get_banner_info_for_item(
 
     # Check for active transaction to determine banner state
     if precomputed is None:
-        precomputed = _precompute_item_state(item, viewing_user)
+        precomputed = item.precompute_state_for(viewing_user)
 
     current_borrower = precomputed.current_borrower
     requesting_user = precomputed.requesting_user
@@ -536,7 +473,7 @@ def build_item_card_context(
     # get_banner_info_for_item skip re-deriving them below.
     if action_context is None:
         if precomputed is None:
-            precomputed = _precompute_item_state(item, user)
+            precomputed = item.precompute_state_for(user)
         action_context = item.get_action_context_for(
             user=user,
             precomputed=precomputed,
