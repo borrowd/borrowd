@@ -1,3 +1,5 @@
+{% load item_commands %}
+
 {# Two-outcome modal shown when the lender clicks "Dispute resolution". #}
 
 {% url 'item-borrow' item.pk as borrow_url %}
@@ -7,6 +9,7 @@
           action="{{ borrow_url }}"
           class="hidden">
         {% csrf_token %}
+        {% command_fields item %}
         <input type="hidden" name="action" value="RESOLVE_DISPUTE_RETURNED">
     </form>
     <form id="{{ not_returned_form_id }}"
@@ -14,6 +17,7 @@
           action="{{ borrow_url }}"
           class="hidden">
         {% csrf_token %}
+        {% command_fields item %}
         <input type="hidden" name="action" value="RESOLVE_DISPUTE_NOT_RETURNED">
     </form>
     {% include "components/modal.html" with modal_id=modal_id modal_title="Dispute status" modal_content_template="components/items/modals/_dispute_resolution_modal_content.html" %}

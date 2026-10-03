@@ -1,3 +1,5 @@
+{% load item_commands %}
+
 {# Confirmation modal shown when a user clicks "Mark as Returned". #}
 {# Hidden form submitted by the modal confirm button via confirm_submit_form_id. #}
 {# See accept_request_modal.html for the same pattern. #}
@@ -9,6 +11,7 @@
           action="{{ borrow_url }}"
           class="hidden">
         {% csrf_token %}
+        {% command_fields item %}
         <input type="hidden"
                name="action"
                value="{{ returned_action|default:'MARK_RETURNED' }}">

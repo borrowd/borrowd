@@ -827,7 +827,7 @@ class ItemConversationConversionFlowTests(MessagingTestCase):
 
     def test_failed_direct_request_rolls_back_the_prepared_thread(self) -> None:
         with patch(
-            "borrowd_items.models.Item.process_action",
+            "borrowd_items.models.Item._process_action_locked",
             side_effect=ItemAlreadyRequested,
         ):
             response = self.client.post(

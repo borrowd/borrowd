@@ -1,4 +1,4 @@
-{% load heroicons %}
+{% load heroicons item_commands %}
 
 {% comment %}
 Action Buttons Component
@@ -114,6 +114,7 @@ For variant='card', also accepts:
                 {% elif action.name == 'DECLINE_GIVEAWAY' %}
                     <form method="POST" action="{% url 'item-borrow' item.pk %}" class="flex-1">
                         {% csrf_token %}
+                        {% command_fields item %}
                         <input type="hidden" name="action" value="DECLINE_GIVEAWAY">
                         <button type="submit" class="btn btn-soft btn-error btn-sm md:btn-md w-full">
                             Decline
@@ -138,6 +139,7 @@ For variant='card', also accepts:
                 {% elif action.name == 'DECLINE_GIVEAWAY_REQUEST' %}
                     <form method="POST" action="{% url 'item-borrow' item.pk %}" class="flex-1">
                         {% csrf_token %}
+                        {% command_fields item %}
                         <input type="hidden" name="action" value="DECLINE_GIVEAWAY_REQUEST">
                         <button type="submit" class="btn btn-soft btn-error btn-sm md:btn-md w-full">
                             Decline
@@ -174,6 +176,7 @@ For variant='card', also accepts:
                 {% elif action.name == 'REJECT_REQUEST' %}
                     <form method="POST" action="{% url 'item-borrow' item.pk %}" class="flex-1">
                         {% csrf_token %}
+                        {% command_fields item %}
                         <input type="hidden" name="action" value="REJECT_REQUEST">
                         <button type="submit" class="btn btn-soft btn-error btn-sm md:btn-md w-full">
                             Decline
@@ -182,6 +185,7 @@ For variant='card', also accepts:
                 {% elif action.name == 'CANCEL_REQUEST' %}
                     <form method="POST" action="{% url 'item-borrow' item.pk %}" class="flex-1">
                         {% csrf_token %}
+                        {% command_fields item %}
                         <input type="hidden" name="action" value="CANCEL_REQUEST">
                         <button type="submit"
                                 class="btn btn-soft btn-primary btn-sm md:btn-md w-full">
@@ -191,6 +195,7 @@ For variant='card', also accepts:
                 {% elif action.name == 'NOTIFY_WHEN_AVAILABLE' %}
                     <form method="POST" action="{% url 'item-borrow' item.pk %}" class="flex-1">
                         {% csrf_token %}
+                        {% command_fields item %}
                         <input type="hidden" name="action" value="NOTIFY_WHEN_AVAILABLE">
                         <button type="submit"
                                 class="btn btn-soft btn-primary btn-sm md:btn-md w-full">
@@ -200,6 +205,7 @@ For variant='card', also accepts:
                 {% elif action.name == 'CANCEL_NOTIFICATION_REQUEST' %}
                     <form method="POST" action="{% url 'item-borrow' item.pk %}" class="flex-1">
                         {% csrf_token %}
+                        {% command_fields item %}
                         <input type="hidden" name="action" value="CANCEL_NOTIFICATION_REQUEST">
                         <button type="submit" class="btn btn-waitlisted btn-sm md:btn-md w-full">
                             Cancel notification request
@@ -208,6 +214,7 @@ For variant='card', also accepts:
                 {% elif action.name == 'RESOLVE_TRANSACTION' %}
                     <form method="POST" action="{% url 'item-borrow' item.pk %}" class="flex-1">
                         {% csrf_token %}
+                        {% command_fields item %}
                         <input type="hidden" name="action" value="RESOLVE_TRANSACTION">
                         <button type="submit" class="btn btn-error btn-sm md:btn-md w-full">
                             Close out transaction
@@ -216,6 +223,7 @@ For variant='card', also accepts:
                 {% else %}
                     <form method="POST" action="{% url 'item-borrow' item.pk %}" class="flex-1">
                         {% csrf_token %}
+                        {% command_fields item %}
                         <input type="hidden" name="action" value="{{ action.name }}">
                         <button type="submit"
                                 class="btn btn-ghost shadow-xs shadow-gray-300 btn-sm md:btn-md w-full">
@@ -330,6 +338,7 @@ For variant='card', also accepts:
                         {% elif action.name == 'DECLINE_GIVEAWAY' %}
                             <form method="POST" action="{% url 'item-borrow' item.pk %}" class="flex-1">
                                 {% csrf_token %}
+                                {% command_fields item %}
                                 <input type="hidden" name="action" value="DECLINE_GIVEAWAY">
                                 <button type="submit" class="btn btn-outline btn-error w-full">
                                     Decline
@@ -350,6 +359,7 @@ For variant='card', also accepts:
                         {% elif action.name == 'DECLINE_GIVEAWAY_REQUEST' %}
                             <form method="POST" action="{% url 'item-borrow' item.pk %}" class="flex-1">
                                 {% csrf_token %}
+                                {% command_fields item %}
                                 <input type="hidden" name="action" value="DECLINE_GIVEAWAY_REQUEST">
                                 <button type="submit" class="btn btn-outline btn-error w-full">
                                     Decline
@@ -379,6 +389,7 @@ For variant='card', also accepts:
                         {% elif action.name == 'REJECT_REQUEST' %}
                             <form method="POST" action="{% url 'item-borrow' item.pk %}" class="flex-1">
                                 {% csrf_token %}
+                                {% command_fields item %}
                                 <input type="hidden" name="action" value="REJECT_REQUEST">
                                 <button type="submit" class="btn btn-soft btn-error w-full">
                                     Decline
@@ -387,6 +398,7 @@ For variant='card', also accepts:
                         {% elif action.name == 'CANCEL_REQUEST' %}
                             <form method="POST" action="{% url 'item-borrow' item.pk %}" class="flex-1">
                                 {% csrf_token %}
+                                {% command_fields item %}
                                 <input type="hidden" name="action" value="CANCEL_REQUEST">
                                 <button type="submit" class="btn btn-soft btn-primary w-full">
                                     Cancel request
@@ -395,6 +407,7 @@ For variant='card', also accepts:
                         {% elif action.name == 'CANCEL_NOTIFICATION_REQUEST' %}
                             <form method="POST" action="{% url 'item-borrow' item.pk %}" class="flex-1">
                                 {% csrf_token %}
+                                {% command_fields item %}
                                 <input type="hidden" name="action" value="CANCEL_NOTIFICATION_REQUEST">
                                 <button type="submit" class="btn btn-waitlisted btn-sm md:btn-md w-full">
                                     Cancel notification request
@@ -403,6 +416,7 @@ For variant='card', also accepts:
                         {% else %}
                             <form method="POST" action="{% url 'item-borrow' item.pk %}" class="flex-1">
                                 {% csrf_token %}
+                                {% command_fields item %}
                                 <input type="hidden" name="action" value="{{ action.name }}">
                                 <button type="submit" class="btn btn-primary w-full">
                                     {{ action.label }}

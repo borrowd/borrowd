@@ -1,5 +1,6 @@
 from typing import Any
 from urllib.parse import urlencode
+from uuid import UUID
 
 from django.conf import settings
 from django.contrib import messages
@@ -56,7 +57,8 @@ from .card_helpers import (
     build_item_cards_for_items,
     with_card_relations,
 )
-from .exceptions import InvalidItemAction, ItemAlreadyRequested
+from .commands import ItemCommand, run_item_command
+from .exceptions import InvalidItemAction, ItemAlreadyRequested, StaleItemCommand
 from .filters import ItemFilter
 from .forms import (
     ItemCreateWithPhotoForm,
@@ -139,8 +141,10 @@ def borrow_item(request: HttpRequest, pk: int) -> HttpResponse:
 
     This POST endpoint requires an `action` parameter, corresponding
     to the py:class:`ItemAction` enum. Core logic is delegated to
-    :py:meth:`.models.Item.process_action` and
-    :py:meth:`.models.Item.get_actions_for`.
+    :py:func:`.commands.run_item_command` and
+    :py:meth:`.models.Item.get_actions_for`. The form's `revision` and
+    `command_key` let a stale page be refused and a double submit be
+    answered once.
 
     On success, redirects back to the referring page (or the item
     detail page as a fallback).
@@ -200,24 +204,34 @@ def borrow_item(request: HttpRequest, pk: int) -> HttpResponse:
         return HttpResponse("Not found", status=404)
 
     try:
+        command = ItemCommand(
+            actor=user,
+            action=action,
+            item_id=item.pk,
+            expected_revision=_posted_revision(request),
+            key=_posted_command_key(request),
+        )
+    except ValueError:
+        return HttpResponse("Malformed revision or command key.", status=400)
+
+    try:
         if settings.MESSAGING_ENABLED and action in _TRANSACTION_REQUEST_ACTIONS:
-            with atomic():
-                # Account before Item, the order process_action locks in.
-                if not BorrowdUser.lock_account(user.pk).is_active:
-                    raise PermissionDenied
-                if item.get_requesting_user() is not None:
+
+            def prepare_conversation(locked_item: Item) -> None:
+                if locked_item.get_requesting_user() is not None:
                     raise ItemAlreadyRequested
                 selected_group = MessagingService.conversation_group_selection(
                     request.POST.get("conversation_group")
                 )
                 MessagingService.prepare_thread_for_request(
                     user,
-                    item,
+                    locked_item,
                     selected_group=selected_group,
                 )
-                item.process_action(user=user, action=action)
+
+            run_item_command(command, before=prepare_conversation)
         else:
-            item.process_action(user=user, action=action)
+            run_item_command(command)
     except (
         ConversationGroupSelectionRequired,
         InvalidConversationGroup,
@@ -229,6 +243,13 @@ def borrow_item(request: HttpRequest, pk: int) -> HttpResponse:
             request,
             messages.WARNING,
             "Sorry! Another user requested this item just before you.",
+        )
+    except StaleItemCommand:
+        _add_message_safe(
+            request,
+            messages.WARNING,
+            f"'{item.name}' changed since you loaded the page, so nothing was "
+            "done. Take another look and try again.",
         )
     except (InvalidItemAction, PermissionDenied):
         _add_message_safe(
@@ -244,6 +265,18 @@ def borrow_item(request: HttpRequest, pk: int) -> HttpResponse:
         )
 
     return redirect(redirect_url)
+
+
+def _posted_revision(request: HttpRequest) -> int | None:
+    """The item revision the form was rendered at, if it sent one."""
+    raw = request.POST.get("revision")
+    return int(raw) if raw else None
+
+
+def _posted_command_key(request: HttpRequest) -> UUID | None:
+    """The form's command key, if it sent one. Raises ValueError if malformed."""
+    raw = request.POST.get("command_key")
+    return UUID(raw) if raw else None
 
 
 class ItemCreateView(

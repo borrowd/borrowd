@@ -1,3 +1,5 @@
+{% load item_commands %}
+
 {# Warning modal shown when the lender clicks "Request return". #}
 
 {% url 'item-borrow' item.pk as borrow_url %}
@@ -7,6 +9,7 @@
           action="{{ borrow_url }}"
           class="hidden">
         {% csrf_token %}
+        {% command_fields item %}
         <input type="hidden" name="action" value="REQUEST_RETURN">
     </form>
     {% include "components/modal.html" with modal_id=modal_id modal_title="Request return" button_layout="equal" confirm_button_text="Request return" cancel_button_text="Cancel" confirm_submit_form_id=form_id modal_content_template="components/items/modals/_request_return_modal_content.html" %}
