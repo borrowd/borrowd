@@ -81,7 +81,7 @@ Requesting an item and subscribing to availability aren't rows: there's no trans
 
 Every change to a transaction's status writes a `LifecycleEvent` in the same database transaction: source and target status, action, actor, the item's revision, and the client's command key if there was one. Account closure and forced resolution write them too, so the events are the full history of every transaction.
 
-Code that reacts to a change registers with `@events.consumer("name")` in `borrowd_items/events.py`. Consumers run right after the change commits, one transaction's events in order.
+Code that reacts to a change registers with `@events.consumer("name")` in `borrowd_items/events.py`. Consumers run right after the change commits, one transaction's events in order. Transaction notifications are one (`borrowd_notifications/lifecycle.py`).
 
 - **If a consumer raises,** the event is retried after 5, 10, 20 and 40 minutes by `manage.py deliver_lifecycle_events`, which cron runs every 5 minutes. After 5 tries it's parked and reported to Sentry. A parked event holds back its transaction's later events, but not anyone else's.
 - **Unsticking:** `manage.py lifecycle_events status|replay|skip`, or the same from the admin. A skip records who did it and why.
