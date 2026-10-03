@@ -8,6 +8,7 @@ from notifications.signals import notify
 
 from borrowd_groups.models import Membership, MembershipStatus
 from borrowd_items.models import (
+    OPEN_TRANSACTION_STATUSES,
     PRE_COLLECTION_TRANSACTION_STATUSES,
     AvailabilitySubscription,
     AvailabilitySubscriptionStatus,
@@ -49,15 +50,21 @@ def soft_delete_account(user: BorrowdUser, *, deleted_by: BorrowdUser) -> None:
     leave-group moderator handoff), and the user is stripped of identifying
     data, deactivated, and dropped from any sessions.
     """
-    if Transaction.objects.filter(
-        party2=user, status__in=_ITEM_IN_HAND_STATUSES
-    ).exists():
-        raise AccountDeletionBlocked(
-            "You're still holding borrowed items. Return them and wait for the "
-            "owner to confirm before deleting your account."
-        )
-
     with transaction.atomic():
+        # The account, then every item it touches, before reading anything
+        # those locks protect. Lifecycle actions lock in the same order.
+        if BorrowdUser.lock_account(user.pk).deleted_at is not None:
+            return
+        _lock_items_involving(user)
+
+        if Transaction.objects.filter(
+            party2=user, status__in=_ITEM_IN_HAND_STATUSES
+        ).exists():
+            raise AccountDeletionBlocked(
+                "You're still holding borrowed items. Return them and wait for the "
+                "owner to confirm before deleting your account."
+            )
+
         _cancel_open_transactions(user, deleted_by)
         _notify_borrowers_of_in_flight_lends(user)
         _cancel_availability_subscriptions(user)
@@ -65,6 +72,23 @@ def soft_delete_account(user: BorrowdUser, *, deleted_by: BorrowdUser) -> None:
         _destroy_profile_photo_and_clear_bio(user, deleted_by)
         _remove_group_memberships(user)
         _soft_delete_and_anonymize_user(user, deleted_by)
+
+
+def _lock_items_involving(user: BorrowdUser) -> None:
+    """Lock every item the user owns or has an open transaction on."""
+    involved = Transaction.objects.filter(
+        Q(party1=user) | Q(party2=user),
+        status__in=OPEN_TRANSACTION_STATUSES,
+    ).values("item_id")
+    # all_objects: a soft-deleted item can still carry an open transaction.
+    # pk order: one order for every closure, so two sharing items cannot deadlock.
+    # https://www.postgresql.org/docs/17/explicit-locking.html#LOCKING-DEADLOCKS
+    list(
+        Item.all_objects.select_for_update(of=("self",))
+        .filter(Q(owner=user) | Q(pk__in=involved))
+        .order_by("pk")
+        .values_list("pk", flat=True)
+    )
 
 
 def _cancel_open_transactions(user: BorrowdUser, deleted_by: BorrowdUser) -> None:
