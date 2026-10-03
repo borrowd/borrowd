@@ -10,7 +10,8 @@ from django.core.paginator import Paginator
 from django.db.models import Exists, OuterRef, Q, QuerySet
 from django.db.transaction import atomic
 from django.forms import ModelForm
-from django.http import HttpRequest, HttpResponse
+from django.forms.models import construct_instance
+from django.http import Http404, HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.template.defaultfilters import filesizeformat
 from django.urls import reverse, reverse_lazy
@@ -201,6 +202,9 @@ def borrow_item(request: HttpRequest, pk: int) -> HttpResponse:
     try:
         if settings.MESSAGING_ENABLED and action in _TRANSACTION_REQUEST_ACTIONS:
             with atomic():
+                # Account before Item, the order process_action locks in.
+                if not BorrowdUser.lock_account(user.pk).is_active:
+                    raise PermissionDenied
                 if item.get_requesting_user() is not None:
                     raise ItemAlreadyRequested
                 selected_group = MessagingService.conversation_group_selection(
@@ -285,20 +289,24 @@ class ItemCreateView(
 
     def form_valid(self, form: ItemCreateWithPhotoForm) -> HttpResponse:
         user = get_authenticated_user(self.request)
-        form.instance.owner = user
-        form.instance.created_by = user
-        form.instance.updated_by = user
-        response = super().form_valid(form)
-        image = form.cleaned_data.get("image")
-        if image:
-            ItemPhoto.objects.create(
-                item=form.instance,
-                image=image,
-                created_by=user,
-                updated_by=user,
-            )
+        with atomic():
+            # Account closure removes owned items under this same lock.
+            if not BorrowdUser.lock_account(user.pk).is_active:
+                raise PermissionDenied
+            form.instance.owner = user
+            form.instance.created_by = user
+            form.instance.updated_by = user
+            response = super().form_valid(form)
+            image = form.cleaned_data.get("image")
+            if image:
+                ItemPhoto.objects.create(
+                    item=form.instance,
+                    image=image,
+                    created_by=user,
+                    updated_by=user,
+                )
 
-        self._link_fulfilled_request(form.instance, user)
+            self._link_fulfilled_request(form.instance, user)
 
         return response
 
@@ -345,19 +353,25 @@ class ItemDeleteView(
     http_method_names = ["post"]
 
     def form_valid(self, form: ModelForm[Item]) -> HttpResponse:
-        item: Item = self.object
-
-        if item.status != ItemStatus.AVAILABLE:
-            _add_message_safe(
-                self.request,
-                messages.ERROR,
-                "Only available items can be deleted.",
-            )
-            return redirect("item-detail", pk=item.pk)
-
         user = get_authenticated_user(self.request)
 
-        item.soft_delete(user)
+        with atomic():
+            item = Item.lock_for_update(self.object.pk)
+            if item.deleted_at is not None or not user.has_perm(ItemOLP.DELETE, item):
+                raise Http404
+            # A request may have arrived since the page was loaded.
+            if (
+                item.status != ItemStatus.AVAILABLE
+                or item.get_current_transaction() is not None
+            ):
+                _add_message_safe(
+                    self.request,
+                    messages.ERROR,
+                    "Only available items can be deleted.",
+                )
+                return redirect("item-detail", pk=item.pk)
+            item.soft_delete(user)
+
         _add_message_safe(self.request, messages.SUCCESS, "Item deleted.")
         return redirect(self.get_success_url())
 
@@ -635,11 +649,31 @@ class ItemUpdateView(
         return context
 
     def form_valid(self, form: ItemForm) -> HttpResponse:
-        form.instance.updated_by = get_authenticated_user(self.request)
-        response = super().form_valid(form)
+        user = get_authenticated_user(self.request)
+        # commit=False writes nothing; it only defines save_m2m for later.
+        # https://docs.djangoproject.com/en/5.2/topics/forms/modelforms/#the-save-method
+        form.save(commit=False)
+        with atomic():
+            item = Item.lock_for_update(form.instance.pk)
+            if item.deleted_at is not None or not user.has_perm(ItemOLP.EDIT, item):
+                raise Http404
+            # Only the form's own fields are written, so an old edit page
+            # cannot put back a status or owner that has since changed.
+            # https://docs.djangoproject.com/en/5.2/ref/models/instances/#ref-models-update-fields
+            construct_instance(form, item)
+            item.updated_by = user
+            form_fields = [
+                field.name
+                for field in item._meta.fields
+                if field.name in form.cleaned_data
+            ]
+            item.save(update_fields=[*form_fields, "updated_by", "updated_at"])
+            form.instance = item
+            form.save_m2m()
+            self.object = item
         self._process_uploaded_photos()
         _add_message_safe(self.request, messages.SUCCESS, "Changes saved.")
-        return response
+        return redirect(self.get_success_url())
 
     def _process_uploaded_photos(self) -> None:
         """Save any new photos uploaded alongside the edit form."""
