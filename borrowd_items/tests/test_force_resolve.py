@@ -10,6 +10,7 @@ from django.urls import reverse
 from django.utils import timezone
 from guardian.shortcuts import assign_perm
 
+from borrowd_items.exceptions import InvalidItemAction
 from borrowd_items.models import (
     Item,
     ItemAction,
@@ -93,6 +94,36 @@ class ForceResolveTests(TestCase):
         self.assertEqual(txn.status, TransactionStatus.RESOLVED)
         # A soft-deleted item (the gone owner's) isn't "freed" -- left as-is.
         self.assertEqual(item.status, ItemStatus.BORROWED)
+
+    def test_refuses_a_transaction_that_is_already_closed(self) -> None:
+        item = _item(self.owner, status=ItemStatus.AVAILABLE)
+        txn = _txn(item, self.owner, self.borrower, TransactionStatus.RETURNED)
+
+        with self.assertRaises(InvalidItemAction):
+            txn.force_resolve(
+                resolved_by=self.owner, reason=ResolutionReason.MODERATOR_OVERRIDE
+            )
+
+        txn.refresh_from_db()
+        self.assertEqual(txn.status, TransactionStatus.RETURNED)
+        self.assertIsNone(txn.resolution_reason)
+
+    def test_a_stale_copy_cannot_overwrite_the_reason(self) -> None:
+        item = _item(self.owner, status=ItemStatus.BORROWED)
+        txn = _txn(item, self.owner, self.borrower, TransactionStatus.COLLECTED)
+        stale = Transaction.objects.get(pk=txn.pk)
+        txn.force_resolve(
+            resolved_by=self.borrower, reason=ResolutionReason.OWNER_ACCOUNT_DELETED
+        )
+
+        with self.assertRaises(InvalidItemAction):
+            stale.force_resolve(
+                resolved_by=self.owner, reason=ResolutionReason.MODERATOR_OVERRIDE
+            )
+
+        txn.refresh_from_db()
+        self.assertEqual(txn.resolution_reason, ResolutionReason.OWNER_ACCOUNT_DELETED)
+        self.assertEqual(txn.updated_by, self.borrower)
 
     def test_resolved_transaction_is_no_longer_the_current_one(self) -> None:
         item = _item(self.owner, status=ItemStatus.BORROWED)

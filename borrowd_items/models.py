@@ -1057,11 +1057,17 @@ class Transaction(Model):
         transaction is always set to RESOLVED with the given reason. The item is
         freed back to AVAILABLE if it's still active; a soft-deleted item (e.g. a
         departed owner's) is left as-is.
+
+        Raises InvalidItemAction if the transaction is already closed, rather
+        than writing a new outcome over the one it has.
         """
 
         with transaction.atomic():
-            item: Item = self.item
-            item.refresh_from_db()
+            item = Item.lock_for_update(self.item_id)
+            # Decide on the row as it is under the lock, not the caller's copy.
+            self.refresh_from_db()
+            if self.status in TERMINAL_TRANSACTION_STATUSES:
+                raise InvalidItemAction(f"Transaction {self.pk} is already closed.")
             self.status = TransactionStatus.RESOLVED
             self.resolution_reason = reason
             self.updated_by = resolved_by
