@@ -102,11 +102,14 @@ class ItemConversationSummaryTests(MessagingTestCase):
 
     def test_status_labels_cover_each_conversation_state(self) -> None:
         prerequest = self.make_thread()
+        # One open transaction per item, so each open one gets its own item.
         active = self._make_transaction_thread(
+            item=self.make_item(name="Active drill"),
             borrower=self.make_user("active-borrower"),
             status=TransactionStatus.COLLECTED,
         )
         disputed = self._make_transaction_thread(
+            item=self.make_item(name="Disputed drill"),
             borrower=self.make_user("disputed-borrower"),
             status=TransactionStatus.DISPUTED,
         )
@@ -116,7 +119,7 @@ class ItemConversationSummaryTests(MessagingTestCase):
         archived.save(update_fields=["archived_at", "archive_reason"])
 
         summaries = build_conversation_summaries(
-            threads_for_item(self.item, self.lender),
+            threads_for_hub(self.lender),
             self.lender,
         )
         statuses = {
@@ -162,9 +165,11 @@ class ItemConversationSummaryTests(MessagingTestCase):
         *,
         borrower: BorrowdUser,
         status: TransactionStatus,
+        item: Item | None = None,
     ) -> ChatThread:
-        transaction = self.make_transaction(borrower=borrower, status=status)
-        return self.make_thread(borrower=borrower, transaction=transaction)
+        item = item or self.item
+        transaction = self.make_transaction(item=item, borrower=borrower, status=status)
+        return self.make_thread(item=item, borrower=borrower, transaction=transaction)
 
 
 @override_settings(MESSAGING_ENABLED=True)
