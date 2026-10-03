@@ -21,12 +21,14 @@ from pywebpush import WebPushException
 
 from borrowd_community_requests.models import CommunityRequest
 from borrowd_groups.models import BorrowdGroup, Membership
+from borrowd_items import events
 from borrowd_items.models import (
     AvailabilitySubscription,
     AvailabilitySubscriptionStatus,
     Item,
     ItemCategory,
     ItemStatus,
+    LifecycleEvent,
     Transaction,
     TransactionStatus,
 )
@@ -61,6 +63,31 @@ from .views import (
     _notification_avatar_content,
     app_channel_qs,
 )
+
+
+def create_transaction_with_event(**fields: Any) -> Transaction:
+    """
+    A transaction created straight at its status, plus the lifecycle event a
+    real action would have left, delivered so its notifications go out.
+    """
+    tx = Transaction.objects.create(**fields)
+    _deliver_event_for(tx, source=None)
+    return tx
+
+
+def move_transaction_with_event(tx: Transaction, status: TransactionStatus) -> None:
+    """Save `tx` at a new status and deliver the event for the move."""
+    source = TransactionStatus(tx.status)
+    tx.status = status
+    tx.save()
+    _deliver_event_for(tx, source=source)
+
+
+def _deliver_event_for(tx: Transaction, *, source: TransactionStatus | None) -> None:
+    LifecycleEvent.record(
+        tx, source=source, target=TransactionStatus(tx.status), actor=tx.updated_by
+    )
+    events.deliver_pending(tx.pk)
 
 
 class GroupMemberJoinedNotificationTests(TestCase):
@@ -258,7 +285,7 @@ class ItemAvailableNotificationTests(TransactionTestCase):
     def test_notification_sent_when_transaction_returned(self) -> None:
         """Test that subscriber receives notification when item is returned."""
         # Create a transaction and set to RETURNED
-        Transaction.objects.create(
+        create_transaction_with_event(
             item=self.item,
             party1=self.owner,
             party2=self.subscriber,
@@ -287,7 +314,7 @@ class ItemAvailableNotificationTests(TransactionTestCase):
     def test_notification_sent_when_transaction_cancelled(self) -> None:
         """Test that subscriber receives notification when request is cancelled."""
         # Create a transaction and set to CANCELLED
-        Transaction.objects.create(
+        create_transaction_with_event(
             item=self.item,
             party1=self.owner,
             party2=self.subscriber,
@@ -316,7 +343,7 @@ class ItemAvailableNotificationTests(TransactionTestCase):
     def test_notification_sent_when_transaction_rejected(self) -> None:
         """Test that subscriber receives notification when request is rejected."""
         # Create a transaction and set to REJECTED
-        Transaction.objects.create(
+        create_transaction_with_event(
             item=self.item,
             party1=self.owner,
             party2=self.subscriber,
@@ -349,7 +376,7 @@ class ItemAvailableNotificationTests(TransactionTestCase):
         self.item.save()
 
         # Create a transaction and set to RETURNED
-        Transaction.objects.create(
+        create_transaction_with_event(
             item=self.item,
             party1=self.owner,
             party2=self.subscriber,
@@ -383,7 +410,7 @@ class ItemAvailableNotificationTests(TransactionTestCase):
         )
 
         # Create a transaction and set to RETURNED
-        Transaction.objects.create(
+        create_transaction_with_event(
             item=self.item,
             party1=self.owner,
             party2=self.subscriber,
@@ -416,7 +443,7 @@ class ItemAvailableNotificationTests(TransactionTestCase):
 
     def test_no_notification_on_requested_status(self) -> None:
         """Test that no notification is sent when transaction is REQUESTED."""
-        Transaction.objects.create(
+        create_transaction_with_event(
             item=self.item,
             party1=self.owner,
             party2=self.subscriber,
@@ -441,7 +468,7 @@ class ItemAvailableNotificationTests(TransactionTestCase):
 
     def test_no_notification_on_accepted_status(self) -> None:
         """Test that no notification is sent when transaction is ACCEPTED."""
-        Transaction.objects.create(
+        create_transaction_with_event(
             item=self.item,
             party1=self.owner,
             party2=self.subscriber,
@@ -466,7 +493,7 @@ class ItemAvailableNotificationTests(TransactionTestCase):
 
     def test_no_notification_on_collection_asserted_status(self) -> None:
         """Test that no notification is sent when transaction is COLLECTION_ASSERTED."""
-        Transaction.objects.create(
+        create_transaction_with_event(
             item=self.item,
             party1=self.owner,
             party2=self.subscriber,
@@ -491,7 +518,7 @@ class ItemAvailableNotificationTests(TransactionTestCase):
 
     def test_no_notification_on_collected_status(self) -> None:
         """Test that no notification is sent when transaction is COLLECTED."""
-        Transaction.objects.create(
+        create_transaction_with_event(
             item=self.item,
             party1=self.owner,
             party2=self.subscriber,
@@ -516,7 +543,7 @@ class ItemAvailableNotificationTests(TransactionTestCase):
 
     def test_no_notification_on_return_asserted_status(self) -> None:
         """Test that no notification is sent when transaction is RETURN_ASSERTED."""
-        Transaction.objects.create(
+        create_transaction_with_event(
             item=self.item,
             party1=self.owner,
             party2=self.subscriber,
@@ -541,7 +568,7 @@ class ItemAvailableNotificationTests(TransactionTestCase):
 
 
 class TransactionNotificationTests(TestCase):
-    """Tests for lending lifecycle notifications fired by the Transaction post_save signal."""
+    """Tests for lending lifecycle notifications, sent from lifecycle events."""
 
     def setUp(self) -> None:
         self.owner = BorrowdUser.objects.create_user(
@@ -561,7 +588,7 @@ class TransactionNotificationTests(TestCase):
     def _create_transaction(
         self, status: TransactionStatus, updated_by: BorrowdUser | None = None
     ) -> Transaction:
-        return Transaction.objects.create(
+        return create_transaction_with_event(
             item=self.item,
             party1=self.owner,
             party2=self.borrower,
@@ -670,7 +697,7 @@ class TransactionNotificationTests(TestCase):
 
 
 class GiveawayNotificationTests(TestCase):
-    """Tests for giveaway notifications fired by the Transaction post_save signal."""
+    """Tests for giveaway notifications, sent from lifecycle events."""
 
     def setUp(self) -> None:
         self.owner = BorrowdUser.objects.create_user(
@@ -694,7 +721,7 @@ class GiveawayNotificationTests(TestCase):
         )
 
     def _create_transaction(self, status: TransactionStatus) -> Transaction:
-        return Transaction.objects.create(
+        return create_transaction_with_event(
             item=self.item,
             party1=self.owner,
             party2=self.borrower,
@@ -728,8 +755,7 @@ class GiveawayNotificationTests(TestCase):
         """A declined offer (reverting to COLLECTED) notifies the owner, not a
         spurious collection-confirmed."""
         tx = self._create_transaction(TransactionStatus.GIVEAWAY_OFFERED)
-        tx.status = TransactionStatus.COLLECTED
-        tx.save()
+        move_transaction_with_event(tx, TransactionStatus.COLLECTED)
 
         declined = Notification.objects.filter(
             recipient=self.owner, verb=NotificationType.GIVEAWAY_DECLINED.value
@@ -757,8 +783,8 @@ class GiveawayNotificationTests(TestCase):
 
 
 class GiveawayRequestNotificationTests(TestCase):
-    """Tests for giveaway-listing request notifications fired by the
-    Transaction post_save signal."""
+    """Tests for giveaway-listing request notifications, sent from lifecycle
+    events."""
 
     def setUp(self) -> None:
         self.owner = BorrowdUser.objects.create_user(
@@ -782,7 +808,7 @@ class GiveawayRequestNotificationTests(TestCase):
         )
 
     def _create_request(self) -> Transaction:
-        return Transaction.objects.create(
+        return create_transaction_with_event(
             item=self.item,
             party1=self.owner,
             party2=self.requester,
@@ -809,8 +835,7 @@ class GiveawayRequestNotificationTests(TestCase):
         """An approved request confirms both sides, without the offer-flow
         GIVEAWAY_ACCEPTED."""
         tx = self._create_request()
-        tx.status = TransactionStatus.OWNERSHIP_TRANSFERRED
-        tx.save()
+        move_transaction_with_event(tx, TransactionStatus.OWNERSHIP_TRANSFERRED)
 
         approved = Notification.objects.filter(
             recipient=self.requester,
@@ -835,8 +860,7 @@ class GiveawayRequestNotificationTests(TestCase):
         """A declined request notifies the requester, not a spurious
         borrow-request denial."""
         tx = self._create_request()
-        tx.status = TransactionStatus.REJECTED
-        tx.save()
+        move_transaction_with_event(tx, TransactionStatus.REJECTED)
 
         declined = Notification.objects.filter(
             recipient=self.requester,
@@ -854,8 +878,7 @@ class GiveawayRequestNotificationTests(TestCase):
     def test_cancel_sends_nothing(self) -> None:
         """A cancelled request fires no notification beyond the initial one."""
         tx = self._create_request()
-        tx.status = TransactionStatus.CANCELLED
-        tx.save()
+        move_transaction_with_event(tx, TransactionStatus.CANCELLED)
 
         self.assertEqual(
             Notification.objects.exclude(
@@ -881,8 +904,7 @@ class GiveawayRequestNotificationTests(TestCase):
         must not be computed into the persisted notification context, nor
         appear in the rendered in-app message."""
         tx = self._create_request()
-        tx.status = TransactionStatus.REJECTED
-        tx.save()
+        move_transaction_with_event(tx, TransactionStatus.REJECTED)
 
         notification = Notification.objects.get(
             recipient=self.requester,
@@ -899,8 +921,7 @@ class GiveawayRequestNotificationTests(TestCase):
         """The declined-request email must not name the gifter either."""
         tx = self._create_request()
         with self.captureOnCommitCallbacks(execute=True):
-            tx.status = TransactionStatus.REJECTED
-            tx.save()
+            move_transaction_with_event(tx, TransactionStatus.REJECTED)
 
         self.assertEqual(len(mail.outbox), 1)
         email = mail.outbox[0]
@@ -1507,7 +1528,7 @@ class NotificationPreferenceRoutingTests(TransactionTestCase):
 
     def _trigger_accepted(self) -> Notification:
         """owner accepts → borrower gets ITEM_REQUEST_ACCEPTED (optional type)."""
-        Transaction.objects.create(
+        create_transaction_with_event(
             item=self.item,
             party1=self.owner,
             party2=self.borrower,
@@ -1524,7 +1545,7 @@ class NotificationPreferenceRoutingTests(TransactionTestCase):
 
     def _trigger_requested(self) -> Notification:
         """borrower requests → owner gets ITEM_REQUESTED (mandatory type)."""
-        Transaction.objects.create(
+        create_transaction_with_event(
             item=self.item,
             party1=self.owner,
             party2=self.borrower,
@@ -1645,7 +1666,7 @@ class NotificationChannelErrorTests(TransactionTestCase):
         )
 
     def _trigger_accepted(self) -> Notification:
-        Transaction.objects.create(
+        create_transaction_with_event(
             item=self.item,
             party1=self.owner,
             party2=self.borrower,
@@ -1720,7 +1741,7 @@ class NotificationEmailThrottleTests(TransactionTestCase):
         )
 
     def _trigger_accepted(self) -> Notification:
-        Transaction.objects.create(
+        create_transaction_with_event(
             item=self.item,
             party1=self.owner,
             party2=self.borrower,
@@ -1796,7 +1817,7 @@ class NotificationEmailThrottleTests(TransactionTestCase):
         with patch.object(
             NotificationService, "_is_email_throttled", return_value=True
         ):
-            Transaction.objects.create(
+            create_transaction_with_event(
                 item=self.item,
                 party1=self.owner,
                 party2=self.borrower,
@@ -1854,7 +1875,7 @@ class NotificationEmailThrottleTests(TransactionTestCase):
         )
 
         # Trigger a real notification — email is throttled, digest is scheduled.
-        Transaction.objects.create(
+        create_transaction_with_event(
             item=self.item,
             party1=self.owner,
             party2=self.borrower,
@@ -1907,7 +1928,7 @@ class NotificationEmailThrottleTests(TransactionTestCase):
         max_seeded_pk = (
             Notification.objects.order_by("-pk").values_list("pk", flat=True).first()
         )
-        Transaction.objects.create(
+        create_transaction_with_event(
             item=self.item,
             party1=self.owner,
             party2=self.borrower,
@@ -2104,7 +2125,7 @@ class ReturnFlowNotificationTests(TestCase):
         dispute_raised_by: BorrowdUser | None = None,
     ) -> Transaction:
         with self.captureOnCommitCallbacks(execute=True):
-            return Transaction.objects.create(
+            return create_transaction_with_event(
                 item=self.item,
                 party1=self.lender,
                 party2=self.borrower,
@@ -2973,7 +2994,7 @@ class PUSHNotificationStrategyTests(TransactionTestCase):
         )
 
     def _trigger_accepted(self) -> Notification:
-        Transaction.objects.create(
+        create_transaction_with_event(
             item=self.item,
             party1=self.owner,
             party2=self.borrower,

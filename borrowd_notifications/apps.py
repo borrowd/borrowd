@@ -8,4 +8,5 @@ class BorrowdNotificationsConfig(AppConfig):
 
     def ready(self) -> None:
         """Import signals when the app is ready."""
+        import borrowd_notifications.lifecycle  # noqa
         import borrowd_notifications.signals  # noqa

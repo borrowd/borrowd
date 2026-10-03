@@ -1,7 +1,7 @@
 from typing import Any
 
 from django.conf import settings
-from django.db.models.signals import post_save, pre_delete
+from django.db.models.signals import post_save, pre_delete, pre_save
 from django.dispatch import receiver
 from guardian.shortcuts import assign_perm
 
@@ -64,6 +64,22 @@ def archive_threads_for_hard_deleted_item(
 ) -> None:
     """Archive open conversations before an Item is hard-deleted."""
     MessagingService.archive_open_threads_for_item(instance, ArchiveReason.ITEM_DELETED)
+
+
+@receiver(pre_save, sender=Transaction)
+def capture_transaction_previous_status(
+    sender: type[Transaction], instance: Transaction, **kwargs: Any
+) -> None:
+    """Store the pre-save status on the instance so post_save can detect transitions."""
+    if instance.pk:
+        try:
+            instance._previous_status = Transaction.objects.values_list(
+                "status", flat=True
+            ).get(pk=instance.pk)
+        except Transaction.DoesNotExist:
+            instance._previous_status = None
+    else:
+        instance._previous_status = None
 
 
 @receiver(post_save, sender=Transaction)

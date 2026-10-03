@@ -1,8 +1,9 @@
 """
 This module contains signals for handling creating notifications and emailing notifications.
 
-Signal handlers for created app models (e.g. Transaction or Membership) will trigger a notify.send()
-call which will create a Notification object for each user in the recipient list. A separate signal handler
+Signal handlers for created app models (e.g. Membership) will trigger a notify.send()
+call which will create a Notification object for each user in the recipient list.
+Transaction notifications come from lifecycle events instead; see lifecycle.py. A separate signal handler
 send_notification() will catch Notification objects post-save, send emails based on Notification attributes,
 and fill in the reserved "emailed" field.
 
@@ -18,7 +19,6 @@ from typing import Any, cast
 from django.db import transaction
 from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
-from django.utils import timezone
 from notifications.models import Notification
 from notifications.signals import notify
 
@@ -28,41 +28,11 @@ from borrowd_items.models import (
     AvailabilitySubscription,
     AvailabilitySubscriptionStatus,
     Item,
-    Transaction,
-    TransactionStatus,
 )
 from borrowd_users.models import BorrowdUser
 
 from .models import NotificationMetadata, NotificationType
 from .services import NotificationService
-
-
-def _notify_subscribers_if_available(item: Item) -> None:
-    """
-    Check if the item is borrowable and notify subscribers.
-    """
-    item.refresh_from_db()  # Ensure we have the latest data
-
-    if item.is_borrowable():
-        subscriptions = AvailabilitySubscription.get_active_subscriptions_for_item(item)
-        for subscription in subscriptions:
-            notify.send(
-                item.owner,
-                recipient=[subscription.user],
-                verb=NotificationType.ITEM_NOTIFY_WHEN_AVAILABLE.value,
-                action_object=item,
-                target=subscription,
-                description=f"{item.name} is now available",
-            )
-
-            AvailabilitySubscription.objects.filter(
-                pk=subscription.pk,
-                status=AvailabilitySubscriptionStatus.ACTIVE,
-                notified_at__isnull=True,
-            ).update(
-                notified_at=timezone.now(),
-                status=AvailabilitySubscriptionStatus.NOTIFIED,
-            )
 
 
 @receiver(post_save, sender=Notification)
@@ -81,191 +51,6 @@ def send_notification(
     transaction.on_commit(
         lambda: NotificationService.send_notification(instance), robust=True
     )
-
-
-@receiver(pre_save, sender=Transaction)
-def capture_transaction_previous_status(
-    sender: type[Transaction], instance: Transaction, **kwargs: Any
-) -> None:
-    """Store the pre-save status on the instance so post_save can detect transitions."""
-    if instance.pk:
-        try:
-            instance._previous_status = Transaction.objects.values_list(
-                "status", flat=True
-            ).get(pk=instance.pk)
-        except Transaction.DoesNotExist:
-            instance._previous_status = None
-    else:
-        instance._previous_status = None
-
-
-@receiver(post_save, sender=Transaction)
-def send_transaction_notifications(
-    sender: type[Transaction], instance: Transaction, created: bool, **kwargs: Any
-) -> None:
-    """Send notifications when transaction status changes."""
-
-    previous_status = getattr(instance, "_previous_status", None)
-    if not created and instance.status == previous_status:
-        return
-
-    # A declined giveaway reverts to COLLECTED, which would otherwise fire the
-    # collection-confirmed notification. Catch that transition first.
-    if (
-        previous_status == TransactionStatus.GIVEAWAY_OFFERED
-        and instance.status == TransactionStatus.COLLECTED
-    ):
-        notify.send(
-            instance.party2,
-            recipient=[instance.party1],
-            verb=NotificationType.GIVEAWAY_DECLINED.value,
-            action_object=instance.item,
-            target=instance,
-            description=f"{instance.party2.first_name} declined your giveaway offer for {instance.item.name}",
-        )
-        return
-
-    match instance.status:
-        case TransactionStatus.REQUESTED:
-            notify.send(
-                instance.party2,
-                recipient=[instance.party1],
-                verb=NotificationType.ITEM_REQUESTED.value,
-                action_object=instance.item,
-                target=instance,
-                description=f"Someone's hoping to borrow your {instance.item.name}",
-            )
-        case TransactionStatus.ACCEPTED:
-            notify.send(
-                instance.party1,
-                recipient=[instance.party2],
-                verb=NotificationType.ITEM_REQUEST_ACCEPTED.value,
-                action_object=instance.item,
-                target=instance,
-                description=f"Your request to borrow {instance.item.name} was approved",
-            )
-        case TransactionStatus.REJECTED:
-            verb = (
-                NotificationType.GIVEAWAY_REQUEST_DECLINED
-                if previous_status == TransactionStatus.GIVEAWAY_REQUESTED
-                else NotificationType.ITEM_REQUEST_DENIED
-            )
-            notify.send(
-                instance.party1,
-                recipient=[instance.party2],
-                verb=verb.value,
-                action_object=instance.item,
-                target=instance,
-                description=f"Your request for {instance.item.name} was declined",
-            )
-        case TransactionStatus.COLLECTION_ASSERTED:
-            who = "they've" if instance.item.owner != instance.updated_by else "you've"
-            notify.send(
-                instance.updated_by,
-                recipient=[instance.counter_party(instance.updated_by)],
-                verb=NotificationType.COLLECTION_ASSERTED.value,
-                action_object=instance.item,
-                target=instance,
-                description=f"{instance.updated_by.first_name} says {who} collected {instance.item.name}. Please confirm.",
-            )
-        case TransactionStatus.COLLECTED:
-            notify.send(
-                instance.updated_by,
-                recipient=[instance.counter_party(instance.updated_by)],
-                verb=NotificationType.COLLECTION_CONFIRMED.value,
-                action_object=instance.item,
-                target=instance,
-                description=f"The collection of {instance.item.name} has been confirmed!",
-            )
-        case TransactionStatus.GIVEAWAY_OFFERED:
-            notify.send(
-                instance.party1,
-                recipient=[instance.party2],
-                verb=NotificationType.GIVEAWAY_OFFER_SENT.value,
-                action_object=instance.item,
-                target=instance,
-                description=f"{instance.party1.first_name} wants to give you {instance.item.name}!",
-            )
-        case TransactionStatus.GIVEAWAY_REQUESTED:
-            notify.send(
-                instance.party2,
-                recipient=[instance.party1],
-                verb=NotificationType.GIVEAWAY_REQUEST_RECEIVED.value,
-                action_object=instance.item,
-                target=instance,
-                description=f"{instance.party2.first_name} would like your {instance.item.name}!",
-            )
-        case TransactionStatus.OWNERSHIP_TRANSFERRED:
-            if previous_status == TransactionStatus.GIVEAWAY_REQUESTED:
-                notify.send(
-                    instance.party1,
-                    recipient=[instance.party2],
-                    verb=NotificationType.GIVEAWAY_REQUEST_APPROVED.value,
-                    action_object=instance.item,
-                    target=instance,
-                    description=f"{instance.party1.first_name} approved your request - {instance.item.name} is yours!",
-                )
-                notify.send(
-                    instance.party1,
-                    recipient=[instance.party1],
-                    verb=NotificationType.GIVEAWAY_COMPLETED.value,
-                    action_object=instance.item,
-                    target=instance,
-                    description=f"You gave {instance.item.name} to {instance.party2.first_name}",
-                )
-                return
-            notify.send(
-                instance.party2,
-                recipient=[instance.party1],
-                verb=NotificationType.GIVEAWAY_ACCEPTED.value,
-                action_object=instance.item,
-                target=instance,
-                description=f"{instance.party2.first_name} accepted your gift of {instance.item.name}",
-            )
-        case TransactionStatus.RETURN_ASSERTED:
-            notify.send(
-                instance.updated_by,
-                recipient=[instance.counter_party(instance.updated_by)],
-                verb=NotificationType.RETURN_ASSERTED.value,
-                action_object=instance.item,
-                target=instance,
-                description=f"{instance.updated_by.first_name} says {instance.item.name} has been returned. Please confirm.",
-            )
-        case TransactionStatus.RETURNED:
-            notify.send(
-                instance.updated_by,
-                recipient=[instance.counter_party(instance.updated_by)],
-                verb=NotificationType.RETURN_CONFIRMED.value,
-                action_object=instance.item,
-                target=instance,
-                description=f"{instance.item.name} return confirmed. Thanks for borrowing!",
-            )
-        case TransactionStatus.RETURN_REQUESTED:
-            notify.send(
-                instance.party1,
-                recipient=[instance.party2],
-                verb=NotificationType.ITEM_RETURN_REQUESTED.value,
-                action_object=instance.item,
-                target=instance,
-                description="Return requested",
-            )
-        case TransactionStatus.DISPUTED:
-            # The party who raised the dispute notifies the other one.
-            if instance.dispute_raised_by is None:
-                return
-            notified_party = (
-                instance.party1
-                if instance.dispute_raised_by == instance.party2
-                else instance.party2
-            )
-            notify.send(
-                instance.dispute_raised_by,
-                recipient=[notified_party],
-                verb=NotificationType.ITEM_DISPUTED.value,
-                action_object=instance.item,
-                target=instance,
-                description="A dispute has been raised",
-            )
 
 
 @receiver(pre_save, sender=Membership)
@@ -347,30 +132,6 @@ def send_membership_notifications(
                 target=instance.group,
                 description=f"{instance.user.first_name} just joined {instance.group.name}",
             )
-
-
-@receiver(post_save, sender=Transaction)
-def send_item_available_notification(
-    sender: type[Transaction],
-    instance: Transaction,
-    created: bool,
-    **kwargs: str,
-) -> None:
-    """
-    Send notifications when an item subscribed to becomes available.
-    """
-
-    item = cast(Item | None, instance.item)
-    if (
-        instance.status
-        in [
-            TransactionStatus.REJECTED,
-            TransactionStatus.RETURNED,
-            TransactionStatus.CANCELLED,
-        ]
-        and item is not None
-    ):
-        transaction.on_commit(lambda: _notify_subscribers_if_available(item))
 
 
 @receiver(post_save, sender=AvailabilitySubscription)
