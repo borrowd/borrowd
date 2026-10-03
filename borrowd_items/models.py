@@ -1,7 +1,7 @@
 import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Optional, cast
+from typing import TYPE_CHECKING, Any, Optional, cast
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -14,11 +14,13 @@ from django.db.models import (
     BooleanField,
     CharField,
     DateTimeField,
+    F,
     ForeignKey,
     IntegerChoices,
     IntegerField,
     ManyToManyField,
     Model,
+    PositiveBigIntegerField,
     Q,
     QuerySet,
     UniqueConstraint,
@@ -242,11 +244,30 @@ class Item(Model):
         related_name="+",
         help_text="Who performed the soft-delete. NULL means active or unknown.",
     )
+    revision = PositiveBigIntegerField(
+        default=0,
+        editable=False,
+        help_text=(
+            "Advances on every change to the item or its transactions, so a "
+            "client can tell that what it showed is out of date."
+        ),
+    )
     objects = ActiveItemManager()
     all_objects = models.Manager()
 
     def __str__(self) -> str:
         return self.name
+
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        advancing = not self._state.adding
+        if advancing:
+            # Incremented by the database, so two writers can't land on one value.
+            self.revision = F("revision") + 1
+            if kwargs.get("update_fields") is not None:
+                kwargs["update_fields"] = {*kwargs["update_fields"], "revision"}
+        super().save(*args, **kwargs)
+        if advancing:
+            self.refresh_from_db(fields=["revision"])
 
     def get_absolute_url(self) -> str:
         return reverse("item-detail", args=[self.pk])
@@ -1022,6 +1043,11 @@ class Transaction(Model):
         related_name="+",
         help_text="Who performed the soft-delete. NULL means active or unknown.",
     )
+
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        super().save(*args, **kwargs)
+        # A transaction is part of its item's state, as far as clients can tell.
+        Item.all_objects.filter(pk=self.item_id).update(revision=F("revision") + 1)
 
     def counter_party(self, user: BorrowdUser) -> BorrowdUser:
         if user == self.party1:
