@@ -36,8 +36,7 @@ from .exceptions import (
     ItemAlreadyRequested,
     TransactionLenderMismatch,
 )
-from .flow import execute_transition
-from .flow_parity import actions_for_open_transaction
+from .flow import available_actions, execute_transition
 from .processors import AutoOrientProcessor
 
 # Defined in statuses.py; re-exported for importers of this module.
@@ -565,7 +564,7 @@ class Item(Model):
             # not tackling yet.
             return tuple()
 
-        return actions_for_open_transaction(self, current_tx, user)
+        return available_actions(current_tx, user, now=timezone.now())
 
     def get_requesting_user(self) -> BorrowdUser | None:
         """

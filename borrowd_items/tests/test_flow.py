@@ -232,6 +232,14 @@ class EligibilityTests(FlowTestCase):
                         available_actions(tx, self.party(role), now=NOW),
                     )
 
+    def test_party1_is_the_lender_even_if_the_owner_changed(self) -> None:
+        self.item.owner = self.bystander
+        tx = self.transaction(TransactionStatus.REQUESTED, updated_by=self.borrower)
+        self.assertEqual(
+            available_actions(tx, self.lender, now=NOW),
+            (ItemAction.REJECT_REQUEST, ItemAction.ACCEPT_REQUEST),
+        )
+
     def test_action_names_mirror_the_eligible_transitions(self) -> None:
         tx = self.transaction(TransactionStatus.COLLECTED, updated_by=self.borrower)
         specs = eligible_transitions(tx, self.lender, now=NOW)
