@@ -16,6 +16,7 @@ from PIL import Image
 
 from borrowd_groups.models import BorrowdGroup, Membership
 from borrowd_items.models import (
+    DUAL_CONFIRMATION_TRANSACTION_STATUSES,
     AvailabilitySubscription,
     AvailabilitySubscriptionStatus,
     Item,
@@ -294,6 +295,29 @@ class AccountDeletionTransactionTests(TestCase):
             1,
         )
 
+    def test_owner_leaving_mid_dispute_leaves_it_open_and_notifies_borrower(
+        self,
+    ) -> None:
+        item = _make_item(self.leaver)
+        txn = self._txn(
+            item=item,
+            party1=self.leaver,
+            party2=self.counterparty,
+            status=TransactionStatus.DISPUTED,
+        )
+        Notification.objects.all().delete()
+
+        soft_delete_account(self.leaver, deleted_by=self.leaver)
+
+        txn.refresh_from_db()
+        self.assertEqual(txn.status, TransactionStatus.DISPUTED)
+        self.assertTrue(
+            Notification.objects.filter(
+                verb=NotificationType.LOAN_ENDED_OWNER_LEFT.value,
+                recipient=self.counterparty,
+            ).exists()
+        )
+
     def test_preserves_completed_transaction(self) -> None:
         item = _make_item(self.leaver)
         txn = self._txn(
@@ -397,6 +421,45 @@ class AccountDeletionBorrowGuardTests(TestCase):
 
         self.borrower.refresh_from_db()
         self.assertTrue(self.borrower.is_active)
+
+    def _hold(self, status: TransactionStatus) -> None:
+        Transaction.objects.create(
+            item=_make_item(self.lender, name=f"Held {status.label}"),
+            party1=self.lender,
+            party2=self.borrower,
+            status=status,
+            created_by=self.borrower,
+            updated_by=self.borrower,
+        )
+
+    def _blocked_message(self) -> str:
+        with self.assertRaises(AccountDeletionBlocked) as blocked:
+            soft_delete_account(self.borrower, deleted_by=self.borrower)
+        self.borrower.refresh_from_db()
+        self.assertTrue(self.borrower.is_active)
+        return str(blocked.exception)
+
+    def test_blocks_in_every_status_after_collection_starts(self) -> None:
+        for status in DUAL_CONFIRMATION_TRANSACTION_STATUSES:
+            with self.subTest(status=status.label):
+                Transaction.objects.filter(party2=self.borrower).delete()
+                self._hold(status)
+                self._blocked_message()
+
+    def test_a_giveaway_offer_asks_for_an_answer(self) -> None:
+        self._hold(TransactionStatus.GIVEAWAY_OFFERED)
+        self.assertIn("Accept or decline the offer", self._blocked_message())
+
+    def test_a_dispute_says_the_owner_has_to_settle_it(self) -> None:
+        self._hold(TransactionStatus.DISPUTED)
+        message = self._blocked_message()
+        self.assertIn("its owner has to settle it", message)
+        self.assertIn("support@borrowd.org", message)
+
+    def test_something_to_do_comes_before_something_to_wait_on(self) -> None:
+        self._hold(TransactionStatus.DISPUTED)
+        self._hold(TransactionStatus.RETURN_REQUESTED)
+        self.assertIn("Return them", self._blocked_message())
 
     def test_accepted_borrow_is_cancelled_not_blocked(self) -> None:
         # Borrower reserved an item but never collected it: nothing has changed

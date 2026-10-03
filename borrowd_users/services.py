@@ -8,6 +8,7 @@ from notifications.signals import notify
 
 from borrowd_groups.models import Membership, MembershipStatus
 from borrowd_items.models import (
+    DUAL_CONFIRMATION_TRANSACTION_STATUSES,
     OPEN_TRANSACTION_STATUSES,
     PRE_COLLECTION_TRANSACTION_STATUSES,
     AvailabilitySubscription,
@@ -23,15 +24,38 @@ from .exceptions import AccountDeletionBlocked
 from .models import BorrowdUser
 
 # A borrower is physically on the hook for an item once collection starts and
-# stays so until the lender confirms the return. Deletion is blocked while a
-# leaving borrower holds any of these: you can't vanish with someone's property,
-# and an asserted-but-unconfirmed return isn't proof the item actually came back.
+# stays so until the lender confirms the return or settles a dispute. Deletion
+# is blocked while a leaving borrower holds any of these: you can't vanish with
+# someone's property, and an asserted-but-unconfirmed return isn't proof the
+# item actually came back.
 # When the *owner* leaves mid-loan these are left open instead. The borrower
 # closes the loan out themselves (see _notify_borrowers_of_in_flight_lends).
-_ITEM_IN_HAND_STATUSES = (
-    TransactionStatus.COLLECTION_ASSERTED,
-    TransactionStatus.COLLECTED,
-    TransactionStatus.RETURN_ASSERTED,
+_ITEM_IN_HAND_STATUSES = DUAL_CONFIRMATION_TRANSACTION_STATUSES
+
+# What a blocked borrower is told, checked in order so that something they can
+# do comes before something they have to wait on.
+_DELETION_BLOCKED_MESSAGES = (
+    (
+        (
+            TransactionStatus.COLLECTION_ASSERTED,
+            TransactionStatus.COLLECTED,
+            TransactionStatus.RETURN_REQUESTED,
+            TransactionStatus.RETURN_ASSERTED,
+        ),
+        "You're still holding borrowed items. Return them and wait for the "
+        "owner to confirm before deleting your account.",
+    ),
+    (
+        (TransactionStatus.GIVEAWAY_OFFERED,),
+        "The owner of an item you're borrowing has offered to give it to you. "
+        "Accept or decline the offer before deleting your account.",
+    ),
+    (
+        (TransactionStatus.DISPUTED,),
+        "An item you borrowed is in dispute, and its owner has to settle it "
+        "before you can delete your account. If they aren't responding, email "
+        "support@borrowd.org.",
+    ),
 )
 
 
@@ -40,10 +64,11 @@ def soft_delete_account(user: BorrowdUser, *, deleted_by: BorrowdUser) -> None:
     Soft-delete and anonymize `user`.
 
     Raises `AccountDeletionBlocked` while the user is still holding a borrowed
-    item (collection started, return not yet confirmed): they must finish
-    returning it first. Lending is allowed. Owned items are soft-deleted, and
-    any loans still out are left open so the borrower can close them out and
-    arrange the item's return with the (departed) owner directly.
+    item (collection started, and the lender hasn't confirmed the return or
+    settled a dispute): they must finish returning it first. Lending is
+    allowed. Owned items are soft-deleted, and any loans still out are left
+    open so the borrower can close them out and arrange the item's return with
+    the (departed) owner directly.
 
     Everything else: open requests are cancelled,
     photos are wiped from storage, group memberships are dropped (reusing the
@@ -57,13 +82,14 @@ def soft_delete_account(user: BorrowdUser, *, deleted_by: BorrowdUser) -> None:
             return
         _lock_items_involving(user)
 
-        if Transaction.objects.filter(
-            party2=user, status__in=_ITEM_IN_HAND_STATUSES
-        ).exists():
-            raise AccountDeletionBlocked(
-                "You're still holding borrowed items. Return them and wait for the "
-                "owner to confirm before deleting your account."
-            )
+        held = set(
+            Transaction.objects.filter(
+                party2=user, status__in=_ITEM_IN_HAND_STATUSES
+            ).values_list("status", flat=True)
+        )
+        for statuses, message in _DELETION_BLOCKED_MESSAGES:
+            if held.intersection(statuses):
+                raise AccountDeletionBlocked(message)
 
         _cancel_open_transactions(user, deleted_by)
         _notify_borrowers_of_in_flight_lends(user)
