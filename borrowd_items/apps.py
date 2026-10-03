@@ -10,4 +10,5 @@ class BorrowdItemsConfig(AppConfig):
         # approach when using the `@receiver` decorator; see
         # section "Where should this code live?" in the docs:
         # https://docs.djangoproject.com/en/5.1/topics/signals/
+        import borrowd_items.events  # noqa
         import borrowd_items.signals  # noqa

@@ -2,6 +2,7 @@ import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Optional, cast
+from uuid import UUID, uuid4
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -16,16 +17,20 @@ from django.db.models import (
     DateTimeField,
     F,
     ForeignKey,
+    Index,
     IntegerChoices,
     IntegerField,
     ManyToManyField,
     Model,
     PositiveBigIntegerField,
+    PositiveSmallIntegerField,
     Q,
     QuerySet,
+    TextField,
     UniqueConstraint,
     UUIDField,
 )
+from django.dispatch import Signal
 from django.urls import reverse
 from django.utils import timezone
 from imagekit.models import ImageSpecField, ProcessedImageField
@@ -681,7 +686,11 @@ class Item(Model):
             self.refresh_from_db()
 
     def _process_action_locked(
-        self, user: BorrowdUser, action: ItemAction
+        self,
+        user: BorrowdUser,
+        action: ItemAction,
+        *,
+        command_key: UUID | None = None,
     ) -> Optional["Transaction"]:
         """Apply the action and return the transaction it opened or moved."""
         # A deleted item stays reachable only to close out a stranded loan.
@@ -719,10 +728,14 @@ class Item(Model):
             )
 
         if action == ItemAction.REQUEST_ITEM:
-            return self._open_request(user, TransactionStatus.REQUESTED)
+            return self._open_request(
+                user, TransactionStatus.REQUESTED, action, command_key
+            )
 
         if action == ItemAction.REQUEST_GIVEAWAY:
-            return self._open_request(user, TransactionStatus.GIVEAWAY_REQUESTED)
+            return self._open_request(
+                user, TransactionStatus.GIVEAWAY_REQUESTED, action, command_key
+            )
 
         if (
             action == ItemAction.NOTIFY_WHEN_AVAILABLE
@@ -763,7 +776,16 @@ class Item(Model):
             # partly to keep mypy happy.
             raise ValueError("No existing Transaction")
 
-        execute_transition(self, current_tx, user, action, now=timezone.now())
+        source = TransactionStatus(current_tx.status)
+        applied = execute_transition(self, current_tx, user, action, now=timezone.now())
+        LifecycleEvent.record(
+            current_tx,
+            source=source,
+            target=applied.target,
+            actor=user,
+            action=action,
+            command_key=command_key,
+        )
         return current_tx
 
     def advance_revision(self) -> None:
@@ -772,7 +794,11 @@ class Item(Model):
         self.refresh_from_db(fields=["revision"])
 
     def _open_request(
-        self, user: BorrowdUser, status: TransactionStatus
+        self,
+        user: BorrowdUser,
+        status: TransactionStatus,
+        action: ItemAction,
+        command_key: UUID | None,
     ) -> "Transaction":
         try:
             # A savepoint, so losing to the one-open-transaction constraint
@@ -796,6 +822,14 @@ class Item(Model):
                 f"Item '{self}' already has an open transaction."
             ) from None
         sync_item_status(self, created_tx)
+        LifecycleEvent.record(
+            created_tx,
+            source=None,
+            target=status,
+            actor=user,
+            action=action,
+            command_key=command_key,
+        )
         return created_tx
 
     def groups_allowed_to_view(self) -> "QuerySet[BorrowdGroup]":
@@ -1113,11 +1147,18 @@ class Transaction(Model):
             self.refresh_from_db()
             if self.status in TERMINAL_TRANSACTION_STATUSES:
                 raise InvalidItemAction(f"Transaction {self.pk} is already closed.")
+            source = TransactionStatus(self.status)
             self.status = TransactionStatus.RESOLVED
             self.resolution_reason = reason
             self.updated_by = resolved_by
             sync_item_status(item, self)
             self.save()
+            LifecycleEvent.record(
+                self,
+                source=source,
+                target=TransactionStatus.RESOLVED,
+                actor=resolved_by,
+            )
 
     @staticmethod
     def get_requested_status_transactions_for_user(
@@ -1385,5 +1426,120 @@ class ItemCommandRecord(Model):
         constraints = [
             UniqueConstraint(
                 fields=["actor", "key"], name="unique_item_command_key_per_actor"
+            )
+        ]
+
+
+# Sent when a LifecycleEvent row is written; borrowd_items.events delivers it
+# once the database transaction commits.
+transition_recorded = Signal()
+
+
+class LifecycleEvent(Model):
+    """
+    One change to a transaction's status, written in the same database
+    transaction as the change. Consumers (borrowd_items.events) run after
+    commit, and `deliver_lifecycle_events` retries whatever a crash or an
+    error left behind.
+    """
+
+    id = UUIDField(primary_key=True, default=uuid4, editable=False)
+    schema_version = PositiveSmallIntegerField(default=1)
+    item = ForeignKey(Item, on_delete=CASCADE, related_name="+")
+    transaction = ForeignKey(Transaction, on_delete=CASCADE, related_name="+")
+    revision = PositiveBigIntegerField(
+        help_text="The item's revision once the change was made. Orders a transaction's events."
+    )
+    action = CharField(
+        max_length=50,
+        blank=True,
+        choices=ItemAction.choices,
+        help_text="The action behind the change. Blank for account closure or a forced resolution.",
+    )
+    source_status = IntegerField(
+        null=True,
+        blank=True,
+        choices=TransactionStatus.choices,
+        help_text="NULL when the change opened the transaction.",
+    )
+    target_status = IntegerField(choices=TransactionStatus.choices)
+    actor = ForeignKey(BorrowdUser, on_delete=CASCADE, related_name="+")
+    command_key = UUIDField(
+        null=True, blank=True, help_text="The client's command key, if it sent one."
+    )
+    occurred_at = DateTimeField(default=timezone.now)
+
+    processed_at = DateTimeField(null=True, blank=True)
+    attempts = PositiveSmallIntegerField(default=0)
+    next_attempt_at = DateTimeField(default=timezone.now)
+    failed_at = DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Set once retries ran out. Holds back the transaction's later events until replayed or skipped.",
+    )
+    last_error = TextField(blank=True)
+    skipped_by = ForeignKey(
+        BorrowdUser, null=True, blank=True, on_delete=SET_NULL, related_name="+"
+    )
+    skip_reason = TextField(blank=True)
+
+    class Meta:
+        indexes = [
+            Index(fields=["transaction", "revision"], name="lifecycle_event_order"),
+            Index(
+                fields=["next_attempt_at"],
+                condition=Q(processed_at__isnull=True),
+                name="lifecycle_event_pending",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        source = (
+            TransactionStatus(self.source_status).name
+            if self.source_status is not None
+            else "new"
+        )
+        target = TransactionStatus(self.target_status).name
+        return f"Transaction {self.transaction_id}: {source} -> {target}"
+
+    @classmethod
+    def record(
+        cls,
+        tx: Transaction,
+        *,
+        source: TransactionStatus | None,
+        target: TransactionStatus,
+        actor: BorrowdUser,
+        action: ItemAction | None = None,
+        command_key: UUID | None = None,
+    ) -> "LifecycleEvent":
+        """Write the event for a change the caller just saved, under its locks."""
+        event = cls.objects.create(
+            item_id=tx.item_id,
+            transaction=tx,
+            revision=Item.all_objects.values_list("revision", flat=True).get(
+                pk=tx.item_id
+            ),
+            action=action or "",
+            source_status=source,
+            target_status=target,
+            actor=actor,
+            command_key=command_key,
+        )
+        transition_recorded.send(sender=cls, event=event)
+        return event
+
+
+class LifecycleEventConsumption(Model):
+    """A consumer's note that it handled an event, written with its effects."""
+
+    consumer = CharField(max_length=50)
+    event = ForeignKey(LifecycleEvent, on_delete=CASCADE, related_name="consumptions")
+    consumed_at = DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            UniqueConstraint(
+                fields=["consumer", "event"], name="unique_event_per_consumer"
             )
         ]

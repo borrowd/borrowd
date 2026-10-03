@@ -81,7 +81,9 @@ def run_item_command(
         _check_what_the_client_saw(item, command)
         if before is not None:
             before(item)
-        tx = item._process_action_locked(command.actor, command.action)
+        tx = item._process_action_locked(
+            command.actor, command.action, command_key=command.key
+        )
 
         result = CommandResult(
             item_id=item.pk,

@@ -14,6 +14,7 @@ from borrowd_items.models import (
     AvailabilitySubscription,
     AvailabilitySubscriptionStatus,
     Item,
+    LifecycleEvent,
     Transaction,
     TransactionStatus,
     sync_item_status,
@@ -134,6 +135,7 @@ def _cancel_open_transactions(user: BorrowdUser, deleted_by: BorrowdUser) -> Non
 
     for txn in open_transactions:
         item = txn.item
+        source = TransactionStatus(txn.status)
         txn.status = TransactionStatus.CANCELLED
         txn.updated_by = deleted_by
         # Free the counterparty's item back up. The leaving user's own items are
@@ -141,6 +143,9 @@ def _cancel_open_transactions(user: BorrowdUser, deleted_by: BorrowdUser) -> Non
         if item.owner != user:
             sync_item_status(item, txn)
         txn.save()
+        LifecycleEvent.record(
+            txn, source=source, target=TransactionStatus.CANCELLED, actor=deleted_by
+        )
 
         _notify_counterparty_of_cancellation(txn, user)
 
