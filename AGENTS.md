@@ -96,6 +96,13 @@ Repo-local `PostToolUse` hooks (configured in `.claude/settings.json`, scripts i
 - Convention: `party1` is the lender/owner/giver; `party2` is the borrower/receiver.
 - Helpers: `Transaction.get_requested_status_transactions_for_user`, `get_active_borrows_for_user`, `get_active_lends_for_user`.
 
+**Lifecycle locking**: anything that opens or advances a `Transaction`, or writes an `Item`'s status, owner or deletion, runs in one `atomic()` block and takes row locks in a fixed order: the acting account (`BorrowdUser.lock_account`), then Items in pk order (`Item.lock_for_update`), then Transactions, then ChatThreads. One order for every writer is what keeps them from deadlocking ([Postgres: deadlocks](https://www.postgresql.org/docs/17/explicit-locking.html#LOCKING-DEADLOCKS)). Decide on what the locks return, not on the instance the caller loaded.
+- `Item.process_action` does this for you. Code that writes around it takes the same locks itself: `ItemUpdateView`, `ItemDeleteView`, `ItemAdmin`, `soft_delete_account`, `repair_item_statuses`, `backfill_transaction_threads`.
+- The account lock is `FOR NO KEY UPDATE`. Never take a plain `select_for_update()` on a user row: inserting a notification or a transaction takes a key-share lock on the users it points at, and the default mode deadlocks a lender and borrower acting on one item. See [Postgres: row-level locks](https://www.postgresql.org/docs/17/explicit-locking.html#LOCKING-ROWS) and `no_key` in [Django: select_for_update](https://docs.djangoproject.com/en/5.2/ref/models/querysets/#select-for-update).
+- A command takes one account lock, the acting user's. If one ever needs two, take them in pk order.
+- Helpers that run under the lock (`Item._process_action_locked`, `Item.soft_delete`, the private steps of `soft_delete_account`) don't lock or re-fetch. They write through the instance the caller locked.
+- Only Postgres enforces any of this. `borrowd_items/tests/test_lifecycle_concurrency.py` is where it's proven, and it's skipped on SQLite.
+
 **AvailabilitySubscription**: when an item is `BORROWED`/`RESERVED`, non-owners can subscribe via `NOTIFY_WHEN_AVAILABLE` to be notified when it's available again. A `UniqueConstraint` enforces one active subscription per (user, item).
 
 **Membership lifecycle** (`borrowd_groups/models.py`): `MembershipStatus` is `PENDING`, `ACTIVE`, `SUSPENDED`, `BANNED`, `ENDED`. Groups with `membership_requires_approval=True` create new memberships in `PENDING` until a moderator approves.
