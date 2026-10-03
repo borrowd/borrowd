@@ -24,6 +24,7 @@ from django.db.models import (
     Q,
     QuerySet,
     UniqueConstraint,
+    UUIDField,
 )
 from django.urls import reverse
 from django.utils import timezone
@@ -34,6 +35,7 @@ from borrowd_permissions.models import ItemOLP
 from borrowd_users.models import BorrowdUser
 
 from .exceptions import (
+    AccountInactive,
     InvalidItemAction,
     ItemAlreadyRequested,
     TransactionLenderMismatch,
@@ -662,18 +664,26 @@ class Item(Model):
 
         return True
 
+    @classmethod
+    def lock_for_action(cls, user: BorrowdUser, pk: int) -> "Item":
+        """Lock the acting account, then the item, and return the item fresh."""
+        if not BorrowdUser.lock_account(user.pk).is_active:
+            raise AccountInactive("This account is no longer active.")
+        return cls.lock_for_update(pk, select_related=("owner",))
+
     def process_action(self, user: BorrowdUser, action: ItemAction) -> None:
         """
         Process the given action for this Item and User.
         """
         with transaction.atomic():
-            if not BorrowdUser.lock_account(user.pk).is_active:
-                raise InvalidItemAction("This account is no longer active.")
-            item = Item.lock_for_update(self.pk, select_related=("owner",))
+            item = Item.lock_for_action(user, self.pk)
             item._process_action_locked(user, action)
             self.refresh_from_db()
 
-    def _process_action_locked(self, user: BorrowdUser, action: ItemAction) -> None:
+    def _process_action_locked(
+        self, user: BorrowdUser, action: ItemAction
+    ) -> Optional["Transaction"]:
+        """Apply the action and return the transaction it opened or moved."""
         # A deleted item stays reachable only to close out a stranded loan.
         if self.deleted_at is not None and action != ItemAction.RESOLVE_TRANSACTION:
             raise InvalidItemAction("This item is no longer available.")
@@ -709,12 +719,10 @@ class Item(Model):
             )
 
         if action == ItemAction.REQUEST_ITEM:
-            self._open_request(user, TransactionStatus.REQUESTED)
-            return
+            return self._open_request(user, TransactionStatus.REQUESTED)
 
         if action == ItemAction.REQUEST_GIVEAWAY:
-            self._open_request(user, TransactionStatus.GIVEAWAY_REQUESTED)
-            return
+            return self._open_request(user, TransactionStatus.GIVEAWAY_REQUESTED)
 
         if (
             action == ItemAction.NOTIFY_WHEN_AVAILABLE
@@ -729,7 +737,8 @@ class Item(Model):
                 item=self,
                 status=AvailabilitySubscriptionStatus.ACTIVE,
             )
-            return
+            self.advance_revision()
+            return None
 
         if (
             action == ItemAction.CANCEL_NOTIFICATION_REQUEST
@@ -746,7 +755,8 @@ class Item(Model):
             )
             if subscription:
                 subscription.cancel_subscription()
-            return
+            self.advance_revision()
+            return None
 
         if current_tx is None:
             # This should have been caught earlier, but check again
@@ -754,8 +764,16 @@ class Item(Model):
             raise ValueError("No existing Transaction")
 
         execute_transition(self, current_tx, user, action, now=timezone.now())
+        return current_tx
 
-    def _open_request(self, user: BorrowdUser, status: TransactionStatus) -> None:
+    def advance_revision(self) -> None:
+        """Count a change that wrote no item or transaction row, like a subscription."""
+        Item.all_objects.filter(pk=self.pk).update(revision=F("revision") + 1)
+        self.refresh_from_db(fields=["revision"])
+
+    def _open_request(
+        self, user: BorrowdUser, status: TransactionStatus
+    ) -> "Transaction":
         try:
             # A savepoint, so losing to the one-open-transaction constraint
             # leaves the enclosing transaction usable for the check below.
@@ -778,6 +796,7 @@ class Item(Model):
                 f"Item '{self}' already has an open transaction."
             ) from None
         sync_item_status(self, created_tx)
+        return created_tx
 
     def groups_allowed_to_view(self) -> "QuerySet[BorrowdGroup]":
         """
@@ -1330,5 +1349,41 @@ class AvailabilitySubscription(Model):
                 fields=["item", "user"],
                 condition=Q(status=AvailabilitySubscriptionStatus.ACTIVE),
                 name="unique_active_subscription_per_user_and_item",
+            )
+        ]
+
+
+class ItemCommandRecord(Model):
+    """
+    A lifecycle command that succeeded, kept so that a retry of it gets the
+    same answer instead of running again. `prune_item_command_records` drops
+    them after 30 days; a retry older than that is caught by the revision.
+    """
+
+    actor = ForeignKey(BorrowdUser, on_delete=CASCADE, related_name="+")
+    key = UUIDField(
+        help_text="Picked by the client, once per command it means to send."
+    )
+    fingerprint = CharField(
+        max_length=64,
+        help_text="What the command asked for, so a key sent with another one is caught.",
+    )
+    action = CharField(max_length=50, choices=ItemAction.choices)
+    item = ForeignKey(Item, on_delete=CASCADE, related_name="+")
+    transaction = ForeignKey(
+        Transaction, null=True, blank=True, on_delete=CASCADE, related_name="+"
+    )
+    transaction_status = IntegerField(
+        null=True, blank=True, choices=TransactionStatus.choices
+    )
+    revision = PositiveBigIntegerField(
+        help_text="The item's revision once the command was done."
+    )
+    created_at = DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        constraints = [
+            UniqueConstraint(
+                fields=["actor", "key"], name="unique_item_command_key_per_actor"
             )
         ]
