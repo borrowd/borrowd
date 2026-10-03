@@ -5,7 +5,7 @@ from django.test import TestCase
 from guardian.shortcuts import get_perms
 
 from borrowd_groups.models import BorrowdGroup
-from borrowd_items.models import Item
+from borrowd_items.models import Item, ItemAction
 from borrowd_permissions.models import ItemOLP
 from borrowd_users.models import BorrowdUser
 
@@ -525,3 +525,38 @@ class GroupBasedItemPermissionsTests(TestCase):
             ItemOLP.VIEW
             in get_perms(Group.objects.get(name=f"{group2.name}_user_{owner.pk}"), item)
         )
+
+
+class VisibilityRecomputeTriggerTests(TestCase):
+    """Only saves that can change who sees an item re-derive its group perms."""
+
+    def setUp(self) -> None:
+        self.owner = BorrowdUser.objects.create(
+            username="owner", email="owner@example.com"
+        )
+        self.item = Item.objects.create(
+            name="Test Item",
+            owner=self.owner,
+            created_by=self.owner,
+            updated_by=self.owner,
+        )
+
+    def test_a_status_save_skips_it(self) -> None:
+        with patch.object(Item, "recompute_group_visibility") as recompute:
+            self.item.save(update_fields=["status", "updated_at"])
+        recompute.assert_not_called()
+
+    def test_a_lifecycle_action_skips_it(self) -> None:
+        borrower = BorrowdUser.objects.create(
+            username="borrower", email="borrower@example.com"
+        )
+        with patch.object(Item, "recompute_group_visibility") as recompute:
+            self.item.process_action(borrower, ItemAction.REQUEST_ITEM)
+        recompute.assert_not_called()
+
+    def test_saves_that_can_change_who_sees_it_run_it(self) -> None:
+        for update_fields in (None, ["owner"], ["name", "share_with_all_groups"]):
+            with self.subTest(update_fields=update_fields):
+                with patch.object(Item, "recompute_group_visibility") as recompute:
+                    self.item.save(update_fields=update_fields)
+                recompute.assert_called_once()

@@ -8,20 +8,31 @@ from borrowd_permissions.models import ItemOLP
 
 from .models import Item
 
+# The Item fields that decide which groups can see it. Group membership and
+# shared_with_groups have receivers of their own.
+_VISIBILITY_FIELDS = frozenset({"owner", "share_with_all_groups"})
+
 
 @receiver(post_save, sender=Item)
 def assign_item_permissions(
-    sender: type[Item], instance: Item, created: bool, **kwargs: Any
+    sender: type[Item],
+    instance: Item,
+    created: bool,
+    update_fields: frozenset[str] | None = None,
+    **kwargs: Any,
 ) -> None:
     """
     When a new Item is created, assign all relevant Item permissions to the owner.
-    On every save (update and creation), (re)derive the item's group-level permissions
-    based on the current item owner
+    On every save that could change who sees the item, (re)derive the item's
+    group-level permissions based on the current item owner
     """
 
     if created:
         for perm in [ItemOLP.VIEW, ItemOLP.EDIT, ItemOLP.DELETE]:
             assign_perm(perm, instance.owner, instance)
+    # A save limited to other fields, like a status change, leaves them as is.
+    if update_fields is not None and not _VISIBILITY_FIELDS & update_fields:
+        return
     instance.recompute_group_visibility()
 
 
