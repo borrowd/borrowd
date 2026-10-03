@@ -90,7 +90,8 @@ Repo-local `PostToolUse` hooks (configured in `.claude/settings.json`, scripts i
 - `Item.get_action_context_for(user)` → `ItemActionContext(actions, status_text)` — preferred when the view also needs user-facing copy.
 - `Item.process_action(user, action)` advances the state machine; raises `InvalidItemAction` / `ItemAlreadyRequested` on misuse.
 
-**Transaction state machine** (`borrowd_items/models.py`):
+**Transaction state machine** (`borrowd_items/flow.py`, with the statuses in `borrowd_items/statuses.py`):
+- Every step is a row in `TRANSITIONS`: from-status, action, to-status, who may take it, an optional guard, and its effects. `Item.get_actions_for` and `Item.process_action` both read the table, so adding a step means adding a row. See `docs/ItemLifecycle.md`.
 - States: `REQUESTED` → (`ACCEPTED` | `REJECTED` | `CANCELLED`) → `COLLECTION_ASSERTED` → `COLLECTED` → `RETURN_ASSERTED` → `RETURNED`.
 - Both parties must confirm collection and return (dual confirmation): the same user can't both assert and confirm.
 - Convention: `party1` is the lender/owner/giver; `party2` is the borrower/receiver.
