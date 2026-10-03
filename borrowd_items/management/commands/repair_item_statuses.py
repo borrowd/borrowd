@@ -1,6 +1,7 @@
 from typing import Any
 
 from django.core.management.base import BaseCommand, CommandParser
+from django.db import transaction
 
 from borrowd_items.models import (
     ITEM_STATUS_FOR_TRANSACTION,
@@ -16,7 +17,8 @@ class Command(BaseCommand):
     help = (
         "Repair item statuses to match their open transactions. Items without "
         "an open transaction become AVAILABLE. Skip soft-deleted items and "
-        "items with multiple open transactions."
+        "items with multiple open transactions. Repairs recheck each item under "
+        "a row lock, so the command can run while the app is serving."
     )
 
     def add_arguments(self, parser: CommandParser) -> None:
@@ -26,11 +28,33 @@ class Command(BaseCommand):
             help="Report incorrect item statuses without changing them",
         )
 
+    def _repair(self, item_pk: int) -> bool:
+        """Fix one item on current state. False if it no longer needs fixing."""
+        with transaction.atomic():
+            item = Item.lock_for_update(item_pk)
+            open_statuses = list(
+                Transaction.objects.filter(
+                    item=item, status__in=OPEN_TRANSACTION_STATUSES
+                ).values_list("status", flat=True)
+            )
+            if item.deleted_at is not None or len(open_statuses) > 1:
+                return False
+            expected = (
+                ITEM_STATUS_FOR_TRANSACTION[TransactionStatus(open_statuses[0])]
+                if open_statuses
+                else ItemStatus.AVAILABLE
+            )
+            if item.status == expected:
+                return False
+            item.status = expected
+            item.save(update_fields=("status", "updated_at"))
+            return True
+
     def handle(self, *args: Any, **options: Any) -> None:
         dry_run = options["dry_run"]
 
-        # Fetch open transactions once to avoid a query per item.
-        # Concurrent writes can make this snapshot stale.
+        # Fetch open transactions once to find candidates.
+        # Each repair rechecks the item under its row lock.
         open_statuses_by_item: dict[int, list[TransactionStatus]] = {}
         for item_id, status in Transaction.objects.filter(
             status__in=OPEN_TRANSACTION_STATUSES
@@ -78,9 +102,8 @@ class Command(BaseCommand):
             if dry_run:
                 continue
 
-            item.status = expected
-            item.save(update_fields=("status", "updated_at"))
-            repaired_count += 1
+            if self._repair(item.pk):
+                repaired_count += 1
 
         summary = f"{drifted_count} of {scanned_count} item(s) had a drifted status"
         if dry_run:
