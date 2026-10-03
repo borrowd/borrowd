@@ -2,16 +2,19 @@
 
 from importlib import import_module
 from types import SimpleNamespace
-from unittest import skipUnless
+from unittest import mock, skipUnless
 
 from django.apps import apps
 from django.db import IntegrityError, connection
 from django.db.transaction import atomic
 from django.test import TestCase
 
+from borrowd_items.exceptions import ItemAlreadyRequested
 from borrowd_items.models import (
     TERMINAL_TRANSACTION_STATUSES,
     Item,
+    ItemAction,
+    PrecomputedItemState,
     Transaction,
     TransactionStatus,
 )
@@ -68,6 +71,18 @@ class OneOpenTransactionPerItemTests(OneOpenTransactionTestCase):
             Transaction.objects.filter(item=self.item).count(),
             len(TERMINAL_TRANSACTION_STATUSES) + 1,
         )
+
+    def test_a_request_that_loses_to_the_constraint_is_told_so(self) -> None:
+        # Another request is already open, but this caller read the item
+        # before it landed.
+        self.make_transaction(TransactionStatus.REQUESTED)
+        late = BorrowdUser.objects.create_user(username="one_open_late")
+        empty = PrecomputedItemState.from_transaction(None)
+
+        with mock.patch.object(Item, "precompute_state_for", return_value=empty):
+            with self.assertRaises(ItemAlreadyRequested):
+                self.item.process_action(late, ItemAction.REQUEST_ITEM)
+        self.assertEqual(Transaction.objects.filter(item=self.item).count(), 1)
 
 
 @skipUnless(

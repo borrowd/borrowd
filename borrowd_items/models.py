@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Optional, cast
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.db import models, transaction
+from django.db import IntegrityError, models, transaction
 from django.db.models import (
     CASCADE,
     DO_NOTHING,
@@ -689,38 +689,11 @@ class Item(Model):
             )
 
         if action == ItemAction.REQUEST_ITEM:
-            with transaction.atomic():
-                created_tx = Transaction.objects.create(
-                    item=self,
-                    # By convention "party1" is the owner/lender/giver.
-                    party1=self.owner,
-                    party2=user,
-                    created_by=user,
-                    updated_by=user,
-                    # This is default; just being explicit
-                    status=TransactionStatus.REQUESTED,
-                )
-                sync_item_status(self, created_tx)
-                created_tx._record_status_change(
-                    from_status=None, action=action, actor=user
-                )
+            self._open_request(user, TransactionStatus.REQUESTED, action=action)
             return
 
         if action == ItemAction.REQUEST_GIVEAWAY:
-            with transaction.atomic():
-                created_tx = Transaction.objects.create(
-                    item=self,
-                    # By convention "party1" is the owner/lender/giver.
-                    party1=self.owner,
-                    party2=user,
-                    created_by=user,
-                    updated_by=user,
-                    status=TransactionStatus.GIVEAWAY_REQUESTED,
-                )
-                sync_item_status(self, created_tx)
-                created_tx._record_status_change(
-                    from_status=None, action=action, actor=user
-                )
+            self._open_request(user, TransactionStatus.GIVEAWAY_REQUESTED, action=action)
             return
 
         if (
@@ -761,6 +734,33 @@ class Item(Model):
             raise ValueError("No existing Transaction")
 
         execute_transition(self, current_tx, user, action, now=timezone.now())
+
+    def _open_request(
+        self, user: BorrowdUser, status: TransactionStatus, *, action: ItemAction
+    ) -> None:
+        try:
+            # A savepoint, so losing to the one-open-transaction constraint
+            # leaves the enclosing transaction usable for the check below.
+            with transaction.atomic():
+                created_tx = Transaction.objects.create(
+                    item=self,
+                    # By convention "party1" is the owner/lender/giver.
+                    party1=self.owner,
+                    party2=user,
+                    created_by=user,
+                    updated_by=user,
+                    status=status,
+                )
+        except IntegrityError:
+            if not Transaction.objects.filter(
+                item=self, status__in=OPEN_TRANSACTION_STATUSES
+            ).exists():
+                raise
+            raise ItemAlreadyRequested(
+                f"Item '{self}' already has an open transaction."
+            ) from None
+        sync_item_status(self, created_tx)
+        created_tx._record_status_change(from_status=None, action=action, actor=user)
 
     def groups_allowed_to_view(self) -> "QuerySet[BorrowdGroup]":
         """
