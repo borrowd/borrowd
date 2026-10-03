@@ -132,3 +132,7 @@ crons:
     spec: '30 9 * * *'
     commands:
       start: 'uv run manage.py prune_item_command_records'
+  deliver-lifecycle-events:
+    spec: '*/5 * * * *'
+    commands:
+      start: 'uv run manage.py deliver_lifecycle_events'
