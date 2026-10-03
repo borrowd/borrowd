@@ -89,6 +89,7 @@ Repo-local `PostToolUse` hooks (configured in `.claude/settings.json`, scripts i
 - `Item.get_actions_for(user)` → tuple of valid next actions.
 - `Item.get_action_context_for(user)` → `ItemActionContext(actions, status_text)` — preferred when the view also needs user-facing copy.
 - `Item.process_action(user, action)` advances the state machine; raises `InvalidItemAction` / `ItemAlreadyRequested` on misuse.
+- Every status change writes a `LifecycleEvent` (source, target, actor, revision). React to status changes with an `@events.consumer` in `borrowd_items/events.py`, not another `post_save` receiver on `Transaction`: consumers run after commit, in order, and are retried if they fail. See `docs/ItemLifecycle.md`.
 - Anything a client submits goes through `borrowd_items.commands.run_item_command(ItemCommand(...))` instead: it refuses a command made on a stale `Item.revision` (or the wrong transaction) and answers a retried command key from its record rather than running it twice. Web action forms send both via `{% command_fields item %}`. Every exception it raises carries a stable `code` for clients.
 
 **Transaction state machine** (`borrowd_items/flow.py`, with the statuses in `borrowd_items/statuses.py`):

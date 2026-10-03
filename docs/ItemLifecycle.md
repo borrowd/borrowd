@@ -77,6 +77,16 @@ Requesting an item and subscribing to availability aren't rows: there's no trans
 
 `Item.process_action` is the same action without those checks, for code that isn't answering a client.
 
+## Events
+
+Every change to a transaction's status writes a `LifecycleEvent` in the same database transaction: source and target status, action, actor, the item's revision, and the client's command key if there was one. Account closure and forced resolution write them too, so the events are the full history of every transaction.
+
+Code that reacts to a change registers with `@events.consumer("name")` in `borrowd_items/events.py`. Consumers run right after the change commits, one transaction's events in order.
+
+- **If a consumer raises,** the event is retried after 5, 10, 20 and 40 minutes by `manage.py deliver_lifecycle_events`, which cron runs every 5 minutes. After 5 tries it's parked and reported to Sentry. A parked event holds back its transaction's later events, but not anyone else's.
+- **Unsticking:** `manage.py lifecycle_events status|replay|skip`, or the same from the admin. A skip records who did it and why.
+- **A consumer can see an event more than once.** It's skipped once its `LifecycleEventConsumption` row exists, and that row commits together with the consumer's own database writes. Anything outside the database (email, push) has to tolerate a repeat.
+
 ## Status sets
 
 `TERMINAL` and `REQUEST` are the only hand-written sets. The rest are derived:
