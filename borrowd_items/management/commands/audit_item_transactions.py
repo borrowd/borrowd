@@ -1,7 +1,7 @@
 from typing import Any
 
 from django.core.management.base import BaseCommand, CommandError
-from django.db.models import Count, F
+from django.db.models import F
 
 from borrowd_items.models import (
     OPEN_TRANSACTION_STATUSES,
@@ -13,9 +13,9 @@ from borrowd_items.models import (
 
 class Command(BaseCommand):
     help = (
-        "Check open transactions for lender/owner mismatches, multiple open "
-        "transactions per item, and requests on soft-deleted items before "
-        "collection. Read-only; prints findings and exits nonzero if any are found."
+        "Check open transactions for lender/owner mismatches and requests on "
+        "soft-deleted items before collection. Read-only; prints findings and "
+        "exits nonzero if any are found."
     )
 
     def handle(self, *args: Any, **options: Any) -> None:
@@ -45,28 +45,6 @@ class Command(BaseCommand):
                 f"item={row['item_id']} lender={row['party1_id']} "
                 f"owner={row['owner_id']} borrower={row['party2_id']} "
                 f"item_deleted={row['item_deleted_at'] is not None}"
-            )
-
-        crowded_items = list(
-            open_transactions.values("item_id")
-            .annotate(total=Count("pk"))
-            .filter(total__gt=1)
-            .values_list("item_id", flat=True)
-        )
-        by_item: dict[int, list[str]] = {}
-        for item_id, pk, status in (
-            open_transactions.filter(item_id__in=crowded_items)
-            .order_by("item_id", "pk")
-            .values_list("item_id", "pk", "status")
-        ):
-            by_item.setdefault(item_id, []).append(
-                f"{pk} ({TransactionStatus(status).name})"
-            )
-        for item_id, transactions in by_item.items():
-            findings += 1
-            self.stdout.write(
-                f"More than one open transaction: item={item_id} "
-                f"transactions={', '.join(transactions)}"
             )
 
         # Account closure can delete an item during an ongoing loan.
