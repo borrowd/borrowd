@@ -108,33 +108,21 @@ class PrecomputedItemState:
     requesting_user: BorrowdUser | None
     current_transaction: Optional["Transaction"]
     has_active_subscription: bool = False
-    # Every non-terminal Transaction the caller loaded for this item, so
-    # current_transaction_for_user() can tell "not this user's transaction"
-    # apart from "more than one transaction matched this user".
-    candidate_transactions: tuple["Transaction", ...] = ()
 
     def current_transaction_for_user(
         self, user: BorrowdUser
     ) -> Optional["Transaction"]:
         """
-        Returns the non-terminal Transaction on this item that the given
-        user is a party to, mirroring Item.get_current_transaction_for_user().
-
-        Raises Transaction.MultipleObjectsReturned if more than one matches,
-        for the same reason get_current_transaction_for_user() does: there
-        should only ever be one.
+        Returns the current Transaction if the given user is a party to it,
+        mirroring Item.get_current_transaction_for_user().
         """
-        matches = [
-            transaction
-            for transaction in self.candidate_transactions
-            if transaction.party1_id == user.id or transaction.party2_id == user.id
-        ]
-        if len(matches) > 1:
-            raise Transaction.MultipleObjectsReturned(
-                "current_transaction_for_user() matched more than one "
-                "non-terminal Transaction for this item and user."
-            )
-        return matches[0] if matches else None
+        transaction = self.current_transaction
+        if transaction is not None and user.id in (
+            transaction.party1_id,
+            transaction.party2_id,
+        ):
+            return transaction
+        return None
 
 
 class ItemCategory(Model):
@@ -305,7 +293,6 @@ class Item(Model):
                 requesting_user=requesting_user,
                 current_transaction=current_tx,
                 has_active_subscription=has_active_subscription,
-                candidate_transactions=(current_tx,) if current_tx is not None else (),
             )
         actions = self.get_actions_for(user, precomputed=precomputed)
 
@@ -493,8 +480,6 @@ class Item(Model):
         - The status of the current open Transaction involving this
           Item and the given User, if any.
         """
-        # This may raise Transaction.MultipleObjectsReturned.
-        # Let it propagate.
         if precomputed is not None:
             current_tx = precomputed.current_transaction_for_user(user)
             current_borrower = precomputed.current_borrower
@@ -575,16 +560,6 @@ class Item(Model):
             return transaction.party2
         except Transaction.DoesNotExist:
             return None
-        except Transaction.MultipleObjectsReturned:
-            # Return the most recent request (for now)
-            txn: Transaction | None = (
-                Transaction.objects.filter(
-                    Q(item=self) & Q(status__in=REQUEST_TRANSACTION_STATUSES)
-                )
-                .order_by("-created_at")
-                .first()
-            )
-            return txn.party2 if txn else None
 
     def get_current_borrower(self) -> BorrowdUser | None:
         """
@@ -599,38 +574,21 @@ class Item(Model):
             return transaction.party2
         except Transaction.DoesNotExist:
             return None
-        except Transaction.MultipleObjectsReturned:
-            # This shouldn't happen with proper business logic, but just in case
-            # return the most recent one
-            txn: Transaction | None = (
-                Transaction.objects.filter(
-                    Q(item=self) & Q(status__in=BORROWER_TRANSACTION_STATUSES)
-                )
-                .order_by("-updated_at")
-                .first()
-            )
-            return txn.party2 if txn else None
 
     def get_current_transaction(self) -> Optional["Transaction"]:
         """
         Returns the transaction involving this item regardless of the user
         """
-        try:
-            # Use `first()` so unexpected data issues (multiple non-terminal transactions)
-            # don't 500 the page; the most recent active transaction wins.
-            return (
-                Transaction.objects.select_related(
-                    "party1",
-                    "party1__profile",
-                    "party2",
-                    "party2__profile",
-                )
-                .filter(Q(item=self) & Q(status__in=OPEN_TRANSACTION_STATUSES))
-                .order_by("-created_at")
-                .first()
+        return (
+            Transaction.objects.select_related(
+                "party1",
+                "party1__profile",
+                "party2",
+                "party2__profile",
             )
-        except Transaction.DoesNotExist:
-            return None
+            .filter(Q(item=self) & Q(status__in=OPEN_TRANSACTION_STATUSES))
+            .first()
+        )
 
     def get_current_transaction_for_user(
         self, user: BorrowdUser
@@ -640,9 +598,6 @@ class Item(Model):
         given User, if any.
         """
         try:
-            # Using `get()` here because if there *is* a current
-            # Transaction involving this Item and this User, there
-            # should only be one.
             return Transaction.objects.get(
                 Q(item=self)
                 & (Q(party1=user) | Q(party2=user))

@@ -122,7 +122,6 @@ def with_card_relations_for_transactions(
 def _state_from_transaction(
     transaction: Transaction | None,
     *,
-    candidates: tuple[Transaction, ...] | None = None,
     has_active_subscription: bool = False,
 ) -> PrecomputedItemState:
     """
@@ -130,9 +129,7 @@ def _state_from_transaction(
 
     Both action context and banner rendering need borrower/requester/current
     transaction state, so centralizing the derivation lets them share the same
-    in-memory facts. `candidates` should hold every non-terminal transaction
-    the caller loaded for this item, so current_transaction_for_user() can
-    tell a genuinely uninvolved user apart from a data-integrity conflict.
+    in-memory facts.
     """
     current_borrower = None
     requesting_user = None
@@ -148,9 +145,6 @@ def _state_from_transaction(
         requesting_user=requesting_user,
         current_transaction=transaction,
         has_active_subscription=has_active_subscription,
-        candidate_transactions=candidates
-        if candidates is not None
-        else ((transaction,) if transaction is not None else ()),
     )
 
 
@@ -196,26 +190,19 @@ def _precompute_item_states_for_items(
     if not item_ids:
         return {}
 
-    transactions_by_item: dict[int, list[Transaction]] = {}
-    for transaction in (
-        Transaction.objects.filter(
+    transaction_by_item = {
+        transaction.item_id: transaction
+        for transaction in Transaction.objects.filter(
             item_id__in=item_ids, status__in=OPEN_TRANSACTION_STATUSES
-        )
-        .select_related(*_TRANSACTION_SELECT_RELATED)
-        .order_by("item_id", "-created_at")
-    ):
-        transactions_by_item.setdefault(transaction.item_id, []).append(transaction)
+        ).select_related(*_TRANSACTION_SELECT_RELATED)
+    }
 
     if subscription_item_ids is None:
         subscription_item_ids = active_subscription_item_ids(item_ids, user)
 
     return {
         item_id: _state_from_transaction(
-            # Ordered most-recent-first, so [0] is the item's current transaction.
-            transactions_by_item[item_id][0]
-            if item_id in transactions_by_item
-            else None,
-            candidates=tuple(transactions_by_item.get(item_id, ())),
+            transaction_by_item.get(item_id),
             has_active_subscription=item_id in subscription_item_ids,
         )
         for item_id in item_ids
