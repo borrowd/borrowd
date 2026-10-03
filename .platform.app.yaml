@@ -128,3 +128,7 @@ crons:
     spec: '*/15 * * * *'
     commands:
       start: 'uv run manage.py send_summary_digests'
+  prune-item-command-records:
+    spec: '30 9 * * *'
+    commands:
+      start: 'uv run manage.py prune_item_command_records'
