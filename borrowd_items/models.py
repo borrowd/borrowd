@@ -1,3 +1,4 @@
+import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Optional, cast
@@ -30,7 +31,11 @@ from imagekit.processors import ResizeToFill, ResizeToFit
 from borrowd_permissions.models import ItemOLP
 from borrowd_users.models import BorrowdUser
 
-from .exceptions import InvalidItemAction, ItemAlreadyRequested
+from .exceptions import (
+    InvalidItemAction,
+    ItemAlreadyRequested,
+    TransactionLenderMismatch,
+)
 from .flow import execute_transition
 from .flow_parity import actions_for_open_transaction
 from .processors import AutoOrientProcessor
@@ -60,6 +65,8 @@ from .statuses import sync_item_status as sync_item_status
 
 if TYPE_CHECKING:
     from borrowd_groups.models import BorrowdGroup
+
+logger = logging.getLogger("borrowd.items")
 
 
 class ActiveItemQuerySet(QuerySet["Item"]):
@@ -241,6 +248,18 @@ class Item(Model):
         # M2M validation only works for saved instances
         if self.pk and not self.categories.exists():
             raise ValidationError({"categories": "At least one category is required."})
+
+    @classmethod
+    def lock_for_update(
+        cls, pk: int, *, select_related: tuple[str, ...] = ()
+    ) -> "Item":
+        """Lock this item's row, deleted or not, and return it fresh."""
+        # of=("self",): lock the item only, not the rows select_related joins in.
+        # https://docs.djangoproject.com/en/5.2/ref/models/querysets/#select-for-update
+        queryset = cls.all_objects.select_for_update(of=("self",))
+        if select_related:
+            queryset = queryset.select_related(*select_related)
+        return queryset.get(pk=pk)
 
     def soft_delete(self, deleted_by: BorrowdUser) -> None:
         self.deleted_at = timezone.now()
@@ -651,6 +670,31 @@ class Item(Model):
         """
         Process the given action for this Item and User.
         """
+        with transaction.atomic():
+            if not BorrowdUser.lock_account(user.pk).is_active:
+                raise InvalidItemAction("This account is no longer active.")
+            item = Item.lock_for_update(self.pk, select_related=("owner",))
+            item._process_action_locked(user, action)
+            self.refresh_from_db()
+
+    def _process_action_locked(self, user: BorrowdUser, action: ItemAction) -> None:
+        # A deleted item stays reachable only to close out a stranded loan.
+        if self.deleted_at is not None and action != ItemAction.RESOLVE_TRANSACTION:
+            raise InvalidItemAction("This item is no longer available.")
+
+        current_tx = self.get_current_transaction_for_user(user=user)
+        if current_tx is not None and current_tx.party1_id != self.owner_id:
+            logger.error(
+                "Open transaction %s has lender %s but item %s is owned by %s.",
+                current_tx.pk,
+                current_tx.party1_id,
+                self.pk,
+                self.owner_id,
+            )
+            raise TransactionLenderMismatch(
+                f"Transaction {current_tx.pk} and Item {self.pk} disagree on the lender."
+            )
+
         # Check for specific case: trying to request an item that already has a pending request
         if (
             action in (ItemAction.REQUEST_ITEM, ItemAction.REQUEST_GIVEAWAY)
@@ -726,7 +770,6 @@ class Item(Model):
                 subscription.cancel_subscription()
             return
 
-        current_tx = self.get_current_transaction_for_user(user=user)
         if current_tx is None:
             # This should have been caught earlier, but check again
             # partly to keep mypy happy.
