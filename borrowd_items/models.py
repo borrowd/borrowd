@@ -109,6 +109,28 @@ class PrecomputedItemState:
     current_transaction: Optional["Transaction"]
     has_active_subscription: bool = False
 
+    @classmethod
+    def from_transaction(
+        cls,
+        transaction: Optional["Transaction"],
+        *,
+        has_active_subscription: bool = False,
+    ) -> "PrecomputedItemState":
+        """Derive the state from the item's open transaction without querying."""
+        current_borrower = None
+        requesting_user = None
+        if transaction is not None:
+            if transaction.status in REQUEST_TRANSACTION_STATUSES:
+                requesting_user = transaction.party2
+            elif transaction.status in BORROWER_TRANSACTION_STATUSES:
+                current_borrower = transaction.party2
+        return cls(
+            current_borrower=current_borrower,
+            requesting_user=requesting_user,
+            current_transaction=transaction,
+            has_active_subscription=has_active_subscription,
+        )
+
     def current_transaction_for_user(
         self, user: BorrowdUser
     ) -> Optional["Transaction"]:
@@ -268,32 +290,11 @@ class Item(Model):
         also build banner info for the same item without asking twice).
         """
 
-        if precomputed is not None:
-            current_borrower = precomputed.current_borrower
-            requesting_user = precomputed.requesting_user
-            current_tx = precomputed.current_transaction_for_user(user)
-        else:
-            current_borrower = self.get_current_borrower()
-            requesting_user = self.get_requesting_user()
-            current_tx = self.get_current_transaction_for_user(user)
-            needs_subscription_state = self.owner_id != user.id and (
-                current_tx is not None or self.status != ItemStatus.AVAILABLE
-            )
-            has_active_subscription = (
-                AvailabilitySubscription.objects.filter(
-                    item=self,
-                    user=user,
-                    status=AvailabilitySubscriptionStatus.ACTIVE,
-                ).exists()
-                if needs_subscription_state
-                else False
-            )
-            precomputed = PrecomputedItemState(
-                current_borrower=current_borrower,
-                requesting_user=requesting_user,
-                current_transaction=current_tx,
-                has_active_subscription=has_active_subscription,
-            )
+        if precomputed is None:
+            precomputed = self.precompute_state_for(user)
+        current_borrower = precomputed.current_borrower
+        requesting_user = precomputed.requesting_user
+        current_tx = precomputed.current_transaction_for_user(user)
         actions = self.get_actions_for(user, precomputed=precomputed)
 
         # Generate status text based on user role and current actions/status
@@ -319,6 +320,25 @@ class Item(Model):
 
         return ItemActionContext(
             actions=actions, status_text=status_text, waiting_text=waiting_text
+        )
+
+    def precompute_state_for(self, user: BorrowdUser) -> PrecomputedItemState:
+        """Read the item's open transaction once and derive the user's state."""
+        current_tx = self.get_current_transaction()
+        needs_subscription_state = self.owner_id != user.id and (
+            current_tx is not None or self.status != ItemStatus.AVAILABLE
+        )
+        has_active_subscription = (
+            AvailabilitySubscription.objects.filter(
+                item=self,
+                user=user,
+                status=AvailabilitySubscriptionStatus.ACTIVE,
+            ).exists()
+            if needs_subscription_state
+            else False
+        )
+        return PrecomputedItemState.from_transaction(
+            current_tx, has_active_subscription=has_active_subscription
         )
 
     def _get_status_text_for_user(
@@ -637,7 +657,8 @@ class Item(Model):
         if self.deleted_at is not None and action != ItemAction.RESOLVE_TRANSACTION:
             raise InvalidItemAction("This item is no longer available.")
 
-        current_tx = self.get_current_transaction_for_user(user=user)
+        state = self.precompute_state_for(user)
+        current_tx = state.current_transaction_for_user(user)
         if current_tx is not None and current_tx.party1_id != self.owner_id:
             logger.error(
                 "Open transaction %s has lender %s but item %s is owned by %s.",
@@ -653,13 +674,13 @@ class Item(Model):
         # Check for specific case: trying to request an item that already has a pending request
         if (
             action in (ItemAction.REQUEST_ITEM, ItemAction.REQUEST_GIVEAWAY)
-            and self.get_requesting_user() is not None
+            and state.requesting_user is not None
         ):
             raise ItemAlreadyRequested(
                 f"Item '{self}' already has a pending request from another user."
             )
 
-        valid_actions = self.get_actions_for(user=user)
+        valid_actions = self.get_actions_for(user=user, precomputed=state)
         if action not in valid_actions:
             raise InvalidItemAction(
                 f"User '{user}' cannot perform action '{action}' on"
