@@ -105,18 +105,3 @@ class RepairItemStatusesTests(TestCase):
 
         item = Item.all_objects.get(pk=item.pk)
         self.assertEqual(item.status, ItemStatus.BORROWED)
-
-    def test_reports_an_item_with_two_open_transactions_instead_of_guessing(
-        self,
-    ) -> None:
-        item = self._item("Contested", ItemStatus.AVAILABLE)
-        self._txn(item, TransactionStatus.ACCEPTED)
-        self._txn(item, TransactionStatus.COLLECTED)
-
-        out, err = self._run()
-
-        item.refresh_from_db()
-        self.assertEqual(item.status, ItemStatus.AVAILABLE)
-        self.assertIn("Ambiguous", err)
-        self.assertIn("skipped as ambiguous", err)
-        self.assertNotIn("Drifted", out)

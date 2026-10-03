@@ -1192,6 +1192,15 @@ class Transaction(Model):
             Q(disputed_at__isnull=False) & (Q(party1=user) | Q(party2=user))
         )
 
+    class Meta:
+        constraints = [
+            UniqueConstraint(
+                fields=["item"],
+                condition=Q(status__in=OPEN_TRANSACTION_STATUSES),
+                name="unique_open_transaction_per_item",
+            )
+        ]
+
 
 class AvailabilitySubscriptionStatus(IntegerChoices):
     """

@@ -16,8 +16,8 @@ from borrowd_items.models import (
 class Command(BaseCommand):
     help = (
         "Repair item statuses to match their open transactions. Items without "
-        "an open transaction become AVAILABLE. Skip soft-deleted items and "
-        "items with multiple open transactions. Repairs recheck each item under "
+        "an open transaction become AVAILABLE. Skip soft-deleted items. "
+        "Repairs recheck each item under "
         "a row lock, so the command can run while the app is serving."
     )
 
@@ -32,16 +32,18 @@ class Command(BaseCommand):
         """Fix one item on current state. False if it no longer needs fixing."""
         with transaction.atomic():
             item = Item.lock_for_update(item_pk)
-            open_statuses = list(
+            if item.deleted_at is not None:
+                return False
+            open_status = (
                 Transaction.objects.filter(
                     item=item, status__in=OPEN_TRANSACTION_STATUSES
-                ).values_list("status", flat=True)
+                )
+                .values_list("status", flat=True)
+                .first()
             )
-            if item.deleted_at is not None or len(open_statuses) > 1:
-                return False
             expected = (
-                ITEM_STATUS_FOR_TRANSACTION[TransactionStatus(open_statuses[0])]
-                if open_statuses
+                ITEM_STATUS_FOR_TRANSACTION[TransactionStatus(open_status)]
+                if open_status is not None
                 else ItemStatus.AVAILABLE
             )
             if item.status == expected:
@@ -55,39 +57,23 @@ class Command(BaseCommand):
 
         # Fetch open transactions once to find candidates.
         # Each repair rechecks the item under its row lock.
-        open_statuses_by_item: dict[int, list[TransactionStatus]] = {}
-        for item_id, status in Transaction.objects.filter(
-            status__in=OPEN_TRANSACTION_STATUSES
-        ).values_list("item_id", "status"):
-            open_statuses_by_item.setdefault(item_id, []).append(
-                TransactionStatus(status)
-            )
+        open_status_by_item = {
+            item_id: TransactionStatus(status)
+            for item_id, status in Transaction.objects.filter(
+                status__in=OPEN_TRANSACTION_STATUSES
+            ).values_list("item_id", "status")
+        }
 
         scanned_count = 0
         drifted_count = 0
         repaired_count = 0
-        conflicted_count = 0
 
         for item in Item.objects.order_by("pk").iterator():
             scanned_count += 1
-            open_statuses = open_statuses_by_item.get(item.pk, [])
-
-            if len(open_statuses) > 1:
-                # Multiple open transactions make the expected status ambiguous.
-                # Skip the item until those transactions are resolved.
-                conflicted_count += 1
-                self.stderr.write(
-                    self.style.ERROR(
-                        f"Ambiguous: item={item.pk} '{item}' has "
-                        f"{len(open_statuses)} open transactions "
-                        f"({', '.join(s.name for s in open_statuses)}); skipped."
-                    )
-                )
-                continue
-
+            open_status = open_status_by_item.get(item.pk)
             expected = (
-                ITEM_STATUS_FOR_TRANSACTION[open_statuses[0]]
-                if open_statuses
+                ITEM_STATUS_FOR_TRANSACTION[open_status]
+                if open_status is not None
                 else ItemStatus.AVAILABLE
             )
             if item.status == expected:
@@ -111,8 +97,4 @@ class Command(BaseCommand):
         else:
             self.stdout.write(
                 self.style.SUCCESS(f"{summary}; {repaired_count} repaired.")
-            )
-        if conflicted_count:
-            self.stderr.write(
-                self.style.ERROR(f"{conflicted_count} item(s) skipped as ambiguous.")
             )

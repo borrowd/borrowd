@@ -1,7 +1,7 @@
 from typing import Any
 
 from django.core.management.base import BaseCommand, CommandError
-from django.db.models import Count, F
+from django.db.models import F
 
 from borrowd_items.models import (
     OPEN_TRANSACTION_STATUSES,
@@ -14,9 +14,9 @@ from borrowd_items.models import (
 class Command(BaseCommand):
     help = (
         "Read-only. Reports open transactions that break a lifecycle invariant: "
-        "the recorded lender is not the item's owner, an item has more than one "
-        "open transaction, or a request is stuck on a soft-deleted item. Prints "
-        "IDs only and exits non-zero if it finds anything."
+        "the recorded lender is not the item's owner, or a request is stuck on "
+        "a soft-deleted item. Prints IDs only and exits non-zero if it finds "
+        "anything."
     )
 
     def handle(self, *args: Any, **options: Any) -> None:
@@ -46,28 +46,6 @@ class Command(BaseCommand):
                 f"item={row['item_id']} lender={row['party1_id']} "
                 f"owner={row['owner_id']} borrower={row['party2_id']} "
                 f"item_deleted={row['item_deleted_at'] is not None}"
-            )
-
-        crowded_items = list(
-            open_transactions.values("item_id")
-            .annotate(total=Count("pk"))
-            .filter(total__gt=1)
-            .values_list("item_id", flat=True)
-        )
-        by_item: dict[int, list[str]] = {}
-        for item_id, pk, status in (
-            open_transactions.filter(item_id__in=crowded_items)
-            .order_by("item_id", "pk")
-            .values_list("item_id", "pk", "status")
-        ):
-            by_item.setdefault(item_id, []).append(
-                f"{pk} ({TransactionStatus(status).name})"
-            )
-        for item_id, transactions in by_item.items():
-            findings += 1
-            self.stdout.write(
-                f"More than one open transaction: item={item_id} "
-                f"transactions={', '.join(transactions)}"
             )
 
         # An in-hand transaction on a deleted item is expected: its owner left
