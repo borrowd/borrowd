@@ -37,6 +37,19 @@ class PwaManifestTests(SimpleTestCase):
             },
             manifest["icons"],
         )
+        self.assertEqual(
+            {
+                icon["src"]
+                for icon in manifest["icons"]
+                if icon.get("media") == "(prefers-color-scheme: dark)"
+            },
+            {
+                "icon-dark-192.png",
+                "icon-dark-512.png",
+                "icon-maskable-dark-192.png",
+                "icon-maskable-dark-512.png",
+            },
+        )
 
     def test_manifest_icons_exist(self) -> None:
         static_dir = self.manifest_path.parent
@@ -44,6 +57,8 @@ class PwaManifestTests(SimpleTestCase):
 
         for icon in manifest["icons"]:
             self.assertTrue((static_dir / icon["src"]).is_file(), icon["src"])
+
+        self.assertTrue((static_dir / "favicon-dark.ico").is_file())
 
     def test_base_template_links_pwa_metadata(self) -> None:
         template = self.base_template_path.read_text()
@@ -54,5 +69,13 @@ class PwaManifestTests(SimpleTestCase):
         )
         self.assertIn(
             '<link rel="apple-touch-icon" href="{% static \'icon-192.png\' %}">',
+            template,
+        )
+        self.assertIn(
+            '<link rel="apple-touch-icon" href="{% static \'icon-dark-192.png\' %}" media="(prefers-color-scheme: dark)">',
+            template,
+        )
+        self.assertIn(
+            '<link rel="icon" href="{% static \'favicon-dark.ico\' %}" sizes="32x32" media="(prefers-color-scheme: dark)">',
             template,
         )
