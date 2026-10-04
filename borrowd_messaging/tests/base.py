@@ -3,7 +3,7 @@ from typing import Any
 from django.test import TestCase
 
 from borrowd_groups.models import BorrowdGroup
-from borrowd_items.models import Item, Transaction
+from borrowd_items.models import Item, LifecycleEvent, Transaction, TransactionStatus
 from borrowd_messaging.models import ChatThread
 from borrowd_users.models import BorrowdUser
 
@@ -70,4 +70,22 @@ class MessagingTestCase(TestCase):
             "updated_by": borrower,
         }
         defaults.update(overrides)
-        return Transaction.objects.create(**defaults)
+        transaction = Transaction.objects.create(**defaults)
+        # The event opening a request records, which gives it its thread.
+        LifecycleEvent.record(
+            transaction,
+            source=None,
+            target=TransactionStatus(transaction.status),
+            actor=transaction.created_by,
+        )
+        return transaction
+
+    @staticmethod
+    def move_transaction(transaction: Transaction, status: TransactionStatus) -> None:
+        """Save `transaction` at `status`, with the event an action records."""
+        source = TransactionStatus(transaction.status)
+        transaction.status = status
+        transaction.save()
+        LifecycleEvent.record(
+            transaction, source=source, target=status, actor=transaction.updated_by
+        )

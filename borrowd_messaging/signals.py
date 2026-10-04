@@ -1,11 +1,16 @@
 from typing import Any
 
 from django.conf import settings
-from django.db.models.signals import post_save, pre_delete, pre_save
+from django.db.models.signals import post_save, pre_delete
 from django.dispatch import receiver
 from guardian.shortcuts import assign_perm
 
-from borrowd_items.models import Item, Transaction, TransactionStatus
+from borrowd_items.models import (
+    Item,
+    LifecycleEvent,
+    TransactionStatus,
+    transition_recorded,
+)
 from borrowd_permissions.models import ChatThreadOLP
 
 from .models import ArchiveReason, ChatThread
@@ -66,55 +71,39 @@ def archive_threads_for_hard_deleted_item(
     MessagingService.archive_open_threads_for_item(instance, ArchiveReason.ITEM_DELETED)
 
 
-@receiver(pre_save, sender=Transaction)
-def capture_transaction_previous_status(
-    sender: type[Transaction], instance: Transaction, **kwargs: Any
-) -> None:
-    """Store the pre-save status on the instance so post_save can detect transitions."""
-    if instance.pk:
-        try:
-            instance._previous_status = Transaction.objects.values_list(
-                "status", flat=True
-            ).get(pk=instance.pk)
-        except Transaction.DoesNotExist:
-            instance._previous_status = None
-    else:
-        instance._previous_status = None
-
-
-@receiver(post_save, sender=Transaction)
+@receiver(transition_recorded)
 def sync_chat_thread_with_transaction(
-    sender: type[Transaction], instance: Transaction, created: bool, **kwargs: Any
+    sender: type[LifecycleEvent], event: LifecycleEvent, **kwargs: Any
 ) -> None:
     """
     Keep a transaction's thread in step with the transaction itself:
     give a new one its thread,
     close everyone else's conversation once the item is spoken for,
     and archive or annotate the thread as the status moves on.
+    Runs inside the change's database transaction, so it commits or rolls
+    back with it.
     """
-    if created:
+    transaction = event.transaction
+    if event.source_status is None:
         if settings.MESSAGING_ENABLED:
-            MessagingService.attach_thread_to(instance)
+            MessagingService.attach_thread_to(transaction)
         else:
-            MessagingService.attach_existing_prerequest_thread_to(instance)
+            MessagingService.attach_existing_prerequest_thread_to(transaction)
         return
 
-    if instance.status == getattr(instance, "_previous_status", None):
-        return
-
-    if instance.status in _COMMITTED_STATUSES:
+    if event.target_status in _COMMITTED_STATUSES:
         MessagingService.archive_prerequest_threads_for_item(
-            instance.item, ArchiveReason.ITEM_UNAVAILABLE
+            transaction.item, ArchiveReason.ITEM_UNAVAILABLE
         )
 
-    thread = ChatThread.objects.filter(transaction=instance).first()
+    thread = ChatThread.objects.filter(transaction=transaction).first()
     if thread is None:
         return
 
-    if instance.status == TransactionStatus.DISPUTED:
+    if event.target_status == TransactionStatus.DISPUTED:
         MessagingService.post_dispute_notice(thread)
         return
 
-    reason = _TERMINAL_ARCHIVE_REASONS.get(instance.status)
+    reason = _TERMINAL_ARCHIVE_REASONS.get(event.target_status)
     if reason is not None:
         MessagingService.archive_thread(thread, reason)

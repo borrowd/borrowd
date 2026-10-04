@@ -45,7 +45,7 @@ from .exceptions import (
     ItemAlreadyRequested,
     TransactionLenderMismatch,
 )
-from .flow import available_actions, execute_transition
+from .flow import Transition, available_actions, execute_transition
 from .processors import AutoOrientProcessor
 
 # Defined in statuses.py; re-exported for importers of this module.
@@ -777,14 +777,21 @@ class Item(Model):
             raise ValueError("No existing Transaction")
 
         source = TransactionStatus(current_tx.status)
-        applied = execute_transition(self, current_tx, user, action, now=timezone.now())
-        LifecycleEvent.record(
-            current_tx,
-            source=source,
-            target=applied.target,
-            actor=user,
-            action=action,
-            command_key=command_key,
+
+        def record(applied: Transition) -> None:
+            # Before the row's effects, so a lost item's thread is archived as
+            # resolved before the item's deletion archives the rest.
+            LifecycleEvent.record(
+                current_tx,
+                source=source,
+                target=applied.target,
+                actor=user,
+                action=action,
+                command_key=command_key,
+            )
+
+        execute_transition(
+            self, current_tx, user, action, now=timezone.now(), on_saved=record
         )
         return current_tx
 
@@ -1022,7 +1029,6 @@ class Transaction(Model):
         default=TransactionStatus.REQUESTED,
         help_text="The current status of the Transaction.",
     )
-    _previous_status: int | None = None
     resolution_reason = CharField(
         max_length=32,
         choices=ResolutionReason.choices,
@@ -1430,8 +1436,10 @@ class ItemCommandRecord(Model):
         ]
 
 
-# Sent when a LifecycleEvent row is written; borrowd_items.events delivers it
-# once the database transaction commits.
+# Sent when a LifecycleEvent row is written, inside the change's database
+# transaction: receivers commit or roll back with the change. That is where
+# borrowd_items.events schedules after-commit delivery, and where messaging
+# keeps chat threads in step.
 transition_recorded = Signal()
 
 

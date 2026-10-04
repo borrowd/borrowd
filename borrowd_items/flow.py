@@ -324,8 +324,13 @@ def execute_transition(
     action: ItemAction,
     *,
     now: datetime,
+    on_saved: Callable[[Transition], None] | None = None,
 ) -> Transition:
-    """Apply `action` atomically. Raises InvalidItemAction unless it is eligible."""
+    """
+    Apply `action` atomically. Raises InvalidItemAction unless it is eligible.
+    `on_saved` runs right after the transaction is saved, before the row's
+    after_save effects.
+    """
     spec = next(
         (
             candidate
@@ -346,6 +351,8 @@ def execute_transition(
         if spec.prepare is not None:
             spec.prepare(tx, user, now)
         tx.save()
+        if on_saved is not None:
+            on_saved(spec)
         if spec.after_save is not None:
             spec.after_save(item, tx, user)
         sync_item_status(item, tx)

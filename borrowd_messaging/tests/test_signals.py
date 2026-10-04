@@ -127,10 +127,6 @@ class TransactionLifecycleTests(MessagingTestCase):
 
         self.assertIsNotNone(thread)
 
-    def advance(self, transaction: Transaction, status: TransactionStatus) -> None:
-        transaction.status = status
-        transaction.save()
-
     def test_a_pending_request_leaves_other_conversations_open(self) -> None:
         onlooker_thread = self.make_thread(borrower=self.make_user("onlooker"))
 
@@ -143,7 +139,7 @@ class TransactionLifecycleTests(MessagingTestCase):
         onlooker_thread = self.make_thread(borrower=self.make_user("onlooker"))
         transaction = self.make_transaction()
 
-        self.advance(transaction, TransactionStatus.REJECTED)
+        self.move_transaction(transaction, TransactionStatus.REJECTED)
 
         onlooker_thread.refresh_from_db()
         self.assertFalse(onlooker_thread.is_archived)
@@ -152,7 +148,7 @@ class TransactionLifecycleTests(MessagingTestCase):
         onlooker_thread = self.make_thread(borrower=self.make_user("onlooker"))
         transaction = self.make_transaction()
 
-        self.advance(transaction, TransactionStatus.CANCELLED)
+        self.move_transaction(transaction, TransactionStatus.CANCELLED)
 
         onlooker_thread.refresh_from_db()
         self.assertFalse(onlooker_thread.is_archived)
@@ -161,7 +157,7 @@ class TransactionLifecycleTests(MessagingTestCase):
         onlooker_thread = self.make_thread(borrower=self.make_user("onlooker"))
         transaction = self.make_transaction()
 
-        self.advance(transaction, TransactionStatus.ACCEPTED)
+        self.move_transaction(transaction, TransactionStatus.ACCEPTED)
 
         onlooker_thread.refresh_from_db()
         self.assertEqual(onlooker_thread.archive_reason, ArchiveReason.ITEM_UNAVAILABLE)
@@ -170,7 +166,7 @@ class TransactionLifecycleTests(MessagingTestCase):
         onlooker_thread = self.make_thread(borrower=self.make_user("onlooker"))
         transaction = self.make_transaction()
 
-        self.advance(transaction, TransactionStatus.OWNERSHIP_TRANSFERRED)
+        self.move_transaction(transaction, TransactionStatus.OWNERSHIP_TRANSFERRED)
 
         onlooker_thread.refresh_from_db()
         self.assertEqual(onlooker_thread.archive_reason, ArchiveReason.ITEM_UNAVAILABLE)
@@ -179,7 +175,7 @@ class TransactionLifecycleTests(MessagingTestCase):
         thread = self.make_thread()
         transaction = self.make_transaction()
 
-        self.advance(transaction, TransactionStatus.ACCEPTED)
+        self.move_transaction(transaction, TransactionStatus.ACCEPTED)
 
         thread.refresh_from_db()
         self.assertFalse(thread.is_archived)
@@ -207,8 +203,7 @@ class TransactionLifecycleTests(MessagingTestCase):
         for status, reason in cases:
             with self.subTest(status=status.name):
                 transaction = self.make_transaction()
-                transaction.status = status
-                transaction.save()
+                self.move_transaction(transaction, status)
 
                 thread = ChatThread.objects.get(transaction=transaction)
                 self.assertEqual(thread.archive_reason, reason)
@@ -218,8 +213,7 @@ class TransactionLifecycleTests(MessagingTestCase):
 
     def test_progress_short_of_a_terminal_status_leaves_the_thread_alone(self) -> None:
         transaction = self.make_transaction()
-        transaction.status = TransactionStatus.ACCEPTED
-        transaction.save()
+        self.move_transaction(transaction, TransactionStatus.ACCEPTED)
 
         thread = ChatThread.objects.get(transaction=transaction)
         self.assertFalse(thread.is_archived)
@@ -227,8 +221,7 @@ class TransactionLifecycleTests(MessagingTestCase):
 
     def test_a_dispute_warns_both_parties_but_keeps_the_thread_open(self) -> None:
         transaction = self.make_transaction()
-        transaction.status = TransactionStatus.DISPUTED
-        transaction.save()
+        self.move_transaction(transaction, TransactionStatus.DISPUTED)
 
         thread = ChatThread.objects.get(transaction=transaction)
         self.assertFalse(thread.is_archived)
@@ -244,8 +237,7 @@ class TransactionLifecycleTests(MessagingTestCase):
         self.item.status = ItemStatus.BORROWED
         self.item.save(update_fields=["status"])
         transaction = self.make_transaction()
-        transaction.status = TransactionStatus.DISPUTED
-        transaction.save()
+        self.move_transaction(transaction, TransactionStatus.DISPUTED)
         onlooker_thread = self.make_thread(borrower=self.make_user("onlooker"))
 
         self.item.process_action(
@@ -272,10 +264,24 @@ class TransactionLifecycleTests(MessagingTestCase):
         )
         self.assertEqual(onlooker_thread.archive_reason, ArchiveReason.ITEM_DELETED)
 
+    def test_a_failed_action_rolls_its_thread_changes_back(self) -> None:
+        onlooker_thread = self.make_thread(borrower=self.make_user("onlooker"))
+        self.make_transaction()
+
+        with (
+            patch(
+                "borrowd_items.flow.sync_item_status", side_effect=RuntimeError("boom")
+            ),
+            self.assertRaises(RuntimeError),
+        ):
+            self.item.process_action(self.lender, ItemAction.ACCEPT_REQUEST)
+
+        onlooker_thread.refresh_from_db()
+        self.assertFalse(onlooker_thread.is_archived)
+
     def test_re_saving_a_disputed_transaction_posts_one_notice(self) -> None:
         transaction = self.make_transaction()
-        transaction.status = TransactionStatus.DISPUTED
-        transaction.save()
+        self.move_transaction(transaction, TransactionStatus.DISPUTED)
         transaction.save()
 
         thread = ChatThread.objects.get(transaction=transaction)
@@ -283,8 +289,7 @@ class TransactionLifecycleTests(MessagingTestCase):
 
     def test_re_saving_a_terminal_transaction_posts_one_notice(self) -> None:
         transaction = self.make_transaction()
-        transaction.status = TransactionStatus.RETURNED
-        transaction.save()
+        self.move_transaction(transaction, TransactionStatus.RETURNED)
         transaction.save()
 
         thread = ChatThread.objects.get(transaction=transaction)
@@ -293,10 +298,6 @@ class TransactionLifecycleTests(MessagingTestCase):
 
 @override_settings(MESSAGING_ENABLED=False)
 class TransactionLifecycleWhileFeatureFlagIsOffTests(MessagingTestCase):
-    def advance(self, transaction: Transaction, status: TransactionStatus) -> None:
-        transaction.status = status
-        transaction.save()
-
     def test_a_new_transaction_does_not_create_a_thread(self) -> None:
         transaction = self.make_transaction()
 
@@ -316,7 +317,7 @@ class TransactionLifecycleWhileFeatureFlagIsOffTests(MessagingTestCase):
         onlooker_thread = self.make_thread(borrower=self.make_user("onlooker"))
         transaction = self.make_transaction()
 
-        self.advance(transaction, TransactionStatus.ACCEPTED)
+        self.move_transaction(transaction, TransactionStatus.ACCEPTED)
 
         requester_thread.refresh_from_db()
         onlooker_thread.refresh_from_db()
@@ -327,7 +328,7 @@ class TransactionLifecycleWhileFeatureFlagIsOffTests(MessagingTestCase):
         thread = self.make_thread()
         transaction = self.make_transaction()
 
-        self.advance(transaction, TransactionStatus.DISPUTED)
+        self.move_transaction(transaction, TransactionStatus.DISPUTED)
 
         thread.refresh_from_db()
         self.assertFalse(thread.is_archived)
@@ -340,7 +341,7 @@ class TransactionLifecycleWhileFeatureFlagIsOffTests(MessagingTestCase):
         thread = self.make_thread()
         transaction = self.make_transaction()
 
-        self.advance(transaction, TransactionStatus.RETURNED)
+        self.move_transaction(transaction, TransactionStatus.RETURNED)
 
         thread.refresh_from_db()
         self.assertEqual(thread.archive_reason, ArchiveReason.RETURNED)
@@ -355,7 +356,7 @@ class TransactionLifecycleWhileFeatureFlagIsOffTests(MessagingTestCase):
     def test_a_terminal_status_does_not_create_a_thread(self) -> None:
         transaction = self.make_transaction()
 
-        self.advance(transaction, TransactionStatus.RETURNED)
+        self.move_transaction(transaction, TransactionStatus.RETURNED)
 
         self.assertFalse(ChatThread.objects.filter(transaction=transaction).exists())
 

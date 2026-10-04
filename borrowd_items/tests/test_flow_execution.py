@@ -161,6 +161,29 @@ class ExecuteTransitionTests(ExecutionTestCase):
         self.assertEqual(stored_item.owner_id, self.lender.pk)
         self.assertEqual(stored_item.status, ItemStatus.BORROWED)
 
+    def test_on_saved_sees_the_save_but_none_of_the_rows_effects(self) -> None:
+        item, tx = self.open_transaction(TransactionStatus.GIVEAWAY_OFFERED)
+        seen: list[tuple[int, int]] = []
+
+        def look(applied: Transition) -> None:
+            stored = Transaction.objects.get(pk=tx.pk)
+            seen.append((stored.status, Item.objects.get(pk=item.pk).owner_id))
+
+        execute_transition(
+            item,
+            tx,
+            self.borrower,
+            ItemAction.ACCEPT_GIVEAWAY,
+            now=NOW,
+            on_saved=look,
+        )
+
+        # Saved at the target, but the item hasn't changed hands yet.
+        self.assertEqual(
+            seen, [(TransactionStatus.OWNERSHIP_TRANSFERRED, self.lender.pk)]
+        )
+        self.assertEqual(Item.objects.get(pk=item.pk).owner_id, self.borrower.pk)
+
     def test_a_lost_item_is_removed_only_after_its_transaction_is_resolved(
         self,
     ) -> None:

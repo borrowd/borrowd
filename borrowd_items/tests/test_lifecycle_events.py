@@ -101,7 +101,8 @@ class RecordingTests(EventTestCase):
                 self.assertEqual(event.target_status, write.transaction_status_after)
                 self.assertEqual(event.action, write.action)
                 self.assertEqual(event.actor_id, actor.pk)
-                self.assertEqual(
+                # Recorded right after the save, before the row's effects.
+                self.assertLessEqual(
                     event.revision, Item.all_objects.get(pk=item.pk).revision
                 )
 

@@ -406,8 +406,7 @@ class ChatThreadPollViewTests(MessagingTestCase):
 
     def dispute(self) -> Transaction:
         transaction = self.make_transaction()
-        transaction.status = TransactionStatus.DISPUTED
-        transaction.save()
+        self.move_transaction(transaction, TransactionStatus.DISPUTED)
         self.thread.refresh_from_db()
         return transaction
 
@@ -507,8 +506,7 @@ class ChatThreadPollViewTests(MessagingTestCase):
     def test_final_poll_replaces_the_status_with_the_archive_reason(self) -> None:
         transaction = self.dispute()
         dispute_notice = Message.objects.filter(thread=self.thread).latest("pk")
-        transaction.status = TransactionStatus.RETURNED
-        transaction.save()
+        self.move_transaction(transaction, TransactionStatus.RETURNED)
         self.thread.refresh_from_db()
         self.client.force_login(self.borrower)
 
@@ -722,8 +720,7 @@ class ConversationStatusTests(MessagingTestCase):
 
     def dispute(self) -> None:
         transaction = self.make_transaction()
-        transaction.status = TransactionStatus.DISPUTED
-        transaction.save()
+        self.move_transaction(transaction, TransactionStatus.DISPUTED)
         self.thread.refresh_from_db()
 
     def test_disputed_thread_shows_the_disputed_status(self) -> None:
