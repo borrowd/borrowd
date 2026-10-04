@@ -6,26 +6,32 @@
     <section class="flex flex-col items-center justify-center min-h-[344px] gap-6 md:gap-8 px-[40px] py-[12px]">
         <!-- Progress bar -->
         <progress class="progress progress-primary w-[224px] md:w-[340px] h-[10px] md:h-[16px]"
-                  value="33"
+                  value="100"
                   max="100"></progress>
 
+        <a href="/onboarding/2"
+           class="self-start text-sm text-[#2C51A1] font-medium hover:underline flex items-center gap-1">
+            &larr; Back
+        </a>
+
         <img class="w-[157px] h-[105px] md:w-[220px] md:h-[130px] object-contain"
-             src="{% static 'Onboarding Step 2 - Groups.PNG' %}" />
+             src="{% static 'Onboarding Step 3 - Community Requests.PNG' %}" />
 
         <h2 class="text-center text-[24px] font-normal tracking-tight leading-[120%] font-roboto-slab">
-            Groups
+            Community requests
         </h2>
 
         <p class="font-roboto text-[16px] font-normal leading-[140%] max-w-[42ch]">
-            Borrowing only happens within groups of people you already know in real life - friends, neighbors, family, coworkers, sports teams.
-        </p>
-        <p class="font-roboto text-[16px] font-normal leading-[140%] max-w-[42ch]">
-            If you don't already have a group invitation, you should create your own group and invite the people you want to start sharing with.
+            If you can't find the item you need to borrow, you can make a community request! This alerts the members of your groups that you're looking for something they may have.
         </p>
 
-        <a href="/onboarding/2"
+        <p class="font-roboto text-[16px] font-normal leading-[140%] max-w-[42ch]">
+            Visit the Community requests page to see if you have items the people in your communities need.
+        </p>
+
+        <a href="{% url 'onboarding_complete' %}"
            class="bg-[#2C51A1] text-white py-2 px-6 md:px-10 rounded-lg mt-10 font-medium shadow-md hover:shadow-lg hover:bg-[#25448A] active:scale-[0.98] transition">
-            Continue
+            Get started
         </a>
     </section>
 {% endblock %}

@@ -5,6 +5,7 @@ from .views import (
     onboarding_complete,
     onboarding_step1,
     onboarding_step2,
+    onboarding_step3,
 )
 
 urlpatterns = [
@@ -12,5 +13,6 @@ urlpatterns = [
     path("faq/", views.faq, name="faq"),
     path("onboarding/1/", onboarding_step1, name="onboarding_step1"),
     path("onboarding/2/", onboarding_step2, name="onboarding_step2"),
+    path("onboarding/3/", onboarding_step3, name="onboarding_step3"),
     path("onboarding/complete/", onboarding_complete, name="onboarding_complete"),
 ]
