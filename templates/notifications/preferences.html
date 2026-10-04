@@ -21,6 +21,7 @@
              x-show="show && masterEnabled('push')"
              x-cloak
              @push-subscribed.window="_refresh()"
+             @push-permission-changed.window="_refresh()"
              role="alert"
              class="alert alert-warning flex items-start gap-3 rounded-md">
             {% heroicon_outline "bell-slash" class="w-5 h-5 shrink-0 mt-0.5" %}
@@ -181,6 +182,10 @@
                         return;
                     }
                     this.permissionDenied = false;
+                    if (Notification.permission === 'granted') {
+                        this.show = false;
+                        return;
+                    }
                     try {
                         const reg = await navigator.serviceWorker.getRegistration('/sw.js');
                         const sub = reg ? await reg.pushManager.getSubscription() : null;
@@ -224,10 +229,6 @@
         function notificationPrefs() {
             return {
                 prefs: JSON.parse(document.getElementById('notification-prefs').textContent),
-
-                init() {
-                    this._initPushPermissionState();
-                },
 
                 toggle(typeValue, channel, field, enabled) {
                     this.prefs[typeValue][field] = enabled;
@@ -275,31 +276,6 @@
                     return relevant.length === 0 || relevant.some(p => p[field]);
                 },
 
-                async _initPushPermissionState() {
-                    // Notification permission is per-browser, but the PUSH preference
-                    // this toggles is account-wide. Only react to a denial that happens
-                    // live in this session (via the toggle, or a change while this page
-                    // is open) — don't disable push for the whole account just because
-                    // this particular browser already had it blocked on page load.
-                    if (!('Notification' in window) || !('permissions' in navigator)) return;
-                    const status = await navigator.permissions.query({ name: 'notifications' });
-                    status.onchange = () => {
-                        if (status.state === 'denied') this._onPushPermissionDenied();
-                    };
-                },
-
-                async _onPushPermissionDenied() {
-                    for (const type of Object.keys(this.prefs)) {
-                        this.prefs[type].push = false;
-                    }
-                    this._persist('{% url "notification-bulk-toggle" %}', {
-                        scope: 'master',
-                        channel: 'PUSH',
-                        enabled: 'false',
-                    });
-                    await this._dropPushSubscription();
-                },
-
                 _checkDropSubscription() {
                     const anyPushActive = Object.values(this.prefs).some(p => p.push);
                     if (!anyPushActive) this._dropPushSubscription();
@@ -336,7 +312,7 @@
                         if (!sub) {
                             const permission = await Notification.requestPermission();
                             if (permission !== 'granted') {
-                                await this._onPushPermissionDenied();
+                                window.dispatchEvent(new CustomEvent('push-permission-changed'));
                                 return;
                             }
                             sub = await reg.pushManager.subscribe({
