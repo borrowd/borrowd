@@ -85,6 +85,7 @@ Code that reacts to a change registers with `@events.consumer("name")` in `borro
 
 - **If a consumer raises,** the event is retried after 5, 10, 20 and 40 minutes by `manage.py deliver_lifecycle_events`, which cron runs every 5 minutes. After 5 tries it's parked and reported to Sentry. A parked event holds back its transaction's later events, but not anyone else's.
 - **Unsticking:** `manage.py lifecycle_events status|replay|skip`, or the same from the admin. A skip records who did it and why.
+- **Reactions that have to commit with the change** receive the `transition_recorded` signal instead. It's sent inside the change's database transaction, right after the transaction is saved and before the row's after-save effects. Chat threads work this way: a new transaction gets its thread, and an ending one is archived, atomically with the change, and a lost item's thread is archived as resolved before the item's deletion archives the rest.
 - **A consumer can see an event more than once.** It's skipped once its `LifecycleEventConsumption` row exists, and that row commits together with the consumer's own database writes. Anything outside the database (email, push) has to tolerate a repeat.
 
 Version 1 events come from writers that send notifications synchronously. The notification consumer skips them, including events left pending by a crash. Version 2 writers leave notification delivery to the consumer.
