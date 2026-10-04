@@ -61,7 +61,7 @@ class PwaManifestTests(SimpleTestCase):
         self.assertTrue((static_dir / "favicon-dark.ico").is_file())
 
     def test_base_template_links_pwa_metadata(self) -> None:
-        template = self.base_template_path.read_text()
+        template = " ".join(self.base_template_path.read_text().split())
 
         self.assertIn('<meta name="theme-color" content="#0b0907" />', template)
         self.assertIn(
