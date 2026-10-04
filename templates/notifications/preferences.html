@@ -192,7 +192,7 @@
 
                 async enable() {
                     try {
-                        const reg = await navigator.serviceWorker.register('/sw.js');
+                        const reg = await navigator.serviceWorker.ready;
                         const permission = await Notification.requestPermission();
                         if (permission !== 'granted') {
                             this.permissionDenied = true;
@@ -322,7 +322,6 @@
                             });
                             await sub.unsubscribe();
                         }
-                        await reg.unregister();
                     } catch (e) {
                         console.error('Push unsubscribe failed:', e);
                     }
@@ -331,7 +330,7 @@
                 async _ensurePushSubscribed() {
                     if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
                     try {
-                        const reg = await navigator.serviceWorker.register('/sw.js');
+                        const reg = await navigator.serviceWorker.ready;
                         let sub = await reg.pushManager.getSubscription();
                         if (!sub) {
                             const permission = await Notification.requestPermission();
