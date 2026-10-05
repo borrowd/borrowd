@@ -42,7 +42,7 @@ from .forms import (
 )
 from .models import BorrowdUser, SearchTarget, SearchTerm
 from .request import get_authenticated_user
-from .services import soft_delete_account
+from .services import deletion_blocked_message, soft_delete_account
 
 
 def safe_count(queryset: QuerySet[Any]) -> int | None:
@@ -456,6 +456,7 @@ def account_settings_view(request: HttpRequest) -> HttpResponse:
         "settings/account.html",
         {
             "is_borrowing": Transaction.get_active_borrows_for_user(user).exists(),
+            "deletion_blocked_message": deletion_blocked_message(user),
             "is_lending": Transaction.get_active_lends_for_user(user).exists(),
             "has_items": Item.objects.filter(owner=user).exists(),
         },

@@ -82,14 +82,9 @@ def soft_delete_account(user: BorrowdUser, *, deleted_by: BorrowdUser) -> None:
             return
         _lock_items_involving(user)
 
-        held = set(
-            Transaction.objects.filter(
-                party2=user, status__in=_ITEM_IN_HAND_STATUSES
-            ).values_list("status", flat=True)
-        )
-        for statuses, message in _DELETION_BLOCKED_MESSAGES:
-            if held.intersection(statuses):
-                raise AccountDeletionBlocked(message)
+        blocked = deletion_blocked_message(user)
+        if blocked is not None:
+            raise AccountDeletionBlocked(blocked)
 
         _cancel_open_transactions(user, deleted_by)
         _notify_borrowers_of_in_flight_lends(user)
@@ -98,6 +93,19 @@ def soft_delete_account(user: BorrowdUser, *, deleted_by: BorrowdUser) -> None:
         _destroy_profile_photo_and_clear_bio(user, deleted_by)
         _remove_group_memberships(user)
         _soft_delete_and_anonymize_user(user, deleted_by)
+
+
+def deletion_blocked_message(user: BorrowdUser) -> str | None:
+    """Why `user` can't close their account right now, or None if they can."""
+    held = set(
+        Transaction.objects.filter(
+            party2=user, status__in=_ITEM_IN_HAND_STATUSES
+        ).values_list("status", flat=True)
+    )
+    for statuses, message in _DELETION_BLOCKED_MESSAGES:
+        if held.intersection(statuses):
+            return message
+    return None
 
 
 def _lock_items_involving(user: BorrowdUser) -> None:

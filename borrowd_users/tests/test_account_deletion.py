@@ -676,6 +676,34 @@ class AccountSettingsDeleteFlagsTests(TestCase):
         response = self.client.get(self.url)
         self.assertTrue(response.context["is_borrowing"])
 
+    def test_a_dispute_explains_itself_in_the_delete_dialog(self) -> None:
+        lender = _make_user("flagdisputer")
+        Transaction.objects.create(
+            item=_make_item(lender),
+            party1=lender,
+            party2=self.user,
+            status=TransactionStatus.DISPUTED,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+        response = self.client.get(self.url)
+        self.assertTrue(response.context["is_borrowing"])
+        self.assertContains(response, "its owner has to settle it")
+
+    def test_a_reserved_item_keeps_the_general_message(self) -> None:
+        lender = _make_user("flagreserver")
+        Transaction.objects.create(
+            item=_make_item(lender),
+            party1=lender,
+            party2=self.user,
+            status=TransactionStatus.ACCEPTED,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+        response = self.client.get(self.url)
+        self.assertIsNone(response.context["deletion_blocked_message"])
+        self.assertContains(response, "cancel any pending transactions")
+
     def test_active_lend_sets_is_lending(self) -> None:
         item = _make_item(self.user)
         item.status = ItemStatus.BORROWED

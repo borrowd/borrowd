@@ -32,7 +32,11 @@
                     {% trans "You currently have pending transactions" %}
                 </h3>
                 <p class="px-5 py-2 leading-7 text-xl">
-                    {% trans "To delete your profile, you'll need to return the items you've borrowed or cancel any pending transactions. Once the owner confirms the return, you'll be able to delete your profile." %}
+                    {% if deletion_blocked_message %}
+                        {{ deletion_blocked_message }}
+                    {% else %}
+                        {% trans "To delete your profile, you'll need to return the items you've borrowed or cancel any pending transactions. Once the owner confirms the return, you'll be able to delete your profile." %}
+                    {% endif %}
                 </p>
                 <div class="modal-action justify-end pt-6">
                     <form method="dialog">
