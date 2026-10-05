@@ -15,9 +15,23 @@
             "type": "image/png"
         },
         {
+            "media": "(prefers-color-scheme: dark)",
+            "purpose": "any",
+            "sizes": "192x192",
+            "src": "icon-dark-192.png",
+            "type": "image/png"
+        },
+        {
             "purpose": "any",
             "sizes": "512x512",
             "src": "icon-512.png",
+            "type": "image/png"
+        },
+        {
+            "media": "(prefers-color-scheme: dark)",
+            "purpose": "any",
+            "sizes": "512x512",
+            "src": "icon-dark-512.png",
             "type": "image/png"
         },
         {
@@ -27,9 +41,23 @@
             "type": "image/png"
         },
         {
+            "media": "(prefers-color-scheme: dark)",
+            "purpose": "maskable",
+            "sizes": "192x192",
+            "src": "icon-maskable-dark-192.png",
+            "type": "image/png"
+        },
+        {
             "purpose": "maskable",
             "sizes": "512x512",
             "src": "icon-maskable-512.png",
+            "type": "image/png"
+        },
+        {
+            "media": "(prefers-color-scheme: dark)",
+            "purpose": "maskable",
+            "sizes": "512x512",
+            "src": "icon-maskable-dark-512.png",
             "type": "image/png"
         }
     ],
