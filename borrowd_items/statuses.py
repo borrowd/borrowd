@@ -111,7 +111,7 @@ REQUEST_TRANSACTION_STATUSES = (
     TransactionStatus.GIVEAWAY_REQUESTED,
 )
 
-# Derived, so a new status counts as open unless it is added to TERMINAL.
+# New statuses are open unless explicitly classified as terminal.
 OPEN_TRANSACTION_STATUSES = tuple(
     status
     for status in TransactionStatus
@@ -126,28 +126,28 @@ BORROWER_TRANSACTION_STATUSES = tuple(
     if status not in REQUEST_TRANSACTION_STATUSES
 )
 
-# Collection has started; every remaining step needs both parties.
+# Open transactions where collection has been asserted or confirmed.
 DUAL_CONFIRMATION_TRANSACTION_STATUSES = tuple(
     status
     for status in BORROWER_TRANSACTION_STATUSES
     if status != TransactionStatus.ACCEPTED
 )
 
-# Nothing has changed hands yet. Cancellable.
+# Open transactions where collection has not been asserted.
 PRE_COLLECTION_TRANSACTION_STATUSES = tuple(
     status
     for status in OPEN_TRANSACTION_STATUSES
     if status not in DUAL_CONFIRMATION_TRANSACTION_STATUSES
 )
 
-# A member cannot leave a group while they share a transaction in one of these statuses with another member.
+# These statuses prevent either party from leaving a shared group.
 GROUP_LEAVE_BLOCKING_TRANSACTION_STATUSES = (
     TransactionStatus.COLLECTED,
     TransactionStatus.RETURN_ASSERTED,
 )
 
 
-# Item.status is derived from its transaction; nothing should set status by hand.
+# Map each transaction status to the corresponding item status.
 ITEM_STATUS_FOR_TRANSACTION: dict[TransactionStatus, ItemStatus] = {
     **{status: ItemStatus.AVAILABLE for status in TERMINAL_TRANSACTION_STATUSES},
     TransactionStatus.REQUESTED: ItemStatus.REQUESTED,
@@ -163,7 +163,7 @@ ITEM_STATUS_FOR_TRANSACTION: dict[TransactionStatus, ItemStatus] = {
 
 
 def sync_item_status(item: "Item", tx: "Transaction") -> None:
-    """Set item.status from tx. A soft-deleted item is left as it is."""
+    """Update the item's status from its transaction unless the item is soft-deleted."""
     if item.deleted_at is not None:
         return
     status = ITEM_STATUS_FOR_TRANSACTION[TransactionStatus(tx.status)]
