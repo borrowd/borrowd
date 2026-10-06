@@ -106,3 +106,18 @@ class ActionFormTests(CommandTestCase):
         fields["command_key"] = str(uuid4())
         fields["revision"] = str(self.revision())
         self.assertEqual(self.client.post(self.url, fields).status_code, 404)
+
+    def test_an_unknown_action_without_access_is_not_found(self) -> None:
+        remove_perm(ItemOLP.VIEW, self.alice, self.item)
+        response = self.client.post(self.url, {"action": "unknown"})
+        self.assertEqual(response.status_code, 404)
+
+    def test_a_mismatched_retry_without_access_is_not_found(self) -> None:
+        fields = {"revision": "0", "command_key": str(uuid4())}
+        self.post(**fields)
+        remove_perm(ItemOLP.VIEW, self.alice, self.item)
+        response = self.client.post(
+            self.url, {"action": ItemAction.CANCEL_REQUEST, **fields}
+        )
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(ItemCommandRecord.objects.count(), 1)

@@ -186,6 +186,8 @@ def borrow_item(request: HttpRequest, pk: int) -> HttpResponse:
     try:
         action = ItemAction(req_action.upper())
     except ValueError:
+        if not user.has_perm(ItemOLP.VIEW, item):
+            raise Http404
         _add_message_safe(
             request,
             messages.ERROR,
@@ -250,6 +252,8 @@ def borrow_item(request: HttpRequest, pk: int) -> HttpResponse:
             "done. Take another look and try again.",
         )
     except (InvalidItemAction, PermissionDenied):
+        if not user.has_perm(ItemOLP.VIEW, item):
+            raise Http404
         _add_message_safe(
             request,
             messages.ERROR,
