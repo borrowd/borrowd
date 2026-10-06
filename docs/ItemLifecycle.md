@@ -87,6 +87,10 @@ Code that reacts to a change registers with `@events.consumer("name")` in `borro
 - **Unsticking:** `manage.py lifecycle_events status|replay|skip`, or the same from the admin. A skip records who did it and why.
 - **A consumer can see an event more than once.** It's skipped once its `LifecycleEventConsumption` row exists, and that row commits together with the consumer's own database writes. Anything outside the database (email, push) has to tolerate a repeat.
 
+Version 1 events come from writers that send notifications synchronously. The notification consumer skips them, including events left pending by a crash. Version 2 writers leave notification delivery to the consumer.
+
+When deploying or rolling back the notification consumer, stop the old event sweepers and drain in-flight web requests before switching workers. Before a rollback, deliver all pending version 2 notifications and resolve any parked events; a version 1 sweeper cannot deliver them. Keep the event tables and their data applied.
+
 ## Status sets
 
 `TERMINAL` and `REQUEST` are the only hand-written sets. The rest are derived:

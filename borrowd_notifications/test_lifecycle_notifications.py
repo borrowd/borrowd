@@ -5,9 +5,12 @@ from io import StringIO
 from unittest import mock
 
 from django.core.management import call_command
+from django.db import connection
+from django.db.migrations.executor import MigrationExecutor
 from django.test import TestCase
 from django.utils import timezone
 from notifications.models import Notification
+from notifications.signals import notify
 
 from borrowd_items import events
 from borrowd_items.models import (
@@ -16,7 +19,9 @@ from borrowd_items.models import (
     Item,
     ItemAction,
     LifecycleEvent,
+    LifecycleEventConsumption,
     Transaction,
+    TransactionStatus,
 )
 from borrowd_users.models import BorrowdUser
 from borrowd_users.services import soft_delete_account
@@ -117,3 +122,50 @@ class LifecycleNotificationTests(TestCase):
                 verb=NotificationType.ITEM_NOTIFY_WHEN_AVAILABLE.value,
             ).exists()
         )
+
+    def test_pending_events_from_synchronous_writers_do_not_notify_again(self) -> None:
+        tx = Transaction.objects.create(
+            item=self.item,
+            party1=self.owner,
+            party2=self.borrower,
+            created_by=self.borrower,
+            updated_by=self.borrower,
+        )
+        notify.send(
+            self.borrower,
+            recipient=[self.owner],
+            verb=NotificationType.ITEM_REQUESTED.value,
+            action_object=self.item,
+            target=tx,
+        )
+        Notification.objects.update(timestamp=timezone.now() - timedelta(hours=1))
+        old_apps = (
+            MigrationExecutor(connection)
+            .loader.project_state([("borrowd_items", "0029_lifecycle_events")])
+            .apps
+        )
+        old_event = old_apps.get_model(
+            "borrowd_items", "LifecycleEvent"
+        ).objects.create(
+            item_id=self.item.pk,
+            transaction_id=tx.pk,
+            revision=1,
+            target_status=TransactionStatus.REQUESTED,
+            actor_id=self.borrower.pk,
+        )
+        self.assertEqual(old_event.schema_version, 1)
+        with mock.patch("borrowd_notifications.lifecycle.notify.send") as send:
+            events.deliver_due()
+        send.assert_not_called()
+        self.assertEqual(self.requested(), 1)
+        self.assertTrue(
+            LifecycleEventConsumption.objects.filter(
+                event_id=old_event.pk, consumer="notifications"
+            ).exists()
+        )
+
+    def test_new_events_use_the_notification_consumer_version(self) -> None:
+        self.item.process_action(self.borrower, ItemAction.REQUEST_ITEM)
+        self.assertEqual(LifecycleEvent.objects.get().schema_version, 2)
+        events.deliver_due()
+        self.assertEqual(self.requested(), 1)

@@ -1444,7 +1444,7 @@ class LifecycleEvent(Model):
     """
 
     id = UUIDField(primary_key=True, default=uuid4, editable=False)
-    schema_version = PositiveSmallIntegerField(default=1)
+    schema_version = PositiveSmallIntegerField(default=2)
     item = ForeignKey(Item, on_delete=CASCADE, related_name="+")
     transaction = ForeignKey(Transaction, on_delete=CASCADE, related_name="+")
     revision = PositiveBigIntegerField(

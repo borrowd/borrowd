@@ -30,6 +30,10 @@ _FREES_THE_ITEM = (
 
 @events.consumer("notifications")
 def notify_about_transition(event: LifecycleEvent) -> None:
+    # Version 1 writers notified synchronously before recording the event.
+    # Pending events from those writers must not send the notification again.
+    if event.schema_version < 2:
+        return
     tx = Transaction.objects.select_related("item", "party1", "party2").get(
         pk=event.transaction_id
     )
