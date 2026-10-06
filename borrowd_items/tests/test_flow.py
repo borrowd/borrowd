@@ -1,4 +1,4 @@
-"""The transition table, through `eligible_transitions`. No database needed."""
+"""Verify transition eligibility."""
 
 from datetime import datetime, timedelta
 from datetime import timezone as dt_timezone
@@ -30,7 +30,7 @@ WAIT = timedelta(days=settings.RETURN_DISPUTE_WAIT_DAYS)
 LENDER = "lender"
 BORROWER = "borrower"
 
-# Literal on purpose: an independent check on the derived set.
+# Independent check on the derived set.
 IN_HAND_STATUSES = (
     TransactionStatus.COLLECTION_ASSERTED,
     TransactionStatus.COLLECTED,
@@ -40,8 +40,10 @@ IN_HAND_STATUSES = (
     TransactionStatus.DISPUTED,
 )
 
-# What each party is offered when the other party acted last, the dispute wait
-# has elapsed and both accounts are active.
+# What each party is offered when:
+# - the other party acted last,
+# - the dispute wait has elapsed,
+# - and both accounts are active.
 EXPECTED_ACTIONS: dict[tuple[TransactionStatus, str], tuple[ItemAction, ...]] = {
     (TransactionStatus.REQUESTED, LENDER): (
         ItemAction.REJECT_REQUEST,
