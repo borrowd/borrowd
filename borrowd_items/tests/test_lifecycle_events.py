@@ -114,6 +114,7 @@ class RecordingTests(EventTestCase):
                 action=ItemAction.REQUEST_ITEM,
                 item_id=item.pk,
                 key=key,
+                expected_revision=item.revision,
             )
         )
 
