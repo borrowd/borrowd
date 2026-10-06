@@ -1,4 +1,4 @@
-"""The command that re-derives Item.status from its transaction."""
+"""Verify status repairs, dry runs, and skipped items."""
 
 from io import StringIO
 

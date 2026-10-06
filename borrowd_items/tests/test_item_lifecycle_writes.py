@@ -1,7 +1,4 @@
-"""
-What each lifecycle action writes. Starting states are set up directly; the
-assertions are about what `process_action` writes from there.
-"""
+"""Verify what process_action writes from directly created starting states."""
 
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -29,7 +26,7 @@ BORROWER = "borrower"
 
 @contextmanager
 def rolled_back() -> Iterator[None]:
-    """Undo a case's rows so the next one starts from a clean item."""
+    """Roll back each case's database changes to isolate the next case."""
     with transaction.atomic():
         yield
         transaction.set_rollback(True)
@@ -37,7 +34,7 @@ def rolled_back() -> Iterator[None]:
 
 @dataclass(frozen=True)
 class LifecycleWrite:
-    """One action applied to one starting state, and everything it writes."""
+    """An action's starting state and expected database changes."""
 
     source: TransactionStatus
     action: ItemAction
@@ -45,10 +42,9 @@ class LifecycleWrite:
     item_status_before: ItemStatus
     transaction_status_after: TransactionStatus
     item_status_after: ItemStatus
-    # Who touched the transaction last. Dual-confirmation steps refuse to let
-    # the same party both assert and confirm.
+    # Last actor before the action; determines who can confirm collection.
     updated_by: str = LENDER
-    # Set return_requested_at this far in the past, for the dispute wait.
+    # Age of the return request, used to test the dispute waiting period.
     return_requested_days_ago: int | None = None
     # Transaction fields that must be non-null once the action has run.
     stamps: tuple[str, ...] = ()
@@ -293,7 +289,7 @@ class ItemLifecycleWriteTests(TestCase):
         return self.lender if name == LENDER else self.borrower
 
     def test_every_open_status_has_at_least_one_recorded_action(self) -> None:
-        """A status nobody can act on is a dead end; catch that here."""
+        """Ensure every open status appears in the test cases."""
         from borrowd_items.models import OPEN_TRANSACTION_STATUSES
 
         covered = {write.source for write in EXPECTED_WRITES}
@@ -367,7 +363,7 @@ class ItemLifecycleWriteTests(TestCase):
     def test_inactive_counterparty_resolution_writes_for_every_eligible_state(
         self,
     ) -> None:
-        # Literal cases keep the expected eligibility independent of derived sets.
+        # List states explicitly so changes to production sets cannot hide regressions.
         states = (
             (TransactionStatus.COLLECTION_ASSERTED, ItemStatus.RESERVED),
             (TransactionStatus.COLLECTED, ItemStatus.BORROWED),

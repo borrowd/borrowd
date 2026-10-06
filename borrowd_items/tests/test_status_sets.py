@@ -1,4 +1,4 @@
-"""The status sets are derived from each other; these pin the partitions."""
+"""Verify transaction status classifications and their item status mappings."""
 
 from django.test import SimpleTestCase
 
@@ -57,7 +57,7 @@ class TransactionStatusSetTests(SimpleTestCase):
         )
 
     def test_membership_is_unchanged(self) -> None:
-        """Spelled out so a reclassification has to be deliberate."""
+        """Keep expected values explicit so classification changes require a test update."""
         self.assertEqual(
             [status.value for status in OPEN_TRANSACTION_STATUSES],
             [10, 15, 30, 40, 50, 52, 55, 60, 65],
@@ -88,7 +88,7 @@ class TransactionStatusSetTests(SimpleTestCase):
 
 class ItemStatusProjectionTests(SimpleTestCase):
     def test_every_transaction_status_maps_to_an_item_status(self) -> None:
-        """A gap would be a KeyError in the middle of a lifecycle action."""
+        """Missing mappings would raise KeyError during lifecycle actions."""
         self.assertEqual(set(ITEM_STATUS_FOR_TRANSACTION), set(TransactionStatus))
 
     def test_a_finished_transaction_frees_the_item(self) -> None:

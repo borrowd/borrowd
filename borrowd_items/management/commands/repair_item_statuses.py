@@ -14,28 +14,23 @@ from borrowd_items.models import (
 
 class Command(BaseCommand):
     help = (
-        "Re-derives Item.status from each item's open transaction and reports "
-        "or repairs any that disagree. Item.status is a stored summary of the "
-        "transaction lifecycle rather than state of its own, so drift is "
-        "always repairable: the transaction is the record, the item status is "
-        "the copy. An item with no open transaction is AVAILABLE. Soft-deleted "
-        "items are skipped, matching sync_item_status. Already-correct rows "
-        "are a no-op. Run repairs only while lifecycle writes are paused; "
-        "dry-run results can change while the application is accepting writes."
+        "Repair item statuses to match their open transactions. Items without "
+        "an open transaction become AVAILABLE. Skip soft-deleted items and "
+        "items with multiple open transactions."
     )
 
     def add_arguments(self, parser: CommandParser) -> None:
         parser.add_argument(
             "--dry-run",
             action="store_true",
-            help="Report items whose status has drifted without changing them.",
+            help="Report incorrect item statuses without changing them",
         )
 
     def handle(self, *args: Any, **options: Any) -> None:
         dry_run = options["dry_run"]
 
-        # Batch the transaction scan to avoid a query per item. This snapshot
-        # is not synchronized with the later item reads or concurrent actions.
+        # Fetch open transactions once to avoid a query per item.
+        # Concurrent writes can make this snapshot stale.
         open_statuses_by_item: dict[int, list[TransactionStatus]] = {}
         for item_id, status in Transaction.objects.filter(
             status__in=OPEN_TRANSACTION_STATUSES
@@ -54,9 +49,8 @@ class Command(BaseCommand):
             open_statuses = open_statuses_by_item.get(item.pk, [])
 
             if len(open_statuses) > 1:
-                # More than one open transaction means the item's real state is
-                # ambiguous, so there is nothing to derive. Resolve the
-                # transactions with their parties rather than picking a winner.
+                # Multiple open transactions make the expected status ambiguous.
+                # Skip the item until those transactions are resolved.
                 conflicted_count += 1
                 self.stderr.write(
                     self.style.ERROR(
