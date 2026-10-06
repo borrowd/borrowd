@@ -29,6 +29,10 @@ class ItemCommand:
     transaction_id: int | None = None
     key: UUID | None = None
 
+    def __post_init__(self) -> None:
+        if self.key is not None and self.expected_revision is None:
+            raise ValueError("A command key requires an expected revision.")
+
     def fingerprint(self) -> str:
         """Everything a retry of this command has to repeat exactly."""
         asked = (
@@ -50,10 +54,14 @@ class CommandResult:
 
 
 def run_item_command(
-    command: ItemCommand, *, before: Callable[[Item], None] | None = None
+    command: ItemCommand,
+    *,
+    authorize: Callable[[Item], None] | None = None,
+    before: Callable[[Item], None] | None = None,
 ) -> CommandResult:
     """
     Run one lifecycle action under the same locks as Item.process_action.
+    `authorize` checks access for new commands after replay lookup.
     `before` runs under those locks just ahead of the action, for work that
     has to commit or roll back with it.
     """
@@ -68,6 +76,8 @@ def run_item_command(
             if recorded is not None:
                 return _replay(recorded, command)
 
+        if authorize is not None:
+            authorize(item)
         _check_what_the_client_saw(item, command)
         if before is not None:
             before(item)

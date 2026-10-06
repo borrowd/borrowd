@@ -173,12 +173,6 @@ def borrow_item(request: HttpRequest, pk: int) -> HttpResponse:
         pk=pk,
     )
 
-    # Not currently differentiating between viewing and borrowing
-    # permissions; assumed that if a user can "see" an item (and
-    # they're not the owner), then they can request to borrow it.
-    if not user.has_perm(ItemOLP.VIEW, item):
-        return HttpResponse("Not found", status=404)
-
     # reverse() resolves a URL name to its path, e.g. "item-detail"
     # with pk=42 becomes "/items/42/".
     # https://docs.djangoproject.com/en/5.2/ref/urlresolvers/#reverse
@@ -199,10 +193,6 @@ def borrow_item(request: HttpRequest, pk: int) -> HttpResponse:
         )
         return redirect(redirect_url)
 
-    # A soft-deleted item stays reachable only to close out a stranded loan.
-    if item.deleted_at is not None and action != ItemAction.RESOLVE_TRANSACTION:
-        return HttpResponse("Not found", status=404)
-
     try:
         command = ItemCommand(
             actor=user,
@@ -214,24 +204,32 @@ def borrow_item(request: HttpRequest, pk: int) -> HttpResponse:
     except ValueError:
         return HttpResponse("Malformed revision or command key.", status=400)
 
-    try:
+    def authorize_action(locked_item: Item) -> None:
+        # Replays are answered before mutable access checks. New actions still
+        # need visibility and may only resolve a loan on a deleted item.
+        if not user.has_perm(ItemOLP.VIEW, locked_item):
+            raise Http404
+        if (
+            locked_item.deleted_at is not None
+            and action != ItemAction.RESOLVE_TRANSACTION
+        ):
+            raise Http404
+
+    def prepare_action(locked_item: Item) -> None:
         if settings.MESSAGING_ENABLED and action in _TRANSACTION_REQUEST_ACTIONS:
+            if locked_item.get_requesting_user() is not None:
+                raise ItemAlreadyRequested
+            selected_group = MessagingService.conversation_group_selection(
+                request.POST.get("conversation_group")
+            )
+            MessagingService.prepare_thread_for_request(
+                user,
+                locked_item,
+                selected_group=selected_group,
+            )
 
-            def prepare_conversation(locked_item: Item) -> None:
-                if locked_item.get_requesting_user() is not None:
-                    raise ItemAlreadyRequested
-                selected_group = MessagingService.conversation_group_selection(
-                    request.POST.get("conversation_group")
-                )
-                MessagingService.prepare_thread_for_request(
-                    user,
-                    locked_item,
-                    selected_group=selected_group,
-                )
-
-            run_item_command(command, before=prepare_conversation)
-        else:
-            run_item_command(command)
+    try:
+        run_item_command(command, authorize=authorize_action, before=prepare_action)
     except (
         ConversationGroupSelectionRequired,
         InvalidConversationGroup,

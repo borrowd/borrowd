@@ -94,6 +94,12 @@ class CommandTestCase(TestCase):
 
 
 class ItemCommandTests(CommandTestCase):
+    def test_a_key_requires_a_revision(self) -> None:
+        with self.assertRaisesMessage(ValueError, "requires an expected revision"):
+            self.run_as(self.alice, ItemAction.REQUEST_ITEM, key=uuid4())
+        self.assertFalse(Transaction.objects.filter(item=self.item).exists())
+        self.assertFalse(ItemCommandRecord.objects.exists())
+
     def test_a_command_reports_what_it_did(self) -> None:
         result = run_item_command(
             self.command(self.alice, ItemAction.REQUEST_ITEM, key=uuid4(), revision=0)
@@ -135,11 +141,13 @@ class ItemCommandTests(CommandTestCase):
 
     def test_a_key_sent_with_a_different_command_is_refused(self) -> None:
         key = uuid4()
-        run_item_command(self.command(self.alice, ItemAction.REQUEST_ITEM, key=key))
+        run_item_command(
+            self.command(self.alice, ItemAction.REQUEST_ITEM, key=key, revision=0)
+        )
 
         with self.assertRaises(CommandKeyReused):
             run_item_command(
-                self.command(self.alice, ItemAction.CANCEL_REQUEST, key=key)
+                self.command(self.alice, ItemAction.CANCEL_REQUEST, key=key, revision=0)
             )
         self.assertEqual(
             Transaction.objects.get(item=self.item).status,
@@ -193,7 +201,9 @@ class ItemCommandTests(CommandTestCase):
     def test_a_command_that_fails_midway_leaves_nothing_and_can_run_again(
         self,
     ) -> None:
-        command = self.command(self.alice, ItemAction.REQUEST_ITEM, key=uuid4())
+        command = self.command(
+            self.alice, ItemAction.REQUEST_ITEM, key=uuid4(), revision=0
+        )
         with mock.patch(
             "borrowd_items.models.sync_item_status", side_effect=RuntimeError
         ):
@@ -234,7 +244,11 @@ class ConcurrentCommandTests(TransactionTestCase):
         alice = make_user("cmd_race_alice")
         item = make_item(owner)
         command = ItemCommand(
-            actor=alice, action=ItemAction.REQUEST_ITEM, item_id=item.pk, key=uuid4()
+            actor=alice,
+            action=ItemAction.REQUEST_ITEM,
+            item_id=item.pk,
+            key=uuid4(),
+            expected_revision=0,
         )
         both_ready = Barrier(2, timeout=10)
 

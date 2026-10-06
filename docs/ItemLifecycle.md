@@ -71,7 +71,8 @@ Requesting an item and subscribing to availability aren't rows: there's no trans
 `Item.revision` goes up on every change to the item or any of its transactions, including a status that leaves and comes back. A client sends what it was showing, and `run_item_command` checks it under the locks:
 
 - **Stale revision or transaction:** refused with `StaleItemCommand` (`code = "stale"`), and nothing happens.
-- **Retried key:** the command's recorded result is returned, even if the item has moved on since. The same key with a different command is refused (`key_reused`).
+- **Key and revision:** a key requires a revision, including for non-web callers. Legacy forms with neither remain supported.
+- **Retried key:** the command's recorded result is returned, even if the item has moved on, was deleted, or is no longer visible to the actor. New actions still require access. The same key with a different command is refused (`key_reused`).
 - **Records:** only successes are kept, for 30 days (`prune_item_command_records`, daily cron). A retry older than that fails the revision check, so nothing can run twice.
 
 `Item.process_action` is the same action without those checks, for code that isn't answering a client.
