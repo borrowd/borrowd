@@ -1,6 +1,6 @@
 from typing import Any
 
-from django.core.management.base import BaseCommand, CommandParser
+from django.core.management.base import BaseCommand, CommandError, CommandParser
 
 from borrowd_items.models import (
     ITEM_STATUS_FOR_TRANSACTION,
@@ -16,7 +16,8 @@ class Command(BaseCommand):
     help = (
         "Repair item statuses to match their open transactions. Items without "
         "an open transaction become AVAILABLE. Skip soft-deleted items and "
-        "items with multiple open transactions."
+        "items with multiple open transactions. Run repairs only while lifecycle "
+        "writes are paused; dry-run results may change during live writes."
     )
 
     def add_arguments(self, parser: CommandParser) -> None:
@@ -70,9 +71,12 @@ class Command(BaseCommand):
                 continue
 
             drifted_count += 1
-            current = ItemStatus(item.status)
+            try:
+                current = ItemStatus(item.status).name
+            except ValueError:
+                current = str(item.status)
             self.stdout.write(
-                f"Drifted: item={item.pk} '{item}' is {current.name}, "
+                f"Drifted: item={item.pk} '{item}' is {current}, "
                 f"should be {expected.name}"
             )
             if dry_run:
@@ -90,6 +94,4 @@ class Command(BaseCommand):
                 self.style.SUCCESS(f"{summary}; {repaired_count} repaired.")
             )
         if conflicted_count:
-            self.stderr.write(
-                self.style.ERROR(f"{conflicted_count} item(s) skipped as ambiguous.")
-            )
+            raise CommandError(f"{conflicted_count} item(s) skipped as ambiguous.")
