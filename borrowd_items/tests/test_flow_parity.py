@@ -26,7 +26,7 @@ from borrowd_items.models import (
 from borrowd_items.tests.test_flow import BORROWER, LENDER, NOW, WAIT, FlowTestCase
 from borrowd_users.models import BorrowdUser
 
-# What a deployed environment looks like to the parity check.
+# Exercise production reporting instead of raising on disagreement.
 deployed = override_settings(DEBUG=False, IS_RUNNING_MANAGE_PY_TESTS=False)
 
 
@@ -198,7 +198,7 @@ class DivergenceWhenDeployedTests(ParityTestCase):
             for _ in range(25):
                 actions_for_open_transaction(self.item, self.tx, self.lender)
             self.assertEqual(capture.call_count, 1)
-            # The same wrong answer in another status is a different shape.
+            # A different status gets a separate report.
             accepted = self.transaction(
                 TransactionStatus.ACCEPTED, updated_by=self.lender
             )
@@ -307,7 +307,7 @@ class EveryComparisonNeedsNoDatabase(SimpleTestCase):
             status=TransactionStatus.COLLECTED,
             updated_by=borrower,
         )
-        # SimpleTestCase forbids queries, so reaching the assertion is the proof.
+        # SimpleTestCase fails if the comparison queries the database.
         self.assertEqual(
             actions_for_open_transaction(item, tx, lender),
             (ItemAction.RESOLVE_TRANSACTION,),
