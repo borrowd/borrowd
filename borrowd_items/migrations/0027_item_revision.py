@@ -14,6 +14,7 @@ class Migration(migrations.Migration):
             name="revision",
             field=models.PositiveBigIntegerField(
                 default=0,
+                db_default=0,
                 editable=False,
                 help_text="Advances on every change to the item or its transactions, so a client can tell that what it showed is out of date.",
             ),

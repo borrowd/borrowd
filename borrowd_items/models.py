@@ -246,6 +246,7 @@ class Item(Model):
     )
     revision = PositiveBigIntegerField(
         default=0,
+        db_default=0,
         editable=False,
         help_text=(
             "Advances on every change to the item or its transactions, so a "

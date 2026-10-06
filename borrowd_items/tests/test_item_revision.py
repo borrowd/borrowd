@@ -5,6 +5,7 @@ from threading import Barrier
 from unittest import skipUnless
 
 from django.db import close_old_connections, connection, connections, transaction
+from django.db.migrations.executor import MigrationExecutor
 from django.test import TestCase, TransactionTestCase
 
 from borrowd_items.models import Item, ItemAction, Transaction, TransactionStatus
@@ -42,6 +43,21 @@ class ItemRevisionTests(TestCase):
 
     def test_a_new_item_starts_at_zero(self) -> None:
         self.assertEqual(self.item.revision, 0)
+
+    def test_pre_revision_code_can_still_create_items(self) -> None:
+        old_apps = (
+            MigrationExecutor(connection)
+            .loader.project_state([("borrowd_items", "0026_unique_open_transaction")])
+            .apps
+        )
+        old_item = old_apps.get_model("borrowd_items", "Item").objects.create(
+            name="Old runtime drill",
+            description="A drill",
+            owner_id=self.owner.pk,
+            created_by_id=self.owner.pk,
+            updated_by_id=self.owner.pk,
+        )
+        self.assertEqual(Item.all_objects.get(pk=old_item.pk).revision, 0)
 
     def test_saving_the_item_advances_it(self) -> None:
         self.item.name = "Hammer drill"
