@@ -1,4 +1,4 @@
-"""The Transaction lifecycle as a table: who may take each edge, and when."""
+"""Transaction transitions, allowed actors, and eligibility checks."""
 
 from __future__ import annotations
 
@@ -54,13 +54,14 @@ class Transition:
     target: TransactionStatus
     actor: Actor = Actor.EITHER
     guard: Guard | None = None
-    # When eligible, this is the only transition offered from its source.
+    # If any eligible transition has preempts=True, offer only those transitions.
+    # For example, an inactive counterparty leaves resolution as the only action.
     preempts: bool = False
 
 
-# Order within a source is the order the actions are shown to the user.
+# Transitions with the same source are listed in display order.
 TRANSITIONS: Final[tuple[Transition, ...]] = (
-    # The counterparty's account is gone, so the other party may close out alone.
+    # Allow resolution when the other party's account is inactive.
     *(
         Transition(
             source,
@@ -249,5 +250,5 @@ def eligible_transitions(
 def available_actions(
     tx: Transaction, user: BorrowdUser, *, now: datetime
 ) -> tuple[ItemAction, ...]:
-    """The action names behind `eligible_transitions`."""
+    """Return the action names from eligible_transitions in display order."""
     return tuple(spec.action for spec in eligible_transitions(tx, user, now=now))

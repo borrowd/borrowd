@@ -264,7 +264,8 @@ MESSAGING_ENABLED = not IS_RUNNING_MANAGE_PY_TESTS and env.bool(
 )
 
 # borrowd_items settings
-# Report disagreements between the action rules and the transition table.
+# Compare legacy and table actions without changing the returned answer.
+# Disable to stop comparison and reporting; this does not control execution.
 ITEMS_FLOW_PARITY_CHECK = env.bool("ITEMS_FLOW_PARITY_CHECK", default=True)
 
 # borrowd_beta settings

@@ -1,4 +1,4 @@
-"""Checks the hand-written action rules against the transition table."""
+"""Compare legacy actions with the transition table while preserving the legacy answer."""
 
 from __future__ import annotations
 
@@ -20,10 +20,9 @@ if TYPE_CHECKING:
 
     from .models import Item, Transaction
 
-# Under the project logger, which is configured at INFO.
 logger = logging.getLogger("borrowd.items.flow_parity")
 
-# party1 is not the item's owner: bad data, not a wrong table row.
+# Distinguish lender/owner mismatches from other action disagreements.
 LENDER_IS_NOT_OWNER = "lender_is_not_owner"
 ACTIONS_DIFFER = "actions_differ"
 
@@ -38,7 +37,7 @@ _comparisons: Counter[tuple[str, str, Actions]] = Counter()
 def actions_for_open_transaction(
     item: Item, tx: Transaction, user: BorrowdUser
 ) -> Actions:
-    """The hand-written answer, compared against the table at one captured time."""
+    """Return legacy actions, optionally comparing both rules at the same time."""
     now = timezone.now()
     served = legacy_actions_for(item, tx, user, now=now)
     if settings.ITEMS_FLOW_PARITY_CHECK:
@@ -218,7 +217,7 @@ def _count_comparison(status: str, role: str, served: Actions, *, log: bool) -> 
 
 
 def _should_report(shape: tuple[object, ...]) -> bool:
-    """One report per divergence shape per hour, so a list page cannot flood."""
+    """Suppress repeats of cached disagreements for an hour per process."""
     moment = time.monotonic()
     if _reported_until.get(shape, 0.0) > moment:
         return False
