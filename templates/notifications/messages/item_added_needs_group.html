@@ -1,0 +1,23 @@
+{% extends "notifications/messages/layout.html" %}
+
+{% block title %}
+    Join a group - Borrow'd
+{% endblock %}
+
+{% block content %}
+    <h2>
+        Great job adding {{ item_name }}!
+    </h2>
+
+    <p>
+        In order to share it with others, you need to join a group.
+    </p>
+
+    <div class="text-center">
+        <a href="{{ create_group_url }}" class="button">Create a group</a>
+    </div>
+
+    <p>
+        The Borrow'd team
+    </p>
+{% endblock %}

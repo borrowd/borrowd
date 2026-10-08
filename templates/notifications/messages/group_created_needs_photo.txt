@@ -1,0 +1,7 @@
+Great job creating {{ group_name }}!
+
+Add a photo to your profile to help your friends recognize you.
+
+Add a photo: {{ profile_url }}
+
+The Borrow'd team

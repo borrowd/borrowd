@@ -32,6 +32,7 @@ from borrowd_items.card_helpers import (
     with_card_relations_for_transactions,
 )
 from borrowd_items.models import Item, ItemStatus, Transaction
+from borrowd_notifications.services import NotificationService
 
 from .exceptions import AccountDeletionBlocked
 from .forms import (
@@ -275,6 +276,7 @@ def upload_profile_photo_view(request: HttpRequest) -> JsonResponse:
     profile.image = form.cleaned_data["image"]
     profile.updated_by = user
     profile.save(update_fields=["image", "updated_by", "updated_at"])
+    NotificationService.send_invite_friends_nudge_if_needed(user)
 
     return JsonResponse(
         {

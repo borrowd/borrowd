@@ -34,7 +34,8 @@ from borrowd_users.models import BorrowdUser
         3. Emit it with notify.send(). The description passed there is the email
            subject line. Emitters live in borrowd_notifications/signals.py,
            borrowd_notifications/message_notifications.py,
-           borrowd_groups/signals.py, and borrowd_users/services.py.
+           borrowd_notifications/services.py, borrowd_groups/signals.py, and
+           borrowd_users/services.py.
         4. Add matching email body templates at
            templates/notifications/messages/<notification_type>.html and .txt.
            The filename is the lowercase NotificationType member name.
@@ -94,6 +95,11 @@ class NotificationType(models.TextChoices):
     # Messaging
     NEW_MESSAGE = "NEW_MESSAGE"
 
+    # Onboarding
+    ITEM_ADDED_NEEDS_GROUP = "ITEM_ADDED_NEEDS_GROUP"
+    GROUP_CREATED_NEEDS_PHOTO = "GROUP_CREATED_NEEDS_PHOTO"
+    PHOTO_ADDED_NEEDS_INVITES = "PHOTO_ADDED_NEEDS_INVITES"
+
     # Ownership transfer / giveaway
     GIVEAWAY_OFFER_SENT = "GIVEAWAY_OFFER_SENT"
     GIVEAWAY_ACCEPTED = "GIVEAWAY_ACCEPTED"
@@ -141,6 +147,15 @@ class NotificationType(models.TextChoices):
                 "item_name": item.name if item is not None else "an item",
                 "conversation_url": settings.BASE_URL.rstrip("/")
                 + reverse("chat-thread-detail", args=[thread.pk]),
+            }
+        if (
+            notification.verb == NotificationType.ITEM_ADDED_NEEDS_GROUP.value
+            and isinstance(notification.target, Item)
+        ):
+            return {
+                "item_name": notification.target.name,
+                "create_group_url": settings.BASE_URL
+                + reverse("borrowd_groups:group-create"),
             }
         if notification.verb in (
             NotificationType.REQUEST_CANCELLED_BORROWER_LEFT.value,
@@ -276,6 +291,24 @@ class NotificationType(models.TextChoices):
                         + reverse("community-request-list"),
                     }
                 )
+            elif notification.verb == NotificationType.GROUP_CREATED_NEEDS_PHOTO.value:
+                context.update(
+                    {
+                        "group_name": notification.target.name,
+                        "profile_url": settings.BASE_URL + reverse("profile"),
+                    }
+                )
+            elif notification.verb == NotificationType.PHOTO_ADDED_NEEDS_INVITES.value:
+                context.update(
+                    {
+                        "group_name": notification.target.name,
+                        "invite_url": settings.BASE_URL
+                        + reverse(
+                            "borrowd_groups:group-invite",
+                            args=[notification.target.pk],
+                        ),
+                    }
+                )
             else:
                 membership: Membership = notification.action_object
                 context.update(
@@ -347,6 +380,9 @@ _MESSAGE_TEMPLATES: dict[NotificationType, str] = {
     NotificationType.GIVEAWAY_REQUEST_DECLINED: "Your request for {item_name} was declined",
     NotificationType.GIVEAWAY_COMPLETED: "You gave {item_name} to {receiver_name}",
     NotificationType.NEW_MESSAGE: "{sender_name} sent you a message about {item_name}",
+    NotificationType.ITEM_ADDED_NEEDS_GROUP: "Great job adding {item_name}! Join a group to start sharing it with others.",
+    NotificationType.GROUP_CREATED_NEEDS_PHOTO: "Great job creating {group_name}! Add a photo to your profile to help your friends recognize you.",
+    NotificationType.PHOTO_ADDED_NEEDS_INVITES: "Great job adding a photo! Now invite friends to join {group_name}.",
 }
 
 

@@ -1,0 +1,7 @@
+Great job adding {{ item_name }}!
+
+In order to share it with others, you need to join a group.
+
+Create a group: {{ create_group_url }}
+
+The Borrow'd team

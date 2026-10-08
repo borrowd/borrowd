@@ -41,6 +41,7 @@ from borrowd_messaging.exceptions import (
 from borrowd_messaging.mixins import MessagingEnabledMixin
 from borrowd_messaging.models import ChatThread
 from borrowd_messaging.services import MessagingService
+from borrowd_notifications.services import NotificationService
 from borrowd_permissions.mixins import (
     CachedObjectMixin,
     LoginOr403PermissionMixin,
@@ -299,6 +300,7 @@ class ItemCreateView(
             )
 
         self._link_fulfilled_request(form.instance, user)
+        NotificationService.send_join_group_nudge_if_needed(form.instance)
 
         return response
 
