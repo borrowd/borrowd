@@ -8,14 +8,18 @@ Covers:
 """
 
 from io import BytesIO
+from typing import Any
 
 from django.core.files.storage import default_storage
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
+from notifications.models import Notification
 from PIL import Image
 
 from borrowd.validators import MAX_PHOTO_SIZE_BYTES
+from borrowd_groups.models import BorrowdGroup
+from borrowd_notifications.models import NotificationType
 from borrowd_users.models import BorrowdUser
 
 
@@ -140,3 +144,43 @@ class UploadProfilePhotoViewTests(TestCase):
         response = self.client.get(self.url)
 
         self.assertEqual(response.status_code, 405)
+
+
+class UploadProfilePhotoViewInviteFriendsNudgeTests(TestCase):
+    """Confirms upload_profile_photo_view actually wires up
+    NotificationService.send_invite_friends_nudge_if_needed -- the
+    unit-level behavior of that nudge itself is covered in
+    borrowd_notifications.tests.InviteFriendsNudgeNotificationTests.
+    """
+
+    def setUp(self) -> None:
+        self.user = BorrowdUser.objects.create_user(
+            username="uploader", email="uploader@example.com", password="password"
+        )
+        self.url = reverse("profile-upload-photo")
+
+    def _nudges(self) -> Any:
+        return Notification.objects.filter(
+            recipient=self.user,
+            verb=NotificationType.PHOTO_ADDED_NEEDS_INVITES.value,
+        )
+
+    def test_user_with_a_group_is_nudged_after_adding_a_photo(self) -> None:
+        BorrowdGroup.objects.create_group(
+            name="Book Club",
+            created_by=self.user,
+            updated_by=self.user,
+            membership_requires_approval=False,
+        )
+        self.client.force_login(self.user)
+
+        self.client.post(self.url, {"image": create_test_image()})
+
+        self.assertEqual(self._nudges().count(), 1)
+
+    def test_user_without_a_group_is_not_nudged(self) -> None:
+        self.client.force_login(self.user)
+
+        self.client.post(self.url, {"image": create_test_image()})
+
+        self.assertEqual(self._nudges().count(), 0)

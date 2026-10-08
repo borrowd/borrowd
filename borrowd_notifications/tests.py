@@ -41,7 +41,7 @@ from borrowd_notifications.channels import (
     PUSHNotificationStrategy,
 )
 from borrowd_notifications.services import NotificationService
-from borrowd_users.models import BorrowdUser
+from borrowd_users.models import BorrowdUser, Profile
 
 from .message_notifications import create_or_refresh_message_notification
 from .models import (
@@ -3918,3 +3918,543 @@ class NewMessageNotificationLinkTests(NewMessageFixture):
 
         with self.assertNumQueries(0):
             self.assertEqual(notifications[0].action_object, self.thread)
+
+
+class JoinGroupNudgeNotificationTests(TestCase):
+    """ITEM_ADDED_NEEDS_GROUP, fired by NotificationService.
+    send_join_group_nudge_if_needed() from ItemCreateView.form_valid (see
+    borrowd_items/tests/test_item_create_view.py for the view-level wiring
+    test): nudges a groupless user to join a group after they add an item,
+    at most once."""
+
+    def setUp(self) -> None:
+        self.owner = BorrowdUser.objects.create_user(
+            username="owner", email="owner@example.com", password="password"
+        )
+        self.category = ItemCategory.objects.create(name="Tools")
+
+    def _create_item(self, name: str = "Drill") -> Item:
+        item = Item.objects.create(
+            name=name,
+            description="A description",
+            owner=self.owner,
+            created_by=self.owner,
+            updated_by=self.owner,
+        )
+        item.categories.add(self.category)
+        NotificationService.send_join_group_nudge_if_needed(item)
+        return item
+
+    def _nudges(self) -> Any:
+        return Notification.objects.filter(
+            recipient=self.owner, verb=NotificationType.ITEM_ADDED_NEEDS_GROUP.value
+        )
+
+    def test_sent_when_groupless_user_adds_an_item(self) -> None:
+        self._create_item()
+
+        self.assertEqual(self._nudges().count(), 1)
+
+    def test_not_sent_when_user_already_has_an_active_group(self) -> None:
+        # create_group's own post_save signal already adds created_by as an
+        # active member.
+        BorrowdGroup.objects.create_group(
+            name="A Group",
+            created_by=self.owner,
+            updated_by=self.owner,
+            membership_requires_approval=False,
+        )
+
+        self._create_item()
+
+        self.assertEqual(self._nudges().count(), 0)
+
+    def test_not_sent_again_for_a_second_groupless_item(self) -> None:
+        self._create_item("Drill")
+        self._create_item("Saw")
+
+        self.assertEqual(self._nudges().count(), 1)
+
+    def test_sets_the_profile_flag_after_sending(self) -> None:
+        self._create_item()
+
+        self.owner.profile.refresh_from_db()
+        self.assertTrue(self.owner.profile.join_group_nudge_sent)
+
+    def test_not_sent_once_the_flag_is_already_set(self) -> None:
+        """Covers a user who joined and later left every group: the flag,
+        not current membership count alone, is what prevents a resend."""
+        Profile.objects.filter(user=self.owner).update(join_group_nudge_sent=True)
+
+        self._create_item()
+
+        self.assertEqual(self._nudges().count(), 0)
+
+    def test_action_object_is_the_item(self) -> None:
+        item = self._create_item()
+
+        notification = self._nudges().get()
+
+        self.assertEqual(notification.action_object, item)
+
+    def test_action_url_resolves_to_group_create(self) -> None:
+        self._create_item()
+
+        notification = self._nudges().get()
+
+        self.assertEqual(
+            _notification_action_url(notification),
+            reverse("borrowd_groups:group-create"),
+        )
+
+    def test_in_app_copy_renders_with_the_item_name(self) -> None:
+        self._create_item("Drill")
+
+        notification = self._nudges().get()
+        context = NotificationType._get_template_context_for(notification)
+        message = NotificationType.ITEM_ADDED_NEEDS_GROUP.message_template.format(
+            **context
+        )
+
+        self.assertIn("Drill", message)
+
+    def test_email_renders_without_error(self) -> None:
+        with self.captureOnCommitCallbacks(execute=True):
+            self._create_item("Drill")
+
+        self.assertEqual(len(mail.outbox), 1)
+        email = mail.outbox[0]
+        self.assertEqual(email.to, [self.owner.email])
+        self.assertIn("Drill", email.body)
+
+
+class JoinGroupNudgePreferenceSeedMigrationTests(TestCase):
+    """The 0010 migration backfills an enabled preference row for
+    ITEM_ADDED_NEEDS_GROUP for every existing user -- without it, a user who
+    signed up before this type existed would show the toggle as off even
+    though they'd actually receive the notification the first time it fires.
+    """
+
+    def test_seeds_the_type_enabled_for_an_existing_user(self) -> None:
+        from django.apps import apps as live_apps
+
+        user = BorrowdUser.objects.create_user(
+            username="veteran", email="veteran@example.com", password="password"
+        )
+        NotificationPreference.objects.filter(
+            user=user, notification_type=NotificationType.ITEM_ADDED_NEEDS_GROUP.value
+        ).delete()
+
+        migration_module = importlib.import_module(
+            "borrowd_notifications.migrations.0010_seed_item_added_needs_group_preferences"
+        )
+        migration_module.seed_item_added_needs_group_preferences(live_apps, None)
+
+        pref = NotificationPreference.objects.get(
+            user=user, notification_type=NotificationType.ITEM_ADDED_NEEDS_GROUP.value
+        )
+        self.assertTrue(pref.in_app_enabled)
+        self.assertTrue(pref.email_enabled)
+
+    def test_is_idempotent_against_existing_rows(self) -> None:
+        from django.apps import apps as live_apps
+
+        user = BorrowdUser.objects.create_user(
+            username="veteran", email="veteran@example.com", password="password"
+        )
+
+        migration_module = importlib.import_module(
+            "borrowd_notifications.migrations.0010_seed_item_added_needs_group_preferences"
+        )
+        migration_module.seed_item_added_needs_group_preferences(live_apps, None)
+
+        self.assertEqual(
+            NotificationPreference.objects.filter(
+                user=user,
+                notification_type=NotificationType.ITEM_ADDED_NEEDS_GROUP.value,
+            ).count(),
+            1,
+        )
+
+
+class AddProfilePhotoNudgeNotificationTests(TestCase):
+    """GROUP_CREATED_NEEDS_PHOTO, fired by NotificationService.
+    send_add_profile_photo_nudge_if_needed() from GroupCreateView.form_valid
+    (see borrowd_groups/tests/test_group_create_view_photo_nudge.py for the
+    view-level wiring test): nudges a photoless user to add a profile photo
+    after they create a group, at most once."""
+
+    def setUp(self) -> None:
+        self.creator = BorrowdUser.objects.create_user(
+            username="creator", email="creator@example.com", password="password"
+        )
+
+    def _create_group(self, name: str = "A Group") -> BorrowdGroup:
+        group = BorrowdGroup.objects.create_group(
+            name=name,
+            created_by=self.creator,
+            updated_by=self.creator,
+            membership_requires_approval=False,
+        )
+        NotificationService.send_add_profile_photo_nudge_if_needed(group)
+        return group
+
+    def _nudges(self) -> Any:
+        return Notification.objects.filter(
+            recipient=self.creator,
+            verb=NotificationType.GROUP_CREATED_NEEDS_PHOTO.value,
+        )
+
+    def test_sent_when_photoless_user_creates_a_group(self) -> None:
+        self._create_group()
+
+        self.assertEqual(self._nudges().count(), 1)
+
+    def test_not_sent_when_user_already_has_a_profile_photo(self) -> None:
+        Profile.objects.filter(user=self.creator).update(image="profile_pics/me.jpg")
+
+        self._create_group()
+
+        self.assertEqual(self._nudges().count(), 0)
+
+    def test_not_sent_again_for_a_second_group(self) -> None:
+        self._create_group("First Group")
+        self._create_group("Second Group")
+
+        self.assertEqual(self._nudges().count(), 1)
+
+    def test_sets_the_profile_flag_after_sending(self) -> None:
+        self._create_group()
+
+        profile = Profile.objects.get(user=self.creator)
+        self.assertTrue(profile.add_profile_photo_nudge_sent)
+
+    def test_not_sent_once_the_flag_is_already_set(self) -> None:
+        Profile.objects.filter(user=self.creator).update(
+            add_profile_photo_nudge_sent=True
+        )
+
+        self._create_group()
+
+        self.assertEqual(self._nudges().count(), 0)
+
+    def test_action_object_is_the_group(self) -> None:
+        group = self._create_group()
+
+        notification = self._nudges().get()
+
+        self.assertEqual(notification.action_object, group)
+
+    def test_action_url_resolves_to_profile(self) -> None:
+        self._create_group()
+
+        notification = self._nudges().get()
+
+        self.assertEqual(_notification_action_url(notification), reverse("profile"))
+
+    def test_in_app_copy_renders_with_the_group_name(self) -> None:
+        self._create_group("Book Club")
+
+        notification = self._nudges().get()
+        context = NotificationType._get_template_context_for(notification)
+        message = NotificationType.GROUP_CREATED_NEEDS_PHOTO.message_template.format(
+            **context
+        )
+
+        self.assertIn("Book Club", message)
+
+    def test_email_renders_without_error(self) -> None:
+        with self.captureOnCommitCallbacks(execute=True):
+            self._create_group("Book Club")
+
+        self.assertEqual(len(mail.outbox), 1)
+        email = mail.outbox[0]
+        self.assertEqual(email.to, [self.creator.email])
+        self.assertIn("Book Club", email.body)
+
+
+class AddProfilePhotoNudgePreferenceSeedMigrationTests(TestCase):
+    """The 0012 migration backfills an enabled preference row for
+    GROUP_CREATED_NEEDS_PHOTO for every existing user -- without it, a user
+    who signed up before this type existed would show the toggle as off even
+    though they'd actually receive the notification the first time it fires.
+    """
+
+    def test_seeds_the_type_enabled_for_an_existing_user(self) -> None:
+        from django.apps import apps as live_apps
+
+        user = BorrowdUser.objects.create_user(
+            username="veteran", email="veteran@example.com", password="password"
+        )
+        NotificationPreference.objects.filter(
+            user=user,
+            notification_type=NotificationType.GROUP_CREATED_NEEDS_PHOTO.value,
+        ).delete()
+
+        migration_module = importlib.import_module(
+            "borrowd_notifications.migrations.0012_seed_group_created_needs_photo_preferences"
+        )
+        migration_module.seed_group_created_needs_photo_preferences(live_apps, None)
+
+        pref = NotificationPreference.objects.get(
+            user=user,
+            notification_type=NotificationType.GROUP_CREATED_NEEDS_PHOTO.value,
+        )
+        self.assertTrue(pref.in_app_enabled)
+        self.assertTrue(pref.email_enabled)
+
+    def test_is_idempotent_against_existing_rows(self) -> None:
+        from django.apps import apps as live_apps
+
+        user = BorrowdUser.objects.create_user(
+            username="veteran", email="veteran@example.com", password="password"
+        )
+
+        migration_module = importlib.import_module(
+            "borrowd_notifications.migrations.0012_seed_group_created_needs_photo_preferences"
+        )
+        migration_module.seed_group_created_needs_photo_preferences(live_apps, None)
+
+        self.assertEqual(
+            NotificationPreference.objects.filter(
+                user=user,
+                notification_type=NotificationType.GROUP_CREATED_NEEDS_PHOTO.value,
+            ).count(),
+            1,
+        )
+
+
+class OnboardingNotificationCategoryTests(TestCase):
+    """All onboarding nudges must be user-toggleable on the preferences
+    page, grouped together under their own category."""
+
+    def test_all_types_are_listed_in_a_dedicated_category(self) -> None:
+        onboarding_category = next(
+            cat for cat in NOTIFICATION_CATEGORIES if cat["slug"] == "onboarding"
+        )
+        types = [ntype for ntype, _ in onboarding_category["types"]]
+        self.assertIn(NotificationType.ITEM_ADDED_NEEDS_GROUP, types)
+        self.assertIn(NotificationType.GROUP_CREATED_NEEDS_PHOTO, types)
+        self.assertIn(NotificationType.PHOTO_ADDED_NEEDS_INVITES, types)
+
+    def test_preferences_page_includes_the_category(self) -> None:
+        user = BorrowdUser.objects.create_user(
+            username="user", email="user@example.com", password="password"
+        )
+        self.client.force_login(user)
+
+        response = self.client.get(reverse("notification-preferences"))
+
+        self.assertContains(response, "Onboarding")
+
+
+class InviteFriendsNudgeNotificationTests(TestCase):
+    """PHOTO_ADDED_NEEDS_INVITES, fired by NotificationService.
+    send_invite_friends_nudge_if_needed() from upload_profile_photo_view (see
+    borrowd_users/tests/test_profile_photo_upload.py for the view-level
+    wiring test): nudges a user to invite friends to their group after they
+    add a profile photo, at most once."""
+
+    def setUp(self) -> None:
+        self.user = BorrowdUser.objects.create_user(
+            username="uploader", email="uploader@example.com", password="password"
+        )
+
+    def _add_photo(self) -> None:
+        NotificationService.send_invite_friends_nudge_if_needed(self.user)
+
+    def _nudges(self) -> Any:
+        return Notification.objects.filter(
+            recipient=self.user,
+            verb=NotificationType.PHOTO_ADDED_NEEDS_INVITES.value,
+        )
+
+    def test_not_sent_without_a_group(self) -> None:
+        self._add_photo()
+
+        self.assertEqual(self._nudges().count(), 0)
+
+    def test_sent_when_user_has_created_a_group(self) -> None:
+        BorrowdGroup.objects.create_group(
+            name="A Group",
+            created_by=self.user,
+            updated_by=self.user,
+            membership_requires_approval=False,
+        )
+
+        self._add_photo()
+
+        self.assertEqual(self._nudges().count(), 1)
+
+    def test_ignores_a_soft_deleted_group(self) -> None:
+        group = BorrowdGroup.objects.create_group(
+            name="A Group",
+            created_by=self.user,
+            updated_by=self.user,
+            membership_requires_approval=False,
+        )
+        group.deleted_at = timezone.now()
+        group.deleted_by = self.user
+        group.save()
+
+        self._add_photo()
+
+        self.assertEqual(self._nudges().count(), 0)
+
+    def test_not_sent_again_on_a_second_photo_change(self) -> None:
+        BorrowdGroup.objects.create_group(
+            name="A Group",
+            created_by=self.user,
+            updated_by=self.user,
+            membership_requires_approval=False,
+        )
+
+        self._add_photo()
+        self._add_photo()
+
+        self.assertEqual(self._nudges().count(), 1)
+
+    def test_sets_the_profile_flag_after_sending(self) -> None:
+        BorrowdGroup.objects.create_group(
+            name="A Group",
+            created_by=self.user,
+            updated_by=self.user,
+            membership_requires_approval=False,
+        )
+
+        self._add_photo()
+
+        profile = Profile.objects.get(user=self.user)
+        self.assertTrue(profile.invite_friends_nudge_sent)
+
+    def test_not_sent_once_the_flag_is_already_set(self) -> None:
+        BorrowdGroup.objects.create_group(
+            name="A Group",
+            created_by=self.user,
+            updated_by=self.user,
+            membership_requires_approval=False,
+        )
+        Profile.objects.filter(user=self.user).update(invite_friends_nudge_sent=True)
+
+        self._add_photo()
+
+        self.assertEqual(self._nudges().count(), 0)
+
+    def test_links_to_the_earliest_created_group(self) -> None:
+        first_group = BorrowdGroup.objects.create_group(
+            name="First Group",
+            created_by=self.user,
+            updated_by=self.user,
+            membership_requires_approval=False,
+        )
+        BorrowdGroup.objects.create_group(
+            name="Second Group",
+            created_by=self.user,
+            updated_by=self.user,
+            membership_requires_approval=False,
+        )
+
+        self._add_photo()
+
+        notification = self._nudges().get()
+        self.assertEqual(notification.action_object, first_group)
+
+    def test_action_url_resolves_to_the_group_invite_page(self) -> None:
+        group = BorrowdGroup.objects.create_group(
+            name="A Group",
+            created_by=self.user,
+            updated_by=self.user,
+            membership_requires_approval=False,
+        )
+
+        self._add_photo()
+
+        notification = self._nudges().get()
+        self.assertEqual(
+            _notification_action_url(notification),
+            reverse("borrowd_groups:group-invite", kwargs={"pk": group.pk}),
+        )
+
+    def test_in_app_copy_renders_with_the_group_name(self) -> None:
+        BorrowdGroup.objects.create_group(
+            name="Book Club",
+            created_by=self.user,
+            updated_by=self.user,
+            membership_requires_approval=False,
+        )
+
+        self._add_photo()
+
+        notification = self._nudges().get()
+        context = NotificationType._get_template_context_for(notification)
+        message = NotificationType.PHOTO_ADDED_NEEDS_INVITES.message_template.format(
+            **context
+        )
+        self.assertIn("Book Club", message)
+
+    def test_email_renders_without_error(self) -> None:
+        BorrowdGroup.objects.create_group(
+            name="Book Club",
+            created_by=self.user,
+            updated_by=self.user,
+            membership_requires_approval=False,
+        )
+
+        with self.captureOnCommitCallbacks(execute=True):
+            self._add_photo()
+
+        self.assertEqual(len(mail.outbox), 1)
+        email = mail.outbox[0]
+        self.assertEqual(email.to, [self.user.email])
+        self.assertIn("Book Club", email.body)
+
+
+class InviteFriendsNudgePreferenceSeedMigrationTests(TestCase):
+    """The 0014 migration backfills an enabled preference row for
+    PHOTO_ADDED_NEEDS_INVITES for every existing user -- without it, a user
+    who signed up before this type existed would show the toggle as off even
+    though they'd actually receive the notification the first time it fires.
+    """
+
+    def test_seeds_the_type_enabled_for_an_existing_user(self) -> None:
+        from django.apps import apps as live_apps
+
+        user = BorrowdUser.objects.create_user(
+            username="veteran", email="veteran@example.com", password="password"
+        )
+        NotificationPreference.objects.filter(
+            user=user,
+            notification_type=NotificationType.PHOTO_ADDED_NEEDS_INVITES.value,
+        ).delete()
+
+        migration_module = importlib.import_module(
+            "borrowd_notifications.migrations.0014_seed_photo_added_needs_invites_preferences"
+        )
+        migration_module.seed_photo_added_needs_invites_preferences(live_apps, None)
+
+        pref = NotificationPreference.objects.get(
+            user=user,
+            notification_type=NotificationType.PHOTO_ADDED_NEEDS_INVITES.value,
+        )
+        self.assertTrue(pref.in_app_enabled)
+        self.assertTrue(pref.email_enabled)
+
+    def test_is_idempotent_against_existing_rows(self) -> None:
+        from django.apps import apps as live_apps
+
+        user = BorrowdUser.objects.create_user(
+            username="veteran", email="veteran@example.com", password="password"
+        )
+
+        migration_module = importlib.import_module(
+            "borrowd_notifications.migrations.0014_seed_photo_added_needs_invites_preferences"
+        )
+        migration_module.seed_photo_added_needs_invites_preferences(live_apps, None)
+
+        self.assertEqual(
+            NotificationPreference.objects.filter(
+                user=user,
+                notification_type=NotificationType.PHOTO_ADDED_NEEDS_INVITES.value,
+            ).count(),
+            1,
+        )

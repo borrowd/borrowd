@@ -2,10 +2,12 @@ from typing import Any
 
 from django.test import TestCase
 from django.urls import reverse
+from notifications.models import Notification
 
 from borrowd_community_requests.models import CommunityRequest, CommunityRequestStatus
 from borrowd_groups.models import BorrowdGroup
 from borrowd_items.models import Item, ItemCategory, ListingType
+from borrowd_notifications.models import NotificationType
 from borrowd_users.models import BorrowdUser
 
 
@@ -232,3 +234,33 @@ class ItemCreateViewFulfillsRequestTests(ItemCreateViewTestBase):
         self.assertEqual(
             self.community_request.status, CommunityRequestStatus.CANCELLED
         )
+
+
+class ItemCreateViewJoinGroupNudgeTests(ItemCreateViewTestBase):
+    """Confirms ItemCreateView.form_valid actually wires up
+    NotificationService.send_join_group_nudge_if_needed -- the unit-level
+    behavior of that nudge itself is covered in
+    borrowd_notifications.tests.JoinGroupNudgeNotificationTests.
+    """
+
+    def _nudges_for(self, user: BorrowdUser) -> Any:
+        return Notification.objects.filter(
+            recipient=user, verb=NotificationType.ITEM_ADDED_NEEDS_GROUP.value
+        )
+
+    def test_groupless_user_is_nudged_after_adding_an_item(self) -> None:
+        outsider = BorrowdUser.objects.create_user(
+            username="outsider", email="outsider@example.com", password="password"
+        )
+        self.client.force_login(outsider)
+
+        self.client.post(reverse("item-create"), self._valid_post_data())
+
+        self.assertEqual(self._nudges_for(outsider).count(), 1)
+
+    def test_user_already_in_a_group_is_not_nudged(self) -> None:
+        self.client.force_login(self.lender)
+
+        self.client.post(reverse("item-create"), self._valid_post_data())
+
+        self.assertEqual(self._nudges_for(self.lender).count(), 0)

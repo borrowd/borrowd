@@ -10,7 +10,10 @@ from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils import timezone
 from notifications.models import Notification
+from notifications.signals import notify
 
+from borrowd_groups.models import BorrowdGroup, Membership, MembershipStatus
+from borrowd_items.models import Item
 from borrowd_notifications.channels import (
     AppNotificationStrategy,
     EmailNotificationStrategy,
@@ -26,7 +29,8 @@ from borrowd_notifications.models import (
     NotificationState,
     NotificationType,
 )
-from borrowd_users.models import BorrowdUser
+from borrowd_users.models import BorrowdUser, Profile
+from borrowd_users.system import get_system_user
 
 logger = logging.getLogger(__name__)
 
@@ -240,6 +244,108 @@ class NotificationService:
                 and app_result.status == NotificationState.SUCCESS
             },
         )
+
+    @classmethod
+    def send_join_group_nudge_if_needed(cls, item: Item) -> None:
+        """Nudge a user to join a group the first time they add an item
+        while belonging to no active group — otherwise they have no one to
+        share it with and onboarding stalls. Shown at most once per user,
+        regardless of how many items they add while still groupless.
+
+        Called directly from `ItemCreateView.form_valid` (the "Add Item"
+        flow) rather than wired as an Item post_save signal, so it fires only
+        for a user's own deliberate item creation and not for every
+        programmatic `Item.objects.create()` call (fixtures, other flows).
+        """
+        owner = item.owner
+        # A fresh query rather than `owner.profile`'s cached OneToOne
+        # descriptor: a caller that reuses the same in-memory user across
+        # more than one item creation (e.g. a bulk-import loop) must see
+        # this flag's latest value, not whatever was cached on first read.
+        profile = Profile.objects.get(user=owner)
+        if profile.join_group_nudge_sent:
+            return
+
+        has_active_membership = Membership.objects.filter(
+            user=owner, status=MembershipStatus.ACTIVE
+        ).exists()
+        if has_active_membership:
+            return
+
+        notify.send(
+            get_system_user(),
+            recipient=[owner],
+            verb=NotificationType.ITEM_ADDED_NEEDS_GROUP.value,
+            action_object=item,
+            target=item,
+            description="Great job adding an item! Join a group to start sharing it.",
+        )
+        Profile.objects.filter(pk=profile.pk).update(join_group_nudge_sent=True)
+
+    @classmethod
+    def send_add_profile_photo_nudge_if_needed(cls, group: BorrowdGroup) -> None:
+        """Nudge a user to add a profile photo the first time they create a
+        group while having none — their photo is what helps fellow group
+        members recognize them. Shown at most once per user, regardless of
+        how many groups they create before adding one.
+
+        Called directly from `GroupCreateView.form_valid` (the "Create
+        Group" flow) rather than wired as a BorrowdGroup post_save signal,
+        so it fires only for a user's own deliberate group creation and not
+        for every programmatic `BorrowdGroup.objects.create_group()` call
+        (fixtures, other flows).
+        """
+        creator = group.created_by
+        profile = Profile.objects.get(user=creator)
+        if profile.add_profile_photo_nudge_sent:
+            return
+
+        if profile.image:
+            return
+
+        notify.send(
+            get_system_user(),
+            recipient=[creator],
+            verb=NotificationType.GROUP_CREATED_NEEDS_PHOTO.value,
+            action_object=group,
+            target=group,
+            description="Great job creating a group! Add a photo to your profile.",
+        )
+        Profile.objects.filter(pk=profile.pk).update(add_profile_photo_nudge_sent=True)
+
+    @classmethod
+    def send_invite_friends_nudge_if_needed(cls, user: BorrowdUser) -> None:
+        """Nudge a user to invite friends to their group the first time they
+        add a profile photo — otherwise their group stays empty and
+        onboarding stalls. Shown at most once per user, regardless of how
+        many times they change their photo afterward.
+
+        Called directly from `upload_profile_photo_view` (the "Add Photo"
+        flow) rather than wired as a Profile post_save signal, so it fires
+        only for a user's own deliberate photo upload and not for every
+        programmatic `Profile` save (fixtures, other flows).
+        """
+        profile = Profile.objects.get(user=user)
+        if profile.invite_friends_nudge_sent:
+            return
+
+        group = (
+            BorrowdGroup.objects.filter(created_by=user, deleted_at__isnull=True)
+            .order_by("created_at")
+            .first()
+        )
+        if group is None:
+            return
+
+        notify.send(
+            get_system_user(),
+            recipient=[user],
+            verb=NotificationType.PHOTO_ADDED_NEEDS_INVITES.value,
+            action_object=group,
+            target=group,
+            description="Great job adding a photo! Now invite friends to join your group.",
+        )
+        Profile.objects.filter(pk=profile.pk).update(invite_friends_nudge_sent=True)
 
     @classmethod
     def send_pending_digests(cls) -> int:

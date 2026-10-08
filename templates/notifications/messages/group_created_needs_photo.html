@@ -1,0 +1,23 @@
+{% extends "notifications/messages/layout.html" %}
+
+{% block title %}
+    Add a profile photo - Borrow'd
+{% endblock %}
+
+{% block content %}
+    <h2>
+        Great job creating {{ group_name }}!
+    </h2>
+
+    <p>
+        Add a photo to your profile to help your friends recognize you.
+    </p>
+
+    <div class="text-center">
+        <a href="{{ profile_url }}" class="button">Add a photo</a>
+    </div>
+
+    <p>
+        The Borrow'd team
+    </p>
+{% endblock %}
