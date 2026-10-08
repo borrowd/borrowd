@@ -1,4 +1,4 @@
-"""The Transaction lifecycle as a table: who may take each edge, and what it writes."""
+"""Transaction transitions, eligibility checks, and database writes."""
 
 from __future__ import annotations
 
@@ -52,9 +52,9 @@ def _counterparty_inactive(tx: Transaction, user: BorrowdUser, now: datetime) ->
     return not _counterparty_of(tx, user).is_active
 
 
-# Sets Transaction fields before the save.
+# Set transaction fields before saving.
 Prepare = Callable[["Transaction", "BorrowdUser", datetime], None]
-# Runs after the save, in the same database transaction.
+# Run after saving the transaction, within the same atomic block.
 AfterSave = Callable[["Item", "Transaction", "BorrowdUser"], None]
 
 
@@ -96,7 +96,7 @@ def _give_item_to_borrower(item: Item, tx: Transaction, user: BorrowdUser) -> No
 
 
 def _remove_lost_item(item: Item, tx: Transaction, user: BorrowdUser) -> None:
-    # After the save, so the thread archives as resolved, not as item-deleted.
+    # Save the resolution first so the conversation archives with reason RESOLVED.
     item.soft_delete(deleted_by=user)
 
 
@@ -326,7 +326,7 @@ def execute_transition(
     *,
     now: datetime,
 ) -> Transition:
-    """Apply `action` atomically. Raises InvalidItemAction unless it is eligible."""
+    """Validate eligibility and apply the action's database writes atomically."""
     spec = next(
         (
             candidate
