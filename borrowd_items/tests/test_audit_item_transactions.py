@@ -1,4 +1,4 @@
-"""The read-only audit of open transactions."""
+"""Verify audit findings and read-only database access."""
 
 from io import StringIO
 
@@ -67,9 +67,9 @@ class AuditItemTransactionsTests(TestCase):
 
     def test_consistent_data_has_no_findings(self) -> None:
         self._txn(self._item(), TransactionStatus.COLLECTED)
-        # Finished, so the lender no longer has to be the owner.
+        # Closed transactions may have a different lender from the current owner.
         self._txn(self._item(), TransactionStatus.RETURNED, lender=self.other)
-        # The owner left mid-loan; the borrower can still resolve this one.
+        # An ongoing loan on a deleted item is not itself an audit finding.
         self._txn(self._item(deleted=True), TransactionStatus.COLLECTED)
 
         self.assertIn("No findings.", self._run())
