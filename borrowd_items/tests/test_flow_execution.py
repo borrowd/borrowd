@@ -1,4 +1,4 @@
-"""What `execute_transition` writes, refuses and rolls back."""
+"""Verify transition writes, invalid actions, and database rollback."""
 
 from datetime import datetime, timedelta
 from datetime import timezone as dt_timezone
@@ -189,7 +189,7 @@ class ExecuteTransitionTests(ExecutionTestCase):
 
 
 class EveryRowDoesWhatItsTargetImpliesTests(ExecutionTestCase):
-    """A row added later cannot reach a status without the writes it needs."""
+    """Check each transition's status, timestamps, resolution reason, and ownership."""
 
     def test_each_transition_leaves_a_consistent_record(self) -> None:
         for spec in TRANSITIONS:
