@@ -184,3 +184,23 @@ class UploadProfilePhotoViewInviteFriendsNudgeTests(TestCase):
         self.client.post(self.url, {"image": create_test_image()})
 
         self.assertEqual(self._nudges().count(), 0)
+
+
+class ProfilePhotoUploadBellRefreshTests(TestCase):
+    """The upload is a plain fetch, not an htmx request, so the server can't
+    append an out-of-band bell refresh to its JSON response the way other
+    actions do. Without the profile page dispatching this event itself, a
+    notification created by the upload (e.g. the "invite friends" nudge)
+    would sit unseen until the bell's next 30s poll or a page load."""
+
+    def test_successful_upload_dispatches_a_bell_refresh_event(self) -> None:
+        user = BorrowdUser.objects.create_user(
+            username="uploader", email="uploader@example.com", password="password"
+        )
+        self.client.force_login(user)
+
+        response = self.client.get(reverse("profile"))
+
+        self.assertContains(
+            response, "document.dispatchEvent(new CustomEvent('notifications:refresh'))"
+        )

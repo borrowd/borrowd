@@ -3882,7 +3882,8 @@ class NewMessageReadSyncTests(NewMessageFixture):
         # can only be the bell's.
         self.assertContains(
             response,
-            'hx-trigger="load, every 30s, messaging:read from:document"',
+            'hx-trigger="load, every 30s, messaging:read from:document, '
+            'notifications:refresh from:document"',
         )
 
 
