@@ -13,10 +13,9 @@ from borrowd_items.models import (
 
 class Command(BaseCommand):
     help = (
-        "Read-only. Reports open transactions that break a lifecycle invariant: "
-        "the recorded lender is not the item's owner, an item has more than one "
-        "open transaction, or a request is stuck on a soft-deleted item. Prints "
-        "IDs only and exits non-zero if it finds anything."
+        "Check open transactions for lender/owner mismatches, multiple open "
+        "transactions per item, and requests on soft-deleted items before "
+        "collection. Read-only; prints findings and exits nonzero if any are found."
     )
 
     def handle(self, *args: Any, **options: Any) -> None:
@@ -70,8 +69,8 @@ class Command(BaseCommand):
                 f"transactions={', '.join(transactions)}"
             )
 
-        # An in-hand transaction on a deleted item is expected: its owner left
-        # and the borrower can resolve it. A request there has no way forward.
+        # Account closure can delete an item during an ongoing loan.
+        # Flag only transactions where collection has not been asserted.
         stranded = (
             open_transactions.filter(
                 status__in=PRE_COLLECTION_TRANSACTION_STATUSES,
