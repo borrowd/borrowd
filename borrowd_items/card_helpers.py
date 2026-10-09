@@ -14,8 +14,8 @@ from django.utils.text import capfirst
 
 from .models import (
     BORROWER_TRANSACTION_STATUSES,
+    OPEN_TRANSACTION_STATUSES,
     REQUEST_TRANSACTION_STATUSES,
-    TERMINAL_TRANSACTION_STATUSES,
     AvailabilitySubscription,
     AvailabilitySubscriptionStatus,
     Item,
@@ -198,8 +198,9 @@ def _precompute_item_states_for_items(
 
     transactions_by_item: dict[int, list[Transaction]] = {}
     for transaction in (
-        Transaction.objects.filter(item_id__in=item_ids)
-        .exclude(status__in=TERMINAL_TRANSACTION_STATUSES)
+        Transaction.objects.filter(
+            item_id__in=item_ids, status__in=OPEN_TRANSACTION_STATUSES
+        )
         .select_related(*_TRANSACTION_SELECT_RELATED)
         .order_by("item_id", "-created_at")
     ):
