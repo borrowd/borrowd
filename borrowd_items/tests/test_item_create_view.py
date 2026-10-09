@@ -3,6 +3,8 @@ from typing import Any
 from django.test import TestCase
 from django.urls import reverse
 
+from borrowd_badges.models import Badge, UserBadge
+from borrowd_badges.services import SHARING_IS_CARING_SLUG
 from borrowd_community_requests.models import CommunityRequest, CommunityRequestStatus
 from borrowd_groups.models import BorrowdGroup
 from borrowd_items.models import Item, ItemCategory, ListingType
@@ -232,3 +234,31 @@ class ItemCreateViewFulfillsRequestTests(ItemCreateViewTestBase):
         self.assertEqual(
             self.community_request.status, CommunityRequestStatus.CANCELLED
         )
+
+
+class ItemCreateViewSharingIsCaringBadgeTests(ItemCreateViewTestBase):
+    """Confirms ItemCreateView.form_valid actually wires up
+    award_sharing_is_caring_if_needed -- the unit-level behavior of that
+    award itself is covered in borrowd_badges.tests.
+    """
+
+    def setUp(self) -> None:
+        Badge.objects.create(slug=SHARING_IS_CARING_SLUG, name="Sharing is Caring")
+
+    def _earned(self, user: BorrowdUser) -> bool:
+        return UserBadge.objects.filter(
+            user=user, badge__slug=SHARING_IS_CARING_SLUG
+        ).exists()
+
+    def test_fifth_item_awards_the_badge(self) -> None:
+        self.client.force_login(self.lender)
+        for i in range(4):
+            self.client.post(
+                reverse("item-create"), self._valid_post_data(name=f"Item {i}")
+            )
+
+        self.assertFalse(self._earned(self.lender))
+
+        self.client.post(reverse("item-create"), self._valid_post_data(name="Item 4"))
+
+        self.assertTrue(self._earned(self.lender))

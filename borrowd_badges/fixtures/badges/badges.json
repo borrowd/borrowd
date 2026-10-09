@@ -1,0 +1,42 @@
+[
+    {
+        "model": "borrowd_badges.Badge",
+        "pk": 1,
+        "fields": {
+            "description": "A test badge.",
+            "display_order": 1,
+            "name": "Trophy",
+            "slug": "trophy"
+        }
+    },
+    {
+        "model": "borrowd_badges.Badge",
+        "pk": 2,
+        "fields": {
+            "description": "Added 5 items to your sharing inventory.",
+            "display_order": 2,
+            "name": "Sharing is Caring",
+            "slug": "items-badge"
+        }
+    },
+    {
+        "model": "borrowd_badges.Badge",
+        "pk": 3,
+        "fields": {
+            "description": "Created a group with 5 or more members.",
+            "display_order": 3,
+            "name": "Social Butterfly",
+            "slug": "groups-badge"
+        }
+    },
+    {
+        "model": "borrowd_badges.Badge",
+        "pk": 4,
+        "fields": {
+            "description": "Created 2 or more groups.",
+            "display_order": 4,
+            "name": "Local Activist",
+            "slug": "multi-group-badge"
+        }
+    }
+]

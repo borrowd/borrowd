@@ -23,6 +23,7 @@ from django.views.decorators.http import require_http_methods, require_POST
 from django.views.generic import CreateView
 
 from borrowd.util import BROWSABLE_BACK_TARGETS, resolve_back_url
+from borrowd_badges.services import get_badge_display_list
 from borrowd_groups.models import Membership
 from borrowd_items.card_helpers import (
     active_subscription_item_ids,
@@ -119,6 +120,7 @@ def build_profile_context(
                 icon="exclamation-triangle",
             ),
         ],
+        "badges": get_badge_display_list(subject_user),
     }
 
     """
