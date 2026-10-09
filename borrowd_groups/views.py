@@ -23,7 +23,10 @@ from guardian.mixins import LoginRequiredMixin
 from notifications.models import Notification
 
 from borrowd.util import BorrowdTemplateFinderMixin
-from borrowd_items.models import Transaction, TransactionStatus
+from borrowd_items.models import (
+    GROUP_LEAVE_BLOCKING_TRANSACTION_STATUSES,
+    Transaction,
+)
 from borrowd_notifications.models import NotificationType
 from borrowd_permissions.mixins import (
     LoginOr403PermissionMixin,
@@ -118,10 +121,7 @@ def _blocking_group_transactions_for_user(
 
     candidate_transactions = Transaction.objects.filter(
         Q(party1=user) | Q(party2=user),
-        status__in=[
-            TransactionStatus.COLLECTED,
-            TransactionStatus.RETURN_ASSERTED,
-        ],
+        status__in=GROUP_LEAVE_BLOCKING_TRANSACTION_STATUSES,
         party1__in=active_member_ids,
         party2__in=active_member_ids,
     ).select_related("party1", "party2")

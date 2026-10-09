@@ -20,7 +20,6 @@ from django.db.models import (
     Model,
     Q,
     QuerySet,
-    TextChoices,
     UniqueConstraint,
 )
 from django.urls import reverse
@@ -33,6 +32,29 @@ from borrowd_users.models import BorrowdUser
 
 from .exceptions import InvalidItemAction, ItemAlreadyRequested
 from .processors import AutoOrientProcessor
+
+# Defined in statuses.py; re-exported for importers of this module.
+from .statuses import (
+    BORROWER_TRANSACTION_STATUSES as BORROWER_TRANSACTION_STATUSES,
+)
+from .statuses import (
+    DUAL_CONFIRMATION_TRANSACTION_STATUSES as DUAL_CONFIRMATION_TRANSACTION_STATUSES,
+)
+from .statuses import (
+    GROUP_LEAVE_BLOCKING_TRANSACTION_STATUSES as GROUP_LEAVE_BLOCKING_TRANSACTION_STATUSES,
+)
+from .statuses import ITEM_STATUS_FOR_TRANSACTION as ITEM_STATUS_FOR_TRANSACTION
+from .statuses import OPEN_TRANSACTION_STATUSES as OPEN_TRANSACTION_STATUSES
+from .statuses import (
+    PRE_COLLECTION_TRANSACTION_STATUSES as PRE_COLLECTION_TRANSACTION_STATUSES,
+)
+from .statuses import REQUEST_TRANSACTION_STATUSES as REQUEST_TRANSACTION_STATUSES
+from .statuses import TERMINAL_TRANSACTION_STATUSES as TERMINAL_TRANSACTION_STATUSES
+from .statuses import ItemAction as ItemAction
+from .statuses import ItemStatus as ItemStatus
+from .statuses import ResolutionReason as ResolutionReason
+from .statuses import TransactionStatus as TransactionStatus
+from .statuses import sync_item_status as sync_item_status
 
 if TYPE_CHECKING:
     from borrowd_groups.models import BorrowdGroup
@@ -49,52 +71,6 @@ class ActiveItemQuerySet(QuerySet["Item"]):
 class ActiveItemManager(models.Manager["Item"]):
     def get_queryset(self) -> ActiveItemQuerySet:
         return ActiveItemQuerySet(self.model, using=self._db).active()
-
-
-class ItemAction(TextChoices):
-    """
-    Represents the actions that can be performed on an Item.
-    This is used to determine which actions are available to the
-    user when viewing an Item.
-    """
-
-    REQUEST_ITEM = "REQUEST_ITEM", "Request Item"
-    ACCEPT_REQUEST = "ACCEPT_REQUEST", "Accept Request"
-    REJECT_REQUEST = "REJECT_REQUEST", "Reject Request"
-    MARK_COLLECTED = "MARK_COLLECTED", "Mark Collected"
-    CONFIRM_COLLECTED = "CONFIRM_COLLECTED", "Confirm Collected"
-    NOTIFY_WHEN_AVAILABLE = "NOTIFY_WHEN_AVAILABLE", "Notify when available"
-    CANCEL_NOTIFICATION_REQUEST = (
-        "CANCEL_NOTIFICATION_REQUEST",
-        "Cancel notification request",
-    )
-    MARK_RETURNED = "MARK_RETURNED", "Mark Returned"
-    CONFIRM_RETURNED = "CONFIRM_RETURNED", "Confirm Returned"
-    CANCEL_REQUEST = "CANCEL_REQUEST", "Cancel Request"
-    RESOLVE_TRANSACTION = "RESOLVE_TRANSACTION", "Close Out Transaction"
-    REQUEST_RETURN = "REQUEST_RETURN", "Request Return"
-    FLAG_CANNOT_RETURN = "FLAG_CANNOT_RETURN", "Cannot Return Item"
-    RAISE_DISPUTE = "RAISE_DISPUTE", "Raise Dispute"
-    RESOLVE_DISPUTE_RETURNED = (
-        "RESOLVE_DISPUTE_RETURNED",
-        "Resolve Dispute: Item Returned",
-    )
-    RESOLVE_DISPUTE_NOT_RETURNED = (
-        "RESOLVE_DISPUTE_NOT_RETURNED",
-        "Resolve Dispute: Item Not Returned",
-    )
-    OFFER_GIVEAWAY = "OFFER_GIVEAWAY", "Give Away"
-    ACCEPT_GIVEAWAY = "ACCEPT_GIVEAWAY", "Accept Gift"
-    DECLINE_GIVEAWAY = "DECLINE_GIVEAWAY", "Decline Gift"
-    REQUEST_GIVEAWAY = "REQUEST_GIVEAWAY", "Request Gift"
-    APPROVE_GIVEAWAY_REQUEST = (
-        "APPROVE_GIVEAWAY_REQUEST",
-        "Approve Giveaway Request",
-    )
-    DECLINE_GIVEAWAY_REQUEST = (
-        "DECLINE_GIVEAWAY_REQUEST",
-        "Decline Giveaway Request",
-    )
 
 
 @dataclass
@@ -162,21 +138,6 @@ class ItemCategory(Model):
     class Meta:
         verbose_name = "Item Category"
         verbose_name_plural = "Item Categories"
-
-
-class ItemStatus(IntegerChoices):
-    """
-    Represents the status of an Item. This is used to track the
-    current state of an Item, and to determine which actions are
-    available to the user.
-    """
-
-    # Paranoia forcing to me to use value increments of at least 10,
-    # for when we later realize we need to add more in between...
-    AVAILABLE = 10, "Available"
-    REQUESTED = 15, "Requested"
-    RESERVED = 20, "Reserved"
-    BORROWED = 30, "Borrowed"
 
 
 class ListingType(IntegerChoices):
@@ -755,7 +716,7 @@ class Item(Model):
                     "party2",
                     "party2__profile",
                 )
-                .filter(Q(item=self) & ~Q(status__in=TERMINAL_TRANSACTION_STATUSES))
+                .filter(Q(item=self) & Q(status__in=OPEN_TRANSACTION_STATUSES))
                 .order_by("-created_at")
                 .first()
             )
@@ -776,7 +737,7 @@ class Item(Model):
             return Transaction.objects.get(
                 Q(item=self)
                 & (Q(party1=user) | Q(party2=user))
-                & ~Q(status__in=TERMINAL_TRANSACTION_STATUSES)
+                & Q(status__in=OPEN_TRANSACTION_STATUSES)
             )
         except Transaction.DoesNotExist:
             return None
@@ -817,7 +778,7 @@ class Item(Model):
             )
 
         if action == ItemAction.REQUEST_ITEM:
-            Transaction.objects.create(
+            created_tx = Transaction.objects.create(
                 item=self,
                 # By convention "party1" is the owner/lender/giver.
                 party1=self.owner,
@@ -827,12 +788,11 @@ class Item(Model):
                 # This is default; just being explicit
                 status=TransactionStatus.REQUESTED,
             )
-            self.status = ItemStatus.REQUESTED
-            self.save()
+            sync_item_status(self, created_tx)
             return
 
         if action == ItemAction.REQUEST_GIVEAWAY:
-            Transaction.objects.create(
+            created_tx = Transaction.objects.create(
                 item=self,
                 # By convention "party1" is the owner/lender/giver.
                 party1=self.owner,
@@ -841,8 +801,7 @@ class Item(Model):
                 updated_by=user,
                 status=TransactionStatus.GIVEAWAY_REQUESTED,
             )
-            self.status = ItemStatus.REQUESTED
-            self.save()
+            sync_item_status(self, created_tx)
             return
 
         if (
@@ -890,15 +849,11 @@ class Item(Model):
                     current_tx.status = TransactionStatus.REJECTED
                     current_tx.updated_by = user
                     current_tx.save()
-                    self.status = ItemStatus.AVAILABLE
-                    self.save()
                 case ItemAction.ACCEPT_REQUEST:
                     # The owner/lender/giver accepts the Request.
                     current_tx.status = TransactionStatus.ACCEPTED
                     current_tx.updated_by = user
                     current_tx.save()
-                    self.status = ItemStatus.RESERVED
-                    self.save()
                 case ItemAction.MARK_COLLECTED:
                     # Either party can assert collection.
                     current_tx.status = TransactionStatus.COLLECTION_ASSERTED
@@ -909,8 +864,6 @@ class Item(Model):
                     current_tx.status = TransactionStatus.COLLECTED
                     current_tx.updated_by = user
                     current_tx.save()
-                    self.status = ItemStatus.BORROWED
-                    self.save()
                 case ItemAction.MARK_RETURNED:
                     # The borrower's assertion still needs the lender's confirmation.
                     current_tx.status = TransactionStatus.RETURN_ASSERTED
@@ -918,8 +871,6 @@ class Item(Model):
                     current_tx.save()
                 case ItemAction.CONFIRM_RETURNED | ItemAction.RESOLVE_DISPUTE_RETURNED:
                     # The other party confirms return or lender resolved dispute happily
-                    self.status = ItemStatus.AVAILABLE
-                    self.save()
                     current_tx.status = TransactionStatus.RETURNED
                     current_tx.updated_by = user
                     current_tx.save()
@@ -971,12 +922,8 @@ class Item(Model):
                     current_tx.status = TransactionStatus.REJECTED
                     current_tx.updated_by = user
                     current_tx.save()
-                    self.status = ItemStatus.AVAILABLE
-                    self.save()
                 case ItemAction.CANCEL_REQUEST:
                     # The requestor cancels the Request.
-                    self.status = ItemStatus.AVAILABLE
-                    self.save()
                     current_tx.status = TransactionStatus.CANCELLED
                     current_tx.updated_by = user
                     current_tx.save()
@@ -1003,6 +950,8 @@ class Item(Model):
                     raise ValueError(
                         f"Unexpected action '{action}' for Item '{self}' and User '{user}'"
                     )
+
+            sync_item_status(self, current_tx)
 
     def groups_allowed_to_view(self) -> "QuerySet[BorrowdGroup]":
         """
@@ -1170,79 +1119,6 @@ class ItemPhoto(Model):
         return f"Photo of {self.item.name}"
 
 
-class TransactionStatus(IntegerChoices):
-    """
-    Represents the status of a Transaction. This is used to track
-    the current state of a Transaction, and to determine which
-    actions are available to the user.
-    """
-
-    # Paranoia forcing to me to use value increments of at least 10,
-    # for when we later realize we need to add more in between...
-    REQUESTED = 10, "Requested"
-    GIVEAWAY_REQUESTED = 15, "Giveaway Requested"
-    REJECTED = 20, "Rejected"
-    ACCEPTED = 30, "Accepted"
-    COLLECTION_ASSERTED = 40, "Collection Asserted"
-    COLLECTED = 50, "Collected"
-    GIVEAWAY_OFFERED = 52, "Giveaway Offered"
-    RETURN_REQUESTED = 55, "Return Requested"
-    RETURN_ASSERTED = 60, "Return Asserted"
-    DISPUTED = 65, "Disputed"
-    RETURNED = 70, "Returned"
-    CANCELLED = 80, "Cancelled"
-    RESOLVED = 90, "Resolved"  # any force-resolved transaction, regardless of reason
-    OWNERSHIP_TRANSFERRED = 95, "Ownership Transferred"
-
-
-# A transaction in one of these statuses is done; it no longer counts as the
-# item's current transaction.
-TERMINAL_TRANSACTION_STATUSES = (
-    TransactionStatus.RETURNED,
-    TransactionStatus.REJECTED,
-    TransactionStatus.CANCELLED,
-    TransactionStatus.RESOLVED,
-    TransactionStatus.OWNERSHIP_TRANSFERRED,
-)
-
-# A transaction in one of these statuses is an open borrow or giveaway
-# request awaiting the owner's decision.
-REQUEST_TRANSACTION_STATUSES = (
-    TransactionStatus.REQUESTED,
-    TransactionStatus.GIVEAWAY_REQUESTED,
-)
-
-# A transaction in one of these statuses has an assigned borrower (party2)
-# holding, or about to hold, the item.
-BORROWER_TRANSACTION_STATUSES = (
-    TransactionStatus.ACCEPTED,
-    TransactionStatus.COLLECTION_ASSERTED,
-    TransactionStatus.COLLECTED,
-    TransactionStatus.GIVEAWAY_OFFERED,
-    TransactionStatus.RETURN_REQUESTED,
-    TransactionStatus.RETURN_ASSERTED,
-    TransactionStatus.DISPUTED,
-)
-
-
-class ResolutionReason(TextChoices):
-    """
-    Why a Transaction was force-resolved instead of completing the normal flow.
-    Set alongside TransactionStatus.RESOLVED.
-    """
-
-    OWNER_ACCOUNT_DELETED = ("owner_account_deleted", "Owner closed their account")
-    MODERATOR_OVERRIDE = ("moderator_override", "Resolved by a moderator")
-    COUNTERPARTY_UNRESPONSIVE = (
-        "counterparty_unresponsive",
-        "Other party was unresponsive",
-    )
-    DISPUTE_ITEM_NOT_RETURNED = (
-        "dispute_item_not_returned",
-        "Disputed item was not returned",
-    )
-
-
 class Transaction(Model):
     item = ForeignKey(
         to="Item",
@@ -1379,13 +1255,10 @@ class Transaction(Model):
         with transaction.atomic():
             item: Item = self.item
             item.refresh_from_db()
-            if item.deleted_at is None:  # item not deleted
-                item.status = ItemStatus.AVAILABLE
-                item.save()
-
             self.status = TransactionStatus.RESOLVED
             self.resolution_reason = reason
             self.updated_by = resolved_by
+            sync_item_status(item, self)
             self.save()
 
     @staticmethod
@@ -1402,67 +1275,24 @@ class Transaction(Model):
         """
 
         return Transaction.objects.filter(
-            Q(
-                status__in=[
-                    TransactionStatus.REQUESTED,
-                    TransactionStatus.GIVEAWAY_REQUESTED,
-                ]
-            )
-            & (Q(party1=user) | Q(party2=user))
+            Q(party1=user) | Q(party2=user),
+            status__in=REQUEST_TRANSACTION_STATUSES,
         )
 
     @staticmethod
     def get_active_borrows_for_user(user: BorrowdUser) -> QuerySet["Transaction"]:
-        """
-        Returns Transactions where the given User is the active borrower (party 2)
-
-        "Active" is defined by exclusion: every state except the closed ones
-        (RETURNED, REJECTED, CANCELLED, RESOLVED, OWNERSHIP_TRANSFERRED) and the
-        not-yet-accepted REQUESTED and GIVEAWAY_REQUESTED. In-flight states like
-        COLLECTION_ASSERTED, RETURN_REQUESTED, and DISPUTED all count as active borrows.
-        """
+        """Return the user's open borrows past the request stage, including ACCEPTED."""
         return Transaction.objects.filter(
-            Q(party2=user)
-            # We filter by transaction status rather than item status so that
-            # intermediate states like COLLECTION_ASSERTED appear as active
-            # borrows before both parties have confirmed collection.
-            & ~Q(
-                # exclude these states
-                status__in=[
-                    TransactionStatus.RETURNED,
-                    TransactionStatus.REQUESTED,
-                    TransactionStatus.GIVEAWAY_REQUESTED,
-                    TransactionStatus.REJECTED,
-                    TransactionStatus.CANCELLED,
-                    TransactionStatus.RESOLVED,
-                    TransactionStatus.OWNERSHIP_TRANSFERRED,
-                ]
-            )
+            party2=user,
+            status__in=BORROWER_TRANSACTION_STATUSES,
         )
 
     @staticmethod
     def get_active_lends_for_user(user: BorrowdUser) -> QuerySet["Transaction"]:
-        """
-        Returns Transactions where the given User is the active lender (party 1)
-
-        "Active" is defined by exclusion: every state except the closed ones
-        (RETURNED, REJECTED, CANCELLED, RESOLVED, OWNERSHIP_TRANSFERRED) and the
-        not-yet-accepted REQUESTED and GIVEAWAY_REQUESTED. In-flight states like
-        COLLECTION_ASSERTED, RETURN_REQUESTED, and DISPUTED all count as active lends.
-        """
+        """Return the user's open lends past the request stage, including ACCEPTED."""
         return Transaction.objects.filter(
-            Q(party1=user)
-            & ~Q(
-                status__in=[
-                    TransactionStatus.RETURNED,
-                    TransactionStatus.REQUESTED,
-                    TransactionStatus.GIVEAWAY_REQUESTED,
-                    TransactionStatus.REJECTED,
-                    TransactionStatus.CANCELLED,
-                    TransactionStatus.RESOLVED,
-                    TransactionStatus.OWNERSHIP_TRANSFERRED,
-                ]
-            )
+            party1=user,
+            status__in=BORROWER_TRANSACTION_STATUSES,
         )
 
     @staticmethod
