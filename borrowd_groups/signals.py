@@ -7,6 +7,7 @@ from django.dispatch import receiver
 from guardian.shortcuts import assign_perm, remove_perm
 from notifications.signals import notify
 
+from borrowd_badges.services import award_social_butterfly_if_needed
 from borrowd_groups.exceptions import ModeratorRequiredException
 from borrowd_groups.models import BorrowdGroup, Membership, MembershipStatus
 from borrowd_items.models import Item
@@ -206,6 +207,19 @@ def refresh_permissions_on_membership_update(
     sender: Membership, instance: Membership, created: bool, **kwargs: str
 ) -> None:
     sync_membership_permissions(instance)
+
+
+@receiver(post_save, sender=Membership)
+def award_social_butterfly_on_membership_update(
+    sender: Membership, instance: Membership, created: bool, **kwargs: str
+) -> None:
+    """A membership can become active through several distinct flows (a
+    direct add, an invite link, or a moderator approving a pending
+    request), so this checks the group's member count on every save rather
+    than being wired into any one of those flows individually.
+    """
+    if instance.status == MembershipStatus.ACTIVE:
+        award_social_butterfly_if_needed(instance.group)
 
 
 @receiver(pre_delete, sender=Membership)

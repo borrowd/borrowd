@@ -26,6 +26,7 @@ from borrowd.util import (
     resolve_back_url,
 )
 from borrowd.validators import ALLOWED_IMAGE_ACCEPT, MAX_PHOTO_SIZE_BYTES
+from borrowd_badges.services import award_sharing_is_caring_if_needed
 from borrowd_community_requests.exceptions import CannotActOnOwnRequestException
 from borrowd_community_requests.models import CommunityRequest
 from borrowd_groups.models import Membership, MembershipStatus
@@ -299,6 +300,7 @@ class ItemCreateView(
             )
 
         self._link_fulfilled_request(form.instance, user)
+        award_sharing_is_caring_if_needed(user)
 
         return response
 

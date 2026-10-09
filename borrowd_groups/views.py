@@ -23,6 +23,7 @@ from guardian.mixins import LoginRequiredMixin
 from notifications.models import Notification
 
 from borrowd.util import BorrowdTemplateFinderMixin
+from borrowd_badges.services import award_local_activist_if_needed
 from borrowd_items.models import Transaction, TransactionStatus
 from borrowd_notifications.models import NotificationType
 from borrowd_permissions.mixins import (
@@ -225,7 +226,9 @@ class GroupCreateView(
                 self.request.user.pk
             )
 
-        return super().form_valid(form)
+        response = super().form_valid(form)
+        award_local_activist_if_needed(get_authenticated_user(self.request))
+        return response
 
     def form_invalid(self, form: GroupCreateForm) -> HttpResponse:
         name_errors: list[str] = [str(error) for error in form.errors.get("name", [])]

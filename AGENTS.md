@@ -22,6 +22,7 @@ Run these in separate terminals:
 npm run dev                                       # Vite dev server (hot reload CSS/JS)
 uv run manage.py migrate                          # Apply migrations
 uv run manage.py loaddata items/item_categories   # Load ItemCategory fixture
+uv run manage.py loaddata badges/badges           # Load Badge fixture
 uv run manage.py runserver                        # Django dev server at http://127.0.0.1:8000/
 ```
 
@@ -74,6 +75,7 @@ Repo-local `PostToolUse` hooks (configured in `.claude/settings.json`, scripts i
 - `borrowd_users/` — `BorrowdUser` (extends `AbstractUser`), `Profile`, `SearchTerm` (search-history logging)
 - `borrowd_groups/` — `BorrowdGroup`, `Membership` (with group sharing + lifecycle status)
 - `borrowd_items/` — `Item`, `ItemCategory`, `ItemPhoto`, `Transaction`, `AvailabilitySubscription`
+- `borrowd_badges/` — `Badge` (preloaded catalog), `UserBadge` (earned-badge records) — profile gamification layer
 - `borrowd_notifications/` — Notification services on top of `django-notifications-hq`
 - `borrowd_beta/` — Beta-access wall (middleware, signup form, allowlist)
 - `borrowd_permissions/` — Object-level permission enums (`ItemOLP`, `BorrowdGroupOLP`) and view mixins (`LoginOr403PermissionMixin`, `LoginOr404PermissionMixin`)

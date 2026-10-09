@@ -203,6 +203,7 @@ of the local `venv`, using its `run` subcommand:
 ```
 uv run manage.py migrate
 uv run manage.py loaddata items/item_categories
+uv run manage.py loaddata badges/badges
 uv run manage.py runserver
 ```
 
