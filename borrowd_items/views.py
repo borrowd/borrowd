@@ -63,7 +63,7 @@ from .forms import (
     ItemPhotoForm,
 )
 from .models import (
-    TERMINAL_TRANSACTION_STATUSES,
+    OPEN_TRANSACTION_STATUSES,
     Item,
     ItemAction,
     ItemPhoto,
@@ -444,10 +444,9 @@ class ItemDetailView(
         transaction_thread = (
             ChatThread.objects.filter(
                 item=item,
+                transaction__status__in=OPEN_TRANSACTION_STATUSES,
                 borrower=user,
-                transaction__isnull=False,
             )
-            .exclude(transaction__status__in=TERMINAL_TRANSACTION_STATUSES)
             .only("pk")
             .first()
         )
