@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Optional, cast
 
 from django.conf import settings
@@ -31,6 +31,7 @@ from borrowd_permissions.models import ItemOLP
 from borrowd_users.models import BorrowdUser
 
 from .exceptions import InvalidItemAction, ItemAlreadyRequested
+from .flow_parity import actions_for_open_transaction
 from .processors import AutoOrientProcessor
 
 # Defined in statuses.py; re-exported for importers of this module.
@@ -539,119 +540,7 @@ class Item(Model):
             # not tackling yet.
             return tuple()
 
-        # If we get here, we have exactly one Transaction involving
-        # this Item and this User. Let's figure out what are the
-        # valid next ItemActions...
-        # TODO. This is a bit hairy. Upgrade to state machine?
-
-        # If the other party's account is inactive (they closed it), the
-        # dual-confirmation handshake can never complete.
-        # therefore, let the remaining party close the loan out single-handed.
-        if current_tx.status in (
-            TransactionStatus.COLLECTION_ASSERTED,
-            TransactionStatus.COLLECTED,
-            TransactionStatus.GIVEAWAY_OFFERED,
-            TransactionStatus.RETURN_REQUESTED,
-            TransactionStatus.RETURN_ASSERTED,
-            TransactionStatus.DISPUTED,
-        ):
-            counterparty = (
-                current_tx.party1 if current_tx.party2 == user else current_tx.party2
-            )
-            if not counterparty.is_active:
-                return (ItemAction.RESOLVE_TRANSACTION,)
-
-        if current_tx.status == TransactionStatus.REQUESTED:
-            if self.owner_id == user.id:
-                # The User is the owner of the Item, and the current
-                # Transaction is a Request from another User.
-                # The owner can either Accept or Reject the Request.
-                return (
-                    ItemAction.REJECT_REQUEST,
-                    ItemAction.ACCEPT_REQUEST,
-                )
-            else:
-                # The User is the requestor and the current
-                # Transaction is a Request from them.
-                # No next steps until owner confirms,
-                # but may cancel.
-                return (ItemAction.CANCEL_REQUEST,)
-        elif current_tx.status == TransactionStatus.GIVEAWAY_REQUESTED:
-            if self.owner_id == user.id:
-                # The owner decides whether to hand the item over.
-                return (
-                    ItemAction.DECLINE_GIVEAWAY_REQUEST,
-                    ItemAction.APPROVE_GIVEAWAY_REQUEST,
-                )
-            # The requester waits on the owner, but may cancel.
-            return (ItemAction.CANCEL_REQUEST,)
-        elif current_tx.status == TransactionStatus.ACCEPTED:
-            # Either borrower or lender can assert collection.
-            return (
-                ItemAction.CANCEL_REQUEST,
-                ItemAction.MARK_COLLECTED,
-            )
-        elif current_tx.status == TransactionStatus.COLLECTION_ASSERTED:
-            # Make sure the same person doesn't confirm the assertion
-            if current_tx.updated_by_id != user.id:
-                # TODO: What's the escape hatch if a dispute arises?
-                return (ItemAction.CONFIRM_COLLECTED,)
-            else:
-                # Otherwise, nothing to do but wait...
-                return tuple()
-        elif current_tx.status == TransactionStatus.COLLECTED:
-            # Either borrower or lender can mark the item returned. The lender
-            # has it back in hand, so their mark closes the loan immediately;
-            # the borrower's is only an assertion pending the lender's
-            # confirmation. The lender can also request the item back, or
-            # give it away.
-            if self.owner_id == user.id:
-                return (
-                    ItemAction.CONFIRM_RETURNED,
-                    ItemAction.REQUEST_RETURN,
-                    ItemAction.OFFER_GIVEAWAY,
-                )
-            return (ItemAction.MARK_RETURNED,)
-        elif current_tx.status == TransactionStatus.GIVEAWAY_OFFERED:
-            # The borrower decides whether to accept the gift.
-            # The lender waits on that decision.
-            if self.owner_id == user.id:
-                return tuple()
-            return (ItemAction.ACCEPT_GIVEAWAY, ItemAction.DECLINE_GIVEAWAY)
-        elif current_tx.status == TransactionStatus.RETURN_REQUESTED:
-            if self.owner_id == user.id:
-                # The lender can escalate to a dispute only if the wait window has passed
-                if current_tx.dispute_wait_has_elapsed():
-                    return (ItemAction.RAISE_DISPUTE, ItemAction.CONFIRM_RETURNED)
-                return (ItemAction.CONFIRM_RETURNED,)
-            # The borrower confirms the return or flags that they can't return the item.
-            return (ItemAction.MARK_RETURNED, ItemAction.FLAG_CANNOT_RETURN)
-        elif current_tx.status == TransactionStatus.RETURN_ASSERTED:
-            # Reached only via the borrower's assertion -- the lender's
-            # mark closes the loan directly without passing through this
-            # status. Make sure the same person doesn't confirm the assertion.
-            if current_tx.updated_by_id != user.id:
-                if self.owner_id == user.id:
-                    # The lender can deny the borrower's return claim.
-                    return (ItemAction.RAISE_DISPUTE, ItemAction.CONFIRM_RETURNED)
-                return (ItemAction.CONFIRM_RETURNED,)
-            else:
-                # Otherwise, nothing to do but wait...
-                return tuple()
-        elif current_tx.status == TransactionStatus.DISPUTED:
-            if self.owner_id == user.id:
-                # The lender settles the dispute one way or the other.
-                return (
-                    ItemAction.RESOLVE_DISPUTE_NOT_RETURNED,
-                    ItemAction.RESOLVE_DISPUTE_RETURNED,
-                )
-            # The borrower waits on the lender. (no options for borrower)
-            return tuple()
-        else:
-            # We shouldn't get here...
-            raise ValueError(
-                f"Unexpected Transaction status '{current_tx.status}' for Item '{self}' and User '{user}'"
-            )
+        return actions_for_open_transaction(self, current_tx, user)
 
     def get_requesting_user(self) -> BorrowdUser | None:
         """
@@ -1228,16 +1117,18 @@ class Transaction(Model):
 
         raise ValueError("User is not a party to this transaction.")
 
-    def dispute_wait_has_elapsed(self) -> bool:
+    def dispute_wait_has_elapsed(self, now: datetime | None = None) -> bool:
         """
         Whether the lender has waited long enough since requesting a return
         to be allowed to raise a dispute. Wait time is (RETURN_DISPUTE_WAIT_DAYS)
+
+        Pass `now` to decide against a time captured by the caller.
         """
 
         if self.return_requested_at is None:
             return False
         wait = timedelta(days=settings.RETURN_DISPUTE_WAIT_DAYS)
-        return timezone.now() - self.return_requested_at >= wait
+        return (now or timezone.now()) - self.return_requested_at >= wait
 
     def force_resolve(
         self, *, resolved_by: BorrowdUser, reason: ResolutionReason
