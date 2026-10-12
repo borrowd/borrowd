@@ -330,7 +330,12 @@ class NotificationService:
             return
 
         group = (
-            BorrowdGroup.objects.filter(created_by=user, deleted_at__isnull=True)
+            BorrowdGroup.objects.filter(
+                created_by=user,
+                deleted_at__isnull=True,
+                membership__user=user,
+                membership__status=MembershipStatus.ACTIVE,
+            )
             .order_by("created_at")
             .first()
         )

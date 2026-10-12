@@ -20,7 +20,7 @@ from notifications.models import Notification
 from pywebpush import WebPushException
 
 from borrowd_community_requests.models import CommunityRequest
-from borrowd_groups.models import BorrowdGroup, Membership
+from borrowd_groups.models import BorrowdGroup, Membership, MembershipStatus
 from borrowd_items.models import (
     AvailabilitySubscription,
     AvailabilitySubscriptionStatus,
@@ -4359,6 +4359,43 @@ class InviteFriendsNudgeNotificationTests(TestCase):
 
         notification = self._nudges().get()
         self.assertEqual(notification.action_object, first_group)
+
+    def test_ignores_an_earlier_group_the_user_has_left(self) -> None:
+        left_group = BorrowdGroup.objects.create_group(
+            name="First Group",
+            created_by=self.user,
+            updated_by=self.user,
+            membership_requires_approval=False,
+        )
+        Membership.objects.filter(user=self.user, group=left_group).update(
+            status=MembershipStatus.ENDED
+        )
+        current_group = BorrowdGroup.objects.create_group(
+            name="Second Group",
+            created_by=self.user,
+            updated_by=self.user,
+            membership_requires_approval=False,
+        )
+
+        self._add_photo()
+
+        notification = self._nudges().get()
+        self.assertEqual(notification.action_object, current_group)
+
+    def test_not_sent_when_the_user_has_left_their_only_created_group(self) -> None:
+        group = BorrowdGroup.objects.create_group(
+            name="A Group",
+            created_by=self.user,
+            updated_by=self.user,
+            membership_requires_approval=False,
+        )
+        Membership.objects.filter(user=self.user, group=group).update(
+            status=MembershipStatus.ENDED
+        )
+
+        self._add_photo()
+
+        self.assertEqual(self._nudges().count(), 0)
 
     def test_action_url_resolves_to_the_group_invite_page(self) -> None:
         group = BorrowdGroup.objects.create_group(
