@@ -193,12 +193,12 @@
 
                 async enable() {
                     try {
-                        const reg = await navigator.serviceWorker.ready;
                         const permission = await Notification.requestPermission();
                         if (permission !== 'granted') {
                             this.permissionDenied = true;
                             return;
                         }
+                        const reg = await navigator.serviceWorker.register('/sw.js');
                         let sub = await reg.pushManager.getSubscription();
                         if (!sub) {
                             sub = await reg.pushManager.subscribe({
@@ -302,14 +302,14 @@
                 async _ensurePushSubscribed() {
                     if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
                     try {
-                        const reg = await navigator.serviceWorker.ready;
+                        const permission = await Notification.requestPermission();
+                        if (permission !== 'granted') {
+                            window.dispatchEvent(new CustomEvent('push-permission-changed'));
+                            return;
+                        }
+                        const reg = await navigator.serviceWorker.register('/sw.js');
                         let sub = await reg.pushManager.getSubscription();
                         if (!sub) {
-                            const permission = await Notification.requestPermission();
-                            if (permission !== 'granted') {
-                                window.dispatchEvent(new CustomEvent('push-permission-changed'));
-                                return;
-                            }
                             sub = await reg.pushManager.subscribe({
                                 userVisibleOnly: true,
                                 applicationServerKey: urlBase64ToUint8Array('{{ vapid_public_key }}'),
