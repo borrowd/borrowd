@@ -182,10 +182,6 @@
                         return;
                     }
                     this.permissionDenied = false;
-                    if (Notification.permission === 'granted') {
-                        this.show = false;
-                        return;
-                    }
                     try {
                         const reg = await navigator.serviceWorker.getRegistration('/sw.js');
                         const sub = reg ? await reg.pushManager.getSubscription() : null;
