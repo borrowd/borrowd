@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from django.test import SimpleTestCase
+from django.test import SimpleTestCase, override_settings
 
 
 class PwaManifestTests(SimpleTestCase):
@@ -79,3 +79,11 @@ class PwaManifestTests(SimpleTestCase):
             '<link rel="icon" href="{% static \'favicon-dark.ico\' %}" sizes="32x32" media="(prefers-color-scheme: dark)">',
             template,
         )
+
+    @override_settings(BORROWD_BETA_ENABLED=True)
+    def test_service_worker_is_served_directly_before_beta_access(self) -> None:
+        response = self.client.get("/sw.js")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "application/javascript")
+        self.assertContains(response, 'self.addEventListener("push"')

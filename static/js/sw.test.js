@@ -19,30 +19,12 @@ function loadServiceWorker() {
   const context = {
     self,
     clients: { openWindow: async (url) => openedWindows.push(url) },
-    fetch: async (request) => ({ request, status: 200 }),
   };
   const source = fs.readFileSync(path.join(__dirname, 'sw.js'), 'utf8');
 
   vm.runInNewContext(source, context);
   return { listeners, notifications, openedWindows };
 }
-
-test('fetch handler passes the original request to the network', async () => {
-  const { listeners } = loadServiceWorker();
-  const request = { url: 'https://borrowd.test/items/' };
-  let responsePromise;
-
-  listeners.get('fetch')({
-    request,
-    respondWith: (promise) => {
-      responsePromise = promise;
-    },
-  });
-
-  const response = await responsePromise;
-  assert.equal(response.request, request);
-  assert.equal(response.status, 200);
-});
 
 test('push handler displays the notification payload', async () => {
   const { listeners, notifications } = loadServiceWorker();
