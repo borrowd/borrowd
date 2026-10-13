@@ -80,6 +80,13 @@ class PwaManifestTests(SimpleTestCase):
             template,
         )
 
+    def test_base_template_exposes_install_prompt_controls(self) -> None:
+        template = " ".join(self.base_template_path.read_text().split())
+
+        self.assertIn("data-install-prompt hidden", template)
+        self.assertIn("data-install-prompt-action", template)
+        self.assertIn("data-install-prompt-dismiss", template)
+
     @override_settings(BORROWD_BETA_ENABLED=True)
     def test_service_worker_is_served_directly_before_beta_access(self) -> None:
         response = self.client.get("/sw.js")

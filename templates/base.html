@@ -42,6 +42,32 @@
 
         {% include "includes/header.html" %}
 
+        <section id="install-prompt"
+                 class="alert alert-info rounded-none shadow-sm"
+                 role="region"
+                 aria-label="Install Borrow'd"
+                 data-install-prompt
+                 hidden>
+            <div class="container mx-auto flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <p>
+                    Install Borrow'd on your device for quick access.
+                </p>
+                <div class="flex items-center gap-2">
+                    <button type="button"
+                            class="btn btn-primary btn-sm"
+                            data-install-prompt-action>
+                        Add to Home Screen
+                    </button>
+                    <button type="button"
+                            class="btn btn-ghost btn-sm"
+                            aria-label="Dismiss install prompt"
+                            data-install-prompt-dismiss>
+                        Dismiss
+                    </button>
+                </div>
+            </div>
+        </section>
+
         {% block layout %}
         {% endblock %}
 
