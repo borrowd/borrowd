@@ -52,6 +52,10 @@ Borrow'd theme for DaisyUI
   display: none !important;
 }
 
+[data-install-prompt][hidden] {
+  display: none !important;
+}
+
 /* Tailwind Theme
 TODO: Transfer over all to daisy */
 @theme {
