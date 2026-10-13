@@ -214,7 +214,7 @@
                             this.permissionDenied = true;
                             return;
                         }
-                        const reg = await navigator.serviceWorker.ready;
+                        const reg = await navigator.serviceWorker.register('/sw.js');
                         let sub = await reg.pushManager.getSubscription();
                         if (!sub) {
                             sub = await reg.pushManager.subscribe({
@@ -330,7 +330,7 @@
                             window.dispatchEvent(new CustomEvent('push-permission-changed'));
                             return;
                         }
-                        const reg = await navigator.serviceWorker.ready;
+                        const reg = await navigator.serviceWorker.register('/sw.js');
                         let sub = await reg.pushManager.getSubscription();
                         if (!sub) {
                             sub = await reg.pushManager.subscribe({
