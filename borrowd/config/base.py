@@ -276,6 +276,7 @@ BETA_CHECK_EXCLUDE_PATHS = [
     r"^/admin/.*",
     r"^/static/.*",
     r"^/media/.*",
+    r"^/sw.js$",
     r"^/beta/.*",
     r"^/__reload__/.*",
 ]
