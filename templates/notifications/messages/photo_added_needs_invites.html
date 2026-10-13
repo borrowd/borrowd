@@ -1,0 +1,23 @@
+{% extends "notifications/messages/layout.html" %}
+
+{% block title %}
+    Invite friends - Borrow'd
+{% endblock %}
+
+{% block content %}
+    <h2>
+        Great job adding a photo!
+    </h2>
+
+    <p>
+        Now invite friends to join {{ group_name }}.
+    </p>
+
+    <div class="text-center">
+        <a href="{{ invite_url }}" class="button">Invite friends</a>
+    </div>
+
+    <p>
+        The Borrow'd team
+    </p>
+{% endblock %}

@@ -255,6 +255,15 @@
           setAvatarSrc(data.image_url);
           if (deleteBtn) deleteBtn.disabled = false;
           showToast(data.message);
+          // This upload is a plain fetch, not an htmx request, so the
+          // server can't refresh the header bell via an htmx out-of-band
+          // swap the way other actions do (see
+          // _render_notification_indicator_oob in borrowd_notifications's
+          // views.py) -- a possible server-side notification (e.g. the
+          // "invite friends" nudge) would otherwise sit unseen until the
+          // bell's next 30s poll or a page load. Dispatching this lets the
+          // bell (notification_bell.html) refresh itself immediately.
+          document.dispatchEvent(new CustomEvent('notifications:refresh'));
         } else {
           setAvatarSrc(previousSrc);
           showToast(data.message || 'An error occurred.', 'error');

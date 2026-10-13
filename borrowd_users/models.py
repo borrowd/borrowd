@@ -82,6 +82,27 @@ class Profile(models.Model):
             " before making a request."
         ),
     )
+    join_group_nudge_sent = models.BooleanField(
+        default=False,
+        help_text=(
+            "Whether this user has already been shown the one-time nudge to"
+            " join a group after adding an item while in no active group."
+        ),
+    )
+    add_profile_photo_nudge_sent = models.BooleanField(
+        default=False,
+        help_text=(
+            "Whether this user has already been shown the one-time nudge to"
+            " add a profile photo after creating a group while having none."
+        ),
+    )
+    invite_friends_nudge_sent = models.BooleanField(
+        default=False,
+        help_text=(
+            "Whether this user has already been shown the one-time nudge to"
+            " invite friends to their group after adding a profile photo."
+        ),
+    )
     created_by = ForeignKey(
         BorrowdUser,
         related_name="+",  # No reverse relation needed

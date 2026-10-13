@@ -156,6 +156,9 @@ class PUSHNotificationStrategy(NotificationStrategy):
                     or context.get("item_url")
                     or context.get("group_url")
                     or context.get("requests_url")
+                    or context.get("create_group_url")
+                    or context.get("profile_url")
+                    or context.get("invite_url")
                     or f"{base_url}/notifications/"
                 ),
             }

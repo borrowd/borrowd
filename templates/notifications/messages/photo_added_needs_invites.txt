@@ -1,0 +1,7 @@
+Great job adding a photo!
+
+Now invite friends to join {{ group_name }}.
+
+Invite friends: {{ invite_url }}
+
+The Borrow'd team

@@ -74,6 +74,22 @@ NOTIFICATION_CATEGORIES: list[dict[str, Any]] = [
         ],
     },
     {
+        "name": "Onboarding",
+        "slug": "onboarding",
+        "icon": "sparkles",
+        "types": [
+            (NotificationType.ITEM_ADDED_NEEDS_GROUP, "Join a group reminder"),
+            (
+                NotificationType.GROUP_CREATED_NEEDS_PHOTO,
+                "Add a profile photo reminder",
+            ),
+            (
+                NotificationType.PHOTO_ADDED_NEEDS_INVITES,
+                "Invite friends reminder",
+            ),
+        ],
+    },
+    {
         "name": "Item Availability",
         "slug": "availability",
         "icon": "bell-alert",
@@ -470,6 +486,11 @@ def _notification_action_url(notification: Notification) -> str | None:
     detail page, and a CommunityRequest (COMMUNITY_REQUEST_POSTED) to the
     community requests list.
     """
+    if notification.verb == NotificationType.ITEM_ADDED_NEEDS_GROUP.value:
+        return reverse("borrowd_groups:group-create")
+    if notification.verb == NotificationType.GROUP_CREATED_NEEDS_PHOTO.value:
+        return reverse("profile")
+
     action_object = _notification_action_object(notification)
     if isinstance(action_object, Item):
         # A soft-deleted item's detail page 404s (ItemDetailView uses the
@@ -488,6 +509,10 @@ def _notification_action_url(notification: Notification) -> str | None:
     if isinstance(action_object, BorrowdGroup):
         if action_object.deleted_at is not None:
             return None
+        if notification.verb == NotificationType.PHOTO_ADDED_NEEDS_INVITES.value:
+            return reverse(
+                "borrowd_groups:group-invite", kwargs={"pk": action_object.pk}
+            )
         return reverse("borrowd_groups:group-detail", kwargs={"pk": action_object.pk})
     if isinstance(action_object, CommunityRequest):
         return reverse("community-request-list")

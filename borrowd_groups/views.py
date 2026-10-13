@@ -28,6 +28,7 @@ from borrowd_items.models import (
     Transaction,
 )
 from borrowd_notifications.models import NotificationType
+from borrowd_notifications.services import NotificationService
 from borrowd_permissions.mixins import (
     LoginOr403PermissionMixin,
     LoginOr404PermissionMixin,
@@ -225,7 +226,9 @@ class GroupCreateView(
                 self.request.user.pk
             )
 
-        return super().form_valid(form)
+        response = super().form_valid(form)
+        NotificationService.send_add_profile_photo_nudge_if_needed(form.instance)
+        return response
 
     def form_invalid(self, form: GroupCreateForm) -> HttpResponse:
         name_errors: list[str] = [str(error) for error in form.errors.get("name", [])]
