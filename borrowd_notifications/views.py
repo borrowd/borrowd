@@ -224,7 +224,10 @@ def _build_preferences_context(user: BorrowdUser) -> dict[str, Any]:
             if not is_mandatory:
                 if not app_on:
                     cat_optional_app = False
-                if not email_on and not is_email_excluded:
+                # Excluded types don't count toward "all optional types have
+                # email on" -- their email is forced off, the same way
+                # mandatory types are excluded for forcing it on.
+                if not is_email_excluded and not email_on:
                     cat_optional_email = False
 
             # push are not mendatory
