@@ -108,17 +108,13 @@
                             <div class="flex flex-col gap-0.5">
                                 <span class="text-sm">{{ type.label }}</span>
                                 {% if type.is_mandatory %}
-                                    <span class="text-xs text-base-content/40">
-                                        {% trans "Required for transaction handshakes" %}
-                                    </span>
+                                    <span class="text-xs text-base-content/40">{% trans "Required for transaction handshakes" %}</span>
+                                {% elif type.is_email_excluded %}
+                                    <span class="text-xs text-base-content/40">{% trans "In-app only, no email alert" %}</span>
                                 {% endif %}
                             </div>
                             <div class="flex items-center gap-6">
                                 {% if type.is_mandatory %}
-                                    <input type="checkbox"
-                                           checked
-                                           disabled
-                                           class="toggle toggle-primary toggle-sm opacity-40">
                                     <input type="checkbox"
                                            checked
                                            disabled
@@ -128,6 +124,17 @@
                                            :checked="prefs['{{ type.type_value|escapejs }}'].in_app"
                                            @change="toggle('{{ type.type_value|escapejs }}', 'APP', 'in_app', $event.target.checked)"
                                            class="toggle toggle-primary toggle-sm">
+                                {% endif %}
+                                {% if type.is_mandatory %}
+                                    <input type="checkbox"
+                                           checked
+                                           disabled
+                                           class="toggle toggle-primary toggle-sm opacity-40">
+                                {% elif type.is_email_excluded %}
+                                    <input type="checkbox"
+                                           disabled
+                                           class="toggle toggle-primary toggle-sm opacity-40">
+                                {% else %}
                                     <input type="checkbox"
                                            :checked="prefs['{{ type.type_value|escapejs }}'].email"
                                            @change="toggle('{{ type.type_value|escapejs }}', 'EMAIL', 'email', $event.target.checked)"
@@ -246,6 +253,7 @@
                     for (const [type, pref] of Object.entries(this.prefs)) {
                         if (
                             (channel === 'PUSH' || !pref.is_mandatory) &&
+                            (channel !== 'EMAIL' || !pref.is_email_excluded) &&
                             (scope === 'master' || pref.category === scope)
                         ) {
                             this.prefs[type][field] = enabled;
@@ -264,13 +272,19 @@
 
                 masterEnabled(field) {
                     return field !== 'push'
-                        ? Object.values(this.prefs).filter(p => !p.is_mandatory).some(p => p[field])
+                        ? Object.values(this.prefs)
+                            .filter(p => !p.is_mandatory && !(field === 'email' && p.is_email_excluded))
+                            .some(p => p[field])
                         : Object.values(this.prefs).some(p => p[field]);
                 },
 
                 categoryEnabled(slug, field) {
                     const relevant = field !== 'push'
-                        ? Object.values(this.prefs).filter(p => p.category === slug && !p.is_mandatory)
+                        ? Object.values(this.prefs).filter(p =>
+                            p.category === slug &&
+                            !p.is_mandatory &&
+                            !(field === 'email' && p.is_email_excluded)
+                        )
                         : Object.values(this.prefs).filter(p => p.category === slug);
                     return relevant.length === 0 || relevant.some(p => p[field]);
                 },

@@ -123,6 +123,20 @@ class NotificationType(models.TextChoices):
             }
         )
 
+    @classmethod
+    def email_excluded_types(cls) -> "frozenset[NotificationType]":
+        """Types that never go out over email, regardless of the user's
+        preference — the onboarding nudges are in-app-only prompts, not
+        the kind of thing worth an email alert.
+        """
+        return frozenset(
+            {
+                cls.ITEM_ADDED_NEEDS_GROUP,
+                cls.GROUP_CREATED_NEEDS_PHOTO,
+                cls.PHOTO_ADDED_NEEDS_INVITES,
+            }
+        )
+
     def __str__(self) -> str:
         return self.name.lower()
 
@@ -424,13 +438,14 @@ class NotificationPreference(Model):
     def init_new_user_preferences(user: BorrowdUser) -> None:
         """When a new user is created, the preferences must be initialised."""
 
+        email_excluded = NotificationType.email_excluded_types()
         for notification_type in NotificationType.values:
             NotificationPreference.objects.update_or_create(
                 user=user,
                 notification_type=notification_type,
                 defaults={
                     "in_app_enabled": True,
-                    "email_enabled": True,
+                    "email_enabled": notification_type not in email_excluded,
                     "push_enabled": False,
                 },
             )
