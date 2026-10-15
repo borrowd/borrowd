@@ -999,6 +999,9 @@ class ChatThreadListViewTests(MessagingTestCase):
         self.make_active_threads(1)
         self.make_archived_threads(1)
         self.client.force_login(self.borrower)
+        # Spend the session's one-time per-day activity-tracking write here,
+        # outside both captures, so it doesn't lopside the comparison below.
+        self.client.get(self.url)
         with CaptureQueriesContext(connection) as one_conversation:
             self.client.get(self.url)
 
@@ -1107,6 +1110,9 @@ class ConversationItemPreviewTests(MessagingTestCase):
     def test_the_preview_costs_no_query_per_photo(self) -> None:
         self.add_photo()
         self.client.force_login(self.borrower)
+        # Spend the session's one-time per-day activity-tracking write here,
+        # outside both captures, so it doesn't lopside the comparison below.
+        self.client.get(self.url)
         with CaptureQueriesContext(connection) as one_photo:
             self.client.get(self.url)
 

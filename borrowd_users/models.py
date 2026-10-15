@@ -62,6 +62,13 @@ class BorrowdUser(AbstractUser, GuardianUserMixin):
         related_name="+",
         help_text="Who performed the soft-delete. NULL means active or unknown.",
     )
+    exclude_from_metrics = models.BooleanField(
+        default=False,
+        help_text=(
+            "Excluded from activity metrics and reporting, e.g. test "
+            "accounts. Activity is still recorded; reports filter it out."
+        ),
+    )
 
 
 class Profile(models.Model):
@@ -225,3 +232,27 @@ class SearchTerm(models.Model):
             term_raw=cleaned,
             term_normalized=normalized,
         )
+
+
+class UserActivityDay(models.Model):
+    """
+    One row per user per UTC calendar day they made an authenticated
+    request, written by RecordUserActivityMiddleware. Lets reports compute
+    monthly active users and cohort retention for any past month from real
+    activity, rather than last_login (which session persistence makes
+    unreliable).
+    """
+
+    user = models.ForeignKey(
+        "borrowd_users.BorrowdUser",
+        on_delete=models.CASCADE,
+        related_name="activity_days",
+    )
+    date = models.DateField(db_index=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "date"], name="unique_activity_day_per_user"
+            )
+        ]
