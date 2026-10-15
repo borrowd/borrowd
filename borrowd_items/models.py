@@ -667,36 +667,38 @@ class Item(Model):
             )
 
         if action == ItemAction.REQUEST_ITEM:
-            created_tx = Transaction.objects.create(
-                item=self,
-                # By convention "party1" is the owner/lender/giver.
-                party1=self.owner,
-                party2=user,
-                created_by=user,
-                updated_by=user,
-                # This is default; just being explicit
-                status=TransactionStatus.REQUESTED,
-            )
-            sync_item_status(self, created_tx)
-            created_tx._record_status_change(
-                from_status=None, action=action, actor=user
-            )
+            with transaction.atomic():
+                created_tx = Transaction.objects.create(
+                    item=self,
+                    # By convention "party1" is the owner/lender/giver.
+                    party1=self.owner,
+                    party2=user,
+                    created_by=user,
+                    updated_by=user,
+                    # This is default; just being explicit
+                    status=TransactionStatus.REQUESTED,
+                )
+                sync_item_status(self, created_tx)
+                created_tx._record_status_change(
+                    from_status=None, action=action, actor=user
+                )
             return
 
         if action == ItemAction.REQUEST_GIVEAWAY:
-            created_tx = Transaction.objects.create(
-                item=self,
-                # By convention "party1" is the owner/lender/giver.
-                party1=self.owner,
-                party2=user,
-                created_by=user,
-                updated_by=user,
-                status=TransactionStatus.GIVEAWAY_REQUESTED,
-            )
-            sync_item_status(self, created_tx)
-            created_tx._record_status_change(
-                from_status=None, action=action, actor=user
-            )
+            with transaction.atomic():
+                created_tx = Transaction.objects.create(
+                    item=self,
+                    # By convention "party1" is the owner/lender/giver.
+                    party1=self.owner,
+                    party2=user,
+                    created_by=user,
+                    updated_by=user,
+                    status=TransactionStatus.GIVEAWAY_REQUESTED,
+                )
+                sync_item_status(self, created_tx)
+                created_tx._record_status_change(
+                    from_status=None, action=action, actor=user
+                )
             return
 
         if (
@@ -1153,14 +1155,10 @@ class Transaction(Model):
     ) -> None:
         """
         Write one TransactionStatusChange row for the status this Transaction
-        now has.
-
-        Called from process_action(): once from each of the two creation
-        branches it returns from early, and once after the match statement
-        for every other action, including the two that call force_resolve().
-        force_resolve() mutates status in place rather than recording
-        history itself, so any future caller of force_resolve() outside
-        process_action() must call this helper too.
+        now has. Every write path that creates a Transaction or changes its
+        status must call this exactly once. force_resolve() mutates status
+        in place without calling this itself, so any caller of
+        force_resolve() is responsible for calling this afterward.
         """
         TransactionStatusChange.objects.create(
             transaction=self,
@@ -1353,18 +1351,17 @@ class TransactionStatusChange(Model):
         default=None,
         help_text="Why the transaction was force-resolved. Set only when to_status is RESOLVED.",
     )
+    # Not auto_now_add: that would override any explicitly supplied value,
+    # which the backfill migration relies on to set this to each
+    # transaction's existing updated_at instead of the migration's run time.
     changed_at = DateTimeField(
         default=timezone.now,
         db_index=True,
-        help_text=(
-            "When this change happened. Not auto_now_add: the backfill "
-            "migration sets this to each transaction's existing updated_at, "
-            "and auto_now_add would override that with the migration's own run time."
-        ),
+        help_text="When this change happened.",
     )
     backfilled = BooleanField(
         default=False,
-        help_text="True only for rows written by the Phase 1 backfill migration.",
+        help_text="True only for rows written by the backfill migration.",
     )
 
     class Meta:
