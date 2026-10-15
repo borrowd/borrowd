@@ -90,6 +90,7 @@ MIDDLEWARE = [
     "django.middleware.csrf.CsrfViewMiddleware",
     "borrowd_beta.middleware.BetaAccessMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "borrowd_users.middleware.RecordUserActivityMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "allauth.account.middleware.AccountMiddleware",
