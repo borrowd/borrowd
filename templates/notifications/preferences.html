@@ -91,10 +91,16 @@
                                :checked="categoryEnabled('{{ category.slug }}', 'in_app')"
                                @change="bulkToggle('{{ category.slug }}', 'APP', 'in_app', $event.target.checked)"
                                class="toggle toggle-primary toggle-xs">
-                        <input type="checkbox"
-                               :checked="categoryEnabled('{{ category.slug }}', 'email')"
-                               @change="bulkToggle('{{ category.slug }}', 'EMAIL', 'email', $event.target.checked)"
-                               class="toggle toggle-primary toggle-xs">
+                        {% if category.has_togglable_email %}
+                            <input type="checkbox"
+                                   :checked="categoryEnabled('{{ category.slug }}', 'email')"
+                                   @change="bulkToggle('{{ category.slug }}', 'EMAIL', 'email', $event.target.checked)"
+                                   class="toggle toggle-primary toggle-xs">
+                        {% else %}
+                            <input type="checkbox"
+                                   disabled
+                                   class="toggle toggle-primary toggle-xs opacity-40">
+                        {% endif %}
                         <input type="checkbox"
                                :checked="categoryEnabled('{{ category.slug }}', 'push')"
                                @change="bulkToggle('{{ category.slug }}', 'PUSH', 'push', $event.target.checked)"

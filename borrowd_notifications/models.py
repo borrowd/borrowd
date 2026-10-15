@@ -129,13 +129,7 @@ class NotificationType(models.TextChoices):
         preference — the onboarding nudges are in-app-only prompts, not
         the kind of thing worth an email alert.
         """
-        return frozenset(
-            {
-                cls.ITEM_ADDED_NEEDS_GROUP,
-                cls.GROUP_CREATED_NEEDS_PHOTO,
-                cls.PHOTO_ADDED_NEEDS_INVITES,
-            }
-        )
+        return _EMAIL_EXCLUDED_TYPES
 
     def __str__(self) -> str:
         return self.name.lower()
@@ -363,6 +357,18 @@ class NotificationType(models.TextChoices):
                     }
                 )
         return context
+
+
+# Built once at import time rather than inside email_excluded_types(): that
+# classmethod is called per notification dispatch and per preferences-page
+# loop iteration.
+_EMAIL_EXCLUDED_TYPES: "frozenset[NotificationType]" = frozenset(
+    {
+        NotificationType.ITEM_ADDED_NEEDS_GROUP,
+        NotificationType.GROUP_CREATED_NEEDS_PHOTO,
+        NotificationType.PHOTO_ADDED_NEEDS_INVITES,
+    }
+)
 
 
 _MESSAGE_TEMPLATES: dict[NotificationType, str] = {

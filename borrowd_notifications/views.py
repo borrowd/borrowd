@@ -208,6 +208,7 @@ def _build_preferences_context(user: BorrowdUser) -> dict[str, Any]:
         cat_optional_app = True
         cat_optional_email = True
         cat_optional_push = True
+        cat_has_togglable_email = False
 
         types_ctx = []
 
@@ -229,6 +230,8 @@ def _build_preferences_context(user: BorrowdUser) -> dict[str, Any]:
                 # mandatory types are excluded for forcing it on.
                 if not is_email_excluded and not email_on:
                     cat_optional_email = False
+                if not is_email_excluded:
+                    cat_has_togglable_email = True
 
             # push are not mendatory
             if not push_on:
@@ -254,6 +257,7 @@ def _build_preferences_context(user: BorrowdUser) -> dict[str, Any]:
                 "all_optional_app_enabled": cat_optional_app,
                 "all_optional_email_enabled": cat_optional_email,
                 "all_optional_push_enabled": cat_optional_push,
+                "has_togglable_email": cat_has_togglable_email,
             }
         )
 

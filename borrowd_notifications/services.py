@@ -93,7 +93,8 @@ class NotificationService:
             notification_type=notification_type.value,
             defaults={
                 "in_app_enabled": True,
-                "email_enabled": True,
+                "email_enabled": notification_type
+                not in NotificationType.email_excluded_types(),
                 "push_enabled": False,
             },
         )
