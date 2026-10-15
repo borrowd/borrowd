@@ -2,6 +2,7 @@ from typing import Any  # Unfortunately needed for more mypy shenanigans
 
 from django.contrib.auth.models import Group
 from django.core.validators import FileExtensionValidator
+from django.db import transaction
 from django.db.models import (
     CASCADE,
     DO_NOTHING,
@@ -176,11 +177,22 @@ class BorrowdGroup(Model):
         else:
             default_status = MembershipStatus.ACTIVE
 
+        # add_user() has exactly two callers: the group-creation signal
+        # (the creator's own membership) and the invite-accept view. An
+        # invite link is the only way to join an existing group today, so
+        # anything that isn't the creator joined via invite.
+        join_method = (
+            MembershipJoinMethod.GROUP_CREATOR
+            if user.pk == self.created_by_id
+            else MembershipJoinMethod.JOINED_GROUP
+        )
+
         membership: Membership = Membership.objects.create(
             user=user,
             group=self,
             status=default_status,
             is_moderator=is_moderator,
+            join_method=join_method,
         )
 
         return membership
@@ -189,27 +201,40 @@ class BorrowdGroup(Model):
         self,
         user: BorrowdUser,
         bypass_last_moderator_check: bool = False,
+        removed_by: BorrowdUser | None = None,
     ) -> None:
         """
         Remove a user from the group.
+
+        `removed_by` is the moderator performing the removal; leave it
+        NULL when the user is leaving on their own.
         """
-        membership: Membership = Membership.objects.get(user=user, group=self)
+        with transaction.atomic():
+            membership: Membership = Membership.objects.get(user=user, group=self)
 
-        # Allow specific flows, such as leaving a group, to bypass the
-        # last-moderator signal check.
-        if bypass_last_moderator_check:
-            membership._bypass_last_moderator_check = True
+            # Allow specific flows, such as leaving a group, to bypass the
+            # last-moderator signal check.
+            if bypass_last_moderator_check:
+                membership._bypass_last_moderator_check = True
 
-        # Remove the user's group membership.
-        perms_group = self.perms_group
-        if perms_group is None:
-            raise ValueError(
-                "This BorrowdGroup has no perms_group; cannot remove membership."
+            # Remove the user's group membership.
+            perms_group = self.perms_group
+            if perms_group is None:
+                raise ValueError(
+                    "This BorrowdGroup has no perms_group; cannot remove membership."
+                )
+            user.groups.remove(perms_group)
+
+            # Recorded immediately before the hard delete, inside the same
+            # atomic block: if the delete below fails (e.g. the last-
+            # moderator check), this rolls back along with it.
+            MembershipDeparture.objects.create(
+                user=membership.user,
+                group=self,
+                joined_at=membership.joined_at,
+                removed_by=removed_by,
             )
-        user.groups.remove(perms_group)
-
-        # Remove the group membership record.
-        membership.delete()
+            membership.delete()
 
     def update_user_membership(
         self,
@@ -245,6 +270,11 @@ class MembershipStatus(TextChoices):
     SUSPENDED = ("SUSPENDED", "Suspended")
     BANNED = ("BANNED", "Banned")
     ENDED = ("ENDED", "Ended")
+
+
+class MembershipJoinMethod(TextChoices):
+    GROUP_CREATOR = ("GROUP_CREATOR", "Created the group")
+    JOINED_GROUP = ("JOINED_GROUP", "Joined the group")
 
 
 class Membership(Model):
@@ -297,8 +327,44 @@ class Membership(Model):
             "May be useful in unfortunate cases of suspension / banning."
         ),
     )
+    join_method = CharField(
+        max_length=20,
+        choices=MembershipJoinMethod.choices,
+        null=True,
+        blank=True,
+        default=None,
+        help_text=(
+            "How this membership began. NULL for memberships predating this "
+            "field, or whose group's creator couldn't be determined."
+        ),
+    )
 
     class Meta:
         constraints = [
             UniqueConstraint(fields=["user", "group"], name="unique_membership")
         ]
+
+
+class MembershipDeparture(Model):
+    """
+    One row per membership that ends via the hard delete BorrowdGroup
+    remove_user() performs, preserving what that delete otherwise loses:
+    who was in the group, how long, and whether they left or were removed.
+    """
+
+    user = ForeignKey(BorrowdUser, on_delete=CASCADE, related_name="+")
+    group = ForeignKey(BorrowdGroup, on_delete=CASCADE, related_name="+")
+    joined_at = DateTimeField(help_text="The departed membership's original joined_at.")
+    left_at = DateTimeField(
+        auto_now_add=True,
+        help_text="When the membership was removed.",
+    )
+    removed_by = ForeignKey(
+        BorrowdUser,
+        null=True,
+        blank=True,
+        default=None,
+        on_delete=SET_NULL,
+        related_name="+",
+        help_text="The moderator who removed this member. NULL when they left voluntarily.",
+    )
