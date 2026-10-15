@@ -678,6 +678,9 @@ class Item(Model):
                 status=TransactionStatus.REQUESTED,
             )
             sync_item_status(self, created_tx)
+            created_tx._record_status_change(
+                from_status=None, action=action, actor=user
+            )
             return
 
         if action == ItemAction.REQUEST_GIVEAWAY:
@@ -691,6 +694,9 @@ class Item(Model):
                 status=TransactionStatus.GIVEAWAY_REQUESTED,
             )
             sync_item_status(self, created_tx)
+            created_tx._record_status_change(
+                from_status=None, action=action, actor=user
+            )
             return
 
         if (
@@ -731,6 +737,7 @@ class Item(Model):
             # partly to keep mypy happy.
             raise ValueError("No existing Transaction")
 
+        previous_status = TransactionStatus(current_tx.status)
         with transaction.atomic():
             match action:
                 case ItemAction.REJECT_REQUEST:
@@ -841,6 +848,13 @@ class Item(Model):
                     )
 
             sync_item_status(self, current_tx)
+            if current_tx.status != previous_status:
+                # force_resolve() mutates current_tx.status in place for the
+                # RESOLVE_DISPUTE_NOT_RETURNED and RESOLVE_TRANSACTION arms
+                # above; this is still the one place that records it.
+                current_tx._record_status_change(
+                    from_status=previous_status, action=action, actor=user
+                )
 
     def groups_allowed_to_view(self) -> "QuerySet[BorrowdGroup]":
         """
@@ -1130,6 +1144,37 @@ class Transaction(Model):
         wait = timedelta(days=settings.RETURN_DISPUTE_WAIT_DAYS)
         return (now or timezone.now()) - self.return_requested_at >= wait
 
+    def _record_status_change(
+        self,
+        *,
+        from_status: TransactionStatus | None,
+        action: ItemAction | None,
+        actor: BorrowdUser | None,
+    ) -> None:
+        """
+        Write one TransactionStatusChange row for the status this Transaction
+        now has.
+
+        Called from process_action(): once from each of the two creation
+        branches it returns from early, and once after the match statement
+        for every other action, including the two that call force_resolve().
+        force_resolve() mutates status in place rather than recording
+        history itself, so any future caller of force_resolve() outside
+        process_action() must call this helper too.
+        """
+        TransactionStatusChange.objects.create(
+            transaction=self,
+            from_status=from_status,
+            to_status=self.status,
+            action=action,
+            actor=actor,
+            resolution_reason=(
+                self.resolution_reason
+                if self.status == TransactionStatus.RESOLVED
+                else None
+            ),
+        )
+
     def force_resolve(
         self, *, resolved_by: BorrowdUser, reason: ResolutionReason
     ) -> None:
@@ -1255,6 +1300,79 @@ class Transaction(Model):
 
         return Transaction.objects.filter(
             Q(disputed_at__isnull=False) & (Q(party1=user) | Q(party2=user))
+        )
+
+
+class TransactionStatusChange(Model):
+    """
+    One row per change to a Transaction's status, written by
+    Transaction._record_status_change(). Reconstructs outcomes and timings
+    that overwriting Transaction.status in place can't: request funnels,
+    response times, and time-to-completion.
+    """
+
+    transaction = ForeignKey(
+        Transaction,
+        on_delete=CASCADE,
+        related_name="status_changes",
+        help_text="The Transaction this change belongs to.",
+    )
+    from_status = IntegerField(
+        choices=TransactionStatus.choices,
+        null=True,
+        blank=True,
+        default=None,
+        help_text="The status before this change. NULL on the transaction's creation.",
+    )
+    to_status = IntegerField(
+        choices=TransactionStatus.choices,
+        help_text="The status after this change.",
+    )
+    action = CharField(
+        max_length=32,
+        choices=ItemAction.choices,
+        null=True,
+        blank=True,
+        default=None,
+        help_text="The action that caused this change. NULL for backfilled rows.",
+    )
+    actor = ForeignKey(
+        BorrowdUser,
+        null=True,
+        blank=True,
+        default=None,
+        on_delete=SET_NULL,
+        related_name="+",  # No reverse relation needed
+        help_text="Who performed the action. NULL for system changes or backfilled rows.",
+    )
+    resolution_reason = CharField(
+        max_length=32,
+        choices=ResolutionReason.choices,
+        null=True,
+        blank=True,
+        default=None,
+        help_text="Why the transaction was force-resolved. Set only when to_status is RESOLVED.",
+    )
+    changed_at = DateTimeField(
+        default=timezone.now,
+        db_index=True,
+        help_text=(
+            "When this change happened. Not auto_now_add: the backfill "
+            "migration sets this to each transaction's existing updated_at, "
+            "and auto_now_add would override that with the migration's own run time."
+        ),
+    )
+    backfilled = BooleanField(
+        default=False,
+        help_text="True only for rows written by the Phase 1 backfill migration.",
+    )
+
+    class Meta:
+        ordering = ("changed_at",)
+
+    def __str__(self) -> str:
+        return (
+            f"Transaction {self.transaction_id}: {self.from_status} -> {self.to_status}"
         )
 
 
