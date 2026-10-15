@@ -144,22 +144,30 @@ NOTIFICATION_CATEGORIES: list[dict[str, Any]] = [
 ]
 
 
-def _optional_types_for_scope(scope: str) -> list[NotificationType]:
-    """Returns the non-mandatory notification types in scope (a category
-    slug, or "master" for every category) — the ones a user can actually
-    toggle off for the app/email channels.
+def _optional_types_for_scope(
+    scope: str, channel: ChannelType | None = None
+) -> list[NotificationType]:
+    """Returns the notification types in scope (a category slug, or
+    "master" for every category) that a user can actually toggle for the
+    given channel — excluding mandatory types always, and additionally
+    excluding email-excluded types when `channel` is EMAIL.
     """
     mandatory = NotificationType.mandatory_types()
+    excluded = mandatory | (
+        NotificationType.email_excluded_types()
+        if channel == ChannelType.EMAIL
+        else frozenset()
+    )
     if scope == "master":
         return [
             ntype
             for cat in NOTIFICATION_CATEGORIES
             for ntype, _ in cat["types"]
-            if ntype not in mandatory
+            if ntype not in excluded
         ]
     for cat in NOTIFICATION_CATEGORIES:
         if cat["slug"] == scope:
-            return [ntype for ntype, _ in cat["types"] if ntype not in mandatory]
+            return [ntype for ntype, _ in cat["types"] if ntype not in excluded]
     return []
 
 
@@ -185,6 +193,7 @@ def _build_preferences_context(user: BorrowdUser) -> dict[str, Any]:
     category-level "select all" switches.
     """
     mandatory = NotificationType.mandatory_types()
+    email_excluded = NotificationType.email_excluded_types()
     prefs: dict[str, NotificationPreference] = {
         p.notification_type: p for p in NotificationPreference.objects.filter(user=user)
     }
@@ -199,21 +208,30 @@ def _build_preferences_context(user: BorrowdUser) -> dict[str, Any]:
         cat_optional_app = True
         cat_optional_email = True
         cat_optional_push = True
+        cat_has_togglable_email = False
 
         types_ctx = []
 
         for ntype, label in cat["types"]:
             is_mandatory = ntype in mandatory
+            is_email_excluded = ntype in email_excluded
             pref = prefs.get(ntype.value)
             app_on = is_mandatory or (pref is not None and pref.in_app_enabled)
-            email_on = is_mandatory or (pref is not None and pref.email_enabled)
+            email_on = not is_email_excluded and (
+                is_mandatory or (pref is not None and pref.email_enabled)
+            )
             push_on = pref is not None and pref.push_enabled
 
             if not is_mandatory:
                 if not app_on:
                     cat_optional_app = False
-                if not email_on:
+                # Excluded types don't count toward "all optional types have
+                # email on" -- their email is forced off, the same way
+                # mandatory types are excluded for forcing it on.
+                if not is_email_excluded and not email_on:
                     cat_optional_email = False
+                if not is_email_excluded:
+                    cat_has_togglable_email = True
 
             # push are not mendatory
             if not push_on:
@@ -224,6 +242,7 @@ def _build_preferences_context(user: BorrowdUser) -> dict[str, Any]:
                     "type_value": ntype.value,
                     "label": label,
                     "is_mandatory": is_mandatory,
+                    "is_email_excluded": is_email_excluded,
                     "app_enabled": app_on,
                     "email_enabled": email_on,
                     "push_enabled": push_on,
@@ -238,6 +257,7 @@ def _build_preferences_context(user: BorrowdUser) -> dict[str, Any]:
                 "all_optional_app_enabled": cat_optional_app,
                 "all_optional_email_enabled": cat_optional_email,
                 "all_optional_push_enabled": cat_optional_push,
+                "has_togglable_email": cat_has_togglable_email,
             }
         )
 
@@ -249,6 +269,7 @@ def _build_preferences_context(user: BorrowdUser) -> dict[str, Any]:
                 "email": type_ctx["email_enabled"],
                 "push": type_ctx["push_enabled"],
                 "is_mandatory": type_ctx["is_mandatory"],
+                "is_email_excluded": type_ctx["is_email_excluded"],
                 "category": cat_ctx["slug"],
             }
 
@@ -291,6 +312,12 @@ def toggle_preference(request: HttpRequest) -> HttpResponse:
     ):
         return HttpResponse(status=403)
 
+    if (
+        ntype in NotificationType.email_excluded_types()
+        and ChannelType(channel_value) == ChannelType.EMAIL
+    ):
+        return HttpResponse(status=403)
+
     field_name = str(ChannelType(channel_value).label)
     obj, _ = NotificationPreference.objects.get_or_create(
         user=user,
@@ -327,7 +354,7 @@ def bulk_toggle_preferences(request: HttpRequest) -> HttpResponse:
     if channel == ChannelType.PUSH:
         types_to_update = _all_types_for_scope(scope)
     else:
-        types_to_update = _optional_types_for_scope(scope)
+        types_to_update = _optional_types_for_scope(scope, channel)
     if not types_to_update:
         return HttpResponse(status=400)
 

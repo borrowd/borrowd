@@ -57,6 +57,7 @@ from .models import (
 )
 from .views import (
     NOTIFICATION_CATEGORIES,
+    _build_preferences_context,
     _notification_action_url,
     _notification_avatar_content,
     app_channel_qs,
@@ -2060,6 +2061,145 @@ class NotificationPreferenceToggleViewTests(TestCase):
         response = self._bulk_toggle("nonexistent-scope", "EMAIL", False)
         self.assertEqual(response.status_code, 400)
 
+    def test_toggle_email_excluded_type_returns_403(self) -> None:
+        """Attempting to enable EMAIL for an onboarding nudge is rejected --
+        those types never go out over email."""
+        pref_before = NotificationPreference.objects.get(
+            user=self.user,
+            notification_type=NotificationType.ITEM_ADDED_NEEDS_GROUP.value,
+        )
+        response = self._toggle(NotificationType.ITEM_ADDED_NEEDS_GROUP, "EMAIL", True)
+        self.assertEqual(response.status_code, 403)
+        pref_after = NotificationPreference.objects.get(
+            user=self.user,
+            notification_type=NotificationType.ITEM_ADDED_NEEDS_GROUP.value,
+        )
+        self.assertEqual(pref_before.email_enabled, pref_after.email_enabled)
+
+    def test_toggle_email_excluded_type_allows_in_app_channel(self) -> None:
+        """The in-app channel is unaffected by the email exclusion."""
+        response = self._toggle(NotificationType.ITEM_ADDED_NEEDS_GROUP, "APP", False)
+        self.assertEqual(response.status_code, 204)
+        pref = NotificationPreference.objects.get(
+            user=self.user,
+            notification_type=NotificationType.ITEM_ADDED_NEEDS_GROUP.value,
+        )
+        self.assertFalse(pref.in_app_enabled)
+
+    def test_bulk_toggle_email_for_onboarding_scope_returns_400(self) -> None:
+        """Every type in the onboarding category is email-excluded, so
+        there's nothing for a bulk EMAIL toggle in that scope to update."""
+        response = self._bulk_toggle("onboarding", "EMAIL", True)
+        self.assertEqual(response.status_code, 400)
+
+    def test_bulk_toggle_in_app_for_onboarding_scope_still_works(self) -> None:
+        """Bulk in-app toggling for onboarding types is unaffected."""
+        response = self._bulk_toggle("onboarding", "APP", False)
+        self.assertEqual(response.status_code, 204)
+        pref = NotificationPreference.objects.get(
+            user=self.user,
+            notification_type=NotificationType.ITEM_ADDED_NEEDS_GROUP.value,
+        )
+        self.assertFalse(pref.in_app_enabled)
+
+    def test_bulk_toggle_master_email_updates_others_and_skips_excluded(self) -> None:
+        """A master-scope bulk EMAIL disable must update ordinary types
+        while leaving email-excluded onboarding types' stored value alone."""
+        NotificationPreference.objects.update_or_create(
+            user=self.user,
+            notification_type=NotificationType.ITEM_REQUEST_ACCEPTED.value,
+            defaults={
+                "in_app_enabled": True,
+                "email_enabled": True,
+                "push_enabled": False,
+            },
+        )
+        NotificationPreference.objects.update_or_create(
+            user=self.user,
+            notification_type=NotificationType.ITEM_ADDED_NEEDS_GROUP.value,
+            defaults={
+                "in_app_enabled": True,
+                "email_enabled": True,
+                "push_enabled": False,
+            },
+        )
+
+        response = self._bulk_toggle("master", "EMAIL", False)
+        self.assertEqual(response.status_code, 204)
+
+        accepted = NotificationPreference.objects.get(
+            user=self.user,
+            notification_type=NotificationType.ITEM_REQUEST_ACCEPTED.value,
+        )
+        self.assertFalse(accepted.email_enabled)
+
+        onboarding = NotificationPreference.objects.get(
+            user=self.user,
+            notification_type=NotificationType.ITEM_ADDED_NEEDS_GROUP.value,
+        )
+        self.assertTrue(onboarding.email_enabled)
+
+
+class PreferencesContextEmailExclusionTests(TestCase):
+    """_build_preferences_context's handling of email-excluded types: the
+    per-type flag, forcing email off despite a stale enabled row, and the
+    per-category flag that drives whether a category's bulk EMAIL switch is
+    rendered as toggleable (see templates/notifications/preferences.html)."""
+
+    def setUp(self) -> None:
+        self.user = BorrowdUser.objects.create_user(
+            username="user", email="user@example.com", password="password"
+        )
+
+    def _type_ctx(
+        self, context: dict[str, Any], ntype: NotificationType
+    ) -> dict[str, Any]:
+        for cat in context["categories"]:
+            for type_ctx in cat["types"]:
+                if type_ctx["type_value"] == ntype.value:
+                    result: dict[str, Any] = type_ctx
+                    return result
+        raise AssertionError(f"{ntype} not found in preferences context")
+
+    def test_marks_email_excluded_types(self) -> None:
+        context = _build_preferences_context(self.user)
+
+        type_ctx = self._type_ctx(context, NotificationType.ITEM_ADDED_NEEDS_GROUP)
+        self.assertTrue(type_ctx["is_email_excluded"])
+
+    def test_forces_email_off_despite_a_stale_enabled_row(self) -> None:
+        NotificationPreference.objects.update_or_create(
+            user=self.user,
+            notification_type=NotificationType.ITEM_ADDED_NEEDS_GROUP.value,
+            defaults={
+                "in_app_enabled": True,
+                "email_enabled": True,
+                "push_enabled": False,
+            },
+        )
+
+        context = _build_preferences_context(self.user)
+
+        type_ctx = self._type_ctx(context, NotificationType.ITEM_ADDED_NEEDS_GROUP)
+        self.assertFalse(type_ctx["email_enabled"])
+
+    def test_onboarding_category_email_switch_is_not_togglable(self) -> None:
+        """Every type in the onboarding category is email-excluded, so its
+        category-level EMAIL switch must render disabled rather than as a
+        live control that 400s when clicked."""
+        context = _build_preferences_context(self.user)
+
+        onboarding = next(
+            cat for cat in context["categories"] if cat["slug"] == "onboarding"
+        )
+        self.assertFalse(onboarding["has_togglable_email"])
+
+    def test_lending_category_email_switch_is_togglable(self) -> None:
+        context = _build_preferences_context(self.user)
+
+        lending = next(cat for cat in context["categories"] if cat["slug"] == "lending")
+        self.assertTrue(lending["has_togglable_email"])
+
 
 class ReturnFlowNotificationTests(TestCase):
     """Tests for return-request and dispute notification emails."""
@@ -2229,9 +2369,11 @@ class NewUserPreferenceInitTests(TestCase):
             self.assertTrue(pref.email_enabled, f"{ntype} email should be enabled")
 
     def test_optional_types_are_disabled_by_default(self) -> None:
-        """Optional types start with in_app and email Enabled."""
+        """Optional types start with in_app and email Enabled, except the
+        email-excluded onboarding nudges, which start with email off."""
         user = self._make_user()
         mandatory = NotificationType.mandatory_types()
+        email_excluded = NotificationType.email_excluded_types()
         for ntype in NotificationType:
             if ntype in mandatory:
                 continue
@@ -2239,7 +2381,12 @@ class NewUserPreferenceInitTests(TestCase):
                 user=user, notification_type=ntype.value
             )
             self.assertTrue(pref.in_app_enabled, f"{ntype} in_app should be Enabled")
-            self.assertTrue(pref.email_enabled, f"{ntype} email should be Enabled")
+            if ntype in email_excluded:
+                self.assertFalse(
+                    pref.email_enabled, f"{ntype} email should be disabled"
+                )
+            else:
+                self.assertTrue(pref.email_enabled, f"{ntype} email should be Enabled")
 
     def test_push_disabled_for_all_types(self) -> None:
         """Push is off for every type at signup."""
@@ -4019,14 +4166,31 @@ class JoinGroupNudgeNotificationTests(TestCase):
 
         self.assertIn("Drill", message)
 
-    def test_email_renders_without_error(self) -> None:
+    def test_no_email_is_sent(self) -> None:
+        """Onboarding nudges are in-app only -- see
+        NotificationType.email_excluded_types()."""
         with self.captureOnCommitCallbacks(execute=True):
             self._create_item("Drill")
 
-        self.assertEqual(len(mail.outbox), 1)
-        email = mail.outbox[0]
-        self.assertEqual(email.to, [self.owner.email])
-        self.assertIn("Drill", email.body)
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_no_email_even_if_preference_row_has_email_enabled(self) -> None:
+        """The exclusion is enforced at dispatch, not just via the seeded
+        preference default -- a stale True row must not slip an email through."""
+        NotificationPreference.objects.update_or_create(
+            user=self.owner,
+            notification_type=NotificationType.ITEM_ADDED_NEEDS_GROUP.value,
+            defaults={
+                "in_app_enabled": True,
+                "email_enabled": True,
+                "push_enabled": False,
+            },
+        )
+
+        with self.captureOnCommitCallbacks(execute=True):
+            self._create_item("Drill")
+
+        self.assertEqual(len(mail.outbox), 0)
 
 
 class JoinGroupNudgePreferenceSeedMigrationTests(TestCase):
@@ -4164,14 +4328,31 @@ class AddProfilePhotoNudgeNotificationTests(TestCase):
 
         self.assertIn("Book Club", message)
 
-    def test_email_renders_without_error(self) -> None:
+    def test_no_email_is_sent(self) -> None:
+        """Onboarding nudges are in-app only -- see
+        NotificationType.email_excluded_types()."""
         with self.captureOnCommitCallbacks(execute=True):
             self._create_group("Book Club")
 
-        self.assertEqual(len(mail.outbox), 1)
-        email = mail.outbox[0]
-        self.assertEqual(email.to, [self.creator.email])
-        self.assertIn("Book Club", email.body)
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_no_email_even_if_preference_row_has_email_enabled(self) -> None:
+        """The exclusion is enforced at dispatch, not just via the seeded
+        preference default -- a stale True row must not slip an email through."""
+        NotificationPreference.objects.update_or_create(
+            user=self.creator,
+            notification_type=NotificationType.GROUP_CREATED_NEEDS_PHOTO.value,
+            defaults={
+                "in_app_enabled": True,
+                "email_enabled": True,
+                "push_enabled": False,
+            },
+        )
+
+        with self.captureOnCommitCallbacks(execute=True):
+            self._create_group("Book Club")
+
+        self.assertEqual(len(mail.outbox), 0)
 
 
 class AddProfilePhotoNudgePreferenceSeedMigrationTests(TestCase):
@@ -4430,7 +4611,9 @@ class InviteFriendsNudgeNotificationTests(TestCase):
         )
         self.assertIn("Book Club", message)
 
-    def test_email_renders_without_error(self) -> None:
+    def test_no_email_is_sent(self) -> None:
+        """Onboarding nudges are in-app only -- see
+        NotificationType.email_excluded_types()."""
         BorrowdGroup.objects.create_group(
             name="Book Club",
             created_by=self.user,
@@ -4441,10 +4624,31 @@ class InviteFriendsNudgeNotificationTests(TestCase):
         with self.captureOnCommitCallbacks(execute=True):
             self._add_photo()
 
-        self.assertEqual(len(mail.outbox), 1)
-        email = mail.outbox[0]
-        self.assertEqual(email.to, [self.user.email])
-        self.assertIn("Book Club", email.body)
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_no_email_even_if_preference_row_has_email_enabled(self) -> None:
+        """The exclusion is enforced at dispatch, not just via the seeded
+        preference default -- a stale True row must not slip an email through."""
+        BorrowdGroup.objects.create_group(
+            name="Book Club",
+            created_by=self.user,
+            updated_by=self.user,
+            membership_requires_approval=False,
+        )
+        NotificationPreference.objects.update_or_create(
+            user=self.user,
+            notification_type=NotificationType.PHOTO_ADDED_NEEDS_INVITES.value,
+            defaults={
+                "in_app_enabled": True,
+                "email_enabled": True,
+                "push_enabled": False,
+            },
+        )
+
+        with self.captureOnCommitCallbacks(execute=True):
+            self._add_photo()
+
+        self.assertEqual(len(mail.outbox), 0)
 
 
 class InviteFriendsNudgePreferenceSeedMigrationTests(TestCase):
@@ -4496,3 +4700,64 @@ class InviteFriendsNudgePreferenceSeedMigrationTests(TestCase):
             ).count(),
             1,
         )
+
+
+class DisableEmailForOnboardingTypesMigrationTests(TestCase):
+    """The 0015 migration backfills email_enabled=False for any onboarding
+    preference rows left over with a stale True value from before email
+    exclusion was enforced (migrations 0010, 0012 and 0014 originally
+    seeded these types with email_enabled=True)."""
+
+    _ONBOARDING_TYPES = (
+        NotificationType.ITEM_ADDED_NEEDS_GROUP,
+        NotificationType.GROUP_CREATED_NEEDS_PHOTO,
+        NotificationType.PHOTO_ADDED_NEEDS_INVITES,
+    )
+
+    def test_disables_email_for_existing_true_rows(self) -> None:
+        from django.apps import apps as live_apps
+
+        user = BorrowdUser.objects.create_user(
+            username="veteran", email="veteran@example.com", password="password"
+        )
+        NotificationPreference.objects.filter(
+            user=user,
+            notification_type__in=[ntype.value for ntype in self._ONBOARDING_TYPES],
+        ).update(email_enabled=True)
+
+        migration_module = importlib.import_module(
+            "borrowd_notifications.migrations.0015_disable_email_for_onboarding_types"
+        )
+        migration_module.disable_email_for_onboarding_types(live_apps, None)
+
+        for ntype in self._ONBOARDING_TYPES:
+            pref = NotificationPreference.objects.get(
+                user=user, notification_type=ntype.value
+            )
+            self.assertFalse(pref.email_enabled, f"{ntype} should have email disabled")
+
+    def test_leaves_other_types_unaffected(self) -> None:
+        from django.apps import apps as live_apps
+
+        user = BorrowdUser.objects.create_user(
+            username="veteran", email="veteran@example.com", password="password"
+        )
+        NotificationPreference.objects.update_or_create(
+            user=user,
+            notification_type=NotificationType.ITEM_REQUEST_ACCEPTED.value,
+            defaults={
+                "in_app_enabled": True,
+                "email_enabled": True,
+                "push_enabled": False,
+            },
+        )
+
+        migration_module = importlib.import_module(
+            "borrowd_notifications.migrations.0015_disable_email_for_onboarding_types"
+        )
+        migration_module.disable_email_for_onboarding_types(live_apps, None)
+
+        pref = NotificationPreference.objects.get(
+            user=user, notification_type=NotificationType.ITEM_REQUEST_ACCEPTED.value
+        )
+        self.assertTrue(pref.email_enabled)
