@@ -88,6 +88,7 @@ jobs:
       # Mirrors(mostly) .platform.app.yaml -> hooks.build
       - run: uv sync --frozen
       - run: npm ci
+      - run: npm run test:js
       - run: npm run build
       - run: uv run manage.py collectstatic --noinput
 
