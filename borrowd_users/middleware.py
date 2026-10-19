@@ -1,4 +1,5 @@
 import logging
+import re
 from collections.abc import Callable
 
 import sentry_sdk
@@ -18,18 +19,41 @@ SESSION_KEY = "activity_recorded_on"
 # skipped for the same reason: they're asset fetches, not product activity.
 _ADMIN_PATH_PREFIX = "/admin/"
 
+# These paths are only ever requested by htmx running on a fixed interval (or
+# on tab visibility/focus events) to keep notification and message badges
+# live — never by a direct user action. Without this, a user with an idle
+# background tab open would be recorded as active every poll tick.
+_POLLED_PATHS = frozenset(
+    {
+        "/notifications/notification-count/",
+        "/messages/unread-badge/",
+    }
+)
+_POLLED_PATH_PATTERN = re.compile(r"^/messages/\d+/poll/$")
 
-def _is_excluded_path(path: str) -> bool:
+# The notification inbox is both a real page a user navigates to and, via
+# that same URL, the target of its own 30s htmx refresh for the unread-count
+# badge and notification list. An htmx request to this path is always that
+# background refresh, never a direct visit, so it's excluded only when the
+# `HX-Request` header marks it as one.
+_NOTIFICATION_INBOX_PATH = "/notifications/"
+
+
+def _is_excluded_path(path: str, *, is_htmx_request: bool) -> bool:
     static_prefix = "/" + settings.STATIC_URL.lstrip("/")
     # An empty prefix (e.g. an unset MEDIA_URL) would match every path via
     # startswith(""), silently disabling tracking entirely, so only ever
     # match on a non-empty prefix.
-    excluded = (
+    excluded_prefixes = (
         prefix
         for prefix in (_ADMIN_PATH_PREFIX, static_prefix, settings.MEDIA_URL)
         if prefix
     )
-    return any(path.startswith(prefix) for prefix in excluded)
+    if any(path.startswith(prefix) for prefix in excluded_prefixes):
+        return True
+    if path in _POLLED_PATHS or _POLLED_PATH_PATTERN.match(path):
+        return True
+    return path == _NOTIFICATION_INBOX_PATH and is_htmx_request
 
 
 class RecordUserActivityMiddleware:
@@ -48,7 +72,10 @@ class RecordUserActivityMiddleware:
         # narrow to BorrowdUser here, so they're excluded without a
         # dedicated path check.
         user = request.user
-        if isinstance(user, BorrowdUser) and not _is_excluded_path(request.path):
+        is_htmx_request = request.headers.get("HX-Request") == "true"
+        if isinstance(user, BorrowdUser) and not _is_excluded_path(
+            request.path, is_htmx_request=is_htmx_request
+        ):
             self._record_if_needed(request, user)
         return self.get_response(request)
 

@@ -67,6 +67,43 @@ class RecordUserActivityMiddlewareTests(TestCase):
 
         self.assertEqual(UserActivityDay.objects.count(), 0)
 
+    def test_notification_count_poll_writes_no_row(self) -> None:
+        self.client.force_login(self.user)
+
+        self.client.get(
+            "/notifications/notification-count/", headers={"HX-Request": "true"}
+        )
+
+        self.assertEqual(UserActivityDay.objects.count(), 0)
+
+    def test_messages_unread_badge_poll_writes_no_row(self) -> None:
+        self.client.force_login(self.user)
+
+        self.client.get("/messages/unread-badge/", headers={"HX-Request": "true"})
+
+        self.assertEqual(UserActivityDay.objects.count(), 0)
+
+    def test_chat_thread_poll_writes_no_row(self) -> None:
+        self.client.force_login(self.user)
+
+        self.client.get("/messages/1/poll/", headers={"HX-Request": "true"})
+
+        self.assertEqual(UserActivityDay.objects.count(), 0)
+
+    def test_notification_inbox_htmx_refresh_writes_no_row(self) -> None:
+        self.client.force_login(self.user)
+
+        self.client.get("/notifications/", headers={"HX-Request": "true"})
+
+        self.assertEqual(UserActivityDay.objects.count(), 0)
+
+    def test_notification_inbox_direct_visit_writes_one_row(self) -> None:
+        self.client.force_login(self.user)
+
+        self.client.get("/notifications/")
+
+        self.assertEqual(UserActivityDay.objects.filter(user=self.user).count(), 1)
+
     def test_stale_session_value_from_a_previous_day_still_writes_todays_row(
         self,
     ) -> None:
@@ -106,12 +143,16 @@ class RecordUserActivityMiddlewareTests(TestCase):
 
 class IsExcludedPathTests(TestCase):
     def test_admin_static_and_media_paths_are_excluded(self) -> None:
-        self.assertTrue(_is_excluded_path("/admin/borrowd_items/item/"))
-        self.assertTrue(_is_excluded_path("/static/js/main.js"))
-        self.assertTrue(_is_excluded_path("/media/profile_pics/1.jpg"))
+        self.assertTrue(
+            _is_excluded_path("/admin/borrowd_items/item/", is_htmx_request=False)
+        )
+        self.assertTrue(_is_excluded_path("/static/js/main.js", is_htmx_request=False))
+        self.assertTrue(
+            _is_excluded_path("/media/profile_pics/1.jpg", is_htmx_request=False)
+        )
 
     def test_ordinary_path_is_not_excluded(self) -> None:
-        self.assertFalse(_is_excluded_path("/items/"))
+        self.assertFalse(_is_excluded_path("/items/", is_htmx_request=False))
 
     def test_an_empty_media_url_does_not_match_every_path(self) -> None:
         # override_settings normalizes MEDIA_URL to end with "/", turning ""
@@ -121,4 +162,21 @@ class IsExcludedPathTests(TestCase):
             mocked_settings.STATIC_URL = "static/"
             mocked_settings.MEDIA_URL = ""
 
-            self.assertFalse(_is_excluded_path("/items/"))
+            self.assertFalse(_is_excluded_path("/items/", is_htmx_request=False))
+
+    def test_fixed_polling_paths_are_excluded_regardless_of_htmx_header(
+        self,
+    ) -> None:
+        self.assertTrue(
+            _is_excluded_path(
+                "/notifications/notification-count/", is_htmx_request=False
+            )
+        )
+        self.assertTrue(
+            _is_excluded_path("/messages/unread-badge/", is_htmx_request=False)
+        )
+        self.assertTrue(_is_excluded_path("/messages/42/poll/", is_htmx_request=False))
+
+    def test_notification_inbox_is_excluded_only_for_htmx_requests(self) -> None:
+        self.assertTrue(_is_excluded_path("/notifications/", is_htmx_request=True))
+        self.assertFalse(_is_excluded_path("/notifications/", is_htmx_request=False))
