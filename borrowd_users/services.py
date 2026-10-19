@@ -11,6 +11,7 @@ from borrowd_items.models import (
     PRE_COLLECTION_TRANSACTION_STATUSES,
     AvailabilitySubscription,
     AvailabilitySubscriptionStatus,
+    CancellationReason,
     Item,
     Transaction,
     TransactionStatus,
@@ -76,13 +77,20 @@ def _cancel_open_transactions(user: BorrowdUser, deleted_by: BorrowdUser) -> Non
 
     for txn in open_transactions:
         item = txn.item
+        previous_status = TransactionStatus(txn.status)
         txn.status = TransactionStatus.CANCELLED
+        txn.cancellation_reason = CancellationReason.ACCOUNT_DELETED
         txn.updated_by = deleted_by
         # Free the counterparty's item back up. The leaving user's own items are
         # about to be soft-deleted, so there's no point flipping their status.
         if item.owner != user:
             sync_item_status(item, txn)
         txn.save()
+        # Bypasses Item.process_action(), which normally records this; do it
+        # directly so the transaction's history doesn't miss the cancellation.
+        txn._record_status_change(
+            from_status=previous_status, action=None, actor=deleted_by
+        )
 
         _notify_counterparty_of_cancellation(txn, user)
 

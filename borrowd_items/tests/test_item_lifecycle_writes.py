@@ -11,12 +11,14 @@ from django.test import TestCase
 from django.utils import timezone
 
 from borrowd_items.models import (
+    CancellationReason,
     Item,
     ItemAction,
     ItemStatus,
     ResolutionReason,
     Transaction,
     TransactionStatus,
+    TransactionStatusChange,
 )
 from borrowd_users.models import BorrowdUser
 
@@ -51,6 +53,7 @@ class LifecycleWrite:
     item_soft_deleted_after: bool = False
     owner_after: str = LENDER
     resolution_reason_after: ResolutionReason | None = None
+    cancellation_reason_after: CancellationReason | None = None
     label: str = field(default="", compare=False)
 
 
@@ -79,6 +82,7 @@ EXPECTED_WRITES: tuple[LifecycleWrite, ...] = (
         ItemStatus.REQUESTED,
         TransactionStatus.CANCELLED,
         ItemStatus.AVAILABLE,
+        cancellation_reason_after=CancellationReason.REQUESTOR_CANCELLED,
     ),
     # -- a giveaway request ----------------------------------------------
     LifecycleWrite(
@@ -105,6 +109,7 @@ EXPECTED_WRITES: tuple[LifecycleWrite, ...] = (
         ItemStatus.REQUESTED,
         TransactionStatus.CANCELLED,
         ItemStatus.AVAILABLE,
+        cancellation_reason_after=CancellationReason.REQUESTOR_CANCELLED,
     ),
     # -- accepted, item not yet handed over ------------------------------
     LifecycleWrite(
@@ -130,6 +135,7 @@ EXPECTED_WRITES: tuple[LifecycleWrite, ...] = (
         ItemStatus.RESERVED,
         TransactionStatus.CANCELLED,
         ItemStatus.AVAILABLE,
+        cancellation_reason_after=CancellationReason.REQUESTOR_CANCELLED,
     ),
     # -- collection asserted, awaiting the other party --------------------
     LifecycleWrite(
@@ -337,6 +343,9 @@ class ItemLifecycleWriteTests(TestCase):
                 self.assertEqual(txn.party2_id, self.borrower.pk)
                 self.assertEqual(txn.resolution_reason, write.resolution_reason_after)
                 self.assertEqual(
+                    txn.cancellation_reason, write.cancellation_reason_after
+                )
+                self.assertEqual(
                     item.status, write.item_status_after, f"{name}: item status"
                 )
                 self.assertEqual(
@@ -359,6 +368,37 @@ class ItemLifecycleWriteTests(TestCase):
                     self.assertEqual(txn.dispute_raised_by_id, actor.pk)
                 if write.item_soft_deleted_after:
                     self.assertEqual(item.deleted_by_id, actor.pk)
+
+                history = list(TransactionStatusChange.objects.filter(transaction=txn))
+                self.assertEqual(len(history), 1, f"{name}: history rows")
+                change = history[0]
+                self.assertEqual(
+                    change.from_status, write.source, f"{name}: from_status"
+                )
+                self.assertEqual(
+                    change.to_status,
+                    write.transaction_status_after,
+                    f"{name}: to_status",
+                )
+                self.assertEqual(change.action, write.action, f"{name}: action")
+                self.assertEqual(change.actor_id, actor.pk, f"{name}: history actor")
+                self.assertEqual(
+                    change.resolution_reason,
+                    write.resolution_reason_after,
+                    f"{name}: history resolution_reason",
+                )
+                self.assertEqual(
+                    change.cancellation_reason,
+                    write.cancellation_reason_after,
+                    f"{name}: history cancellation_reason",
+                )
+                self.assertFalse(change.backfilled, f"{name}: backfilled")
+                self.assertGreaterEqual(
+                    change.changed_at, action_started, f"{name}: changed_at"
+                )
+                self.assertLessEqual(
+                    change.changed_at, action_finished, f"{name}: changed_at"
+                )
 
     def test_inactive_counterparty_resolution_writes_for_every_eligible_state(
         self,
@@ -444,3 +484,19 @@ class ItemLifecycleWriteTests(TestCase):
                         self.assertEqual(item.deleted_at, deleted_at_before)
                         self.assertEqual(item.deleted_by_id, deleted_by_before)
                         self.assertIsNone(item.get_current_transaction_for_user(actor))
+
+                        history = list(
+                            TransactionStatusChange.objects.filter(transaction=txn)
+                        )
+                        self.assertEqual(len(history), 1, "history rows")
+                        change = history[0]
+                        self.assertEqual(change.from_status, status)
+                        self.assertEqual(change.to_status, TransactionStatus.RESOLVED)
+                        self.assertEqual(change.action, ItemAction.RESOLVE_TRANSACTION)
+                        self.assertEqual(change.actor_id, actor.pk)
+                        self.assertEqual(
+                            change.resolution_reason,
+                            ResolutionReason.OWNER_ACCOUNT_DELETED
+                            if owner_deleted
+                            else ResolutionReason.COUNTERPARTY_UNRESPONSIVE,
+                        )

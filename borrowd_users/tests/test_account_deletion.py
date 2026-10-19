@@ -18,12 +18,14 @@ from borrowd_groups.models import BorrowdGroup, Membership
 from borrowd_items.models import (
     AvailabilitySubscription,
     AvailabilitySubscriptionStatus,
+    CancellationReason,
     Item,
     ItemPhoto,
     ItemStatus,
     ListingType,
     Transaction,
     TransactionStatus,
+    TransactionStatusChange,
 )
 from borrowd_notifications.models import NotificationType
 from borrowd_users.exceptions import AccountDeletionBlocked
@@ -190,6 +192,16 @@ class AccountDeletionTransactionTests(TestCase):
         item.refresh_from_db()
         self.assertEqual(txn.status, TransactionStatus.CANCELLED)
         self.assertEqual(item.status, ItemStatus.AVAILABLE)
+        self.assertEqual(txn.cancellation_reason, CancellationReason.ACCOUNT_DELETED)
+
+        history = list(TransactionStatusChange.objects.filter(transaction=txn))
+        self.assertEqual(len(history), 1)
+        change = history[0]
+        self.assertEqual(change.from_status, TransactionStatus.REQUESTED)
+        self.assertEqual(change.to_status, TransactionStatus.CANCELLED)
+        self.assertIsNone(change.action)
+        self.assertEqual(change.actor, self.leaver)
+        self.assertEqual(change.cancellation_reason, CancellationReason.ACCOUNT_DELETED)
 
     def test_cancels_open_request_on_own_item(self) -> None:
         # Someone requested the leaver's item (leaver is owner/party1).
@@ -421,6 +433,11 @@ class AccountDeletionBorrowGuardTests(TestCase):
         self.assertEqual(txn.status, TransactionStatus.CANCELLED)
         item.refresh_from_db()
         self.assertEqual(item.status, ItemStatus.AVAILABLE)
+
+        change = TransactionStatusChange.objects.get(transaction=txn)
+        self.assertEqual(change.from_status, TransactionStatus.ACCEPTED)
+        self.assertEqual(change.to_status, TransactionStatus.CANCELLED)
+        self.assertEqual(change.cancellation_reason, CancellationReason.ACCOUNT_DELETED)
 
 
 @override_settings(MEDIA_ROOT=_TEST_MEDIA_ROOT)
