@@ -6,7 +6,7 @@ from django.db.models import Q
 from django.utils import timezone
 from notifications.signals import notify
 
-from borrowd_groups.models import Membership, MembershipStatus
+from borrowd_groups.models import DepartureReason, Membership, MembershipStatus
 from borrowd_items.models import (
     PRE_COLLECTION_TRANSACTION_STATUSES,
     AvailabilitySubscription,
@@ -197,12 +197,23 @@ def _remove_group_memberships(user: BorrowdUser) -> None:
     Hard-delete every group membership row. Reuses `remove_user` with the
     leave-group bypass so a departing sole moderator triggers the existing
     "needs a new moderator" handoff notification instead of being blocked.
-    Groups left with no active members are hard-deleted
+    Groups left with no active members are hard-deleted.
+
+    A still-PENDING membership is just withdrawn, not recorded as a
+    departure: the user was never accepted into the group, so there's
+    nothing to say they "left" (mirrors CancelMembershipRequestView).
     """
     memberships = list(Membership.objects.filter(user=user).select_related("group"))
     for membership in memberships:
         group = membership.group
-        group.remove_user(user, bypass_last_moderator_check=True)
+        if membership.status == MembershipStatus.PENDING:
+            membership.delete()
+        else:
+            group.remove_user(
+                user,
+                bypass_last_moderator_check=True,
+                reason=DepartureReason.ACCOUNT_DELETED,
+            )
 
         remaining_active_members = Membership.objects.filter(
             group=group,

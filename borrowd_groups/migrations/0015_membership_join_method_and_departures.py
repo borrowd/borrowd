@@ -40,6 +40,20 @@ class Migration(migrations.Migration):
                     ),
                 ),
                 (
+                    "username",
+                    models.CharField(
+                        help_text="The departed user's username at the time they left, kept in case `user` is later hard-deleted or anonymized.",
+                        max_length=150,
+                    ),
+                ),
+                (
+                    "group_name",
+                    models.CharField(
+                        help_text="The group's name at the time of departure, kept in case `group` is later hard-deleted.",
+                        max_length=50,
+                    ),
+                ),
+                (
                     "joined_at",
                     models.DateTimeField(
                         help_text="The departed membership's original joined_at."
@@ -52,9 +66,24 @@ class Migration(migrations.Migration):
                     ),
                 ),
                 (
+                    "departure_reason",
+                    models.CharField(
+                        choices=[
+                            ("left_voluntarily", "Left the group voluntarily"),
+                            ("removed_by_moderator", "Removed by a moderator"),
+                            ("account_deleted", "Closed their account"),
+                        ],
+                        help_text="Why the membership ended.",
+                        max_length=32,
+                    ),
+                ),
+                (
                     "group",
                     models.ForeignKey(
-                        on_delete=django.db.models.deletion.CASCADE,
+                        blank=True,
+                        default=None,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
                         related_name="+",
                         to="borrowd_groups.borrowdgroup",
                     ),
@@ -64,7 +93,7 @@ class Migration(migrations.Migration):
                     models.ForeignKey(
                         blank=True,
                         default=None,
-                        help_text="The moderator who removed this member. NULL when they left voluntarily.",
+                        help_text="The moderator who removed this member. NULL when they left voluntarily or closed their account.",
                         null=True,
                         on_delete=django.db.models.deletion.SET_NULL,
                         related_name="+",
@@ -74,7 +103,10 @@ class Migration(migrations.Migration):
                 (
                     "user",
                     models.ForeignKey(
-                        on_delete=django.db.models.deletion.CASCADE,
+                        blank=True,
+                        default=None,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
                         related_name="+",
                         to=settings.AUTH_USER_MODEL,
                     ),

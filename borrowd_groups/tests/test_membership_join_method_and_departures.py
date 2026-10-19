@@ -4,6 +4,7 @@ from django.urls import reverse
 from borrowd_groups.exceptions import ModeratorRequiredException
 from borrowd_groups.models import (
     BorrowdGroup,
+    DepartureReason,
     Membership,
     MembershipDeparture,
     MembershipJoinMethod,
@@ -113,6 +114,9 @@ class MembershipDepartureTests(TestCase):
         departure = departures[0]
         self.assertEqual(departure.joined_at, joined_at)
         self.assertIsNone(departure.removed_by)
+        self.assertEqual(departure.departure_reason, DepartureReason.LEFT_VOLUNTARILY)
+        self.assertEqual(departure.username, self.member.username)
+        self.assertEqual(departure.group_name, self.group.name)
         self.assertFalse(
             Membership.objects.filter(user=self.member, group=self.group).exists()
         )
@@ -134,6 +138,9 @@ class MembershipDepartureTests(TestCase):
         departure = departures[0]
         self.assertEqual(departure.joined_at, joined_at)
         self.assertEqual(departure.removed_by, self.moderator)
+        self.assertEqual(
+            departure.departure_reason, DepartureReason.REMOVED_BY_MODERATOR
+        )
         self.assertFalse(
             Membership.objects.filter(user=self.member, group=self.group).exists()
         )
@@ -175,6 +182,30 @@ class MembershipDepartureTests(TestCase):
                 user=requester, group=private_group
             ).exists()
         )
+
+    def test_departure_survives_hard_deletion_of_the_user(self) -> None:
+        self.group.remove_user(self.member, bypass_last_moderator_check=True)
+        departure = MembershipDeparture.objects.get(group=self.group)
+        departed_username = self.member.username
+
+        self.member.delete()
+
+        departure.refresh_from_db()
+        self.assertIsNone(departure.user)
+        self.assertEqual(departure.username, departed_username)
+        self.assertEqual(departure.group, self.group)
+
+    def test_departure_survives_hard_deletion_of_the_group(self) -> None:
+        self.group.remove_user(self.member, bypass_last_moderator_check=True)
+        departure = MembershipDeparture.objects.get(user=self.member)
+        group_name = self.group.name
+
+        self.group.delete()
+
+        departure.refresh_from_db()
+        self.assertIsNone(departure.group)
+        self.assertEqual(departure.group_name, group_name)
+        self.assertEqual(departure.user, self.member)
 
     def test_cancelling_a_pending_request_does_not_write_a_departure_row(self) -> None:
         private_group = BorrowdGroup.objects.create(

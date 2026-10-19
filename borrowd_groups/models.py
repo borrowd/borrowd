@@ -202,13 +202,22 @@ class BorrowdGroup(Model):
         user: BorrowdUser,
         bypass_last_moderator_check: bool = False,
         removed_by: BorrowdUser | None = None,
+        reason: "DepartureReason | None" = None,
     ) -> None:
         """
         Remove a user from the group.
 
         `removed_by` is the moderator performing the removal; leave it
-        NULL when the user is leaving on their own.
+        NULL when the user is leaving on their own. `reason` defaults to
+        inferring LEFT_VOLUNTARILY/REMOVED_BY_MODERATOR from `removed_by`;
+        pass it explicitly for a departure that's neither, such as the
+        user's account being closed.
         """
+        resolved_reason = reason or (
+            DepartureReason.REMOVED_BY_MODERATOR
+            if removed_by
+            else DepartureReason.LEFT_VOLUNTARILY
+        )
         with transaction.atomic():
             membership: Membership = Membership.objects.get(user=user, group=self)
 
@@ -230,8 +239,11 @@ class BorrowdGroup(Model):
             # moderator check), this rolls back along with it.
             MembershipDeparture.objects.create(
                 user=membership.user,
+                username=membership.user.username,
                 group=self,
+                group_name=self.name,
                 joined_at=membership.joined_at,
+                departure_reason=resolved_reason,
                 removed_by=removed_by,
             )
             membership.delete()
@@ -345,19 +357,66 @@ class Membership(Model):
         ]
 
 
+class DepartureReason(TextChoices):
+    """
+    Why a Membership ended via BorrowdGroup.remove_user(). Distinguishes a
+    member's own choice to leave from their account being closed out from
+    under them, which `removed_by` alone can't: both leave it NULL.
+    """
+
+    LEFT_VOLUNTARILY = ("left_voluntarily", "Left the group voluntarily")
+    REMOVED_BY_MODERATOR = ("removed_by_moderator", "Removed by a moderator")
+    ACCOUNT_DELETED = ("account_deleted", "Closed their account")
+
+
 class MembershipDeparture(Model):
     """
     One row per membership that ends via the hard delete BorrowdGroup
     remove_user() performs, preserving what that delete otherwise loses:
     who was in the group, how long, and whether they left or were removed.
+
+    `user` and `group` are SET_NULL rather than CASCADE: a later hard
+    delete of either (an account purge, a group's last member leaving)
+    must not silently erase this history. The username/group_name
+    snapshots keep each row legible even once that happens.
     """
 
-    user = ForeignKey(BorrowdUser, on_delete=CASCADE, related_name="+")
-    group = ForeignKey(BorrowdGroup, on_delete=CASCADE, related_name="+")
+    user = ForeignKey(
+        BorrowdUser,
+        null=True,
+        blank=True,
+        default=None,
+        on_delete=SET_NULL,
+        related_name="+",
+    )
+    username = CharField(
+        max_length=150,
+        help_text=(
+            "The departed user's username at the time they left, kept in "
+            "case `user` is later hard-deleted or anonymized."
+        ),
+    )
+    group = ForeignKey(
+        BorrowdGroup,
+        null=True,
+        blank=True,
+        default=None,
+        on_delete=SET_NULL,
+        related_name="+",
+    )
+    group_name = CharField(
+        max_length=50,
+        help_text="The group's name at the time of departure, kept in case `group` is later hard-deleted.",
+    )
     joined_at = DateTimeField(help_text="The departed membership's original joined_at.")
     left_at = DateTimeField(
         auto_now_add=True,
         help_text="When the membership was removed.",
+    )
+    departure_reason = CharField(
+        max_length=32,
+        choices=DepartureReason.choices,
+        help_text="Why the membership ended.",
     )
     removed_by = ForeignKey(
         BorrowdUser,
@@ -366,5 +425,5 @@ class MembershipDeparture(Model):
         default=None,
         on_delete=SET_NULL,
         related_name="+",
-        help_text="The moderator who removed this member. NULL when they left voluntarily.",
+        help_text="The moderator who removed this member. NULL when they left voluntarily or closed their account.",
     )
