@@ -1,5 +1,7 @@
 # Contributing
 
+Using AI tools? Please read our [AI policy](AI_POLICY.md) before opening a pull request.
+
 ## Dev env setup
 
 This project uses:
