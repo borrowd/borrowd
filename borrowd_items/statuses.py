@@ -188,3 +188,16 @@ class ResolutionReason(TextChoices):
         "dispute_item_not_returned",
         "Disputed item was not returned",
     )
+
+
+class CancellationReason(TextChoices):
+    """
+    Why a Transaction was cancelled before collection. Set alongside
+    TransactionStatus.CANCELLED.
+    """
+
+    REQUESTOR_CANCELLED = ("requestor_cancelled", "Requestor cancelled the request")
+    ACCOUNT_DELETED = (
+        "account_deleted",
+        "A party to the request closed their account",
+    )

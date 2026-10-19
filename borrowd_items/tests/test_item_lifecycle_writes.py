@@ -11,6 +11,7 @@ from django.test import TestCase
 from django.utils import timezone
 
 from borrowd_items.models import (
+    CancellationReason,
     Item,
     ItemAction,
     ItemStatus,
@@ -52,6 +53,7 @@ class LifecycleWrite:
     item_soft_deleted_after: bool = False
     owner_after: str = LENDER
     resolution_reason_after: ResolutionReason | None = None
+    cancellation_reason_after: CancellationReason | None = None
     label: str = field(default="", compare=False)
 
 
@@ -80,6 +82,7 @@ EXPECTED_WRITES: tuple[LifecycleWrite, ...] = (
         ItemStatus.REQUESTED,
         TransactionStatus.CANCELLED,
         ItemStatus.AVAILABLE,
+        cancellation_reason_after=CancellationReason.REQUESTOR_CANCELLED,
     ),
     # -- a giveaway request ----------------------------------------------
     LifecycleWrite(
@@ -106,6 +109,7 @@ EXPECTED_WRITES: tuple[LifecycleWrite, ...] = (
         ItemStatus.REQUESTED,
         TransactionStatus.CANCELLED,
         ItemStatus.AVAILABLE,
+        cancellation_reason_after=CancellationReason.REQUESTOR_CANCELLED,
     ),
     # -- accepted, item not yet handed over ------------------------------
     LifecycleWrite(
@@ -131,6 +135,7 @@ EXPECTED_WRITES: tuple[LifecycleWrite, ...] = (
         ItemStatus.RESERVED,
         TransactionStatus.CANCELLED,
         ItemStatus.AVAILABLE,
+        cancellation_reason_after=CancellationReason.REQUESTOR_CANCELLED,
     ),
     # -- collection asserted, awaiting the other party --------------------
     LifecycleWrite(
@@ -338,6 +343,9 @@ class ItemLifecycleWriteTests(TestCase):
                 self.assertEqual(txn.party2_id, self.borrower.pk)
                 self.assertEqual(txn.resolution_reason, write.resolution_reason_after)
                 self.assertEqual(
+                    txn.cancellation_reason, write.cancellation_reason_after
+                )
+                self.assertEqual(
                     item.status, write.item_status_after, f"{name}: item status"
                 )
                 self.assertEqual(
@@ -378,6 +386,11 @@ class ItemLifecycleWriteTests(TestCase):
                     change.resolution_reason,
                     write.resolution_reason_after,
                     f"{name}: history resolution_reason",
+                )
+                self.assertEqual(
+                    change.cancellation_reason,
+                    write.cancellation_reason_after,
+                    f"{name}: history cancellation_reason",
                 )
                 self.assertFalse(change.backfilled, f"{name}: backfilled")
                 self.assertGreaterEqual(

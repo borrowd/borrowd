@@ -51,6 +51,7 @@ from .statuses import (
 )
 from .statuses import REQUEST_TRANSACTION_STATUSES as REQUEST_TRANSACTION_STATUSES
 from .statuses import TERMINAL_TRANSACTION_STATUSES as TERMINAL_TRANSACTION_STATUSES
+from .statuses import CancellationReason as CancellationReason
 from .statuses import ItemAction as ItemAction
 from .statuses import ItemStatus as ItemStatus
 from .statuses import ResolutionReason as ResolutionReason
@@ -823,6 +824,9 @@ class Item(Model):
                 case ItemAction.CANCEL_REQUEST:
                     # The requestor cancels the Request.
                     current_tx.status = TransactionStatus.CANCELLED
+                    current_tx.cancellation_reason = (
+                        CancellationReason.REQUESTOR_CANCELLED
+                    )
                     current_tx.updated_by = user
                     current_tx.save()
                 case ItemAction.RESOLVE_TRANSACTION:
@@ -1060,6 +1064,17 @@ class Transaction(Model):
             "dual-confirmation flow. NULL for normally-completed Transactions."
         ),
     )
+    cancellation_reason = CharField(
+        max_length=32,
+        choices=CancellationReason.choices,
+        null=True,
+        blank=True,
+        default=None,
+        help_text=(
+            "Why the Transaction was cancelled before collection. NULL for "
+            "Transactions that didn't end in CANCELLED."
+        ),
+    )
     return_requested_at = DateTimeField(
         null=True,
         blank=True,
@@ -1169,6 +1184,11 @@ class Transaction(Model):
             resolution_reason=(
                 self.resolution_reason
                 if self.status == TransactionStatus.RESOLVED
+                else None
+            ),
+            cancellation_reason=(
+                self.cancellation_reason
+                if self.status == TransactionStatus.CANCELLED
                 else None
             ),
         )
@@ -1350,6 +1370,14 @@ class TransactionStatusChange(Model):
         blank=True,
         default=None,
         help_text="Why the transaction was force-resolved. Set only when to_status is RESOLVED.",
+    )
+    cancellation_reason = CharField(
+        max_length=32,
+        choices=CancellationReason.choices,
+        null=True,
+        blank=True,
+        default=None,
+        help_text="Why the transaction was cancelled. Set only when to_status is CANCELLED.",
     )
     # Not auto_now_add: that would override any explicitly supplied value,
     # which the backfill migration relies on to set this to each

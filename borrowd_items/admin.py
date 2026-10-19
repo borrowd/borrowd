@@ -18,6 +18,7 @@ class TransactionStatusChangeInline(
         "action",
         "actor",
         "resolution_reason",
+        "cancellation_reason",
         "backfilled",
     )
     readonly_fields = fields
