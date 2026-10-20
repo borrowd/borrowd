@@ -115,7 +115,7 @@ class MembershipDepartureTests(TestCase):
         self.assertEqual(departure.joined_at, joined_at)
         self.assertIsNone(departure.removed_by)
         self.assertEqual(departure.departure_reason, DepartureReason.LEFT_VOLUNTARILY)
-        self.assertEqual(departure.username, self.member.username)
+        self.assertEqual(departure.departed_user_id, self.member.pk)
         self.assertEqual(departure.group_name, self.group.name)
         self.assertFalse(
             Membership.objects.filter(user=self.member, group=self.group).exists()
@@ -186,13 +186,13 @@ class MembershipDepartureTests(TestCase):
     def test_departure_survives_hard_deletion_of_the_user(self) -> None:
         self.group.remove_user(self.member, bypass_last_moderator_check=True)
         departure = MembershipDeparture.objects.get(group=self.group)
-        departed_username = self.member.username
+        departed_user_id = self.member.pk
 
         self.member.delete()
 
         departure.refresh_from_db()
         self.assertIsNone(departure.user)
-        self.assertEqual(departure.username, departed_username)
+        self.assertEqual(departure.departed_user_id, departed_user_id)
         self.assertEqual(departure.group, self.group)
 
     def test_departure_survives_hard_deletion_of_the_group(self) -> None:

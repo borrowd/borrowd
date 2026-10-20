@@ -40,10 +40,9 @@ class Migration(migrations.Migration):
                     ),
                 ),
                 (
-                    "username",
-                    models.CharField(
-                        help_text="The departed user's username at the time they left, kept in case `user` is later hard-deleted or anonymized.",
-                        max_length=150,
+                    "departed_user_id",
+                    models.PositiveBigIntegerField(
+                        help_text="The departed user's id, kept in case `user` is later hard-deleted."
                     ),
                 ),
                 (

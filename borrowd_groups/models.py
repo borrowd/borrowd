@@ -15,6 +15,7 @@ from django.db.models import (
     ManyToManyField,
     Model,
     OneToOneField,
+    PositiveBigIntegerField,
     TextChoices,
     TextField,
     UniqueConstraint,
@@ -239,7 +240,7 @@ class BorrowdGroup(Model):
             # moderator check), this rolls back along with it.
             MembershipDeparture.objects.create(
                 user=membership.user,
-                username=membership.user.username,
+                departed_user_id=membership.user_id,
                 group=self,
                 group_name=self.name,
                 joined_at=membership.joined_at,
@@ -377,8 +378,11 @@ class MembershipDeparture(Model):
 
     `user` and `group` are SET_NULL rather than CASCADE: a later hard
     delete of either (an account purge, a group's last member leaving)
-    must not silently erase this history. The username/group_name
-    snapshots keep each row legible even once that happens.
+    must not silently erase this history. `departed_user_id` and
+    `group_name` keep each row identifiable even once that happens;
+    `departed_user_id` is a plain id rather than, say, a username
+    snapshot, since usernames here are email addresses and this table
+    must not retain PII past account deletion.
     """
 
     user = ForeignKey(
@@ -389,12 +393,8 @@ class MembershipDeparture(Model):
         on_delete=SET_NULL,
         related_name="+",
     )
-    username = CharField(
-        max_length=150,
-        help_text=(
-            "The departed user's username at the time they left, kept in "
-            "case `user` is later hard-deleted or anonymized."
-        ),
+    departed_user_id = PositiveBigIntegerField(
+        help_text="The departed user's id, kept in case `user` is later hard-deleted.",
     )
     group = ForeignKey(
         BorrowdGroup,
