@@ -548,9 +548,11 @@ class RemoveMemberView(LoginRequiredMixin, View):
             messages.error(request, "Group not found.")
             return redirect("borrowd_groups:group-list")
 
+        actor = get_authenticated_user(request)
+
         # Check if the requesting user is a moderator
         is_moderator = Membership.objects.filter(
-            user=get_authenticated_user(request), group=group, is_moderator=True
+            user=actor, group=group, is_moderator=True
         ).exists()
 
         if not is_moderator:
@@ -574,7 +576,7 @@ class RemoveMemberView(LoginRequiredMixin, View):
         # their inherited object-level permissions on other members' items.
         member_name = membership.user.profile.full_name()
         try:
-            group.remove_user(membership.user)
+            group.remove_user(membership.user, removed_by=actor)
         except ModeratorRequiredException:
             messages.error(
                 request,

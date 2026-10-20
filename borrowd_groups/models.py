@@ -2,6 +2,7 @@ from typing import Any  # Unfortunately needed for more mypy shenanigans
 
 from django.contrib.auth.models import Group
 from django.core.validators import FileExtensionValidator
+from django.db import transaction
 from django.db.models import (
     CASCADE,
     DO_NOTHING,
@@ -14,6 +15,7 @@ from django.db.models import (
     ManyToManyField,
     Model,
     OneToOneField,
+    PositiveBigIntegerField,
     TextChoices,
     TextField,
     UniqueConstraint,
@@ -176,11 +178,22 @@ class BorrowdGroup(Model):
         else:
             default_status = MembershipStatus.ACTIVE
 
+        # add_user() has exactly two callers: the group-creation signal
+        # (the creator's own membership) and the invite-accept view. An
+        # invite link is the only way to join an existing group today, so
+        # anything that isn't the creator joined via invite.
+        join_method = (
+            MembershipJoinMethod.GROUP_CREATOR
+            if user.pk == self.created_by_id
+            else MembershipJoinMethod.JOINED_GROUP
+        )
+
         membership: Membership = Membership.objects.create(
             user=user,
             group=self,
             status=default_status,
             is_moderator=is_moderator,
+            join_method=join_method,
         )
 
         return membership
@@ -189,27 +202,52 @@ class BorrowdGroup(Model):
         self,
         user: BorrowdUser,
         bypass_last_moderator_check: bool = False,
+        removed_by: BorrowdUser | None = None,
+        reason: "DepartureReason | None" = None,
     ) -> None:
         """
         Remove a user from the group.
+
+        `removed_by` is the moderator performing the removal; leave it
+        NULL when the user is leaving on their own. `reason` defaults to
+        inferring LEFT_VOLUNTARILY/REMOVED_BY_MODERATOR from `removed_by`;
+        pass it explicitly for a departure that's neither, such as the
+        user's account being closed.
         """
-        membership: Membership = Membership.objects.get(user=user, group=self)
+        resolved_reason = reason or (
+            DepartureReason.REMOVED_BY_MODERATOR
+            if removed_by
+            else DepartureReason.LEFT_VOLUNTARILY
+        )
+        with transaction.atomic():
+            membership: Membership = Membership.objects.get(user=user, group=self)
 
-        # Allow specific flows, such as leaving a group, to bypass the
-        # last-moderator signal check.
-        if bypass_last_moderator_check:
-            membership._bypass_last_moderator_check = True
+            # Allow specific flows, such as leaving a group, to bypass the
+            # last-moderator signal check.
+            if bypass_last_moderator_check:
+                membership._bypass_last_moderator_check = True
 
-        # Remove the user's group membership.
-        perms_group = self.perms_group
-        if perms_group is None:
-            raise ValueError(
-                "This BorrowdGroup has no perms_group; cannot remove membership."
+            # Remove the user's group membership.
+            perms_group = self.perms_group
+            if perms_group is None:
+                raise ValueError(
+                    "This BorrowdGroup has no perms_group; cannot remove membership."
+                )
+            user.groups.remove(perms_group)
+
+            # Recorded immediately before the hard delete, inside the same
+            # atomic block: if the delete below fails (e.g. the last-
+            # moderator check), this rolls back along with it.
+            MembershipDeparture.objects.create(
+                user=membership.user,
+                departed_user_id=membership.user_id,
+                group=self,
+                group_name=self.name,
+                joined_at=membership.joined_at,
+                departure_reason=resolved_reason,
+                removed_by=removed_by,
             )
-        user.groups.remove(perms_group)
-
-        # Remove the group membership record.
-        membership.delete()
+            membership.delete()
 
     def update_user_membership(
         self,
@@ -245,6 +283,11 @@ class MembershipStatus(TextChoices):
     SUSPENDED = ("SUSPENDED", "Suspended")
     BANNED = ("BANNED", "Banned")
     ENDED = ("ENDED", "Ended")
+
+
+class MembershipJoinMethod(TextChoices):
+    GROUP_CREATOR = ("GROUP_CREATOR", "Created the group")
+    JOINED_GROUP = ("JOINED_GROUP", "Joined the group")
 
 
 class Membership(Model):
@@ -297,8 +340,90 @@ class Membership(Model):
             "May be useful in unfortunate cases of suspension / banning."
         ),
     )
+    join_method = CharField(
+        max_length=20,
+        choices=MembershipJoinMethod.choices,
+        null=True,
+        blank=True,
+        default=None,
+        help_text=(
+            "How this membership began. NULL for memberships predating this "
+            "field, or whose group's creator couldn't be determined."
+        ),
+    )
 
     class Meta:
         constraints = [
             UniqueConstraint(fields=["user", "group"], name="unique_membership")
         ]
+
+
+class DepartureReason(TextChoices):
+    """
+    Why a Membership ended via BorrowdGroup.remove_user(). Distinguishes a
+    member's own choice to leave from their account being closed out from
+    under them, which `removed_by` alone can't: both leave it NULL.
+    """
+
+    LEFT_VOLUNTARILY = ("left_voluntarily", "Left the group voluntarily")
+    REMOVED_BY_MODERATOR = ("removed_by_moderator", "Removed by a moderator")
+    ACCOUNT_DELETED = ("account_deleted", "Closed their account")
+
+
+class MembershipDeparture(Model):
+    """
+    One row per membership that ends via the hard delete BorrowdGroup
+    remove_user() performs, preserving what that delete otherwise loses:
+    who was in the group, how long, and whether they left or were removed.
+
+    `user` and `group` are SET_NULL rather than CASCADE: a later hard
+    delete of either (an account purge, a group's last member leaving)
+    must not silently erase this history. `departed_user_id` and
+    `group_name` keep each row identifiable even once that happens;
+    `departed_user_id` is a plain id rather than, say, a username
+    snapshot, since usernames here are email addresses and this table
+    must not retain PII past account deletion.
+    """
+
+    user = ForeignKey(
+        BorrowdUser,
+        null=True,
+        blank=True,
+        default=None,
+        on_delete=SET_NULL,
+        related_name="+",
+    )
+    departed_user_id = PositiveBigIntegerField(
+        help_text="The departed user's id, kept in case `user` is later hard-deleted.",
+    )
+    group = ForeignKey(
+        BorrowdGroup,
+        null=True,
+        blank=True,
+        default=None,
+        on_delete=SET_NULL,
+        related_name="+",
+    )
+    group_name = CharField(
+        max_length=50,
+        help_text="The group's name at the time of departure, kept in case `group` is later hard-deleted.",
+    )
+    joined_at = DateTimeField(help_text="The departed membership's original joined_at.")
+    left_at = DateTimeField(
+        auto_now_add=True,
+        help_text="When the membership was removed.",
+    )
+    departure_reason = CharField(
+        max_length=32,
+        choices=DepartureReason.choices,
+        help_text="Why the membership ended.",
+    )
+    removed_by = ForeignKey(
+        BorrowdUser,
+        null=True,
+        blank=True,
+        default=None,
+        on_delete=SET_NULL,
+        related_name="+",
+        help_text="The moderator who removed this member. NULL when they left voluntarily or closed their account.",
+    )

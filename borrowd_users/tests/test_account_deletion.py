@@ -14,7 +14,13 @@ from django.urls import NoReverseMatch, reverse
 from notifications.models import Notification
 from PIL import Image
 
-from borrowd_groups.models import BorrowdGroup, Membership
+from borrowd_groups.models import (
+    BorrowdGroup,
+    DepartureReason,
+    Membership,
+    MembershipDeparture,
+    MembershipStatus,
+)
 from borrowd_items.models import (
     AvailabilitySubscription,
     AvailabilitySubscriptionStatus,
@@ -491,6 +497,41 @@ class AccountDeletionGroupTests(TestCase):
         soft_delete_account(self.user, deleted_by=self.user)
 
         self.assertFalse(BorrowdGroup.objects.filter(pk=group.pk).exists())
+
+    def test_active_membership_removal_writes_departure_row_with_account_deleted_reason(
+        self,
+    ) -> None:
+        # `other` owns the group; `user` is a plain active member.
+        group = self._group(self.other, "Carol's Group")
+        group.add_user(self.user)
+
+        soft_delete_account(self.user, deleted_by=self.user)
+
+        departure = MembershipDeparture.objects.get(user=self.user, group=group)
+        self.assertEqual(departure.departure_reason, DepartureReason.ACCOUNT_DELETED)
+        self.assertIsNone(departure.removed_by)
+
+    def test_pending_membership_withdrawal_writes_no_departure_row(self) -> None:
+        # `other`'s group requires approval; `user` applied but was never
+        # accepted, so closing the account shouldn't record them as having
+        # "left" a group they were never actually a member of.
+        group = BorrowdGroup.objects.create_group(
+            name="Pending Group",
+            created_by=self.other,
+            updated_by=self.other,
+            membership_requires_approval=True,
+        )
+        membership = group.add_user(self.user)
+        self.assertEqual(membership.status, MembershipStatus.PENDING)
+
+        soft_delete_account(self.user, deleted_by=self.user)
+
+        self.assertFalse(
+            Membership.objects.filter(user=self.user, group=group).exists()
+        )
+        self.assertFalse(
+            MembershipDeparture.objects.filter(user=self.user, group=group).exists()
+        )
 
 
 @override_settings(MEDIA_ROOT=_TEST_MEDIA_ROOT)
