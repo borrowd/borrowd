@@ -99,6 +99,7 @@ skills-lock.json
 
 # IDEs
 .idea/
+.zed/
 
 # macOS
 .DS_Store
