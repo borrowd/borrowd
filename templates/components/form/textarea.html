@@ -13,7 +13,7 @@
     </legend>
 
     {# send_action is an optional named slot: a submit control that joins the
-    counter row on wide screens, and sits beside the textarea on narrow ones.
+    counter row, below the textarea.
 
     leading_action is an optional named slot that takes the counter's usual
     spot; the counter itself only appears once typing nears max_length,
@@ -21,24 +21,17 @@
 
     Both slots are unused by other callers of this component, which keep the
     plain stacked layout and an always-visible counter. #}
-    <div class="flex flex-wrap items-end gap-2"
-         x-data="{ charCount: {{ value|length|default:0 }}, maxLength: {{ max_length }}, get nearLimit() { return this.charCount >= this.maxLength * 0.9 } }">
+    <div x-data="{ charCount: {{ value|length|default:0 }}, maxLength: {{ max_length }}, get nearLimit() { return this.charCount >= this.maxLength * 0.9 } }">
         <textarea name="{{ name }}"
                   id="{{ id }}"
-                  class="textarea bg-primary-content placeholder:text-base-content/50 placeholder:text-xs resize-none {% if send_action %}flex-1 min-w-0 sm:w-full sm:flex-none{% else %}w-full{% endif %} {{ input_class }}"
+                  class="textarea w-full bg-primary-content placeholder:text-base-content/50 placeholder:text-xs resize-none {{ input_class }}"
                   placeholder="{{ placeholder }}"
                   rows="{{ rows }}"
                   maxlength="{{ max_length }}"
                   @input="charCount = $event.target.value.length"
                   {% if required == "true" %}required{% endif %}>{{ value }}</textarea>
 
-        {% if send_action %}
-            <div class="shrink-0 sm:order-2 sm:ms-auto">
-                {{ send_action }}
-            </div>
-        {% endif %}
-
-        <div class="mt-1{% if send_action %} w-full sm:order-1 sm:mt-0 sm:w-auto{% endif %}">
+        <div class="mt-1 flex flex-wrap items-center gap-2">
             {% if leading_action %}
                 <div x-show="!nearLimit" x-cloak>
                     {{ leading_action }}
@@ -48,6 +41,11 @@
                   {% if leading_action %}x-show="nearLimit" x-cloak{% endif %}>
                 <span x-text="charCount">{{ value|length|default:0 }}</span>/{{ max_length }}
             </span>
+            {% if send_action %}
+                <div class="shrink-0 ms-auto">
+                    {{ send_action }}
+                </div>
+            {% endif %}
         </div>
     </div>
 

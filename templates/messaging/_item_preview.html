@@ -42,7 +42,7 @@ loses the Item. A removed Item still shows its name and photo, muted.
     This wrapper also lets a poll response remove it out-of-band once a
     Transaction owns the thread or the thread archives. #}
     {% if not chat_thread.transaction_id and not chat_thread.is_archived %}
-        <div id="chat-pre-request-actions" class="w-full sm:w-auto">
+        <div id="chat-pre-request-actions" class="shrink-0">
             {% if pre_request_action.name == "REQUEST_ITEM" %}
                 <button id="request-listing-button"
                         type="button"

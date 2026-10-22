@@ -401,11 +401,11 @@ class ChatThreadActivePageTests(MessagingTestCase):
 
         response = self.client.get(self.url)
         body = response.content.decode()
-        close_link = body[
-            body.index('id="chat-close-conversation-action"') : body.index(
-                'id="close-conversation-form"'
-            )
-        ]
+        # Scoped to this element's own closing tag: Send now shares the same
+        # counter row, right after this wrapper, so slicing any further
+        # would sweep its "btn-primary" class into the assertions below.
+        start = body.index('id="chat-close-conversation-action"')
+        close_link = body[start : body.index("</div>", start)]
 
         # btn-ghost is the site's existing convention for a cancel/close
         # action that isn't a filled, colored button (see e.g. the Cancel
