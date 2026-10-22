@@ -391,7 +391,37 @@ class ChatThreadActivePageTests(MessagingTestCase):
             response, "onclick=\"showModal('close-conversation-modal')\""
         )
         self.assertContains(response, 'id="close-conversation-modal"')
+        # The request button's wrapper moved to the item card header; the
+        # close link keeps its own, separate wrapper below the composer.
         self.assertContains(response, 'id="chat-pre-request-actions"')
+        self.assertContains(response, 'id="chat-close-conversation-action"')
+
+    def test_close_conversation_is_a_ghost_button_not_a_filled_one(self) -> None:
+        self.client.force_login(self.borrower)
+
+        response = self.client.get(self.url)
+        body = response.content.decode()
+        close_link = body[
+            body.index('id="chat-close-conversation-action"') : body.index(
+                'id="close-conversation-form"'
+            )
+        ]
+
+        # btn-ghost is the site's existing convention for a cancel/close
+        # action that isn't a filled, colored button (see e.g. the Cancel
+        # buttons on password_change.html and group_confirm_delete.html).
+        self.assertIn("btn-ghost", close_link)
+        self.assertNotIn("btn-error", close_link)
+        self.assertNotIn("btn-soft", close_link)
+        self.assertNotIn("btn-primary", close_link)
+
+    def test_the_message_label_is_hidden_but_still_announced(self) -> None:
+        self.client.force_login(self.borrower)
+
+        response = self.client.get(self.url)
+
+        self.assertContains(response, "sr-only")
+        self.assertContains(response, "Message")
 
 
 @override_settings(MESSAGING_ENABLED=True)
@@ -469,14 +499,14 @@ class ChatThreadPollViewTests(MessagingTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "This item has been requested.")
         self.assertContains(response, "Active")
-        actions = _element_attributes(response, "chat-pre-request-actions")
-        self.assertEqual(actions["hx-swap-oob"], "true")
+        header_button = _element_attributes(response, "chat-pre-request-actions")
+        self.assertEqual(header_button["hx-swap-oob"], "true")
+        close_link = _element_attributes(response, "chat-close-conversation-action")
+        self.assertEqual(close_link["hx-swap-oob"], "true")
         self.assertNotContains(response, "Close conversation")
         self.assertNotContains(response, 'id="chat-composer"')
 
-    def test_archived_poll_leaves_the_pre_request_actions_to_the_composer_swap(
-        self,
-    ) -> None:
+    def test_archived_poll_also_clears_the_header_request_button(self) -> None:
         seen = self.send(self.borrower, "Free Saturday?")
         self.make_transaction()
         MessagingService.archive_thread(self.thread, ArchiveReason.CANCELLED)
@@ -484,9 +514,11 @@ class ChatThreadPollViewTests(MessagingTestCase):
 
         response = self.client.get(self.url, {"after": seen.pk})
 
-        self.assertNotContains(
-            response, 'id="chat-pre-request-actions"', status_code=286
-        )
+        # The composer swap already carries the close link away with it, but
+        # the request button now lives in the item card header, so archiving
+        # must remove it with its own out-of-band swap.
+        header_button = _element_attributes(response, "chat-pre-request-actions")
+        self.assertEqual(header_button["hx-swap-oob"], "true")
 
     def test_poll_refreshes_the_status_when_a_dispute_is_raised(self) -> None:
         seen = self.send(self.borrower, "Free Saturday?")
@@ -753,10 +785,18 @@ class ConversationStatusTests(MessagingTestCase):
         self.assertContains(response, "Active")
         self.assertNotContains(response, "Disputed")
 
-    def test_thread_without_a_request_reads_as_pre_request(self) -> None:
+    def test_thread_without_a_request_shows_the_request_button_instead_of_a_label(
+        self,
+    ) -> None:
+        # The Request item button stands in for a "Pre-request" label, so the
+        # two never both appear.
+        assign_perm(ItemOLP.VIEW, self.borrower, self.item)
         self.client.force_login(self.borrower)
 
-        self.assertContains(self.client.get(self.url), "Pre-request")
+        response = self.client.get(self.url)
+
+        self.assertContains(response, 'id="request-listing-button"')
+        self.assertNotContains(response, "Pre-request")
 
     def test_archived_thread_shows_its_archive_reason(self) -> None:
         MessagingService.archive_thread(self.thread, ArchiveReason.CLOSED)

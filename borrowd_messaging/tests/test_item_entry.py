@@ -523,6 +523,22 @@ class PreRequestChatRequestActionTests(MessagingTestCase):
         )
         self.assertContains(response, 'value="REQUEST_ITEM"')
 
+    def test_request_button_sits_in_the_item_card_above_the_messages(self) -> None:
+        self.client.force_login(self.borrower)
+
+        response = self.client.get(self.url)
+        body = response.content.decode()
+
+        # The item card (and its request button) is pinned above the message
+        # list; the button used to live below the composer, after it.
+        self.assertLess(
+            body.index('id="request-listing-button"'),
+            body.index('id="chat-messages"'),
+        )
+        self.assertNotIn(
+            'id="request-listing-button"', body[body.index('id="chat-composer"') :]
+        )
+
     def test_borrower_can_request_a_giveaway_listing(self) -> None:
         self.item.listing_type = ListingType.GIVEAWAY
         self.item.save(update_fields=["listing_type"])
