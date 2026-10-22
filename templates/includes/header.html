@@ -7,8 +7,14 @@
     <div class="navbar-start">
         <!-- If authed, show 🍔  -->
         {% if user.is_authenticated %}
-            <label for="main-drawer" class="btn btn-ghost btn-circle">
+            <label for="main-drawer"
+                   class="btn btn-ghost btn-circle relative"
+                   aria-label="{% if community_request_count or unread_conversation_count %}{% trans 'Menu, unread items' %}{% else %}{% trans 'Menu' %}{% endif %}">
                 {% heroicon_outline "bars-3-bottom-left" class="h-5 w-5" stroke_width=2 %}
+                {% if community_request_count or unread_conversation_count %}
+                    <span class="badge badge-primary absolute top-0 right-0 translate-x-[15%] -translate-y-[15%] h-2 w-2 min-w-0 p-0 rounded-full border-0"
+                          aria-hidden="true"></span>
+                {% endif %}
             </label>
         {% endif %}
     </div>
@@ -41,10 +47,22 @@
                 <label for="main-drawer" aria-label="close sidebar" class="drawer-overlay">
                 </label>
                 <ul class="menu bg-white min-h-full w-80 pt-20 px-4 pb-4 shadow-xl">
+                    <li class="border-b border-base-200 pb-2 mb-2">
+                        <a href="{% url 'profile' %}" class="flex items-center gap-3 py-3">
+                            <c-avatar src="{% if user.profile.image %}{{ user.profile.image.url }}{% endif %}"
+                                      name="{{ user.profile.full_name }}"
+                                      alt="{{ user.profile.full_name }}"
+                                      class="h-12 w-12 rounded-full" />
+                            <span class="flex flex-col">
+                                <span class="font-semibold">{{ user.profile.full_name }}</span>
+                                <span class="text-sm text-base-content/60">{% trans "View profile" %}</span>
+                            </span>
+                        </a>
+                    </li>
                     <li>
                         <a href="{% url 'item-list' %}" class="flex items-center gap-3 py-3">
                             {% heroicon_solid "magnifying-glass" class="size-5" %}
-                            <span>Item search</span>
+                            <span>{% trans "Item search" %}</span>
                         </a>
                     </li>
                     <li>
@@ -52,7 +70,7 @@
                            class="flex items-center justify-between py-3">
                             <div class="flex items-center gap-3">
                                 {% heroicon_outline "user-group" class="size-5" %}
-                                <span>Groups</span>
+                                <span>{% trans "Groups" %}</span>
                             </div>
 
                             {% if has_groups_needing_moderator %}
@@ -70,7 +88,7 @@
                            class="flex items-center justify-between py-3">
                             <div class="flex items-center gap-3">
                                 {% heroicon_outline "megaphone" class="size-5" %}
-                                <span>Community requests</span>
+                                <span>{% trans "Community requests" %}</span>
                             </div>
 
                             {% if community_request_count %}
@@ -85,7 +103,7 @@
                         <a href="{% url 'profile-inventory' %}"
                            class="flex items-center gap-3 py-3">
                             {% heroicon_outline "archive-box" class="size-5" %}
-                            <span>My inventory</span>
+                            <span>{% trans "My inventory" %}</span>
                         </a>
                     </li>
                     {% if messaging_enabled %}
@@ -94,7 +112,7 @@
                                class="flex items-center justify-between gap-3 py-3">
                                 <span class="flex items-center gap-3">
                                     {% heroicon_outline "chat-bubble-left-right" class="size-5" %}
-                                    <span>Messages</span>
+                                    <span>{% trans "Messages" %}</span>
                                 </span>
                                 <span id="nav-messages-unread"
                                       aria-live="polite"
@@ -110,41 +128,28 @@
                             </a>
                         </li>
                     {% endif %}
-                    <li>
-                        <a href="{% url 'notification-inbox' %}"
-                           class="flex items-center gap-3 py-3">
-                            {% heroicon_outline "bell" class="size-5" %}
-                            <span>Notifications</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a href="{% url 'profile' %}" class="flex items-center gap-3 py-3">
-                            {% heroicon_outline "user-circle" class="size-5" %}
-                            <span>My Profile</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a href="{% url 'settings' %}" class="flex items-center gap-3 py-3">
+                    <li class="mt-auto border-t border-base-200 pt-2 text-sm text-base-content/60">
+                        <a href="{% url 'settings' %}" class="flex items-center gap-3 py-2">
                             {% heroicon_outline "cog-6-tooth" class="size-5" %}
-                            <span>Settings</span>
+                            <span>{% trans "Settings" %}</span>
                         </a>
                     </li>
-                    <li>
-                        <a href="{% url 'faq' %}" class="flex items-center gap-3 py-3">
+                    <li class="text-sm text-base-content/60">
+                        <a href="{% url 'faq' %}" class="flex items-center gap-3 py-2">
                             {% heroicon_outline "question-mark-circle" class="size-5" %}
-                            <span>FAQ</span>
+                            <span>{% trans "Help" %}</span>
                         </a>
                     </li>
-                    <li>
+                    <li class="text-sm text-base-content/60">
                         <form class="w-full flex flex-col flex-1"
                               method="POST"
                               action="{% url 'account_logout' %}"
                               onsubmit="this.querySelector('button[type=submit]').disabled = true">
                             {% csrf_token %}
                             <button type="submit"
-                                    class="flex items-center gap-3 py-3 w-full text-left cursor-pointer">
+                                    class="flex items-center gap-3 py-2 w-full text-left cursor-pointer">
                                 {% heroicon_outline "arrow-right-start-on-rectangle" class="size-5" %}
-                                <span>Logout</span>
+                                <span>{% trans "Log out" %}</span>
                             </button>
                         </form>
                     </li>
