@@ -51,10 +51,10 @@
 
         </div>
 
-        <c-button type="submit"
-                  class="btn btn-primary w-full {% if form.login.value %}btn-active{% endif %}  ">
+        <button type="submit"
+                class="btn btn-primary w-full {% if form.login.value %}btn-active{% endif %}  ">
             {% trans "Login" %}
-        </c-button>
+        </button>
 
         {% url 'account_request_login_code' as req_code_url %}
         {% if req_code_url %}

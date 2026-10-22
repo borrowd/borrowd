@@ -1,12 +1,20 @@
-<p>
-    Hi {{ recipient_name }},
-</p>
+{% extends "notifications/messages/layout.html" %}
 
-<p>
-    The owner of {{ item_name }} has closed their account, so your request has
-    been cancelled. The item is no longer available on Borrow'd.
-</p>
+{% block title %}
+    Request cancelled - Borrow'd
+{% endblock %}
 
-<p>
-    The Borrow'd team
-</p>
+{% block content %}
+    <p>
+        Hi {{ recipient_name }},
+    </p>
+
+    <p>
+        The owner of {{ item_name }} has closed their account, so your request has
+        been cancelled. The item is no longer available on Borrow'd.
+    </p>
+
+    <p>
+        The Borrow'd team
+    </p>
+{% endblock %}

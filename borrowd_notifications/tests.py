@@ -4761,3 +4761,28 @@ class DisableEmailForOnboardingTypesMigrationTests(TestCase):
             user=user, notification_type=NotificationType.ITEM_REQUEST_ACCEPTED.value
         )
         self.assertTrue(pref.email_enabled)
+
+
+class MessageEmailTemplatesExtendLayoutTests(TestCase):
+    """Every HTML email template in notifications/messages/ must extend the
+    shared layout.html, or it renders as a bare, unstyled fragment with no
+    header, logo or footer (see UX audit finding EML-02)."""
+
+    def test_every_html_template_except_layout_extends_the_shared_layout(
+        self,
+    ) -> None:
+        messages_dir = settings.BASE_DIR / "templates" / "notifications" / "messages"
+        html_templates = sorted(messages_dir.glob("*.html"))
+        self.assertGreater(len(html_templates), 0, "No message templates found.")
+
+        for template_path in html_templates:
+            if template_path.name == "layout.html":
+                continue
+            with self.subTest(template=template_path.name):
+                source = template_path.read_text()
+                self.assertIn(
+                    '{% extends "notifications/messages/layout.html" %}',
+                    source,
+                    f"{template_path.name} does not extend the shared layout, "
+                    "so it will render as an unstyled fragment.",
+                )

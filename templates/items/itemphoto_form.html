@@ -40,9 +40,9 @@ photo
 </div>
 {% endfor %}
 <div class="mt-6">
-<c-button type="submit" class="btn btn-primary mr-2">
+<button type="submit" class="btn btn-primary mr-2">
 Save
-</c-button>
+</button>
 <c-button-nav url="{% if request.GET.next %}{{ request.GET.next }}{% else %}{% url 'item-edit' item_pk %}{% endif %}" class="btn">
 Cancel
 </c-button-nav>

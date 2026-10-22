@@ -63,7 +63,7 @@ block groups_content %}
                     {% endif %}
 
                     {% if field.name == "banner" %}
-                        <div class="border border-base-100 rounded-lg px-[10px] py-4 flex flex-col gap-4 items-center mt-1.5" x-data="{ pendingPreview: null, pendingFile: null, showExisting:
+                        <div class="border border-base-100 rounded-lg px-2.5 py-4 flex flex-col gap-4 items-center mt-1.5" x-data="{ pendingPreview: null, pendingFile: null, showExisting:
                             {% if view.object.pk and view.object.banner %}
                                 true
                             {% else %}
@@ -113,7 +113,7 @@ block groups_content %}
                             </div>
 
                             {# File picker — hidden once a pending file is selected (only one banner allowed) #}
-                            <fieldset class="fieldset w-full gap-0 px-[10px]" x-show="!pendingPreview">
+                            <fieldset class="fieldset w-full gap-0 px-2.5" x-show="!pendingPreview">
                                 <legend class="fieldset-legend text-xs font-semibold text-base-content/60">
                                     Upload picture
                                 </legend>
@@ -167,18 +167,18 @@ block groups_content %}
                         Cancel
                     </c-button-nav>
 
-                    <c-button class="btn btn-primary" type="submit">
+                    <button class="btn btn-primary" type="submit">
                         Save group
-                    </c-button>
+                    </button>
                 </div>
             {% else %}
                 <div class="flex items-center gap-4">
                     <c-button-nav url="{% url 'borrowd_groups:group-list' %}" class="btn btn-ghost">
                         Cancel
                     </c-button-nav>
-                    <c-button type="submit" class="btn btn-primary">
+                    <button type="submit" class="btn btn-primary">
                         Create group
-                    </c-button>
+                    </button>
                 </div>
             {% endif %}
         </div>
