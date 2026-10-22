@@ -1,9 +1,24 @@
 {# Wrapper so a poll can replace the status in place. An open thread can be
 disputed, resolved, or archived while the reader is on the page.
+
+Sits where the pre-request action button sits: during pre-request, the
+Request item/gift button already conveys that status, so the badge stays
+hidden until the thread moves past pre-request (Active, Disputed, Returned,
+an archive reason, ...).
 https://htmx.org/attributes/hx-swap-oob/ #}
 
 <div id="chat-conversation-status"
+     class="shrink-0"
      {% if oob %}hx-swap-oob="true"{% endif %}>
-    {% include "messaging/_status_badge.html" with status_label=conversation_status_label status_kind=conversation_status_kind only %}
+    {% if conversation_status_kind != "prerequest" %}
+        {% if item_url %}
+            <a href="{{ item_url }}">
+                {% include "messaging/_status_badge.html" with status_label=conversation_status_label status_kind=conversation_status_kind only %}
 
+            </a>
+        {% else %}
+            {% include "messaging/_status_badge.html" with status_label=conversation_status_label status_kind=conversation_status_kind only %}
+
+        {% endif %}
+    {% endif %}
 </div>

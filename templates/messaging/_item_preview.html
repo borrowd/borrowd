@@ -8,23 +8,60 @@ loses the Item. A removed Item still shows its name and photo, muted.
 
 {% load static %}
 
-<div class="flex items-center gap-3 rounded-xl border border-base-300 bg-base-100 p-2">
+<div class="flex flex-wrap items-center gap-3 rounded-xl border border-base-300 bg-base-100 p-2">
     {% static 'items/categories/logo-tools.png' as fallback_image %}
-    <img src="{{ item_thumbnail_url|default:fallback_image }}"
-         alt="{{ item_name|default:'Item image' }}"
-         loading="lazy"
-         class="h-12 w-12 shrink-0 rounded-lg object-cover {% if item_removed %}opacity-60 grayscale{% endif %}" />
+    {% if item_url %}
+        <a href="{{ item_url }}" class="block shrink-0">
+            <img src="{{ item_thumbnail_url|default:fallback_image }}"
+                 alt="{{ item_name|default:'Item image' }}"
+                 loading="lazy"
+                 class="h-12 w-12 rounded-lg object-cover {% if item_removed %}opacity-60 grayscale{% endif %}" />
+        </a>
+    {% else %}
+        <img src="{{ item_thumbnail_url|default:fallback_image }}"
+             alt="{{ item_name|default:'Item image' }}"
+             loading="lazy"
+             class="h-12 w-12 shrink-0 rounded-lg object-cover {% if item_removed %}opacity-60 grayscale{% endif %}" />
+    {% endif %}
 
-    <span class="min-w-0 grow">
-        {% if item_url %}
-            <a href="{{ item_url }}"
-               class="block truncate font-medium hover:underline">{{ item_name }}</a>
-        {% else %}
-            <span class="block truncate font-medium {% if item_removed %}text-base-content/60{% endif %}">{% firstof item_name "Item unavailable" %}</span>
-        {% endif %}
-        <span class="block truncate text-sm text-base-content/70">{{ other_participant.profile.full_name }}</span>
-    </span>
+    {% if item_url %}
+        <a href="{{ item_url }}"
+           class="min-w-0 grow truncate font-medium hover:underline">{{ item_name }}</a>
+    {% else %}
+        <span class="min-w-0 grow truncate font-medium {% if item_removed %}text-base-content/60{% endif %}">{% firstof item_name "Item unavailable" %}</span>
+    {% endif %}
 
     {% include "messaging/_conversation_status.html" %}
 
+    {# The borrower may turn a pre-request chat into a request. Visible only
+    while pre_request_action is set: a pre-request, non-archived thread, seen
+    only by the borrower. See ChatThreadDetailView._pre_request_action.
+    Sits in the same spot as the status badge above: during pre-request this
+    button stands in for the "Pre-request" label, so the two are never both
+    visible at once.
+    This wrapper also lets a poll response remove it out-of-band once a
+    Transaction owns the thread or the thread archives. #}
+    {% if not chat_thread.transaction_id and not chat_thread.is_archived %}
+        <div id="chat-pre-request-actions" class="shrink-0">
+            {% if pre_request_action.name == "REQUEST_ITEM" %}
+                <button id="request-listing-button"
+                        type="button"
+                        class="btn btn-soft btn-primary"
+                        onclick="showModal('request-item-from-chat-modal')">
+                    Request item
+                </button>
+                {% include "components/items/modals/request_item_modal.html" with item=chat_thread.item modal_id="request-item-from-chat-modal" %}
+
+            {% elif pre_request_action.name == "REQUEST_GIVEAWAY" %}
+                <button id="request-listing-button"
+                        type="button"
+                        class="btn btn-soft btn-primary"
+                        onclick="showModal('request-giveaway-from-chat-modal')">
+                    Request gift
+                </button>
+                {% include "components/items/modals/request_giveaway_modal.html" with item=chat_thread.item modal_id="request-giveaway-from-chat-modal" %}
+
+            {% endif %}
+        </div>
+    {% endif %}
 </div>
