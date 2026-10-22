@@ -329,13 +329,13 @@
                     <c-button-nav url="{% url 'item-detail' form.instance.pk %}" class="btn">
                         Cancel
                     </c-button-nav>
-                    <c-button type="submit" class="btn btn-primary" x-bind:disabled="isSubmitting">
+                    <button type="submit" class="btn btn-primary" x-bind:disabled="isSubmitting">
                         Save changes
-                    </c-button>
+                    </button>
                 {% else %}
-                    <c-button type="submit" class="btn btn-primary" x-bind:disabled="isSubmitting">
+                    <button type="submit" class="btn btn-primary" x-bind:disabled="isSubmitting">
                         Add item
-                    </c-button>
+                    </button>
                 {% endif %}
             </div>
         </form>

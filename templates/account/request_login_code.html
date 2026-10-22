@@ -36,10 +36,10 @@
                       autocomplete="email"
                       errors="{{ form.email.errors|join:', ' }}" />
 
-        <c-button type="submit"
-                  class="btn btn-primary w-full {% if form.email.value %}btn-active{% endif %}  ">
+        <button type="submit"
+                class="btn btn-primary w-full {% if form.email.value %}btn-active{% endif %}  ">
             {% trans "Request login code" %}
-        </c-button>
+        </button>
         <c-button-nav class="btn btn-ghost w-full"
                       url="{% url 'account_login_cancel' %}{% if redirect_field_value %}?{{ redirect_field_name }}={{ redirect_field_value|urlencode }}{% endif %}">
             {% trans "Cancel" %}

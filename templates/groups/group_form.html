@@ -167,18 +167,18 @@ block groups_content %}
                         Cancel
                     </c-button-nav>
 
-                    <c-button class="btn btn-primary" type="submit">
+                    <button class="btn btn-primary" type="submit">
                         Save group
-                    </c-button>
+                    </button>
                 </div>
             {% else %}
                 <div class="flex items-center gap-4">
                     <c-button-nav url="{% url 'borrowd_groups:group-list' %}" class="btn btn-ghost">
                         Cancel
                     </c-button-nav>
-                    <c-button type="submit" class="btn btn-primary">
+                    <button type="submit" class="btn btn-primary">
                         Create group
-                    </c-button>
+                    </button>
                 </div>
             {% endif %}
         </div>
