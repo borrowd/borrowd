@@ -1,12 +1,27 @@
 {% extends "layouts/auth_card.html" %}
 
-{% load i18n %}
+{% load i18n static %}
 
 {% block auth_title %}
     {% trans "Login" %}
 {% endblock %}
-{% block auth_mobile_title %}
-    {% trans "Login" %}
+
+{% block auth_intro %}
+    <div class="flex flex-col items-center gap-3 mb-6">
+        <div class="w-44 md:w-64 aspect-[714/523] overflow-hidden short-screen:hidden">
+            <img src="{% static 'auth/landing-page-img.png' %}"
+                 alt="Borrow'd illustration"
+                 class="w-[105.04%] max-w-none -translate-x-[3.47%] -translate-y-[10.93%]" />
+        </div>
+
+        <h1 class="font-roboto-slab text-2xl md:text-4xl text-center text-gray-700">
+            {% trans "Welcome!" %}
+        </h1>
+
+        <p class="p-4 text-center max-w-[400px] text-balance">
+            {% blocktrans %}Borrow'd is a community-powered platform to help you share with the people you trust in real life.{% endblocktrans %}
+        </p>
+    </div>
 {% endblock %}
 
 {% block auth_content %}
@@ -17,7 +32,9 @@
         </div>
     {% endif %}
 
-    <form method="post" class="flex flex-col gap-4">
+    <form method="post"
+          class="flex flex-col gap-4"
+          aria-label="{% trans 'Log in' %}">
         {% csrf_token %}
         {{ redirect_field }}
         {% for field in form.hidden_fields %}
@@ -28,7 +45,6 @@
                       type="email"
                       name="login"
                       id="id_login"
-                      placeholder="Email"
                       value="{{ form.login.value|default:'' }}"
                       autocomplete="email" />
 
@@ -37,44 +53,41 @@
                       type="password"
                       name="password"
                       id="id_password"
-                      placeholder="Password"
                       autocomplete="current-password"
                       errors="{{ form.password.errors|join:', ' }}"
                       input_class="text-base-content/50 text-xs" />
 
-        {# Forgot password link #}
-        <div class="-mt-2">
-            <c-button-nav class="text-xs text-info  font-semibold hover:underline"
-                          url="{% url 'account_reset_password' %}">
-                {% trans "Forgot password?" %}
-            </c-button-nav>
+        {# Request login code / reset password links #}
+        <div class="-mt-2 flex justify-between flex-wrap gap-x-4 gap-y-1">
+            {% url 'account_request_login_code' as req_code_url %}
+            {% if req_code_url %}
+                <c-button-nav class="text-xs text-info font-semibold hover:underline"
+                              url="{{ req_code_url }}{% if redirect_field_value %}?{{ redirect_field_name }}={{ redirect_field_value|urlencode }}{% endif %}">
+                    {% trans "Request login code" %}
+                </c-button-nav>
+            {% endif %}
 
+            <c-button-nav class="text-xs text-info font-semibold hover:underline"
+                          url="{% url 'account_reset_password' %}">
+                {% trans "Reset password" %}
+            </c-button-nav>
         </div>
 
         <c-button type="submit"
                   class="btn btn-primary w-full {% if form.login.value %}btn-active{% endif %}  ">
-            {% trans "Login" %}
+            {% trans "Log in" %}
         </c-button>
-
-        {% url 'account_request_login_code' as req_code_url %}
-        {% if req_code_url %}
-
-            <c-button-nav class="btn btn-soft text-primary w-full font-semibold"
-                          url="{{ req_code_url }}{% if redirect_field_value %}?{{ redirect_field_name }}={{ redirect_field_value|urlencode }}{% endif %}">
-                {% trans "Request login code" %}
-            </c-button-nav>
-
-        {% endif %}
     </form>
 {% endblock %}
 
 {% block auth_footer %}
-    {# Sign-up link #}
-    <p class="text-center text-xs  text-base-content/80 font-semibold">
-        {% trans "Don't have an account?" %}
-        <c-button-nav class="text-info underline "
+    <div class="bg-white border border-base-300 rounded-2xl p-4 mt-3 max-w-[400px] flex flex-col gap-3">
+        <p class="text-center text-xs text-base-content/80 font-semibold">
+            {% trans "New to Borrow'd?" %}
+        </p>
+        <c-button-nav class="btn btn-soft text-primary w-full font-semibold"
                       url="{% url 'account_signup' %}{% if redirect_field_value %}?{{ redirect_field_name }}={{ redirect_field_value|urlencode }}{% endif %}">
             {% trans "Sign up" %}
         </c-button-nav>
-    </p>
+    </div>
 {% endblock %}

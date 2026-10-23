@@ -3,6 +3,9 @@
 /*
 Borrow'd theme for DaisyUI
 */
+/* 780px is a starting value -- tune after device testing. Hides the login
+   page illustration on short viewports so both buttons stay above the fold. */
+@custom-variant short-screen (@media (max-height: 780px));
 @plugin "daisyui/theme" {
   name: "light";
   default: true;
