@@ -1,7 +1,7 @@
 from typing import Any
 
 from django.db.models import Count, Q, QuerySet
-from django_filters import BooleanFilter, CharFilter, FilterSet
+from django_filters import CharFilter, FilterSet
 
 from borrowd_users.request import get_authenticated_user
 
@@ -12,7 +12,6 @@ from .models import Membership, MembershipStatus
 # subclassing it trips strict mode's "subclass of Any" check.
 class GroupFilter(FilterSet):  # type: ignore[misc]
     search = CharFilter(label="Search", method="filter_by_search")
-    moderator_only = BooleanFilter(label="Moderator Only", method="filter_by_moderator")
 
     def filter_by_search(
         self, queryset: QuerySet[Membership], name: str, value: Any
@@ -22,13 +21,6 @@ class GroupFilter(FilterSet):  # type: ignore[misc]
         return queryset.filter(
             Q(group__name__icontains=value) | Q(group__description__icontains=value)
         )
-
-    def filter_by_moderator(
-        self, queryset: QuerySet[Membership], name: str, value: bool
-    ) -> QuerySet[Membership]:
-        if value:
-            return queryset.filter(is_moderator=True)
-        return queryset
 
     @property
     def qs(self) -> QuerySet[Membership]:
@@ -77,4 +69,4 @@ class GroupFilter(FilterSet):  # type: ignore[misc]
 
     class Meta:
         model = Membership
-        fields = ["search", "moderator_only"]
+        fields = ["search"]
