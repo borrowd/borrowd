@@ -11,6 +11,7 @@ from borrowd_items.exceptions import InvalidItemAction
 from borrowd_items.flow import TRANSITIONS, Actor, Transition, execute_transition
 from borrowd_items.models import (
     ITEM_STATUS_FOR_TRANSACTION,
+    CancellationReason,
     Item,
     ItemAction,
     ItemStatus,
@@ -72,6 +73,7 @@ class ExecutionTestCase(TestCase):
         stored = Transaction.objects.get(pk=tx.pk)
         self.assertEqual(stored.status, status)
         self.assertIsNone(stored.resolution_reason)
+        self.assertFalse(stored.status_changes.exists())
 
 
 class ExecuteTransitionTests(ExecutionTestCase):
@@ -161,6 +163,33 @@ class ExecuteTransitionTests(ExecutionTestCase):
         self.assertEqual(stored_item.owner_id, self.lender.pk)
         self.assertEqual(stored_item.status, ItemStatus.BORROWED)
 
+    def test_a_failing_history_write_rolls_back_the_transfer_and_status(self) -> None:
+        item, tx = self.open_transaction(TransactionStatus.GIVEAWAY_OFFERED)
+        with mock.patch.object(
+            Transaction,
+            "_record_status_change",
+            side_effect=RuntimeError("history failed"),
+        ):
+            with self.assertRaisesRegex(RuntimeError, "history failed"):
+                execute_transition(
+                    item, tx, self.borrower, ItemAction.ACCEPT_GIVEAWAY, now=NOW
+                )
+        self.assert_untouched(tx, TransactionStatus.GIVEAWAY_OFFERED)
+        stored_item = Item.objects.get(pk=item.pk)
+        self.assertEqual(stored_item.owner_id, self.lender.pk)
+        self.assertEqual(stored_item.status, ItemStatus.BORROWED)
+
+    def test_retrying_an_ineligible_action_does_not_duplicate_history(self) -> None:
+        item, tx = self.open_transaction(TransactionStatus.REQUESTED)
+        execute_transition(item, tx, self.lender, ItemAction.ACCEPT_REQUEST, now=NOW)
+        with self.assertRaises(InvalidItemAction):
+            execute_transition(
+                item, tx, self.lender, ItemAction.ACCEPT_REQUEST, now=NOW
+            )
+        self.assertEqual(tx.status_changes.count(), 1)
+        tx.refresh_from_db()
+        self.assertEqual(tx.status, TransactionStatus.ACCEPTED)
+
     def test_a_lost_item_is_removed_only_after_its_transaction_is_resolved(
         self,
     ) -> None:
@@ -208,6 +237,21 @@ class EveryRowDoesWhatItsTargetImpliesTests(ExecutionTestCase):
                 item = Item.all_objects.get(pk=item.pk)
                 self.assertEqual(tx.status, spec.target)
                 self.assertEqual(tx.updated_by_id, actor.pk)
+                self.assertEqual(tx.status_changes.count(), 1)
+                change = tx.status_changes.get()
+                self.assertEqual(change.from_status, spec.source)
+                self.assertEqual(change.to_status, spec.target)
+                self.assertEqual(change.action, spec.action)
+                self.assertEqual(change.actor_id, actor.pk)
+                self.assertEqual(change.resolution_reason, tx.resolution_reason)
+                self.assertEqual(change.cancellation_reason, tx.cancellation_reason)
+                self.assertFalse(change.backfilled)
+                self.assertEqual(
+                    tx.cancellation_reason,
+                    CancellationReason.REQUESTOR_CANCELLED
+                    if spec.target == TransactionStatus.CANCELLED
+                    else None,
+                )
                 if item.deleted_at is None:
                     self.assertEqual(
                         item.status, ITEM_STATUS_FOR_TRANSACTION[spec.target]

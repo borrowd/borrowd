@@ -13,6 +13,7 @@ from django.db import transaction
 from .exceptions import InvalidItemAction
 from .statuses import (
     DUAL_CONFIRMATION_TRANSACTION_STATUSES,
+    CancellationReason,
     ItemAction,
     ResolutionReason,
     TransactionStatus,
@@ -65,6 +66,12 @@ def _stamp_return_requested(tx: Transaction, user: BorrowdUser, now: datetime) -
 def _stamp_dispute(tx: Transaction, user: BorrowdUser, now: datetime) -> None:
     tx.disputed_at = now
     tx.dispute_raised_by = user
+
+
+def _record_request_cancelled(
+    tx: Transaction, user: BorrowdUser, now: datetime
+) -> None:
+    tx.cancellation_reason = CancellationReason.REQUESTOR_CANCELLED
 
 
 def _record_item_not_returned(
@@ -146,6 +153,7 @@ TRANSITIONS: Final[tuple[Transition, ...]] = (
         ItemAction.CANCEL_REQUEST,
         TransactionStatus.CANCELLED,
         Actor.BORROWER,
+        prepare=_record_request_cancelled,
     ),
     # A giveaway request awaiting the owner's decision.
     Transition(
@@ -166,12 +174,14 @@ TRANSITIONS: Final[tuple[Transition, ...]] = (
         ItemAction.CANCEL_REQUEST,
         TransactionStatus.CANCELLED,
         Actor.BORROWER,
+        prepare=_record_request_cancelled,
     ),
     # Accepted, not yet handed over.
     Transition(
         TransactionStatus.ACCEPTED,
         ItemAction.CANCEL_REQUEST,
         TransactionStatus.CANCELLED,
+        prepare=_record_request_cancelled,
     ),
     Transition(
         TransactionStatus.ACCEPTED,
@@ -342,6 +352,7 @@ def execute_transition(
         )
 
     with transaction.atomic():
+        previous_status = TransactionStatus(tx.status)
         tx.status = spec.target
         tx.updated_by = user
         if spec.prepare is not None:
@@ -350,4 +361,8 @@ def execute_transition(
         if spec.after_save is not None:
             spec.after_save(item, tx, user)
         sync_item_status(item, tx)
+        if tx.status != previous_status:
+            tx._record_status_change(
+                from_status=previous_status, action=action, actor=user
+            )
     return spec
