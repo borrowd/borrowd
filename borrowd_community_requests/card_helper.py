@@ -16,12 +16,12 @@ def build_commmunity_request_card(
     belongs_to_viewer = viewing_user == request.requester
 
     banner_type = "requested"
-    # The viewer's own request is tinted like the "borrowed" banner instead
-    # of "requested", to set it apart from everyone else's open requests.
-    banner_style = BANNER_STYLES.get(
-        "borrowed" if belongs_to_viewer else banner_type, {}
-    )
-    banner_icon = format_html(BANNER_ICONS.get(banner_type, ""))
+    # The viewer's own request is tinted (background, text, and icon) like
+    # the "borrowed" banner instead of "requested", to set it apart from
+    # everyone else's open requests. The copy still reads "Requested".
+    banner_style_key = "borrowed" if belongs_to_viewer else banner_type
+    banner_style = BANNER_STYLES.get(banner_style_key, {})
+    banner_icon = format_html(BANNER_ICONS.get(banner_style_key, ""))
     person_name = (
         "you" if belongs_to_viewer else request.requester.first_name.capitalize()
     )
