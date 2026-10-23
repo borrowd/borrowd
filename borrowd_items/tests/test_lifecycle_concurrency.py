@@ -17,6 +17,7 @@ from borrowd_groups.models import BorrowdGroup
 from borrowd_items.exceptions import InvalidItemAction
 from borrowd_items.models import (
     OPEN_TRANSACTION_STATUSES,
+    CancellationReason,
     Item,
     ItemAction,
     ItemStatus,
@@ -174,6 +175,11 @@ class LifecycleConcurrencyTests(TransactionTestCase):
         self.assertCountEqual(outcomes, ["done", "refused"])
         tx.refresh_from_db()
         self.assertEqual(tx.status, TransactionStatus.COLLECTION_ASSERTED)
+        change = tx.status_changes.get()
+        self.assertEqual(change.from_status, TransactionStatus.ACCEPTED)
+        self.assertEqual(change.to_status, TransactionStatus.COLLECTION_ASSERTED)
+        self.assertEqual(change.action, ItemAction.MARK_COLLECTED)
+        self.assertEqual(change.actor_id, tx.updated_by_id)
 
     def test_a_request_made_during_an_item_delete_is_refused(self) -> None:
         hold = Hold()
@@ -218,6 +224,11 @@ class LifecycleConcurrencyTests(TransactionTestCase):
         self.assertEqual(request, "refused")
         cancelled.refresh_from_db()
         self.assertEqual(cancelled.status, TransactionStatus.CANCELLED)
+        change = cancelled.status_changes.get()
+        self.assertEqual(change.from_status, TransactionStatus.REQUESTED)
+        self.assertEqual(change.to_status, TransactionStatus.CANCELLED)
+        self.assertEqual(change.cancellation_reason, CancellationReason.ACCOUNT_DELETED)
+        self.assertEqual(change.actor_id, self.borrower.pk)
         self.assertEqual(self.open_transactions(party2=self.borrower), 0)
 
     def test_a_closing_owners_item_cannot_be_requested(self) -> None:
