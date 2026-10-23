@@ -91,9 +91,10 @@ own legend adds space above it that the other sides don't have. #}
 {% endblock %}
 
 {% block auth_footer %}
-    {# Top padding is one step smaller than the bottom: the label's own line
-    height adds space above the text that the button doesn't have below it. #}
-    <div class="bg-white border border-base-300 rounded-2xl px-5 pb-5 pt-4 md:px-7 md:pb-7 md:pt-6 mt-3 flex flex-col gap-3">
+    {# Top padding doesn't scale with the breakpoint like the other sides do:
+    the label's own line height adds space above the text that grows with
+    the text size, so a fixed top padding is what keeps it looking even. #}
+    <div class="bg-white border border-base-300 rounded-2xl px-5 pb-5 pt-4 md:px-7 md:pb-7 mt-3 flex flex-col gap-3">
         <p class="text-center text-xs text-base-content/60 font-normal">
             {% trans "New to Borrow'd?" %}
         </p>
