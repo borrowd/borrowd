@@ -8,19 +8,21 @@
 {% endblock %}
 
 {% block layout %}
-    <main class="flex-grow flex justify-center items-center py-2 px-3">
+    <main class="flex-grow flex justify-center items-center pt-6 md:pt-12 pb-2 md:pb-8 px-3">
         <div class="w-full max-w-[400px]">
             {% block auth_intro %}
             {% endblock %}
 
             <div class="{% block auth_container_class %}overflow-hidden flex flex-col w-full{% endblock %}">
-                <div class="{% block auth_form_class %}w-full{% endblock %} flex flex-col justify-center gap-5 p-3 md:p-6">
+                <div class="{% block auth_form_class %}w-full{% endblock %} flex flex-col justify-center">
 
-                    <fieldset class="fieldset {% block auth_fieldset_class %}bg-white border border-base-300 rounded-2xl p-4{% endblock %}">
-                        <legend class="fieldset-legend text-sm font-semibold">
-                            {% block auth_mobile_title %}
-                            {% endblock %}
-                        </legend>
+                    <fieldset class="fieldset {% block auth_fieldset_class %}bg-white border border-base-300 rounded-2xl p-5 md:p-7{% endblock %}">
+                        {% spaceless %}
+                            <legend class="fieldset-legend text-sm font-semibold empty:hidden">
+                                {% block auth_mobile_title %}
+                                {% endblock %}
+                            </legend>
+                        {% endspaceless %}
 
                         {% block auth_content %}
                         {% endblock %}
