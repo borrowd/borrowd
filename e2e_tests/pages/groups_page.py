@@ -7,7 +7,7 @@ class GroupsPage:
     def __init__(self, page: Page):
         self.page = page
         self.heading = page.get_by_role("heading", name="Groups")
-        self.moderator_toggle = page.get_by_role("checkbox", name="Groups I manage")
+        self.manage_scope_link = page.get_by_role("link", name="You manage")
         self.create_group_button = page.get_by_role(
             "link", name=re.compile("create group", re.IGNORECASE)
         )
@@ -16,7 +16,7 @@ class GroupsPage:
     def expect_opened(self):
         expect(self.page).to_have_url(re.compile(r"/groups/?$"))
         expect(self.heading).to_be_visible()
-        expect(self.moderator_toggle).to_be_visible()
+        expect(self.manage_scope_link).to_be_visible()
         expect(self.create_group_button).to_be_visible()
 
     def click_first_group(self):

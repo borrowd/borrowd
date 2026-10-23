@@ -72,7 +72,8 @@
                             {% endif %}
 
                             {% if active_scope == "all" and membership.is_moderator and membership.status == "ACTIVE" %}
-                                <div class="rounded-4xl h-xs max-w-xs w-fit p-1 pl-2 pr-2 bg-gray-100 border-solid border-2 border-gray-200">
+                                <div class="rounded-4xl h-xs max-w-xs w-fit p-1 pl-2 pr-2 bg-gray-100 border-solid border-2 border-gray-200"
+                                     data-testid="group-you-manage-pill">
                                     <span class="text-sm text-gray-900 text-center">You manage</span>
                                 </div>
                             {% endif %}
