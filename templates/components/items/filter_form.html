@@ -17,7 +17,23 @@
         {% endif %}
 
     {% endfor %}
-    ],  /* Toggle a category by id: add if not selected, remove if already selected. */ toggle(id) { const idx = this.selectedIds.indexOf(id); if (idx === -1) { this.selectedIds.push(id); } else { this.selectedIds.splice(idx, 1); } },  isSelected(id) { return this.selectedIds.includes(id); },  /* * Display text for the trigger button. * No selection: 'Select an item category' * One selected: full category name * Multiple: first name truncated (12 chars) + '... + N more' *   e.g.: 'Home & Kitch... + 3 more' */ get buttonText() { if (this.selectedIds.length === 0) return 'Filter by category'; const firstName = this.categories.find(c => c.id === this.selectedIds[0])?.name || ''; if (this.selectedIds.length === 1) return firstName; const truncated = firstName.length > 12 ? firstName.slice(0, 12) + '...' : firstName; return truncated + ' + ' + (this.selectedIds.length - 1) + ' more'; },  /* * Propagate Alpine's selectedIds state to the hidden select element. * This ensures Django's FilterSet receives the correct category values * when the form is submitted via GET. */ writeSelectedIdsToHiddenSelect() { const select = this.$refs.hiddenSelect; for (const opt of select.options) { opt.selected = this.selectedIds.includes(opt.value); } },  clearFilters() { this.selectedIds = []; this.writeSelectedIdsToHiddenSelect(); closeModal('category-filter-modal'); this.$el.closest('form').submit(); },  applyFilters() { this.writeSelectedIdsToHiddenSelect(); closeModal('category-filter-modal'); this.$el.closest('form').submit(); } }">
+    ],  /* Toggle a category by id: add if not selected, remove if already selected. */ toggle(id) { const idx = this.selectedIds.indexOf(id); if (idx === -1) { this.selectedIds.push(id); } else { this.selectedIds.splice(idx, 1); } },  isSelected(id) { return this.selectedIds.includes(id); },  /* * Display text for the trigger button. * No selection: 'Select an item category' * One selected: full category name * Multiple: first name truncated (12 chars) + '... + N more' *   e.g.: 'Home & Kitch... + 3 more' */ get buttonText() { if (this.selectedIds.length === 0) return 'Filter by category'; const firstName = this.categories.find(c => c.id === this.selectedIds[0])?.name || ''; if (this.selectedIds.length === 1) return firstName; const truncated = firstName.length > 12 ? firstName.slice(0, 12) + '...' : firstName; return truncated + ' + ' + (this.selectedIds.length - 1) + ' more'; },  /* * Propagate Alpine's selectedIds state to the hidden select element. * This ensures Django's FilterSet receives the correct category values * when the form is submitted via GET. */ writeSelectedIdsToHiddenSelect() { const select = this.$refs.hiddenSelect; for (const opt of select.options) { opt.selected = this.selectedIds.includes(opt.value); } },  clearFilters() { this.selectedIds = []; this.writeSelectedIdsToHiddenSelect(); closeModal('category-filter-modal'); this.$el.closest('form').submit(); },  applyFilters() { this.writeSelectedIdsToHiddenSelect(); closeModal('category-filter-modal'); this.$el.closest('form').submit(); },  /* Same pattern as the category state above, kept separate (rather than generalized) so the two filters stay independent. */ selectedGroupIds: [
+    {% for val in filter.form.groups.value %}
+        '{{ val }}'
+        {% if not forloop.last %}
+            ,
+        {% endif %}
+
+    {% endfor %}
+    ], groups: [
+    {% for choice in filter.form.groups.field.choices %}
+        { id: '{{ choice.0 }}', name: '{{ choice.1 }}' }
+        {% if not forloop.last %}
+            ,
+        {% endif %}
+
+    {% endfor %}
+    ],  toggleGroup(id) { const idx = this.selectedGroupIds.indexOf(id); if (idx === -1) { this.selectedGroupIds.push(id); } else { this.selectedGroupIds.splice(idx, 1); } },  isGroupSelected(id) { return this.selectedGroupIds.includes(id); },  get groupButtonText() { if (this.selectedGroupIds.length === 0) return 'Filter by group'; const firstName = this.groups.find(g => g.id === this.selectedGroupIds[0])?.name || ''; if (this.selectedGroupIds.length === 1) return firstName; const truncated = firstName.length > 12 ? firstName.slice(0, 12) + '...' : firstName; return truncated + ' + ' + (this.selectedGroupIds.length - 1) + ' more'; },  writeSelectedGroupIdsToHiddenSelect() { const select = this.$refs.hiddenGroupSelect; for (const opt of select.options) { opt.selected = this.selectedGroupIds.includes(opt.value); } },  clearGroupFilters() { this.selectedGroupIds = []; this.writeSelectedGroupIdsToHiddenSelect(); closeModal('group-filter-modal'); this.$el.closest('form').submit(); },  applyGroupFilters() { this.writeSelectedGroupIdsToHiddenSelect(); closeModal('group-filter-modal'); this.$el.closest('form').submit(); } }">
     <!-- Search bar and button -->
     <div class="flex gap-4 items-start">
         <label class="input input-bordered w-full flex items-center gap-2">
@@ -71,5 +87,48 @@
     </select>
 
     {% include "components/items/modals/category_filter_modal.html" with modal_id="category-filter-modal" confirm_button_text="Update search" %}
+
+    {% if user_has_groups %}
+        <!-- Group filter trigger badge -->
+        <div>
+            <button type="button"
+                    @click="showModal('group-filter-modal')"
+                    :class="selectedGroupIds.length > 0 ? 'badge badge-neutral font-medium text-sm leading-6 cursor-pointer p-3' : 'badge badge-soft font-medium text-sm leading-6 cursor-pointer p-3'">
+                {% heroicon_mini "user-group" class="size-3" %}
+                <span x-text="groupButtonText"></span>
+            </button>
+            <!-- Inline clear button, only visible when groups are selected -->
+            <button type="button"
+                    x-show="selectedGroupIds.length > 0"
+                    x-cloak
+                    @click="selectedGroupIds = []; writeSelectedGroupIdsToHiddenSelect(); $el.closest('form').submit();"
+                    class="btn btn-soft btn-primary btn-xs font-semibold">
+                Clear
+            </button>
+        </div>
+
+        <!--
+            Visually hidden select element.
+            Alpine syncs selected group values here so Django's
+            FilterSet receives them on form GET submit.
+        -->
+        <select x-ref="hiddenGroupSelect"
+                name="{{ filter.form.groups.html_name }}"
+                id="{{ filter.form.groups.id_for_label }}"
+                multiple
+                class="hidden">
+            {% for choice in filter.form.groups.field.choices %}
+                {% with choice_value=choice.0|stringformat:"s" %}
+                    <option value="{{ choice_value }}"
+                            {% if filter.form.groups.value and choice_value in filter.form.groups.value %}selected{% endif %}>
+                        {{ choice.1 }}
+                    </option>
+                {% endwith %}
+            {% endfor %}
+        </select>
+
+        {% include "components/items/modals/group_filter_modal.html" with modal_id="group-filter-modal" confirm_button_text="Update search" %}
+
+    {% endif %}
 
 </form>
