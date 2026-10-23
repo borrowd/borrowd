@@ -693,7 +693,9 @@ class Item(Model):
             return
 
         if action == ItemAction.REQUEST_GIVEAWAY:
-            self._open_request(user, TransactionStatus.GIVEAWAY_REQUESTED, action=action)
+            self._open_request(
+                user, TransactionStatus.GIVEAWAY_REQUESTED, action=action
+            )
             return
 
         if (
