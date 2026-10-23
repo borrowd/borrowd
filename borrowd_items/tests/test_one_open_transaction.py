@@ -11,16 +11,19 @@ from django.test import TestCase
 
 from borrowd_items.exceptions import ItemAlreadyRequested
 from borrowd_items.models import (
+    OPEN_TRANSACTION_STATUSES,
     TERMINAL_TRANSACTION_STATUSES,
     Item,
     ItemAction,
+    ItemStatus,
+    ListingType,
     PrecomputedItemState,
     Transaction,
     TransactionStatus,
 )
 from borrowd_users.models import BorrowdUser
 
-migration = import_module("borrowd_items.migrations.0026_unique_open_transaction")
+migration = import_module("borrowd_items.migrations.0029_unique_open_transaction")
 
 
 class OneOpenTransactionTestCase(TestCase):
@@ -59,8 +62,10 @@ class OneOpenTransactionTestCase(TestCase):
 class OneOpenTransactionPerItemTests(OneOpenTransactionTestCase):
     def test_a_second_open_transaction_is_rejected(self) -> None:
         self.make_transaction(TransactionStatus.COLLECTED)
-        with self.assertRaises(IntegrityError), atomic():
-            self.make_transaction(TransactionStatus.REQUESTED)
+        for status in OPEN_TRANSACTION_STATUSES:
+            with self.subTest(status=status):
+                with self.assertRaises(IntegrityError), atomic():
+                    self.make_transaction(status)
 
     def test_finished_transactions_do_not_count(self) -> None:
         for status in TERMINAL_TRANSACTION_STATUSES:
@@ -83,6 +88,25 @@ class OneOpenTransactionPerItemTests(OneOpenTransactionTestCase):
             with self.assertRaises(ItemAlreadyRequested):
                 self.item.process_action(late, ItemAction.REQUEST_ITEM)
         self.assertEqual(Transaction.objects.filter(item=self.item).count(), 1)
+
+    def test_a_history_failure_is_not_reported_as_a_competing_request(self) -> None:
+        for listing_type, action in (
+            (ListingType.LEND, ItemAction.REQUEST_ITEM),
+            (ListingType.GIVEAWAY, ItemAction.REQUEST_GIVEAWAY),
+        ):
+            with self.subTest(listing_type=listing_type):
+                self.item.listing_type = listing_type
+                self.item.save(update_fields=("listing_type",))
+                with mock.patch.object(
+                    Transaction,
+                    "_record_status_change",
+                    side_effect=IntegrityError("history failed"),
+                ):
+                    with self.assertRaisesMessage(IntegrityError, "history failed"):
+                        self.item.process_action(self.borrower, action)
+                self.assertFalse(Transaction.objects.filter(item=self.item).exists())
+                self.item.refresh_from_db()
+                self.assertEqual(self.item.status, ItemStatus.AVAILABLE)
 
 
 @skipUnless(
