@@ -48,22 +48,45 @@
         <input type="submit" value="Search" class="btn btn-primary">
     </div>
 
-    <!-- Category filter trigger badge -->
-    <div>
-        <button type="button"
-                @click="showModal('category-filter-modal')"
-                :class="selectedIds.length > 0 ? 'badge badge-neutral font-medium text-sm leading-6 cursor-pointer p-3' : 'badge badge-soft font-medium text-sm leading-6 cursor-pointer p-3'">
-            {% heroicon_mini "adjustments-horizontal" class="size-3" %}
-            <span x-text="buttonText"></span>
-        </button>
-        <!-- Inline clear button, only visible when categories are selected -->
-        <button type="button"
-                x-show="selectedIds.length > 0"
-                x-cloak
-                @click="selectedIds = []; writeSelectedIdsToHiddenSelect(); $el.closest('form').submit();"
-                class="btn btn-soft btn-primary btn-xs font-semibold">
-            Clear
-        </button>
+    <!-- Filter trigger badges, side by side -->
+    <div class="flex gap-4 flex-wrap items-center">
+        <!-- Category filter trigger badge -->
+        <div>
+            <button type="button"
+                    @click="showModal('category-filter-modal')"
+                    :class="selectedIds.length > 0 ? 'badge badge-neutral font-medium text-sm leading-6 cursor-pointer p-3' : 'badge badge-soft font-medium text-sm leading-6 cursor-pointer p-3'">
+                {% heroicon_mini "adjustments-horizontal" class="size-3" %}
+                <span x-text="buttonText"></span>
+            </button>
+            <!-- Inline clear button, only visible when categories are selected -->
+            <button type="button"
+                    x-show="selectedIds.length > 0"
+                    x-cloak
+                    @click="selectedIds = []; writeSelectedIdsToHiddenSelect(); $el.closest('form').submit();"
+                    class="btn btn-soft btn-primary btn-xs font-semibold">
+                Clear
+            </button>
+        </div>
+
+        {% if user_has_groups %}
+            <!-- Group filter trigger badge -->
+            <div>
+                <button type="button"
+                        @click="showModal('group-filter-modal')"
+                        :class="selectedGroupIds.length > 0 ? 'badge badge-neutral font-medium text-sm leading-6 cursor-pointer p-3' : 'badge badge-soft font-medium text-sm leading-6 cursor-pointer p-3'">
+                    {% heroicon_mini "user-group" class="size-3" %}
+                    <span x-text="groupButtonText"></span>
+                </button>
+                <!-- Inline clear button, only visible when groups are selected -->
+                <button type="button"
+                        x-show="selectedGroupIds.length > 0"
+                        x-cloak
+                        @click="selectedGroupIds = []; writeSelectedGroupIdsToHiddenSelect(); $el.closest('form').submit();"
+                        class="btn btn-soft btn-primary btn-xs font-semibold">
+                    Clear
+                </button>
+            </div>
+        {% endif %}
     </div>
 
     <!--
@@ -89,24 +112,6 @@
     {% include "components/items/modals/category_filter_modal.html" with modal_id="category-filter-modal" confirm_button_text="Update search" %}
 
     {% if user_has_groups %}
-        <!-- Group filter trigger badge -->
-        <div>
-            <button type="button"
-                    @click="showModal('group-filter-modal')"
-                    :class="selectedGroupIds.length > 0 ? 'badge badge-neutral font-medium text-sm leading-6 cursor-pointer p-3' : 'badge badge-soft font-medium text-sm leading-6 cursor-pointer p-3'">
-                {% heroicon_mini "user-group" class="size-3" %}
-                <span x-text="groupButtonText"></span>
-            </button>
-            <!-- Inline clear button, only visible when groups are selected -->
-            <button type="button"
-                    x-show="selectedGroupIds.length > 0"
-                    x-cloak
-                    @click="selectedGroupIds = []; writeSelectedGroupIdsToHiddenSelect(); $el.closest('form').submit();"
-                    class="btn btn-soft btn-primary btn-xs font-semibold">
-                Clear
-            </button>
-        </div>
-
         <!--
             Visually hidden select element.
             Alpine syncs selected group values here so Django's
