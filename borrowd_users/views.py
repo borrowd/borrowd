@@ -290,12 +290,11 @@ def upload_profile_photo_view(request: HttpRequest) -> JsonResponse:
 @login_required
 def inventory_view(request: HttpRequest) -> HttpResponse:
     """
-    Inventory page with toggle between owned items and all activity.
+    Inventory page, scoped to All, Lending, or Borrowing.
 
-    Toggle ON (Your Items): only user-owned items/sections displayed
-    Toggle OFF (All Items): all sections displayed
-
-    Sections in display order:
+    Lending: incoming_borrow_requests + owned_items_lent + owned_items_available
+    Borrowing: outgoing_borrow_requests + borrowed_items_from_others
+    All: every section above, in this order:
     1. incoming_borrow_requests   — others requesting to borrow user's items
     2. outgoing_borrow_requests   — user's outgoing requests awaiting response
     3. owned_items_lent           — user's items actively lent to others
@@ -382,32 +381,56 @@ def inventory_view(request: HttpRequest) -> HttpResponse:
         subscription_item_ids,
     )
 
-    # Toggle empty states: "Your Items" shows owned sections, "All Items" adds borrowing activity
-    has_owned_items = bool(
+    lending_cards = (
         incoming_borrow_requests_cards
-        or owned_items_lent_cards
-        or owned_items_available_cards
+        + owned_items_lent_cards
+        + owned_items_available_cards
     )
-    has_activity = bool(
-        outgoing_borrow_requests_cards or borrowed_items_from_others_cards
+    borrowing_cards = outgoing_borrow_requests_cards + borrowed_items_from_others_cards
+    all_cards = (
+        incoming_borrow_requests_cards
+        + outgoing_borrow_requests_cards
+        + owned_items_lent_cards
+        + borrowed_items_from_others_cards
+        + owned_items_available_cards
     )
+
+    scope = request.GET.get("scope")
+    if scope not in {"all", "lending", "borrowing"}:
+        scope = "all"
+
+    cards_by_scope = {"lending": lending_cards, "borrowing": borrowing_cards}
+    item_cards = cards_by_scope.get(scope, all_cards)
+
+    base_url = reverse("profile-inventory")
+    scope_segments = [
+        {
+            "label": "All",
+            "url": f"{base_url}?scope=all",
+            "count": len(all_cards),
+            "selected": scope == "all",
+        },
+        {
+            "label": "Lending",
+            "url": f"{base_url}?scope=lending",
+            "count": len(lending_cards),
+            "selected": scope == "lending",
+        },
+        {
+            "label": "Borrowing",
+            "url": f"{base_url}?scope=borrowing",
+            "count": len(borrowing_cards),
+            "selected": scope == "borrowing",
+        },
+    ]
 
     return render(
         request,
         "users/inventory.html",
         {
-            "incoming_borrow_requests": incoming_borrow_requests_cards,
-            "outgoing_borrow_requests": outgoing_borrow_requests_cards,
-            "owned_items_lent": owned_items_lent_cards,
-            "borrowed_items_from_others": borrowed_items_from_others_cards,
-            "owned_items_available": owned_items_available_cards,
-            "has_owned_items": has_owned_items,
-            "has_activity": has_activity,
-            "back_url": resolve_back_url(
-                request,
-                fallback_url=reverse("item-list"),
-                allowed_url_names=BROWSABLE_BACK_TARGETS,
-            ),
+            "item_cards": item_cards,
+            "active_scope": scope,
+            "scope_segments": scope_segments,
         },
     )
 
