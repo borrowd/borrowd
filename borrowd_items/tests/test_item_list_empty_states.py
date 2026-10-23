@@ -40,7 +40,7 @@ class ItemListEmptyStateTests(TestCase):
             f"{reverse('community-request-create')}?item_name={quote('Cordless drill')}"
         )
         self.assertContains(response, expected_link)
-        self.assertContains(response, "Request item")
+        self.assertContains(response, "Post a request")
 
     def test_zero_result_search_with_groups_url_encodes_special_characters(
         self,

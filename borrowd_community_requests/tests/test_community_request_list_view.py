@@ -6,7 +6,7 @@ from django.urls import reverse
 from borrowd_community_requests.context_processors import community_request_count
 from borrowd_community_requests.models import CommunityRequest, CommunityRequestStatus
 from borrowd_groups.models import BorrowdGroup
-from borrowd_items.models import ItemCategory
+from borrowd_items.models import Item, ItemCategory
 from borrowd_users.models import BorrowdUser
 
 
@@ -43,11 +43,11 @@ class CommunityRequestListViewTestBase(TestCase):
         cls.group.add_user(cls.group_member)
 
 
-class CommunityRequestListViewTabTests(CommunityRequestListViewTestBase):
+class CommunityRequestListViewScopeTests(CommunityRequestListViewTestBase):
     def setUp(self) -> None:
         self.client.force_login(self.group_member)
 
-    def test_default_tab_is_all_requests(self) -> None:
+    def test_default_scope_is_all_requests(self) -> None:
         request = CommunityRequest.objects.create(
             requester=self.requester,
             category=self.category_tools,
@@ -56,32 +56,99 @@ class CommunityRequestListViewTabTests(CommunityRequestListViewTestBase):
 
         response = self.client.get(reverse("community-request-list"))
 
-        self.assertEqual(response.context["active_tab"], "all")
+        self.assertEqual(response.context["active_scope"], "all")
         self.assertIn(request, _requests(response.context["community_requests"]))
 
-    def test_all_tab_shows_requests_visible_to_the_user(self) -> None:
+    def test_all_scope_shows_requests_visible_to_the_user(self) -> None:
         request = CommunityRequest.objects.create(
             requester=self.requester,
             category=self.category_tools,
             item_name="Drill",
         )
 
-        response = self.client.get(reverse("community-request-list"), {"tab": "all"})
+        response = self.client.get(reverse("community-request-list"), {"scope": "all"})
 
         self.assertIn(request, _requests(response.context["community_requests"]))
 
-    def test_all_tab_excludes_the_viewers_own_requests(self) -> None:
+    def test_all_scope_includes_the_viewers_own_requests(self) -> None:
         own_request = CommunityRequest.objects.create(
             requester=self.group_member,
             category=self.category_tools,
             item_name="Ladder",
         )
 
-        response = self.client.get(reverse("community-request-list"), {"tab": "all"})
+        response = self.client.get(reverse("community-request-list"), {"scope": "all"})
 
-        self.assertNotIn(own_request, _requests(response.context["community_requests"]))
+        self.assertIn(own_request, _requests(response.context["community_requests"]))
 
-    def test_mine_tab_shows_only_the_viewers_own_requests(self) -> None:
+    def test_yours_scope_shows_only_the_viewers_own_requests(self) -> None:
+        own_request = CommunityRequest.objects.create(
+            requester=self.group_member,
+            category=self.category_tools,
+            item_name="Ladder",
+        )
+        other_request = CommunityRequest.objects.create(
+            requester=self.requester,
+            category=self.category_tools,
+            item_name="Drill",
+        )
+
+        response = self.client.get(
+            reverse("community-request-list"), {"scope": "yours"}
+        )
+
+        self.assertEqual(response.context["active_scope"], "yours")
+        requests = _requests(response.context["community_requests"])
+        self.assertIn(own_request, requests)
+        self.assertNotIn(other_request, requests)
+
+    def test_yours_scope_excludes_cancelled_requests(self) -> None:
+        cancelled_request = CommunityRequest.objects.create(
+            requester=self.group_member,
+            category=self.category_tools,
+            item_name="Ladder",
+            status=CommunityRequestStatus.CANCELLED,
+        )
+
+        response = self.client.get(
+            reverse("community-request-list"), {"scope": "yours"}
+        )
+
+        self.assertNotIn(
+            cancelled_request, _requests(response.context["community_requests"])
+        )
+
+    def test_yours_scope_excludes_fulfilled_requests(self) -> None:
+        fulfilled_request = CommunityRequest.objects.create(
+            requester=self.group_member,
+            category=self.category_tools,
+            item_name="Ladder",
+            status=CommunityRequestStatus.FULFILLED,
+        )
+
+        response = self.client.get(
+            reverse("community-request-list"), {"scope": "yours"}
+        )
+
+        self.assertNotIn(
+            fulfilled_request, _requests(response.context["community_requests"])
+        )
+
+    def test_unrecognized_scope_value_falls_back_to_all(self) -> None:
+        request = CommunityRequest.objects.create(
+            requester=self.requester,
+            category=self.category_tools,
+            item_name="Drill",
+        )
+
+        response = self.client.get(
+            reverse("community-request-list"), {"scope": "bogus"}
+        )
+
+        self.assertEqual(response.context["active_scope"], "all")
+        self.assertIn(request, _requests(response.context["community_requests"]))
+
+    def test_legacy_tab_mine_maps_to_yours_scope(self) -> None:
         own_request = CommunityRequest.objects.create(
             requester=self.group_member,
             category=self.category_tools,
@@ -95,50 +162,22 @@ class CommunityRequestListViewTabTests(CommunityRequestListViewTestBase):
 
         response = self.client.get(reverse("community-request-list"), {"tab": "mine"})
 
-        self.assertEqual(response.context["active_tab"], "mine")
+        self.assertEqual(response.context["active_scope"], "yours")
         requests = _requests(response.context["community_requests"])
         self.assertIn(own_request, requests)
         self.assertNotIn(other_request, requests)
 
-    def test_mine_tab_excludes_cancelled_requests(self) -> None:
-        cancelled_request = CommunityRequest.objects.create(
+    def test_legacy_tab_all_maps_to_all_scope(self) -> None:
+        own_request = CommunityRequest.objects.create(
             requester=self.group_member,
             category=self.category_tools,
             item_name="Ladder",
-            status=CommunityRequestStatus.CANCELLED,
         )
 
-        response = self.client.get(reverse("community-request-list"), {"tab": "mine"})
+        response = self.client.get(reverse("community-request-list"), {"tab": "all"})
 
-        self.assertNotIn(
-            cancelled_request, _requests(response.context["community_requests"])
-        )
-
-    def test_mine_tab_excludes_fulfilled_requests(self) -> None:
-        fulfilled_request = CommunityRequest.objects.create(
-            requester=self.group_member,
-            category=self.category_tools,
-            item_name="Ladder",
-            status=CommunityRequestStatus.FULFILLED,
-        )
-
-        response = self.client.get(reverse("community-request-list"), {"tab": "mine"})
-
-        self.assertNotIn(
-            fulfilled_request, _requests(response.context["community_requests"])
-        )
-
-    def test_unrecognized_tab_value_falls_back_to_all(self) -> None:
-        request = CommunityRequest.objects.create(
-            requester=self.requester,
-            category=self.category_tools,
-            item_name="Drill",
-        )
-
-        response = self.client.get(reverse("community-request-list"), {"tab": "bogus"})
-
-        self.assertEqual(response.context["active_tab"], "all")
-        self.assertIn(request, _requests(response.context["community_requests"]))
+        self.assertEqual(response.context["active_scope"], "all")
+        self.assertIn(own_request, _requests(response.context["community_requests"]))
 
 
 class CommunityRequestListViewVisibilityTests(CommunityRequestListViewTestBase):
@@ -184,7 +223,7 @@ class CommunityRequestListViewOrderingTests(CommunityRequestListViewTestBase):
     def setUp(self) -> None:
         self.client.force_login(self.group_member)
 
-    def test_all_tab_is_ordered_newest_first(self) -> None:
+    def test_all_scope_is_ordered_newest_first(self) -> None:
         older = CommunityRequest.objects.create(
             requester=self.requester,
             category=self.category_tools,
@@ -196,12 +235,12 @@ class CommunityRequestListViewOrderingTests(CommunityRequestListViewTestBase):
             item_name="Ladder",
         )
 
-        response = self.client.get(reverse("community-request-list"), {"tab": "all"})
+        response = self.client.get(reverse("community-request-list"), {"scope": "all"})
 
         community_requests = _requests(response.context["community_requests"])
         self.assertEqual(community_requests, [newer, older])
 
-    def test_mine_tab_is_ordered_newest_first(self) -> None:
+    def test_yours_scope_is_ordered_newest_first(self) -> None:
         self.client.force_login(self.requester)
         older = CommunityRequest.objects.create(
             requester=self.requester,
@@ -214,25 +253,64 @@ class CommunityRequestListViewOrderingTests(CommunityRequestListViewTestBase):
             item_name="Ladder",
         )
 
-        response = self.client.get(reverse("community-request-list"), {"tab": "mine"})
+        response = self.client.get(
+            reverse("community-request-list"), {"scope": "yours"}
+        )
 
         community_requests = _requests(response.context["community_requests"])
         self.assertEqual(community_requests, [newer, older])
+
+    def test_all_scope_surfaces_the_viewers_own_requests_with_a_response_first(
+        self,
+    ) -> None:
+        own_without_response = CommunityRequest.objects.create(
+            requester=self.group_member,
+            category=self.category_tools,
+            item_name="Ladder",
+        )
+        other_request = CommunityRequest.objects.create(
+            requester=self.requester,
+            category=self.category_tools,
+            item_name="Drill",
+        )
+        own_with_response = CommunityRequest.objects.create(
+            requester=self.group_member,
+            category=self.category_tools,
+            item_name="Saw",
+        )
+        responding_item = Item.objects.create(
+            name="Saw",
+            description="A saw",
+            owner=self.requester,
+            created_by=self.requester,
+            updated_by=self.requester,
+        )
+        own_with_response.add_response(responding_item)
+
+        response = self.client.get(reverse("community-request-list"), {"scope": "all"})
+
+        community_requests = _requests(response.context["community_requests"])
+        self.assertEqual(
+            community_requests,
+            [own_with_response, other_request, own_without_response],
+        )
 
 
 class CommunityRequestListViewEmptyStateTests(CommunityRequestListViewTestBase):
     def setUp(self) -> None:
         self.client.force_login(self.group_member)
 
-    def test_empty_state_copy_renders_when_all_tab_has_no_requests(self) -> None:
-        response = self.client.get(reverse("community-request-list"), {"tab": "all"})
+    def test_empty_state_copy_renders_when_all_scope_has_no_requests(self) -> None:
+        response = self.client.get(reverse("community-request-list"), {"scope": "all"})
 
         self.assertContains(response, "There are no community requests right now.")
 
-    def test_empty_state_copy_renders_when_mine_tab_has_no_requests(self) -> None:
-        response = self.client.get(reverse("community-request-list"), {"tab": "mine"})
+    def test_empty_state_copy_renders_when_yours_scope_has_no_requests(self) -> None:
+        response = self.client.get(
+            reverse("community-request-list"), {"scope": "yours"}
+        )
 
-        self.assertContains(response, "There are no community requests right now.")
+        self.assertContains(response, "You have no community requests yet.")
 
 
 class CommunityRequestGetAbsoluteUrlTests(CommunityRequestListViewTestBase):
