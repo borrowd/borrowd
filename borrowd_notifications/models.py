@@ -99,6 +99,7 @@ class NotificationType(models.TextChoices):
     ITEM_ADDED_NEEDS_GROUP = "ITEM_ADDED_NEEDS_GROUP"
     GROUP_CREATED_NEEDS_PHOTO = "GROUP_CREATED_NEEDS_PHOTO"
     PHOTO_ADDED_NEEDS_INVITES = "PHOTO_ADDED_NEEDS_INVITES"
+    GROUP_JOINED_NEEDS_ITEM = "GROUP_JOINED_NEEDS_ITEM"
 
     # Ownership transfer / giveaway
     GIVEAWAY_OFFER_SENT = "GIVEAWAY_OFFER_SENT"
@@ -317,6 +318,13 @@ class NotificationType(models.TextChoices):
                         ),
                     }
                 )
+            elif notification.verb == NotificationType.GROUP_JOINED_NEEDS_ITEM.value:
+                context.update(
+                    {
+                        "group_name": notification.target.name,
+                        "add_item_url": settings.BASE_URL + reverse("item-create"),
+                    }
+                )
             else:
                 membership: Membership = notification.action_object
                 context.update(
@@ -367,6 +375,7 @@ _EMAIL_EXCLUDED_TYPES: "frozenset[NotificationType]" = frozenset(
         NotificationType.ITEM_ADDED_NEEDS_GROUP,
         NotificationType.GROUP_CREATED_NEEDS_PHOTO,
         NotificationType.PHOTO_ADDED_NEEDS_INVITES,
+        NotificationType.GROUP_JOINED_NEEDS_ITEM,
     }
 )
 
@@ -403,6 +412,7 @@ _MESSAGE_TEMPLATES: dict[NotificationType, str] = {
     NotificationType.ITEM_ADDED_NEEDS_GROUP: "Great job adding {item_name}! Join a group to start sharing it with others.",
     NotificationType.GROUP_CREATED_NEEDS_PHOTO: "Great job creating {group_name}! Add a photo to your profile to help your friends recognize you.",
     NotificationType.PHOTO_ADDED_NEEDS_INVITES: "Great job adding a photo! Now invite friends to join {group_name}.",
+    NotificationType.GROUP_JOINED_NEEDS_ITEM: "Add your first item to start sharing with {group_name}.",
 }
 
 
