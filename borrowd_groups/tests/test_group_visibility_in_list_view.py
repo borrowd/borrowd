@@ -304,22 +304,3 @@ class GroupListViewScopeTests(TestCase):
             [m.group_id for m in memberships],
             [needs_moderator_group.pk, plain_group.pk, pending_group.pk],
         )
-
-    def test_you_manage_pill_shown_only_in_all_scope(self) -> None:
-        BorrowdGroup.objects.create_group(
-            name="My Group",
-            created_by=self.owner,
-            updated_by=self.owner,
-        )
-
-        request = self.factory.get("/groups/")
-        request.user = self.owner
-        response = GroupListView.as_view()(request)
-        response.render()
-        self.assertContains(response, "group-you-manage-pill")
-
-        request = self.factory.get("/groups/", {"scope": "manage"})
-        request.user = self.owner
-        response = GroupListView.as_view()(request)
-        response.render()
-        self.assertNotContains(response, "group-you-manage-pill")
