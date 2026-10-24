@@ -158,28 +158,22 @@ block groups_content %}
                 {% endif %}
             </div>
         {% endfor %}
-        <div class="mt-6 w-full flex items-center justify-end">
+        <div class="mt-6 w-full flex items-center justify-end gap-4">
             {% if form.instance.pk %}
-                <div class="flex items-center gap-4">
-
-                    <c-button-nav url="{% url 'borrowd_groups:group-detail' form.instance.pk %}"
-                                  class="btn btn-ghost">
-                        Cancel
-                    </c-button-nav>
-
-                    <button class="btn btn-primary" type="submit">
-                        Save group
-                    </button>
-                </div>
+                <c-button-nav url="{% url 'borrowd_groups:group-detail' form.instance.pk %}"
+                              class="btn btn-ghost">
+                    Cancel
+                </c-button-nav>
+                <button class="btn btn-primary" type="submit">
+                    Save group
+                </button>
             {% else %}
-                <div class="flex items-center gap-4">
-                    <c-button-nav url="{% url 'borrowd_groups:group-list' %}" class="btn btn-ghost">
-                        Cancel
-                    </c-button-nav>
-                    <button type="submit" class="btn btn-primary">
-                        Create group
-                    </button>
-                </div>
+                <c-button-nav url="{% url 'borrowd_groups:group-list' %}" class="btn btn-ghost">
+                    Cancel
+                </c-button-nav>
+                <button type="submit" class="btn btn-primary">
+                    Create group
+                </button>
             {% endif %}
         </div>
     </form>
