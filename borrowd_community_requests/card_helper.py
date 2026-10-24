@@ -12,28 +12,27 @@ from .models import CommunityRequest
 def build_commmunity_request_card(
     request: CommunityRequest, viewing_user: BorrowdUser
 ) -> dict[str, Any]:
-    user_whose_name_should_be_shown_in_banner = request.requester
     time_ago = timesince(request.created_at).split(",")[0]
-
-    banner_type = "requested"
-
-    banner_style = BANNER_STYLES.get(banner_type, {})
-    banner_icon = format_html(BANNER_ICONS.get(banner_type, ""))
-    person_name = (
-        "you"
-        if viewing_user == request.requester
-        else request.requester.first_name.capitalize()
-    )
     belongs_to_viewer = viewing_user == request.requester
 
+    banner_type = "requested"
+    # The viewer's own request is tinted (background, text, and icon) like
+    # the "borrowed" banner instead of "requested", to set it apart from
+    # everyone else's open requests. The copy still reads "Requested".
+    banner_style_key = "borrowed" if belongs_to_viewer else banner_type
+    banner_style = BANNER_STYLES.get(banner_style_key, {})
+    banner_icon = format_html(BANNER_ICONS.get(banner_style_key, ""))
+    person_name = (
+        "you" if belongs_to_viewer else request.requester.first_name.capitalize()
+    )
+
     card_context = {
-        "banner_type": "requested",
+        "banner_type": banner_type,
         "banner_bg": banner_style.get("bg", ""),
         "banner_text": banner_style.get("text", ""),
         "banner_icon": banner_icon,
-        "is_yours": belongs_to_viewer,
         "person_name": person_name,
-        "person_url": f"/profile/{user_whose_name_should_be_shown_in_banner.pk}/",
+        "person_url": f"/profile/{request.requester.pk}/",
         "time_ago": time_ago,
     }
 

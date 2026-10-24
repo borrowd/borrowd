@@ -195,3 +195,112 @@ class GroupListViewVisibilityTests(TestCase):
 
         self.assertTrue(page_membership.group_needs_moderator)
         self.assertContains(response, "group-needs-moderator-indicator")
+
+
+class GroupListViewScopeTests(TestCase):
+    def setUp(self) -> None:
+        self.owner = BorrowdUser.objects.create(
+            username="owner", email="owner@example.com"
+        )
+        self.member = BorrowdUser.objects.create(
+            username="member", email="member@example.com"
+        )
+        self.factory = RequestFactory()
+
+    def test_default_scope_is_all(self) -> None:
+        BorrowdGroup.objects.create_group(
+            name="Test Group",
+            created_by=self.owner,
+            updated_by=self.owner,
+        )
+
+        request = self.factory.get("/groups/")
+        request.user = self.owner
+
+        response = GroupListView.as_view()(request)
+
+        self.assertEqual(response.context_data["active_scope"], "all")
+
+    def test_manage_scope_shows_only_moderated_groups(self) -> None:
+        moderated_group = BorrowdGroup.objects.create_group(
+            name="Moderated Group",
+            created_by=self.member,
+            updated_by=self.member,
+        )
+        other_group = BorrowdGroup.objects.create_group(
+            name="Other Group",
+            created_by=self.owner,
+            updated_by=self.owner,
+            membership_requires_approval=False,
+        )
+        other_group.add_user(self.member)
+
+        request = self.factory.get("/groups/", {"scope": "manage"})
+        request.user = self.member
+
+        response = GroupListView.as_view()(request)
+        memberships = response.context_data["object_list"]
+
+        self.assertEqual([m.group_id for m in memberships], [moderated_group.pk])
+
+    def test_legacy_moderator_only_true_maps_to_manage_scope(self) -> None:
+        moderated_group = BorrowdGroup.objects.create_group(
+            name="Moderated Group",
+            created_by=self.member,
+            updated_by=self.member,
+        )
+        other_group = BorrowdGroup.objects.create_group(
+            name="Other Group",
+            created_by=self.owner,
+            updated_by=self.owner,
+            membership_requires_approval=False,
+        )
+        other_group.add_user(self.member)
+
+        request = self.factory.get("/groups/", {"moderator_only": "true"})
+        request.user = self.member
+
+        response = GroupListView.as_view()(request)
+        memberships = response.context_data["object_list"]
+
+        self.assertEqual(response.context_data["active_scope"], "manage")
+        self.assertEqual([m.group_id for m in memberships], [moderated_group.pk])
+
+    def test_groups_with_a_chip_sort_before_other_active_before_pending(self) -> None:
+        viewer = self.member
+
+        needs_moderator_group = BorrowdGroup.objects.create_group(
+            name="Needs Moderator",
+            created_by=self.owner,
+            updated_by=self.owner,
+            membership_requires_approval=False,
+        )
+        needs_moderator_group.add_user(viewer)
+        Membership.objects.filter(group=needs_moderator_group, user=self.owner).update(
+            is_moderator=False
+        )
+
+        plain_group = BorrowdGroup.objects.create_group(
+            name="Plain Group",
+            created_by=viewer,
+            updated_by=viewer,
+        )
+
+        pending_group = BorrowdGroup.objects.create_group(
+            name="Pending Group",
+            created_by=self.owner,
+            updated_by=self.owner,
+            membership_requires_approval=True,
+        )
+        pending_group.add_user(viewer)
+
+        request = self.factory.get("/groups/")
+        request.user = viewer
+
+        response = GroupListView.as_view()(request)
+        memberships = response.context_data["object_list"]
+
+        self.assertEqual(
+            [m.group_id for m in memberships],
+            [needs_moderator_group.pk, plain_group.pk, pending_group.pk],
+        )
