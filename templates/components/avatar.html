@@ -5,13 +5,16 @@
 {# Fallback chain: provided `src` (real photo) -> ui-avatars (when src empty)
 -> inline heroicon `user-circle` (onerror). #}
 
-<span class="relative inline-flex">
+{# Sizing, rounding, and shrink-0 live on this wrapper, not the inner <img> --
+the wrapper is what a flex row actually sizes, so keeping them only on the
+<img> let the wrapper shrink to nothing when sibling text was long. #}
+<span class="relative inline-flex shrink-0 overflow-hidden {{ class }}">
     <img src="{% if src %}{{ src }}{% else %}https://ui-avatars.com/api/?name={{ name|urlencode }}&background=random{% endif %}"
          alt="{{ alt }}"
          onerror="this.onerror=null; this.style.display='none'; this.nextElementSibling.style.display='inline-flex';"
-         class="object-cover {{ class }}" />
+         class="w-full h-full object-cover" />
     <span style="display: none"
-          class="items-center justify-center bg-base-200 text-base-content/40 {{ class }}">
+          class="w-full h-full items-center justify-center bg-base-200 text-base-content/40">
         {% heroicon_outline "user-circle" class="w-2/3 h-2/3" %}
     </span>
 </span>
