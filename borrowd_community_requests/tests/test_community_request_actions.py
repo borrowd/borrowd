@@ -355,7 +355,7 @@ class ResponseCountIndicatorTests(CommunityRequestActionsTestBase):
         community_request.add_response(self._make_item(self.lender))
 
         self.client.force_login(self.requester)
-        response = self.client.get(f"{reverse('community-request-list')}?tab=mine")
+        response = self.client.get(f"{reverse('community-request-list')}?scope=yours")
 
         self.assertNotContains(
             response, 'data-testid="community-request-response-count"'
@@ -371,7 +371,7 @@ class ResponseListOnRequestersOwnCardTests(CommunityRequestActionsTestBase):
         community_request.add_response(item)
 
         self.client.force_login(self.requester)
-        response = self.client.get(f"{reverse('community-request-list')}?tab=mine")
+        response = self.client.get(f"{reverse('community-request-list')}?scope=yours")
 
         self.assertContains(response, 'data-testid="community-request-response-list"')
         self.assertContains(response, reverse("item-detail", args=[item.pk]))
@@ -387,7 +387,7 @@ class ResponseListOnRequestersOwnCardTests(CommunityRequestActionsTestBase):
         community_request.add_response(second_item)
 
         self.client.force_login(self.requester)
-        response = self.client.get(f"{reverse('community-request-list')}?tab=mine")
+        response = self.client.get(f"{reverse('community-request-list')}?scope=yours")
 
         self.assertContains(response, reverse("item-detail", args=[first_item.pk]))
         self.assertContains(response, reverse("item-detail", args=[second_item.pk]))
@@ -396,7 +396,7 @@ class ResponseListOnRequestersOwnCardTests(CommunityRequestActionsTestBase):
         self._make_request()
 
         self.client.force_login(self.requester)
-        response = self.client.get(f"{reverse('community-request-list')}?tab=mine")
+        response = self.client.get(f"{reverse('community-request-list')}?scope=yours")
 
         self.assertNotContains(
             response, 'data-testid="community-request-response-list"'
@@ -415,7 +415,9 @@ class CommunityRequestCancelViewTests(CommunityRequestActionsTestBase):
             follow=True,
         )
 
-        self.assertRedirects(response, f"{reverse('community-request-list')}?tab=mine")
+        self.assertRedirects(
+            response, f"{reverse('community-request-list')}?scope=yours"
+        )
         community_request.refresh_from_db()
         self.assertEqual(community_request.status, CommunityRequestStatus.CANCELLED)
         messages_list = [str(m) for m in response.context["messages"]]
@@ -481,7 +483,7 @@ class CancelledRequestVisibilityAndActionsTests(CommunityRequestActionsTestBase)
         community_request.cancel()
         self.client.force_login(self.requester)
 
-        response = self.client.get(f"{reverse('community-request-list')}?tab=mine")
+        response = self.client.get(f"{reverse('community-request-list')}?scope=yours")
 
         self.assertNotIn(
             community_request, _requests(response.context["community_requests"])
@@ -492,7 +494,7 @@ class CancelledRequestVisibilityAndActionsTests(CommunityRequestActionsTestBase)
         community_request.cancel()
         self.client.force_login(self.lender)
 
-        response = self.client.get(f"{reverse('community-request-list')}?tab=all")
+        response = self.client.get(f"{reverse('community-request-list')}?scope=all")
 
         self.assertNotIn(
             community_request, _requests(response.context["community_requests"])
@@ -542,7 +544,9 @@ class CommunityRequestMarkFulfilledViewTests(CommunityRequestActionsTestBase):
             follow=True,
         )
 
-        self.assertRedirects(response, f"{reverse('community-request-list')}?tab=mine")
+        self.assertRedirects(
+            response, f"{reverse('community-request-list')}?scope=yours"
+        )
         community_request.refresh_from_db()
         self.assertEqual(community_request.status, CommunityRequestStatus.FULFILLED)
         messages_list = [str(m) for m in response.context["messages"]]
@@ -598,7 +602,7 @@ class FulfilledRequestVisibilityAndActionsTests(CommunityRequestActionsTestBase)
         community_request.mark_fulfilled()
         self.client.force_login(self.requester)
 
-        response = self.client.get(f"{reverse('community-request-list')}?tab=mine")
+        response = self.client.get(f"{reverse('community-request-list')}?scope=yours")
 
         self.assertNotIn(
             community_request, _requests(response.context["community_requests"])
@@ -609,7 +613,7 @@ class FulfilledRequestVisibilityAndActionsTests(CommunityRequestActionsTestBase)
         community_request.mark_fulfilled()
         self.client.force_login(self.lender)
 
-        response = self.client.get(f"{reverse('community-request-list')}?tab=all")
+        response = self.client.get(f"{reverse('community-request-list')}?scope=all")
 
         self.assertNotIn(
             community_request, _requests(response.context["community_requests"])

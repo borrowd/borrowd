@@ -5,7 +5,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
 from django.db.models import Q, QuerySet
-from django.http import HttpRequest, HttpResponse, HttpResponseBadRequest
+from django.http import HttpRequest, HttpResponse, HttpResponseBadRequest, QueryDict
 from django.shortcuts import redirect, render
 from django.template.loader import render_to_string
 from django.urls import reverse
@@ -48,7 +48,7 @@ from .read_state import (
 from .services import MessagingService
 
 _HUB_PAGE_SIZE = 25
-_HUB_SECTIONS = ("active", "archived")
+_SCOPES = ("all", "lending", "borrowing")
 
 
 class _InvalidCursor(ValueError):
@@ -409,54 +409,93 @@ class ChatThreadListView(
     LoginRequiredMixin,
     TemplateView,
 ):
-    """Show the viewer's conversations under an Active or Archived tab."""
+    """Show the viewer's conversations, scoped to All, Lending, or Borrowing."""
 
     template_name = "messaging/chatthread_list.html"
 
-    def _tab_url(self, section: str) -> str:
-        """Keep the filters when switching tabs, but start again at page one."""
-        params = self.request.GET.copy()
-        params["section"] = section
+    def _url(self, base_params: QueryDict, **overrides: str | None) -> str:
+        """Build a hub URL from normalized base params, resetting the page."""
+        params = base_params.copy()
+        for key, value in overrides.items():
+            if value is None:
+                params.pop(key, None)
+            else:
+                params[key] = value
         params.pop("page", None)
         return f"?{params.urlencode()}"
 
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
         viewer = get_authenticated_user(self.request)
-        selected = self.request.GET.get("section")
-        if selected not in _HUB_SECTIONS:
-            selected = _HUB_SECTIONS[0]
+
+        scope = self.request.GET.get("scope")
+        if scope not in _SCOPES:
+            scope = _SCOPES[0]
+
+        archived_param = self.request.GET.get("archived")
+        if archived_param not in {"true", "false"}:
+            # Legacy ?section=active|archived, kept working by mapping onto
+            # the archived toggle -- the new scope dimension (Lending /
+            # Borrowing) has no equivalent in the old URL vocabulary.
+            archived_param = (
+                "true" if self.request.GET.get("section") == "archived" else "false"
+            )
+        archived = archived_param == "true"
+
+        # Normalize away the legacy `section` param, so every generated link
+        # speaks only the current vocabulary.
+        base_params = self.request.GET.copy()
+        base_params.pop("section", None)
+        base_params["archived"] = archived_param
 
         all_threads = threads_for_hub(viewer)
         conversations = ConversationFilter(
             self.request.GET, queryset=all_threads, request=self.request
         )
-        threads = conversations.qs
+        filtered_threads = conversations.qs
         filters_applied = any(
             conversations.form.cleaned_data.get(field)
             for field in conversations.filters
         )
-        active = threads.filter(archived_at__isnull=True)
-        archived = threads.filter(archived_at__isnull=False)
-        shown = active if selected == "active" else archived
+        unread_on = bool(conversations.form.cleaned_data.get("unread"))
+
+        visible_threads = filtered_threads.filter(archived_at__isnull=not archived)
+        scoped_threads = {
+            "all": visible_threads,
+            "lending": visible_threads.filter(lender=viewer),
+            "borrowing": visible_threads.filter(borrower=viewer),
+        }
+        shown = scoped_threads[scope]
 
         page = Paginator(shown, _HUB_PAGE_SIZE).get_page(self.request.GET.get("page"))
         context["conversation_filter"] = conversations
         context["filters_applied"] = filters_applied
-        context["clear_filters_url"] = f"?section={selected}"
-        context["conversation_tabs"] = [
+        context["clear_filters_url"] = f"?scope={scope}&archived={archived_param}"
+        context["active_scope"] = scope
+        context["scope_segments"] = [
             {
-                "name": name,
-                "title": name.title(),
-                "is_selected": name == selected,
-                "url": self._tab_url(name),
+                "label": label,
+                "url": self._url(base_params, scope=name),
+                "count": scoped_threads[name].count(),
+                "selected": scope == name,
             }
-            for name in _HUB_SECTIONS
+            for name, label in (
+                ("all", "All"),
+                ("lending", "Lending"),
+                ("borrowing", "Borrowing"),
+            )
         ]
-        context["selected_section"] = selected
+        context["archived"] = archived
+        context["unread_on"] = unread_on
+        context["unread_toggle_url"] = self._url(
+            base_params, scope=scope, unread=None if unread_on else "on"
+        )
+        context["archived_toggle_url"] = self._url(
+            base_params, scope=scope, archived="false" if archived else "true"
+        )
         context["page_obj"] = page
         context["cards"] = build_hub_cards(page, viewer)
         # Tell a first-time viewer they have nothing anywhere, not just on this
-        # tab. Filters must not hide the form, or there is no way to clear them.
+        # scope. Filters must not hide the form, or there is no way to clear them.
         context["has_conversations"] = all_threads.exists()
         return context

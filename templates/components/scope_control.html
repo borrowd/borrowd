@@ -1,0 +1,33 @@
+{% comment %}
+Scope Control Component
+
+A segmented control for switching between list-page scopes (e.g. All /
+Yours), replacing per-page toggle switches and tabs. Server-rendered links
+reset pagination and keep any other filters already in the URL; there is no
+client-side state.
+
+Parameters:
+- segments: list of dicts, each with:
+    - label: str, segment name
+    - url: str, link target for this segment
+    - count: int, shown next to the label
+    - selected: bool, whether this is the active scope
+{% endcomment %}
+
+<c-vars segments="" />
+
+<div class="join shrink overflow-x-auto">
+    {% for segment in segments %}
+        {% if segment.selected %}
+            <span class="join-item btn btn-soft text-primary border border-base-300 px-2 sm:px-4 whitespace-nowrap"
+                  aria-current="true">
+                {{ segment.label }} ({{ segment.count }})
+            </span>
+        {% else %}
+            <a href="{{ segment.url }}"
+               class="join-item btn border border-base-300 bg-white text-base-content/60 px-2 sm:px-4 whitespace-nowrap hover:bg-base-200">
+                {{ segment.label }} ({{ segment.count }})
+            </a>
+        {% endif %}
+    {% endfor %}
+</div>
