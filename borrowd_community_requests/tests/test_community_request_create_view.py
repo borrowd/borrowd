@@ -196,3 +196,29 @@ class CommunityRequestCreateViewBackUrlTests(CommunityRequestCreateViewTestBase)
         )
 
         self.assertEqual(response.context["back_url"], reverse("item-list"))
+
+
+class CommunityRequestCreateViewTemplateTests(CommunityRequestCreateViewTestBase):
+    def test_page_title_is_post_a_request(self) -> None:
+        response = self.client.get(reverse("community-request-create"))
+
+        self.assertContains(response, "Post a request")
+
+    def test_cancel_link_points_at_the_back_url(self) -> None:
+        response = self.client.get(
+            reverse("community-request-create"),
+            HTTP_REFERER="http://testserver" + reverse("item-list"),
+        )
+
+        self.assertContains(response, f'href="{reverse("item-list")}"')
+
+    def test_category_field_has_a_visible_label_and_placeholder(self) -> None:
+        response = self.client.get(reverse("community-request-create"))
+
+        self.assertContains(response, "Category")
+        self.assertContains(response, "Select a category")
+
+    def test_submit_button_disables_itself_on_submit(self) -> None:
+        response = self.client.get(reverse("community-request-create"))
+
+        self.assertContains(response, "isSubmitting")
