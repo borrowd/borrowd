@@ -6,55 +6,70 @@
 creating and editing. Checking `view.object.pk` is strangely the best way to
 check if we are creating or editing. {% endcomment %}
 {% block head_title %}
-    {%
-    if not view.object.pk %}Create
-{% else %}
-    Edit
-{% endif %}
-group
+    {% if not view.object.pk %}
+        Create group
+    {% else %}
+        Edit group
+    {% endif %}
 {% endblock %}
-{%
-block groups_content %}
-{% load static %}
 
-<c-box>
-    <div class="relative">
+{% block groups_content_wrapper_class %}
+    w-full max-w-2xl mx-auto self-start px-5
+{% endblock %}
 
-        {% if not view.object.pk %}
-            {% include "components/page_header.html" with title="Create a group" %}
+{% block groups_content %}
+    {% load static %}
 
-        {% else %}
-            {% include "components/page_header.html" with title="Edit group" %}
+    {% if not view.object.pk %}
+        <c-page-header title="Create group" />
+    {% else %}
+        <c-page-header title="Edit group" />
+    {% endif %}
 
-        {% endif %}
-
-    </div>
     <form method="post"
           enctype="multipart/form-data"
-          class="flex flex-col space-y-2"
-          onsubmit="this.querySelector('button[type=submit]').disabled = true">
+          class="bg-white rounded-2xl shadow-md p-6 flex flex-col gap-4"
+          x-data="{ isSubmitting: false, submitForm(event) { if (this.isSubmitting) { event.preventDefault(); return; } this.isSubmitting = true; } }"
+          @submit="submitForm($event)">
         {% csrf_token %}
         {% for field in form %}
-            <div class="">
-                {% if field.field.widget.input_type == "checkbox" %}
-                    <div class="mt-2 flex mb-3 items-center gap-3 font-sans font-normal leading-snug text-sm text-black/60">
-                        {{ field.as_widget }}
-                        <div>
-                            {% if field.help_text %}
-                                <p class="help" id="{{ field.auto_id }}_helptext">
-                                    {{ field.help_text|safe }}
-                                </p>
-                            {% endif %}
-                        </div>
-                    </div>
+            {% if field.name == "name" %}
+                <c-form.field type="text"
+                              name="{{ field.html_name }}"
+                              id="{{ field.auto_id }}"
+                              label="{{ field.label }}"
+                              value="{{ field.value|default:'' }}"
+                              placeholder="{{ field.field.widget.attrs.placeholder }}"
+                              max_length="50"
+                              errors="{{ field.errors }}" />
 
-                {% else %}
-                    <div class="flex items-center gap-1">
-                        <label for="{{ field.id_for_label }}"
-                               class="font-sans font-normal leading-[1.8] text-black/60">
-                            {{ field.label }}
-                        </label>
+            {% elif field.name == "description" %}
+                <c-form.textarea name="{{ field.html_name }}"
+                                 id="{{ field.auto_id }}"
+                                 label="{{ field.label }}"
+                                 value="{{ field.value|default:'' }}"
+                                 placeholder="{{ field.field.widget.attrs.placeholder }}"
+                                 rows="4"
+                                 max_length="500"
+                                 errors="{{ field.errors }}" />
+
+            {% elif field.field.widget.input_type == "checkbox" %}
+                <div class="flex items-center gap-3 font-sans font-normal leading-snug text-sm text-black/60">
+                    {{ field.as_widget }}
+                    <div>
+                        {% if field.help_text %}
+                            <p class="help" id="{{ field.auto_id }}_helptext">
+                                {{ field.help_text|safe }}
+                            </p>
+                        {% endif %}
                     </div>
+                </div>
+
+            {% else %}
+                <fieldset class="fieldset w-full gap-0">
+                    <legend class="fieldset-legend text-xs font-normal text-base-content/60">
+                        {{ field.label }}
+                    </legend>
 
                     {% if field.help_text %}
                         <p class="help italic" id="{{ field.auto_id }}_helptext">
@@ -154,34 +169,20 @@ block groups_content %}
                             {% endif %}
                         </div>
                     {% endif %}
-
-                {% endif %}
-            </div>
+                </fieldset>
+            {% endif %}
         {% endfor %}
-        <div class="mt-6 w-full flex items-center justify-end">
+        <div class="flex items-center justify-end gap-4 pt-4">
+            <a href="{{ back_url }}" class="btn btn-ghost">Cancel</a>
             {% if form.instance.pk %}
-                <div class="flex items-center gap-4">
-
-                    <c-button-nav url="{% url 'borrowd_groups:group-detail' form.instance.pk %}"
-                                  class="btn btn-ghost">
-                        Cancel
-                    </c-button-nav>
-
-                    <c-button class="btn btn-primary" type="submit">
-                        Save group
-                    </c-button>
-                </div>
+                <button type="submit" class="btn btn-primary" x-bind:disabled="isSubmitting">
+                    Save changes
+                </button>
             {% else %}
-                <div class="flex items-center gap-4">
-                    <c-button-nav url="{% url 'borrowd_groups:group-list' %}" class="btn btn-ghost">
-                        Cancel
-                    </c-button-nav>
-                    <c-button type="submit" class="btn btn-primary">
-                        Create group
-                    </c-button>
-                </div>
+                <button type="submit" class="btn btn-primary" x-bind:disabled="isSubmitting">
+                    Create group
+                </button>
             {% endif %}
         </div>
     </form>
-</c-box>
 {% endblock %}

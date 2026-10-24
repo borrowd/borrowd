@@ -22,7 +22,11 @@ from django_filters.views import FilterView
 from guardian.mixins import LoginRequiredMixin
 from notifications.models import Notification
 
-from borrowd.util import BorrowdTemplateFinderMixin
+from borrowd.util import (
+    BROWSABLE_BACK_TARGETS,
+    BorrowdTemplateFinderMixin,
+    resolve_back_url,
+)
 from borrowd_items.models import (
     GROUP_LEAVE_BLOCKING_TRANSACTION_STATUSES,
     Transaction,
@@ -219,6 +223,15 @@ class GroupCreateView(
         kwargs = super().get_form_kwargs()
         kwargs["user"] = get_authenticated_user(self.request)
         return kwargs
+
+    def get_context_data(self, **kwargs: str) -> dict[str, Any]:
+        context = super().get_context_data(**kwargs)
+        context["back_url"] = resolve_back_url(
+            self.request,
+            fallback_url=reverse("borrowd_groups:group-list"),
+            allowed_url_names=BROWSABLE_BACK_TARGETS,
+        )
+        return context
 
     def form_valid(self, form: GroupCreateForm) -> HttpResponse:
         if self.request.user.is_authenticated:
@@ -513,6 +526,15 @@ class GroupUpdateView(
         kwargs = super().get_form_kwargs()
         kwargs["user"] = get_authenticated_user(self.request)
         return kwargs
+
+    def get_context_data(self, **kwargs: str) -> dict[str, Any]:
+        context = super().get_context_data(**kwargs)
+        context["back_url"] = resolve_back_url(
+            self.request,
+            fallback_url=reverse("borrowd_groups:group-list"),
+            allowed_url_names=BROWSABLE_BACK_TARGETS,
+        )
+        return context
 
     def form_valid(self, form: GroupUpdateForm) -> HttpResponse:
         if self.request.user.is_authenticated:
