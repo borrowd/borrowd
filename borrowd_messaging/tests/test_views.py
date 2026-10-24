@@ -967,18 +967,20 @@ class ChatThreadListViewTests(MessagingTestCase):
 
         self.assertContains(response, 'href="?section=archived&amp;page=1"')
 
-    def test_switching_tabs_starts_again_at_the_first_page(self) -> None:
+    def test_switching_the_archived_toggle_starts_again_at_the_first_page(
+        self,
+    ) -> None:
         self.make_archived_threads(26)
         self.make_active_threads(26)
         self.client.force_login(self.borrower)
 
-        response = self.client.get(self.url, {"section": "archived", "page": "2"})
+        response = self.client.get(self.url, {"archived": "true", "page": "2"})
 
         self.assertEqual(response.context["page_obj"].number, 2)
-        # The tab link carries no page, so the other tab opens at its first page.
-        self.assertContains(response, 'href="?section=active"')
+        # The archived toggle link carries no page, so it opens at page one.
+        self.assertContains(response, 'href="?archived=false&amp;scope=all"')
         self.assertEqual(
-            self.client.get(self.url, {"section": "active"}).context["page_obj"].number,
+            self.client.get(self.url, {"archived": "false"}).context["page_obj"].number,
             1,
         )
 
