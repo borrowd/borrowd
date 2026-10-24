@@ -63,13 +63,7 @@
 
             {% else %}
                 <p class="mt-4 text-sm opacity-70">
-                    {% if filters_applied %}
-                        No conversations match your filters.
-                    {% elif archived %}
-                        No archived conversations.
-                    {% else %}
-                        No active conversations.
-                    {% endif %}
+                    {{ empty_state_message }}
                 </p>
             {% endif %}
         {% else %}

@@ -286,6 +286,24 @@ class FilteredEmptyStateTests(MessagingTestCase):
         self.assertContains(response, "No archived conversations.")
         self.assertNotContains(response, "No conversations match your filters.")
 
+    def test_an_empty_scope_names_itself_even_when_other_scopes_have_conversations(
+        self,
+    ) -> None:
+        # self.borrower is the borrower on this thread, not the lender, so
+        # the Lending scope is empty even though All/Borrowing are not.
+        self.make_thread()
+
+        response = self.client.get(self.url, {"scope": "lending"})
+
+        self.assertContains(response, "No active lending conversations.")
+
+    def test_an_empty_archived_scope_names_both_qualifiers(self) -> None:
+        self.make_thread()
+
+        response = self.client.get(self.url, {"scope": "lending", "archived": "true"})
+
+        self.assertContains(response, "No archived lending conversations.")
+
     def test_someone_with_nothing_at_all_is_not_told_about_filters(self) -> None:
         response = self.client.get(self.url, {"search": "drill"})
 

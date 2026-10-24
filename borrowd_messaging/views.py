@@ -485,6 +485,13 @@ class ChatThreadListView(
                 ("borrowing", "Borrowing"),
             )
         ]
+        if filters_applied:
+            empty_state_message = "No conversations match your filters."
+        else:
+            state = "archived" if archived else "active"
+            scope_suffix = "" if scope == "all" else f" {scope}"
+            empty_state_message = f"No {state}{scope_suffix} conversations."
+        context["empty_state_message"] = empty_state_message
         context["archived"] = archived
         context["unread_on"] = unread_on
         context["unread_toggle_url"] = self._url(
