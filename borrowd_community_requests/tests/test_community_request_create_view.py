@@ -94,7 +94,7 @@ class CommunityRequestCreateViewSubmissionTests(CommunityRequestCreateViewTestBa
         created = CommunityRequest.objects.get(item_name="Drill")
         self.assertEqual(created.requester, self.requester)
 
-    def test_successful_submission_redirects_to_the_success_view(self) -> None:
+    def test_successful_submission_redirects_to_the_yours_scope(self) -> None:
         response = self.client.post(
             reverse("community-request-create"),
             {
@@ -102,12 +102,28 @@ class CommunityRequestCreateViewSubmissionTests(CommunityRequestCreateViewTestBa
                 "description": "A basic power drill.",
                 "category": self.category_tools.pk,
             },
+            follow=True,
         )
 
-        created = CommunityRequest.objects.get(item_name="Drill")
         self.assertRedirects(
-            response,
-            reverse("community-request-success", kwargs={"pk": created.pk}),
+            response, f"{reverse('community-request-list')}?scope=yours"
+        )
+
+    def test_successful_submission_shows_a_success_message(self) -> None:
+        response = self.client.post(
+            reverse("community-request-create"),
+            {
+                "item_name": "Drill",
+                "description": "A basic power drill.",
+                "category": self.category_tools.pk,
+            },
+            follow=True,
+        )
+
+        messages_list = [str(m) for m in response.context["messages"]]
+        self.assertIn(
+            "Your request is posted. We'll let you know if someone responds.",
+            messages_list,
         )
 
     def test_duplicate_request_surfaces_as_a_form_error_not_a_500(self) -> None:
@@ -165,52 +181,18 @@ class CommunityRequestCreateViewSubmissionTests(CommunityRequestCreateViewTestBa
         )
 
 
-class CommunityRequestSuccessViewTests(CommunityRequestCreateViewTestBase):
-    def test_requester_can_view_their_own_success_page(self) -> None:
-        request = CommunityRequest.objects.create(
-            requester=self.requester,
-            category=self.category_tools,
-            item_name="Drill",
-        )
-
-        response = self.client.get(
-            reverse("community-request-success", kwargs={"pk": request.pk})
-        )
-
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context["community_request"], request)
-
-    def test_a_different_user_cannot_view_someone_elses_success_page(self) -> None:
-        request = CommunityRequest.objects.create(
-            requester=self.other_user,
-            category=self.category_tools,
-            item_name="Ladder",
-        )
-
-        response = self.client.get(
-            reverse("community-request-success", kwargs={"pk": request.pk})
-        )
-
-        self.assertEqual(response.status_code, 404)
-
-    def test_back_url_does_not_point_at_the_form_just_submitted(self) -> None:
-        """
-        We land here straight after submitting the create form, so its Referer
-        is that form. Sending the user back into it would be the same defect
-        the profile page's back arrow had.
-        """
-        request = CommunityRequest.objects.create(
-            requester=self.requester,
-            category=self.category_tools,
-            item_name="Drill",
-        )
-
-        response = self.client.get(
-            reverse("community-request-success", kwargs={"pk": request.pk}),
-            HTTP_REFERER="http://testserver" + reverse("community-request-create"),
-        )
+class CommunityRequestCreateViewBackUrlTests(CommunityRequestCreateViewTestBase):
+    def test_back_url_falls_back_to_the_list_page(self) -> None:
+        response = self.client.get(reverse("community-request-create"))
 
         self.assertEqual(
             response.context["back_url"], reverse("community-request-list")
         )
-        self.assertNotContains(response, "javascript:history.back()")
+
+    def test_back_url_honors_a_trusted_referer(self) -> None:
+        response = self.client.get(
+            reverse("community-request-create"),
+            HTTP_REFERER="http://testserver" + reverse("item-list"),
+        )
+
+        self.assertEqual(response.context["back_url"], reverse("item-list"))

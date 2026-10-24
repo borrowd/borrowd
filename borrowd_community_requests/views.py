@@ -5,7 +5,7 @@ from django.db.models import Case, Count, IntegerField, Q, QuerySet, Value, When
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
-from django.views.generic import CreateView, DetailView, TemplateView, View
+from django.views.generic import CreateView, TemplateView, View
 from guardian.mixins import LoginRequiredMixin
 
 from borrowd.util import (
@@ -49,41 +49,24 @@ class CommunityRequestCreateView(
 
     def get_context_data(self, **kwargs: str) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
-        context["page_title"] = "Create a request"
-        return context
-
-    def get_success_url(self) -> str:
-        assert self.object is not None
-        return reverse(
-            "community-request-success",
-            kwargs={"pk": self.object.pk},
-        )
-
-
-class CommunityRequestSuccessView(
-    LoginRequiredMixin,
-    DetailView[CommunityRequest],
-):
-    model = CommunityRequest
-    template_name = "community_requests/communityrequest_success.html"
-    context_object_name = "community_request"
-
-    def get_queryset(self) -> QuerySet[CommunityRequest]:
-        user = cast(BorrowdUser, self.request.user)
-        return CommunityRequest.objects.owned_by(user)
-
-    def get_context_data(self, **kwargs: str) -> dict[str, Any]:
-        context = super().get_context_data(**kwargs)
-        context["page_title"] = "Item request"
-        # We land here straight after the create form is submitted, so
-        # history.back() would drop the user back into the form they just
-        # filled in. The request list is the sane place to go instead.
+        context["page_title"] = "Post a request"
         context["back_url"] = resolve_back_url(
             self.request,
             fallback_url=reverse("community-request-list"),
             allowed_url_names=BROWSABLE_BACK_TARGETS,
         )
         return context
+
+    def form_valid(self, form: CommunityRequestForm) -> HttpResponse:
+        response = super().form_valid(form)
+        messages.success(
+            self.request,
+            "Your request is posted. We'll let you know if someone responds.",
+        )
+        return response
+
+    def get_success_url(self) -> str:
+        return f"{reverse('community-request-list')}?scope=yours"
 
 
 class CommunityRequestListView(
