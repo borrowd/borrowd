@@ -7,7 +7,7 @@ class GroupCreatePage:
     def __init__(self, page: Page):
         self.page = page
 
-        self.create_group_heading = page.get_by_role("heading", name="Create a group")
+        self.create_group_heading = page.get_by_role("heading", name="Create group")
         self.group_name_input = page.get_by_role("textbox", name="Group name")
         self.group_description_input = page.get_by_role(
             "textbox", name="Group description"

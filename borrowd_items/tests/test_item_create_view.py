@@ -264,3 +264,72 @@ class ItemCreateViewJoinGroupNudgeTests(ItemCreateViewTestBase):
         self.client.post(reverse("item-create"), self._valid_post_data())
 
         self.assertEqual(self._nudges_for(self.lender).count(), 0)
+
+
+class ItemCreateViewBackUrlTests(ItemCreateViewTestBase):
+    def setUp(self) -> None:
+        self.client.force_login(self.lender)
+
+    def test_back_url_falls_back_to_inventory(self) -> None:
+        response = self.client.get(reverse("item-create"))
+
+        self.assertEqual(response.context["back_url"], reverse("profile-inventory"))
+
+    def test_back_url_honors_a_trusted_referer(self) -> None:
+        response = self.client.get(
+            reverse("item-create"),
+            HTTP_REFERER="http://testserver" + reverse("borrowd_groups:group-list"),
+        )
+
+        self.assertEqual(
+            response.context["back_url"], reverse("borrowd_groups:group-list")
+        )
+
+
+class ItemCreateViewTemplateTests(ItemCreateViewTestBase):
+    def setUp(self) -> None:
+        self.client.force_login(self.lender)
+
+    def test_page_title_is_add_item(self) -> None:
+        response = self.client.get(reverse("item-create"))
+
+        self.assertContains(response, "Add item")
+
+    def test_cancel_link_points_at_the_back_url(self) -> None:
+        response = self.client.get(
+            reverse("item-create"),
+            HTTP_REFERER="http://testserver" + reverse("profile-inventory"),
+        )
+
+        self.assertContains(response, f'href="{reverse("profile-inventory")}"')
+
+    def test_categories_and_photos_fields_have_visible_labels(self) -> None:
+        response = self.client.get(reverse("item-create"))
+
+        self.assertContains(response, "Categories")
+        self.assertContains(response, "Photos (optional)")
+
+    def test_category_trigger_shows_the_shared_placeholder(self) -> None:
+        response = self.client.get(reverse("item-create"))
+
+        self.assertContains(response, "Select a category")
+
+    def test_photo_field_uses_the_choose_file_trigger(self) -> None:
+        response = self.client.get(reverse("item-create"))
+
+        self.assertContains(response, "Choose file")
+        self.assertContains(response, "No file chosen")
+
+    def test_listing_type_radio_cards_render_both_choices(self) -> None:
+        response = self.client.get(reverse("item-create"))
+
+        self.assertContains(response, "How do you want to share it?")
+        self.assertContains(
+            response, "You keep it. Borrowers return it when they're done."
+        )
+        self.assertContains(response, "Someone in your groups can request to keep it.")
+
+    def test_submit_button_disables_itself_on_submit(self) -> None:
+        response = self.client.get(reverse("item-create"))
+
+        self.assertContains(response, "isSubmitting")

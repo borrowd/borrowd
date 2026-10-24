@@ -13,12 +13,12 @@ class CommunityRequestForm(forms.ModelForm[CommunityRequest]):
         fields = ["item_name", "description", "category"]
         labels = {
             "item_name": "Item name",
-            "description": "Item description",
+            "description": "Description",
         }
         widgets = {
             "item_name": forms.TextInput(
                 attrs={
-                    "class": "input input-bordered w-full bg-primary-content",
+                    "class": "input w-full text-base bg-primary-content",
                     "placeholder": "Drill, stepladder, etc.",
                     "maxlength": "50",
                 }
@@ -26,15 +26,21 @@ class CommunityRequestForm(forms.ModelForm[CommunityRequest]):
             "description": forms.Textarea(
                 attrs={
                     "rows": 4,
-                    "class": "textarea textarea-bordered w-full resize-y bg-primary-content",
+                    "class": "textarea w-full text-base resize-y bg-primary-content",
                     "placeholder": "Enter a detailed description of your requested item",
                     "maxlength": "500",
                 }
             ),
             "category": forms.Select(
-                attrs={"class": "select select-bordered w-full bg-primary-content"}
+                attrs={"class": "select w-full text-base bg-primary-content"}
             ),
         }
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        # django-stubs types self.fields values as the base Field, which has
+        # no empty_label; category is actually a ModelChoiceField at runtime.
+        self.fields["category"].empty_label = "Select a category"  # type: ignore[attr-defined]
 
     def clean(self) -> dict[str, Any]:
         cleaned_data = super().clean() or {}

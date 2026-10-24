@@ -20,7 +20,7 @@
             <input x-bind:type="show ? 'text' : 'password'"
                    name="{{ name }}"
                    id="{{ id }}"
-                   class="input w-full pr-10 bg-primary-content placeholder:text-base-content/50 placeholder:text-xs {{ input_class }}"
+                   class="input w-full pr-10 text-base bg-primary-content placeholder:text-base-content/50 placeholder:text-xs {{ input_class }}"
                    placeholder="{{ placeholder }}"
                    value="{{ value }}"
                    {% if autocomplete %}autocomplete="{{ autocomplete }}"{% endif %}
@@ -40,7 +40,7 @@
             <input type="{{ type }}"
                    name="{{ name }}"
                    id="{{ id }}"
-                   class="input w-full bg-primary-content placeholder:text-base-content/50 placeholder:text-xs {{ input_class }}"
+                   class="input w-full text-base bg-primary-content placeholder:text-base-content/50 placeholder:text-xs {{ input_class }}"
                    placeholder="{{ placeholder }}"
                    value="{{ value }}"
                    maxlength="{{ max_length }}"
@@ -58,7 +58,7 @@
         <input type="{{ type }}"
                name="{{ name }}"
                id="{{ id }}"
-               class="input w-full bg-primary-content placeholder:text-base-content/50 placeholder:text-xs {{ input_class }}"
+               class="input w-full text-base bg-primary-content placeholder:text-base-content/50 placeholder:text-xs {{ input_class }}"
                placeholder="{{ placeholder }}"
                value="{{ value }}"
                {% if autocomplete %}autocomplete="{{ autocomplete }}"{% endif %}

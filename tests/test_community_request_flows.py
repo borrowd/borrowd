@@ -150,11 +150,11 @@ class CommunityRequestEndToEndFlowTest(SimpleTestCase):
             f"{reverse('community-request-create')}?item_name={quote(self.SEARCH_TERM)}"
         )
         self.assertContains(response, expected_link)
-        self.assertContains(response, "Request item")
+        self.assertContains(response, "Post a request")
 
     def test_040_requester_creates_a_community_request(self) -> None:
         """Submitting the CTA's create form creates an open request owned
-        by the requester and redirects to the success page."""
+        by the requester and redirects to their own requests."""
         self.client.force_login(self.requester)
 
         response = self.client.post(
@@ -171,11 +171,7 @@ class CommunityRequestEndToEndFlowTest(SimpleTestCase):
             item_name=self.SEARCH_TERM
         )
         self.assertRedirects(
-            response,
-            reverse(
-                "community-request-success",
-                kwargs={"pk": self.community_request.pk},
-            ),
+            response, f"{reverse('community-request-list')}?scope=yours"
         )
         self.assertEqual(self.community_request.requester, self.requester)
         self.assertEqual(self.community_request.status, CommunityRequestStatus.OPEN)
@@ -187,7 +183,7 @@ class CommunityRequestEndToEndFlowTest(SimpleTestCase):
 
         response = self.client.get(reverse("community-request-list"))
 
-        self.assertEqual(response.context["active_tab"], "all")
+        self.assertEqual(response.context["active_scope"], "all")
         self.assertIn(
             self.community_request,
             [card["request"] for card in response.context["community_requests"]],
@@ -298,8 +294,7 @@ class CommunityRequestEndToEndFlowTest(SimpleTestCase):
             item_name=self.SECOND_ITEM_NAME
         )
         self.assertRedirects(
-            response,
-            reverse("community-request-success", kwargs={"pk": self.second_request.pk}),
+            response, f"{reverse('community-request-list')}?scope=yours"
         )
 
     def test_110_lender_sees_the_second_request_before_it_is_cancelled(self) -> None:
@@ -324,7 +319,9 @@ class CommunityRequestEndToEndFlowTest(SimpleTestCase):
             follow=True,
         )
 
-        self.assertRedirects(response, f"{reverse('community-request-list')}?tab=mine")
+        self.assertRedirects(
+            response, f"{reverse('community-request-list')}?scope=yours"
+        )
         self.second_request.refresh_from_db()
         self.assertEqual(self.second_request.status, CommunityRequestStatus.CANCELLED)
         messages_list = [str(m) for m in response.context["messages"]]
@@ -427,7 +424,9 @@ class CommunityRequestEndToEndFlowTest(SimpleTestCase):
             follow=True,
         )
 
-        self.assertRedirects(response, f"{reverse('community-request-list')}?tab=mine")
+        self.assertRedirects(
+            response, f"{reverse('community-request-list')}?scope=yours"
+        )
         self.community_request.refresh_from_db()
         self.assertEqual(
             self.community_request.status, CommunityRequestStatus.FULFILLED

@@ -1,11 +1,11 @@
 from typing import Any, cast
 
 from django.contrib import messages
-from django.db.models import QuerySet
+from django.db.models import Case, Count, IntegerField, Q, QuerySet, Value, When
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
-from django.views.generic import CreateView, DetailView, TemplateView, View
+from django.views.generic import CreateView, TemplateView, View
 from guardian.mixins import LoginRequiredMixin
 
 from borrowd.util import (
@@ -49,41 +49,24 @@ class CommunityRequestCreateView(
 
     def get_context_data(self, **kwargs: str) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
-        context["page_title"] = "Create a request"
-        return context
-
-    def get_success_url(self) -> str:
-        assert self.object is not None
-        return reverse(
-            "community-request-success",
-            kwargs={"pk": self.object.pk},
-        )
-
-
-class CommunityRequestSuccessView(
-    LoginRequiredMixin,
-    DetailView[CommunityRequest],
-):
-    model = CommunityRequest
-    template_name = "community_requests/communityrequest_success.html"
-    context_object_name = "community_request"
-
-    def get_queryset(self) -> QuerySet[CommunityRequest]:
-        user = cast(BorrowdUser, self.request.user)
-        return CommunityRequest.objects.owned_by(user)
-
-    def get_context_data(self, **kwargs: str) -> dict[str, Any]:
-        context = super().get_context_data(**kwargs)
-        context["page_title"] = "Item request"
-        # We land here straight after the create form is submitted, so
-        # history.back() would drop the user back into the form they just
-        # filled in. The request list is the sane place to go instead.
+        context["page_title"] = "Post a request"
         context["back_url"] = resolve_back_url(
             self.request,
             fallback_url=reverse("community-request-list"),
             allowed_url_names=BROWSABLE_BACK_TARGETS,
         )
         return context
+
+    def form_valid(self, form: CommunityRequestForm) -> HttpResponse:
+        response = super().form_valid(form)
+        messages.success(
+            self.request,
+            "Your request is posted. We'll let you know if someone responds.",
+        )
+        return response
+
+    def get_success_url(self) -> str:
+        return f"{reverse('community-request-list')}?scope=yours"
 
 
 class CommunityRequestListView(
@@ -101,28 +84,60 @@ class CommunityRequestListView(
         context = super().get_context_data(**kwargs)
         user = get_authenticated_user(self.request)
 
-        active_tab = self.request.GET.get("tab")
-        if active_tab != "mine":
-            active_tab = "all"
+        scope = self.request.GET.get("scope")
+        if scope not in {"all", "yours"}:
+            # Legacy ?tab=mine|all, kept working by mapping onto scope.
+            scope = "yours" if self.request.GET.get("tab") == "mine" else "all"
 
-        if active_tab == "mine":
-            community_requests = (
-                CommunityRequest.objects.select_related("requester")
-                .owned_by(user)
-                .open()
-            )
+        all_requests = CommunityRequest.objects.select_related("requester").visible_to(
+            user
+        )
+        yours_requests = (
+            CommunityRequest.objects.select_related("requester").owned_by(user).open()
+        )
+
+        if scope == "yours":
+            community_requests: QuerySet[CommunityRequest] = yours_requests
         else:
+            # The viewer's own requests that already have a response surface
+            # first, so they notice lenders are waiting on them; everything
+            # else stays newest first.
             community_requests = (
-                CommunityRequest.objects.select_related("requester")
-                .visible_to(user)
-                .exclude(requester=user)
+                all_requests.annotate(
+                    response_count=Count("responses", distinct=True),
+                )
+                .annotate(
+                    own_with_response=Case(
+                        When(
+                            Q(requester=user) & Q(response_count__gt=0),
+                            then=Value(0),
+                        ),
+                        default=Value(1),
+                        output_field=IntegerField(),
+                    )
+                )
+                .order_by("own_with_response", "-created_at")
             )
 
         requests_cards_context = [
             build_commmunity_request_card(request, viewing_user=user)
             for request in community_requests
         ]
-        context["active_tab"] = active_tab
+        context["active_scope"] = scope
+        context["scope_segments"] = [
+            {
+                "label": "All",
+                "url": f"{reverse('community-request-list')}?scope=all",
+                "count": all_requests.count(),
+                "selected": scope == "all",
+            },
+            {
+                "label": "Yours",
+                "url": f"{reverse('community-request-list')}?scope=yours",
+                "count": yours_requests.count(),
+                "selected": scope == "yours",
+            },
+        ]
         context["community_requests"] = requests_cards_context
         context["page_title"] = "Community requests"
         context["back_url"] = resolve_back_url(
@@ -145,7 +160,7 @@ class CommunityRequestCancelView(LoginRequiredMixin, View):
         )
         community_request.cancel()
         messages.success(request, "Your request has been cancelled.")
-        return redirect(f"{reverse('community-request-list')}?tab=mine")
+        return redirect(f"{reverse('community-request-list')}?scope=yours")
 
 
 class CommunityRequestMarkFulfilledView(LoginRequiredMixin, View):
@@ -161,7 +176,7 @@ class CommunityRequestMarkFulfilledView(LoginRequiredMixin, View):
         )
         community_request.mark_fulfilled()
         messages.success(request, "Your request has been marked as fulfilled.")
-        return redirect(f"{reverse('community-request-list')}?tab=mine")
+        return redirect(f"{reverse('community-request-list')}?scope=yours")
 
 
 class CommunityRequestDismissView(LoginRequiredMixin, View):

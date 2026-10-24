@@ -1,7 +1,7 @@
 {% extends "layouts/default.html" %}
 
 {% block content %}
-    <div class="w-full max-w-3xl mx-auto px-5">
+    <div class="{% block groups_content_wrapper_class %}w-full max-w-3xl mx-auto px-5{% endblock %}">
         {% block groups_content %}
         {% endblock %}
     </div>
