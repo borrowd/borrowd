@@ -292,7 +292,9 @@ def inventory_view(request: HttpRequest) -> HttpResponse:
     """
     Inventory page, scoped to All, Lending, or Borrowing.
 
-    Lending: incoming_borrow_requests + owned_items_lent + owned_items_available
+    Lending: incoming_borrow_requests + owned_items_lent (items currently
+        in flight with another user -- once returned, an item moves back to
+        owned_items_available and is only visible under All)
     Borrowing: outgoing_borrow_requests + borrowed_items_from_others
     All: every section above, in this order:
     1. incoming_borrow_requests   — others requesting to borrow user's items
@@ -381,11 +383,7 @@ def inventory_view(request: HttpRequest) -> HttpResponse:
         subscription_item_ids,
     )
 
-    lending_cards = (
-        incoming_borrow_requests_cards
-        + owned_items_lent_cards
-        + owned_items_available_cards
-    )
+    lending_cards = incoming_borrow_requests_cards + owned_items_lent_cards
     borrowing_cards = outgoing_borrow_requests_cards + borrowed_items_from_others_cards
     all_cards = (
         incoming_borrow_requests_cards

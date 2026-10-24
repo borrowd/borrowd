@@ -37,7 +37,11 @@ class InventoryViewScopeTests(TestCase):
 
         self.assertEqual(response.context["active_scope"], "all")
 
-    def test_lending_scope_includes_only_lending_sections(self) -> None:
+    def test_lending_scope_includes_only_items_in_flight_with_another_user(
+        self,
+    ) -> None:
+        # An available item with no active transaction must not appear --
+        # Lending is only items currently out with someone else.
         self._make_item(self.owner, "Available Drill")
 
         lent_item = self._make_item(
@@ -80,7 +84,22 @@ class InventoryViewScopeTests(TestCase):
         response = self.client.get(reverse("profile-inventory"), {"scope": "lending"})
 
         names = {card["name"] for card in response.context["item_cards"]}
-        self.assertEqual(names, {"Available Drill", "Lent Ladder", "Requested Saw"})
+        self.assertEqual(names, {"Lent Ladder", "Requested Saw"})
+
+    def test_all_scope_includes_available_items_lending_excludes_them(self) -> None:
+        self._make_item(self.owner, "Available Drill")
+
+        all_response = self.client.get(reverse("profile-inventory"), {"scope": "all"})
+        lending_response = self.client.get(
+            reverse("profile-inventory"), {"scope": "lending"}
+        )
+
+        all_names = {card["name"] for card in all_response.context["item_cards"]}
+        lending_names = {
+            card["name"] for card in lending_response.context["item_cards"]
+        }
+        self.assertIn("Available Drill", all_names)
+        self.assertNotIn("Available Drill", lending_names)
 
     def test_borrowing_scope_includes_only_borrowing_sections(self) -> None:
         # The owner's own items must not appear in Borrowing.
