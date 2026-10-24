@@ -274,6 +274,11 @@ class ItemCreateView(
         context = super().get_context_data(**kwargs)
         context["page_title"] = "Add item"
         context["fulfills_request"] = self._get_fulfills_request_param()
+        context["back_url"] = resolve_back_url(
+            self.request,
+            fallback_url=reverse("profile-inventory"),
+            allowed_url_names=BROWSABLE_BACK_TARGETS,
+        )
         return context
 
     def _get_fulfills_request_param(self) -> str | None:
@@ -634,6 +639,11 @@ class ItemUpdateView(
         context = super().get_context_data(**kwargs)
         context["page_title"] = "Edit item"
         context["photo_accept"] = ALLOWED_IMAGE_ACCEPT
+        context["back_url"] = resolve_back_url(
+            self.request,
+            fallback_url=reverse("profile-inventory"),
+            allowed_url_names=BROWSABLE_BACK_TARGETS,
+        )
         return context
 
     def form_valid(self, form: ItemForm) -> HttpResponse:

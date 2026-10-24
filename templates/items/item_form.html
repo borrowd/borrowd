@@ -8,12 +8,7 @@
     if we are creating or editing.
 {% endcomment %}
 {% block head_title %}
-    {% if not view.object.pk %}
-        Create
-    {% else %}
-        Edit
-    {% endif %}
-    item
+    {{ page_title }}
 {% endblock %}
 
 {% block items_content %}
@@ -22,7 +17,7 @@
 
         <form method="post"
               enctype="multipart/form-data"
-              class="bg-primary-content rounded-2xl border border-base-200 shadow-sm p-6 flex flex-col gap-4"
+              class="bg-white rounded-2xl shadow-md p-6 flex flex-col gap-4"
               x-data="{ isSubmitting: false, submitForm(event) { if (this.isSubmitting) { event.preventDefault(); return; } this.isSubmitting = true; } }"
               @submit="submitForm($event)">
             {% csrf_token %}
@@ -56,7 +51,7 @@
 
                 {% else %}
                     <fieldset class="fieldset w-full gap-0"
-                              {% if field.name == "image" %} x-data="{ async handleImageSelect(event) { const file = event.target.files[0]; if (!file) return; const resized = await window.resizeImageFile(file, 1600, 1600); const dt = new DataTransfer(); dt.items.add(resized); event.target.files = dt.files; } }" @change="handleImageSelect($event)" {% endif %}>
+                              {% if field.name == "image" %} x-data="{ selectedFileName: '', async handleImageSelect(event) { const file = event.target.files[0]; if (!file) return; this.selectedFileName = file.name; const resized = await window.resizeImageFile(file, 1600, 1600); const dt = new DataTransfer(); dt.items.add(resized); event.target.files = dt.files; } }" @change="handleImageSelect($event)" {% endif %}>
 
                         {% if field.name == "categories" %}
                             <!--
@@ -69,6 +64,9 @@
                        POST data like: categories=3&categories=7
                     4. Django's ItemForm processes this (borrowd_items/forms.py)
                 -->
+                            <legend class="fieldset-legend text-xs font-normal text-base-content/60">
+                                Categories
+                            </legend>
                             <div x-data="{ /* * Alpine UI state: which category IDs are currently selected. * Pre-populated from Django form's current value on page load. * (Empty on create, has values on edit.) */ selectedIds: [
                                 {% for val in field.value %}
 
@@ -89,7 +87,7 @@
                                     {% endif %}
 
                                 {% endfor %}
-                                ],  /* Toggle a category by id: add if not selected, remove if already selected. */ toggle(id) { const idx = this.selectedIds.indexOf(id); if (idx === -1) { this.selectedIds.push(id); } else { this.selectedIds.splice(idx, 1); } },  isSelected(id) { return this.selectedIds.includes(id); },  /* * Display text for the trigger button. * No selection: 'Select an item category' * One selected: full category name * Multiple: first name truncated (12 chars) + '... + N more' *   e.g.: 'Home & Kitch... + 3 more' */ get buttonText() { if (this.selectedIds.length === 0) return 'Select an item category'; const names = this.selectedIds.slice(0, 2).map(id => this.categories.find(c => c.id === id)?.name || ''); if (this.selectedIds.length <= 2) return names.join(', '); return names.join(', ') + ' + ' + (this.selectedIds.length - 2) + ' more'; },  /* Snapshot of selectedIds taken when the modal opens. The confirm button stays disabled until the user makes a change relative to this snapshot. */ initialIds: [],  openCategoryModal() { this.initialIds = [...this.selectedIds]; showModal('item-category-modal'); },  hasChangedSelection() { const a = [...this.selectedIds].sort(); const b = [...this.initialIds].sort(); return JSON.stringify(a) !== JSON.stringify(b); },  clearFilters() { this.selectedIds = []; closeModal('item-category-modal'); },  applyFilters() { closeModal('item-category-modal'); } }">
+                                ],  /* Toggle a category by id: add if not selected, remove if already selected. */ toggle(id) { const idx = this.selectedIds.indexOf(id); if (idx === -1) { this.selectedIds.push(id); } else { this.selectedIds.splice(idx, 1); } },  isSelected(id) { return this.selectedIds.includes(id); },  /* * Display text for the trigger button. * No selection: 'Select a category' * One selected: full category name * Multiple: first name truncated (12 chars) + '... + N more' *   e.g.: 'Home & Kitch... + 3 more' */ get buttonText() { if (this.selectedIds.length === 0) return 'Select a category'; const names = this.selectedIds.slice(0, 2).map(id => this.categories.find(c => c.id === id)?.name || ''); if (this.selectedIds.length <= 2) return names.join(', '); return names.join(', ') + ' + ' + (this.selectedIds.length - 2) + ' more'; },  /* Snapshot of selectedIds taken when the modal opens. The confirm button stays disabled until the user makes a change relative to this snapshot. */ initialIds: [],  openCategoryModal() { this.initialIds = [...this.selectedIds]; showModal('item-category-modal'); },  hasChangedSelection() { const a = [...this.selectedIds].sort(); const b = [...this.initialIds].sort(); return JSON.stringify(a) !== JSON.stringify(b); },  clearFilters() { this.selectedIds = []; closeModal('item-category-modal'); },  applyFilters() { closeModal('item-category-modal'); } }">
                                 <!-- Trigger button: opens the category selection modal -->
                                 <button type="button"
                                         @click="openCategoryModal()"
@@ -97,7 +95,7 @@
                                         class="input input-bordered w-full flex items-center gap-2 bg-primary-content h-auto min-h-10 py-2.5 px-3 cursor-pointer">
                                     <span class="flex flex-wrap gap-2.5 items-center flex-1 min-w-0 overflow-hidden">
                                         <span x-show="selectedIds.length === 0"
-                                              class="text-sm text-base-content/50 leading-none">Select an item category</span>
+                                              class="text-sm text-base-content/50 leading-none">Select a category</span>
                                         <template x-if="selectedIds.length > 0">
                                             <span class="inline-flex items-center justify-center h-[18px] px-[9px] py-px rounded-full border border-base-300 bg-base-100 text-base-content text-[10px] font-medium whitespace-nowrap shrink-0"
                                                   x-text="categories.find(c => c.id === selectedIds[0])?.name || ''">
@@ -129,15 +127,34 @@
 
                             </div>
                         {% elif field.name == "listing_type" %}
-                            {# Lend | Give away toggle: DaisyUI radio buttons joined as a segmented control #}
-                            <div class="join w-full">
+                            {# Lend | Give away radio cards. Selection state mirrors the
+                               category/group-sharing pickers above: an Alpine x-data scope
+                               reacting via :class, not a new CSS mechanism. #}
+                            <legend class="fieldset-legend text-xs font-normal text-base-content/60">
+                                How do you want to share it?
+                            </legend>
+                            <div x-data="{ listingType: '{{ field.value|stringformat:"s" }}' }"
+                                 class="flex flex-col sm:flex-row gap-3">
                                 {% for choice in field.field.choices %}
-                                    <input type="radio"
-                                           name="{{ field.html_name }}"
-                                           value="{{ choice.0 }}"
-                                           aria-label="{{ choice.1 }}"
-                                           class="join-item btn flex-1"
-                                           {% if field.value|stringformat:"s" == choice.0|stringformat:"s" %}checked{% endif %} />
+                                    <label class="flex-1 flex flex-col gap-1 rounded-lg border-2 p-4 cursor-pointer"
+                                           :class="listingType === '{{ choice.0 }}' ? 'border-primary' : 'border-base-300'">
+                                        <span class="flex items-center gap-2">
+                                            <input type="radio"
+                                                   name="{{ field.html_name }}"
+                                                   value="{{ choice.0 }}"
+                                                   class="radio radio-primary radio-sm"
+                                                   x-model="listingType"
+                                                   {% if field.value|stringformat:"s" == choice.0|stringformat:"s" %}checked{% endif %} />
+                                            <span class="font-semibold text-sm">{{ choice.1 }}</span>
+                                        </span>
+                                        <span class="text-xs text-base-content/60 pl-7">
+                                            {% if choice.1 == "Lend" %}
+                                                You keep it. Borrowers return it when they're done.
+                                            {% else %}
+                                                Someone in your groups can request to keep it.
+                                            {% endif %}
+                                        </span>
+                                    </label>
                                 {% endfor %}
                             </div>
                         {% elif field.name == "share_with_all_groups" %}
@@ -214,6 +231,20 @@
                             </div>
                         {% elif field.name == "shared_with_groups" %}
                             {# rendered inside the share_with_all_groups block above #}
+                        {% elif field.name == "image" %}
+                            <legend class="fieldset-legend text-xs font-normal text-base-content/60">
+                                {{ field.label }}
+                            </legend>
+                            <label class="border border-base-content/20 rounded flex items-center w-full cursor-pointer bg-primary-content hover:bg-base-200/40 transition-colors h-10 overflow-hidden">
+                                <span class="inline-flex items-center justify-center self-stretch bg-base-200 font-semibold text-sm px-4 shrink-0">Choose file</span>
+                                <span class="text-base-content/50 text-sm truncate px-4"
+                                      x-text="selectedFileName || 'No file chosen'"></span>
+                                <input type="file"
+                                       name="{{ field.html_name }}"
+                                       id="{{ field.auto_id }}"
+                                       accept="{{ field.field.widget.attrs.accept }}"
+                                       class="hidden">
+                            </label>
                         {% else %}
                             {{ field }}
                         {% endif %}
@@ -325,17 +356,15 @@
             {% endif %}
 
             <div class="flex justify-end gap-4 pt-8">
+                <a href="{{ back_url }}" class="btn btn-ghost">Cancel</a>
                 {% if form.instance.pk %}
-                    <c-button-nav url="{% url 'item-detail' form.instance.pk %}" class="btn">
-                        Cancel
-                    </c-button-nav>
-                    <c-button type="submit" class="btn btn-primary" x-bind:disabled="isSubmitting">
+                    <button type="submit" class="btn btn-primary" x-bind:disabled="isSubmitting">
                         Save changes
-                    </c-button>
+                    </button>
                 {% else %}
-                    <c-button type="submit" class="btn btn-primary" x-bind:disabled="isSubmitting">
+                    <button type="submit" class="btn btn-primary" x-bind:disabled="isSubmitting">
                         Add item
-                    </c-button>
+                    </button>
                 {% endif %}
             </div>
         </form>

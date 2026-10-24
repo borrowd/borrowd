@@ -78,13 +78,12 @@ class ItemCreateWithPhotoForm(ItemForm):
 
     image = forms.ImageField(
         required=False,
-        label="Photo (optional)",
+        label="Photos (optional)",
         validators=[
             FileExtensionValidator(allowed_extensions=ALLOWED_IMAGE_EXTENSIONS)
         ],
         widget=forms.FileInput(
             attrs={
-                "class": "file-input file-input-bordered w-full max-w-full bg-primary-content",
                 "accept": ALLOWED_IMAGE_ACCEPT,
             }
         ),
