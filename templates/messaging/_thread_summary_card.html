@@ -8,10 +8,15 @@ Parameters:
 - item_name: Item name, or empty only when the Item row itself is gone
 - item_thumbnail_url: first Item photo; the shared Item placeholder stands in
 - item_removed: Optional flag muting a removed Item, which keeps its name
+- hub_row: Required. True renders a flat row inside the hub's own
+  bg-white/rounded-2xl/shadow-md container (with a divider unless is_last);
+  False renders the standalone bordered-card look used elsewhere (e.g. the
+  item conversation history page).
+- is_last: Required when hub_row is True -- skips the row's bottom divider.
 {% endcomment %}
 
 <a href="{% url 'chat-thread-detail' summary.thread_id %}"
-   class="flex items-center gap-3 rounded-xl border border-base-300 bg-base-100 p-3 transition hover:border-base-content/30 hover:bg-base-200/50">
+   class="flex items-center gap-3 p-3 transition hover:bg-base-200/50 {% if hub_row %}bg-white{% if not is_last %} border-b border-base-300{% endif %}{% else %}rounded-xl border border-base-300 bg-base-100 hover:border-base-content/30{% endif %}">
     {% if show_item %}
         {% static 'items/categories/logo-tools.png' as fallback_image %}
         <img src="{{ item_thumbnail_url|default:fallback_image }}"
