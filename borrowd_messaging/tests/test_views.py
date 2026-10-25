@@ -489,6 +489,17 @@ class ChatThreadPollViewTests(MessagingTestCase):
         self.assertContains(response, "Saturday works.")
         self.assertLess(body.index("Free Saturday?"), body.index("Saturday works."))
 
+    def test_poll_links_the_status_badge_to_the_item(self) -> None:
+        seen = self.send(self.borrower, "Free Saturday?")
+        self.make_transaction()
+        assign_perm(ItemOLP.VIEW, self.borrower, self.item)
+        self.client.force_login(self.borrower)
+
+        response = self.client.get(self.url, {"after": seen.pk})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, reverse("item-detail", args=[self.item.pk]))
+
     def test_poll_announces_a_request_and_removes_the_pre_request_actions(self) -> None:
         seen = self.send(self.borrower, "Free Saturday?")
         self.make_transaction()
