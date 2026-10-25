@@ -1,5 +1,7 @@
 {% extends "layouts/default.html" %}
 
+{% load heroicons %}
+
 {% block head_title %}
     {{ page_title }}
 {% endblock %}
@@ -38,9 +40,61 @@
                              max_length="500"
                              errors="{{ form.description.errors }}" />
 
-            <c-form.select label="{{ form.category.label }}" errors="{{ form.category.errors }}">
-                {{ form.category }}
-            </c-form.select>
+            <fieldset class="fieldset w-full gap-0">
+                <legend class="fieldset-legend text-xs font-normal text-base-content/60">
+                    {{ form.category.label }}
+                </legend>
+                <!--
+                    Category field
+
+                    Mirrors the Add Item category picker (templates/items/item_form.html):
+                    an Alpine-driven chip modal instead of a native <select>, so the open
+                    list is themed instead of browser-native. Single-select here: toggle()
+                    replaces rather than accumulates selectedIds.
+                -->
+                <div x-data="{ selectedIds: [
+                    {% if form.category.value %}
+                        '{{ form.category.value }}'
+                    {% endif %}
+                    ], categories: [
+                    {% for choice in form.category.field.choices %}
+
+                        {% if choice.0 %}
+                            { id: '{{ choice.0 }}', name: '{{ choice.1 }}' }
+                            {% if not forloop.last %}
+                                ,
+                            {% endif %}
+
+                        {% endif %}
+
+                    {% endfor %}
+                    ], toggle(id) { this.selectedIds = this.selectedIds.includes(id) ? [] : [id]; }, isSelected(id) { return this.selectedIds.includes(id); }, get buttonText() { return this.categories.find(c => c.id === this.selectedIds[0])?.name || 'Select a category'; }, initialIds: [], openCategoryModal() { this.initialIds = [...this.selectedIds]; showModal('community-request-category-modal'); }, hasChangedSelection() { return this.selectedIds[0] !== this.initialIds[0]; }, clearFilters() { this.selectedIds = []; closeModal('community-request-category-modal'); }, applyFilters() { closeModal('community-request-category-modal'); } }">
+                    <button type="button"
+                            @click="openCategoryModal()"
+                            :aria-label="buttonText"
+                            class="input input-bordered w-full flex items-center gap-2 bg-primary-content h-auto min-h-10 py-2.5 px-3 cursor-pointer">
+                        <span class="flex-1 min-w-0 text-left truncate">
+                            <span x-show="selectedIds.length === 0"
+                                  class="text-sm text-base-content/50 leading-none">Select a category</span>
+                            <span x-show="selectedIds.length > 0" class="text-sm" x-text="buttonText"></span>
+                        </span>
+                        {% heroicon_micro "chevron-down" class="size-3 text-base-content/60 shrink-0 ml-1" %}
+                    </button>
+
+                    <template x-for="id in selectedIds" :key="id">
+                        <input type="hidden" name="{{ form.category.html_name }}" :value="id">
+                    </template>
+
+                    {% include "components/items/modals/category_filter_modal.html" with modal_id="community-request-category-modal" modal_title="Select a category" confirm_button_text="Select category" %}
+
+                </div>
+
+                {% if form.category.errors %}
+                    <div class="label pt-1">
+                        <span class="label-text-alt text-error">{{ form.category.errors }}</span>
+                    </div>
+                {% endif %}
+            </fieldset>
 
             <div class="flex items-center justify-end gap-4 pt-4">
                 <a href="{{ back_url }}" class="btn btn-ghost">Cancel</a>
