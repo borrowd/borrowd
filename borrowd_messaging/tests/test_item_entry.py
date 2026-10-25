@@ -530,7 +530,7 @@ class PreRequestChatRequestActionTests(MessagingTestCase):
         body = response.content.decode()
 
         # The item card (and its request button) is pinned above the message
-        # list; the button used to live below the composer, after it.
+        # list, not below the composer.
         self.assertLess(
             body.index('id="request-listing-button"'),
             body.index('id="chat-messages"'),

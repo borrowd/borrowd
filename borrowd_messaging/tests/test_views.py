@@ -391,7 +391,7 @@ class ChatThreadActivePageTests(MessagingTestCase):
             response, "onclick=\"showModal('close-conversation-modal')\""
         )
         self.assertContains(response, 'id="close-conversation-modal"')
-        # The request button's wrapper moved to the item card header; the
+        # The request button's wrapper lives in the item card header; the
         # close link keeps its own, separate wrapper below the composer.
         self.assertContains(response, 'id="chat-pre-request-actions"')
         self.assertContains(response, 'id="chat-close-conversation-action"')
