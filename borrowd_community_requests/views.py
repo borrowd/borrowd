@@ -140,18 +140,25 @@ class CommunityRequestListView(
             build_commmunity_request_card(request, viewing_user=user)
             for request in community_requests
         ]
+        # all_requests (visible_to) always includes the viewer's own open
+        # requests, so its requester=user slice is exactly yours_requests --
+        # one aggregate covers both counts instead of two separate queries.
+        request_counts = all_requests.aggregate(
+            all=Count("pk"),
+            yours=Count("pk", filter=Q(requester=user)),
+        )
         context["active_scope"] = scope
         context["scope_segments"] = [
             {
                 "label": "All",
                 "url": f"{reverse('community-request-list')}?scope=all",
-                "count": all_requests.count(),
+                "count": request_counts["all"],
                 "selected": scope == "all",
             },
             {
                 "label": "Yours",
                 "url": f"{reverse('community-request-list')}?scope=yours",
-                "count": yours_requests.count(),
+                "count": request_counts["yours"],
                 "selected": scope == "yours",
             },
         ]
