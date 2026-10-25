@@ -1,5 +1,9 @@
 # Contributing
 
+AI helps us move faster, and it carries real environmental and social costs.
+If you use AI tools, please read our [AI policy](AI_POLICY.md) before opening a
+pull request. It explains how we balance the two.
+
 ## Dev env setup
 
 This project uses:
