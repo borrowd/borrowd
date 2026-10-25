@@ -57,6 +57,7 @@ class ConversationFilter(FilterSet):  # type: ignore[misc]
         ada" both find the same person. Only the first few distinct words
         count, so the query stays small.
         """
+        value = value.strip()
         if not value:
             return queryset
         viewer = get_authenticated_user(self.request)

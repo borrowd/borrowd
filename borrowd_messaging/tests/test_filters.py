@@ -36,6 +36,12 @@ class SearchFilterItemNameTests(MessagingTestCase):
             set(self.thread_ids("?search=")), {self.drill.pk, self.ladder.pk}
         )
 
+    def test_a_whitespace_only_filter_keeps_everything(self) -> None:
+        response = self.client.get(self.url, {"search": "   "})
+
+        thread_ids = {card.summary.thread_id for card in response.context["cards"]}
+        self.assertEqual(thread_ids, {self.drill.pk, self.ladder.pk})
+
     def test_a_soft_deleted_item_still_matches_by_name(self) -> None:
         self.item.soft_delete(deleted_by=self.lender)
 
@@ -161,6 +167,51 @@ class SearchFilterPersonNameTests(MessagingTestCase):
 
     def test_also_matches_by_item_name(self) -> None:
         self.assertEqual(self.thread_ids("?search=ladder"), [self.with_alan.pk])
+
+
+@override_settings(MESSAGING_ENABLED=True)
+class LegacyItemPersonParamTests(MessagingTestCase):
+    """?item=/?person= predate the combined `search` field; a bookmarked link
+    using either should keep filtering rather than silently showing
+    everything."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        self.url = reverse("chat-thread-list")
+        self.drill = self.make_thread()
+        self.ladder = self.make_thread(item=self.make_item(name="Step Ladder"))
+        self.client.force_login(self.borrower)
+
+    def thread_ids(self, params: dict[str, str]) -> set[int]:
+        response = self.client.get(self.url, params)
+        return {card.summary.thread_id for card in response.context["cards"]}
+
+    def test_legacy_item_param_still_filters(self) -> None:
+        self.assertEqual(self.thread_ids({"item": "ladd"}), {self.ladder.pk})
+
+    def test_legacy_person_param_still_filters(self) -> None:
+        self.lender.first_name = "Ada"
+        self.lender.save()
+
+        self.assertEqual(
+            self.thread_ids({"person": "ada"}), {self.drill.pk, self.ladder.pk}
+        )
+
+    def test_search_takes_precedence_over_legacy_params(self) -> None:
+        self.assertEqual(
+            self.thread_ids({"search": "ladd", "item": "drill"}), {self.ladder.pk}
+        )
+
+    def test_legacy_item_param_normalizes_into_search_links(self) -> None:
+        response = self.client.get(self.url, {"item": "ladd"})
+
+        lending = next(
+            segment
+            for segment in response.context["scope_segments"]
+            if segment["label"] == "Lending"
+        )
+        self.assertIn("search=ladd", lending["url"])
+        self.assertNotIn("item=", lending["url"])
 
 
 @override_settings(MESSAGING_ENABLED=True)

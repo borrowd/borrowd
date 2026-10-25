@@ -4,7 +4,7 @@ from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
-from django.db.models import Q, QuerySet
+from django.db.models import Count, Q, QuerySet
 from django.http import HttpRequest, HttpResponse, HttpResponseBadRequest, QueryDict
 from django.shortcuts import redirect, render
 from django.template.loader import render_to_string
@@ -448,9 +448,24 @@ class ChatThreadListView(
         base_params.pop("section", None)
         base_params["archived"] = archived_param
 
+        filter_data: QueryDict = self.request.GET
+        if not filter_data.get("search") and (
+            filter_data.get("item") or filter_data.get("person")
+        ):
+            # Legacy ?item=/?person=, kept working by mapping onto the
+            # combined search field -- best effort, since the old two fields
+            # could narrow independently and search can only OR across one
+            # term list.
+            legacy_search = filter_data.get("item") or filter_data.get("person", "")
+            filter_data = filter_data.copy()
+            filter_data["search"] = legacy_search
+            base_params.pop("item", None)
+            base_params.pop("person", None)
+            base_params["search"] = legacy_search
+
         all_threads = threads_for_hub(viewer)
         conversations = ConversationFilter(
-            self.request.GET, queryset=all_threads, request=self.request
+            filter_data, queryset=all_threads, request=self.request
         )
         filtered_threads = conversations.qs
         filters_applied = any(
@@ -468,6 +483,13 @@ class ChatThreadListView(
         shown = scoped_threads[scope]
 
         page = Paginator(shown, _HUB_PAGE_SIZE).get_page(self.request.GET.get("page"))
+        # One aggregate covers all three scope counts, instead of a separate
+        # COUNT query per scope.
+        scope_counts = visible_threads.aggregate(
+            all=Count("pk"),
+            lending=Count("pk", filter=Q(lender=viewer)),
+            borrowing=Count("pk", filter=Q(borrower=viewer)),
+        )
         context["conversation_filter"] = conversations
         context["filters_applied"] = filters_applied
         context["clear_filters_url"] = f"?scope={scope}&archived={archived_param}"
@@ -476,7 +498,7 @@ class ChatThreadListView(
             {
                 "label": label,
                 "url": self._url(base_params, scope=name),
-                "count": scoped_threads[name].count(),
+                "count": scope_counts[name],
                 "selected": scope == name,
             }
             for name, label in (
