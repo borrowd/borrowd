@@ -310,7 +310,7 @@ class CommunityRequestListViewEmptyStateTests(CommunityRequestListViewTestBase):
             reverse("community-request-list"), {"scope": "yours"}
         )
 
-        self.assertContains(response, "You have no community requests yet.")
+        self.assertContains(response, "There are no community requests right now.")
 
 
 class CommunityRequestGetAbsoluteUrlTests(CommunityRequestListViewTestBase):
