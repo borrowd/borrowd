@@ -144,6 +144,9 @@ class BorrowdGroup(Model):
     # ... but, this is a class variable, not an instance variable, right?
     objects = BorrowdGroupManager()
 
+    def __str__(self) -> str:
+        return self.name
+
     def get_absolute_url(self) -> str:
         return reverse("borrowd_groups:group-detail", args=[self.pk])
 

@@ -1,0 +1,23 @@
+{% extends "notifications/messages/layout.html" %}
+
+{% block title %}
+    Add an item - Borrow'd
+{% endblock %}
+
+{% block content %}
+    <h2>
+        Welcome to {{ group_name }}!
+    </h2>
+
+    <p>
+        Add your first item to start sharing with {{ group_name }}.
+    </p>
+
+    <div class="text-center">
+        <a href="{{ add_item_url }}" class="button">Add an item</a>
+    </div>
+
+    <p>
+        The Borrow'd team
+    </p>
+{% endblock %}

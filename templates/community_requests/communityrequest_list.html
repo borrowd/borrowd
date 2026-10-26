@@ -32,18 +32,8 @@
                          alt="A picture of a watering can with flowers"
                          class="w-64 h-40 mb-6">
 
-                    {% if active_scope == "yours" %}
-                        <p class="text-gray-800 text-xl text-center font-semibold mb-2">
-                            You have no community requests yet.
-                        </p>
-                    {% else %}
-                        <p class="text-gray-800 text-xl text-center font-semibold mb-2">
-                            There are no community requests right now.
-                        </p>
-                    {% endif %}
-
-                    <p class="text-gray-600 text-center mb-6">
-                        Add a request to start sharing.
+                    <p class="text-gray-800 text-xl text-center font-semibold mb-6">
+                        There are no community requests right now.
                     </p>
                     <a href="{% url 'community-request-create' %}" class="btn btn-primary">Post a request</a>
                 </div>

@@ -17,7 +17,7 @@ class AuthFlow:
             "button", name=re.compile("sign in|log in|login", re.IGNORECASE)
         ).first
         self.hamburger_button = page.locator("label[for='main-drawer']").first
-        self.logout_button = page.get_by_role("button", name="Logout")
+        self.logout_button = page.get_by_role("button", name="Log out")
 
     def open_base(self, base_url):
         #  for when there's a connection issue due to cold starts or something else

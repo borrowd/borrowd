@@ -87,6 +87,10 @@ NOTIFICATION_CATEGORIES: list[dict[str, Any]] = [
                 NotificationType.PHOTO_ADDED_NEEDS_INVITES,
                 "Invite friends reminder",
             ),
+            (
+                NotificationType.GROUP_JOINED_NEEDS_ITEM,
+                "Add an item reminder",
+            ),
         ],
     },
     {
@@ -517,6 +521,8 @@ def _notification_action_url(notification: Notification) -> str | None:
         return reverse("borrowd_groups:group-create")
     if notification.verb == NotificationType.GROUP_CREATED_NEEDS_PHOTO.value:
         return reverse("profile")
+    if notification.verb == NotificationType.GROUP_JOINED_NEEDS_ITEM.value:
+        return reverse("item-create")
 
     action_object = _notification_action_object(notification)
     if isinstance(action_object, Item):
