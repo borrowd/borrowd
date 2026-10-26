@@ -20,21 +20,14 @@ Parameters:
     <div class="flex flex-col gap-3 p-3 {% if is_removed %}opacity-60 grayscale pointer-events-none{% endif %}">
 
         <!-- Content -->
-        <div class="flex flex-row w-full min-w-0 justify-between">
-            <div class="flex flex-col">
-                <h3 class="text-base sm:text-xl md:text-2xl font-semibold text-gray-900 line-clamp-2 wrap-break-word">
-                    {{ community_request.item_name }}
-                </h3>
+        <div class="flex flex-col">
+            <h3 class="text-base sm:text-xl md:text-2xl font-semibold text-gray-900 line-clamp-2 wrap-break-word">
+                {{ community_request.item_name }}
+            </h3>
 
-                <p class="text-sm sm:text-base text-gray-900 line-clamp-5 md:line-clamp-11 mt-2 wrap-break-word">
-                    {{ community_request.description|default:"No description Available" }}
-                </p>
-            </div>
-            {% if card_context.is_yours %}
-                <div class="rounded-4xl h-xs max-w-xs w-fit p-1 pl-2 pr-2 bg-gray-100 border-solid border-2 border-gray-200 mt-1 mb-3 sm:mb-4">
-                    <span class="text-sm text-gray-900 text-center">Yours</span>
-                </div>
-            {% endif %}
+            <p class="text-sm sm:text-base text-gray-900 line-clamp-5 md:line-clamp-11 mt-2 wrap-break-word">
+                {{ community_request.description|default:"No description Available" }}
+            </p>
         </div>
 
         {% if community_request.requester_id != user.id %}

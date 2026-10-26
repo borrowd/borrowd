@@ -7,31 +7,17 @@
 {% endblock %}
 
 {% block content %}
-    <div class="w-full max-w-5xl self-start px-4" x-data="{ yourRequests:
-        {% if active_tab == 'mine' %}
-            true
-        {% else %}
-            false
-        {% endif %}
-        }">
+    <div class="w-full max-w-5xl self-start px-4">
 
         <!-- Page Header -->
-        <c-page-header title="Community requests" />
+        <c-page-header title="Community requests" hide_back_button="true" />
 
-        <!-- Toggle Row -->
-        <div class="flex items-center justify-between mb-6">
-            <label class="flex items-center gap-3 cursor-pointer">
-                <input type="checkbox"
-                       class="toggle toggle-base"
-                       x-model="yourRequests"
-                       @change="window.location = '{% url 'community-request-list' %}?tab=' + (yourRequests ? 'mine' : 'all')"
-                       role="switch"
-                       :aria-checked="yourRequests.toString()" />
-                <span class="text-sm font-medium">Your requests</span>
-            </label>
+        <!-- Control Row: scope control + primary action -->
+        <div class="flex items-center gap-3 mb-6">
+            <c-scope-control :segments="scope_segments" />
             <a href="{% url 'community-request-create' %}"
-               class="btn btn-soft text-primary btn-sm">
-                Request item
+               class="btn btn-primary flex-shrink-0 ml-auto">
+                Post a request
             </a>
         </div>
 
@@ -46,24 +32,10 @@
                          alt="A picture of a watering can with flowers"
                          class="w-64 h-40 mb-6">
 
-                    <template x-if="yourRequests">
-                        <p class="text-gray-800 text-xl text-center font-semibold mb-2">
-                            You have no community requests yet.
-                        </p>
-                    </template>
-
-                    <template x-if="!yourRequests">
-                        <p class="text-gray-800 text-xl text-center font-semibold mb-2">
-                            There are no community requests right now.
-                        </p>
-                    </template>
-
-                    <p class="text-gray-600 text-center mb-6">
-                        Add a request to start sharing.
+                    <p class="text-gray-800 text-xl text-center font-semibold mb-6">
+                        There are no community requests right now.
                     </p>
-                    <a href="{% url 'community-request-create' %}" class="btn btn-primary">
-                        Request an item
-                    </a>
+                    <a href="{% url 'community-request-create' %}" class="btn btn-primary">Post a request</a>
                 </div>
 
             {% else %}
