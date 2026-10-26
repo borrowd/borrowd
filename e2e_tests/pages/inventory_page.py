@@ -9,16 +9,17 @@ class InventoryPage:
 
         self.heading = page.get_by_role("heading", name="Inventory")
 
-        self.your_items_toggle = page.get_by_role("switch", name="Your items")
+        self.lending_scope_link = page.get_by_role("link", name="Lending")
         # An empty inventory renders a second empty-state "Add item" CTA;
         # .first is the always-present header button.
         self.add_item_button = page.get_by_role(
-            "link", name=re.compile(r"Add an item|Create New Item|Add item", re.IGNORECASE)
+            "link",
+            name=re.compile(r"Add an item|Create New Item|Add item", re.IGNORECASE),
         ).first
 
     def expect_opened(self):
         expect(self.heading).to_be_visible()
-        expect(self.your_items_toggle).to_be_visible()
+        expect(self.lending_scope_link).to_be_visible()
 
     def click_add_item_button(self):
         expect(self.add_item_button).to_be_visible()

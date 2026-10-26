@@ -474,11 +474,6 @@ class GroupListView(LoginRequiredMixin, FilterView):  # type: ignore[misc]
         response: HttpResponse = super().get(request, *args, **kwargs)
         return response
 
-    def get_template_names(self) -> list[str]:
-        if self.request.headers.get("HX-Request"):
-            return ["groups/group_list_card.html"]
-        return [self.template_name]
-
     def get_context_data(self, **kwargs: str) -> dict[str, Any]:
         context: dict[str, Any] = super().get_context_data(**kwargs)
 
@@ -495,10 +490,46 @@ class GroupListView(LoginRequiredMixin, FilterView):  # type: ignore[misc]
                 and getattr(membership, "active_moderators_count", 0) == 0
             )
 
-        context["object_list"] = memberships
-        context["has_groups"] = Membership.objects.filter(
-            user=get_authenticated_user(self.request)
-        ).exists()
+        scope = self.request.GET.get("scope")
+        if scope not in {"all", "manage"}:
+            # Legacy ?moderator_only=true, kept working by mapping onto scope.
+            scope = (
+                "manage" if self.request.GET.get("moderator_only") == "true" else "all"
+            )
+
+        if scope == "manage":
+            scoped_memberships = [m for m in memberships if m.is_moderator]
+        else:
+            scoped_memberships = memberships
+
+        # Memberships with a chip (pending actions to review, or needing a
+        # moderator) sort first, then other active memberships, then pending
+        # membership requests.
+        def _sort_bucket(membership: Any) -> int:
+            if membership.status == MembershipStatus.PENDING:
+                return 2
+            if membership.has_pending_actions or membership.group_needs_moderator:
+                return 0
+            return 1
+
+        context["object_list"] = sorted(scoped_memberships, key=_sort_bucket)
+        context["active_scope"] = scope
+
+        base_url = reverse("borrowd_groups:group-list")
+        context["scope_segments"] = [
+            {
+                "label": "All",
+                "url": f"{base_url}?scope=all",
+                "count": len(memberships),
+                "selected": scope == "all",
+            },
+            {
+                "label": "You manage",
+                "url": f"{base_url}?scope=manage",
+                "count": sum(1 for m in memberships if m.is_moderator),
+                "selected": scope == "manage",
+            },
+        ]
         return context
 
 

@@ -32,7 +32,7 @@
             <div class="flex-1 flex flex-col gap-3 min-w-0">
                 <div class="flex items-center">
                     <!-- On the left -->
-                    <div class="flex items-center gap-2 min-w-0">
+                    <div class="flex items-center gap-2 min-w-0 flex-wrap">
                         {% if membership.status == "PENDING" %}
                             <span class="text-base font-semibold text-yellow-700 cursor-pointer hover:underline truncate">
                                 {{ membership.group.name }}
@@ -45,7 +45,9 @@
                         {% endif %}
 
                         {% if membership.status == "PENDING" %}
-                            <span class="inline-block badge badge-warning badge-soft text-xs px-2 py-1 rounded font-semibold">Pending</span>
+                            <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold bg-warning/15 text-[#8E6900] whitespace-nowrap">
+                                Pending
+                            </span>
                             <form method="post"
                                   action="{% url 'borrowd_groups:cancel-membership-request' membership.group.pk %}"
                                   onsubmit="return confirm('Cancel your request to join {{ membership.group.name|escapejs }}?');">
@@ -54,32 +56,28 @@
                                     Cancel
                                 </button>
                             </form>
+                        {% else %}
+                            {% if membership.has_pending_actions %}
+                                <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold bg-primary/15 text-primary whitespace-nowrap"
+                                      data-testid="group-pending-actions-indicator">
+                                    Join requests to review
+                                </span>
+                            {% endif %}
+
+                            {% if membership.group_needs_moderator and not membership.is_moderator and membership.status == "ACTIVE" %}
+                                <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold bg-warning/15 text-[#8E6900] whitespace-nowrap"
+                                      data-testid="group-needs-moderator-indicator">
+                                    Needs a moderator
+                                </span>
+                            {% endif %}
                         {% endif %}
                     </div>
                 </div>
             </div>
 
             <!-- Member Count -->
-            <div class="text-base font-semibold text-base-content-scale-50 text-right w-10 inline-flex items-center justify-end gap-3">
+            <div class="text-base font-semibold text-base-content-scale-50 text-right w-10 flex items-center justify-end shrink-0">
                 {{ membership.active_members_count }}
-
-                {% if membership.has_pending_actions %}
-                    <span class="inline-flex items-center justify-center w-5 h-5 text-info"
-                          title="Pending actions require moderator review"
-                          aria-label="Pending actions"
-                          data-testid="group-pending-actions-indicator">
-                        {% heroicon_mini "exclamation-circle" class="w-5 h-5" %}
-                    </span>
-                {% endif %}
-
-                {% if membership.group_needs_moderator and not membership.is_moderator and membership.status == "ACTIVE" %}
-                    <span class="inline-flex items-center justify-center w-5 h-5 shrink-0 text-warning"
-                          title="This group needs a moderator"
-                          aria-label="This group needs a moderator"
-                          data-testid="group-needs-moderator-indicator">
-                        {% heroicon_solid "exclamation-circle" class="w-5 h-5" %}
-                    </span>
-                {% endif %}
             </div>
         </div>
     {% empty %}
@@ -94,7 +92,7 @@
             </p>
             <c-button-nav url="{% url 'borrowd_groups:group-create' %}"
                           class="btn btn-primary btn-lg">
-                Create a group
+                Create group
             </c-button-nav>
         </div>
     {% endfor %}
