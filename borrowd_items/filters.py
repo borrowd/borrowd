@@ -1,13 +1,27 @@
 from typing import Any
 
 from django.db.models import Q, QuerySet
+from django.http import HttpRequest
 from django_filters import CharFilter, FilterSet, ModelMultipleChoiceFilter
 from guardian.shortcuts import get_objects_for_user
 
+from borrowd_groups.models import BorrowdGroup, MembershipStatus
 from borrowd_permissions.models import ItemOLP
 from borrowd_users.request import get_authenticated_user
 
 from .models import Item, ItemCategory
+
+
+def _groups_queryset(request: HttpRequest | None) -> QuerySet[BorrowdGroup]:
+    """Only the groups the viewing user actually belongs to -- an item can
+    only be shared through a group its owner is active in, so any other
+    group would never narrow the results."""
+    if request is None:
+        return BorrowdGroup.objects.none()
+    return BorrowdGroup.objects.filter(
+        membership__user=get_authenticated_user(request),
+        membership__status=MembershipStatus.ACTIVE,
+    ).distinct()
 
 
 # django-filter is untyped (see the django_filters note in mypy.ini), so
@@ -19,6 +33,12 @@ class ItemFilter(FilterSet):  # type: ignore[misc]
         queryset=ItemCategory.objects.all(),
         method="filter_by_categories",
         label="Categories",
+    )
+    groups = ModelMultipleChoiceFilter(
+        field_name="shared_with_groups",
+        queryset=_groups_queryset,
+        method="filter_by_groups",
+        label="Groups",
     )
 
     def filter_by_search(
@@ -48,6 +68,34 @@ class ItemFilter(FilterSet):  # type: ignore[misc]
         if not value:
             return queryset
         return queryset.filter(categories__in=value).distinct()
+
+    def filter_by_groups(
+        self, queryset: QuerySet[Item], name: str, value: Any
+    ) -> QuerySet[Item]:
+        """
+        Filter items by selected groups.
+
+        An item matches a selected group only when its owner is an active
+        member of that same group, and either the item is explicitly shared
+        with it or the owner shares with all of their groups
+        (share_with_all_groups) -- mirroring Item.groups_allowed_to_view()'s
+        own visibility rule. As with categories, multiple selections are
+        OR'd together; each group is checked separately so an owner's
+        active membership in one selected group can't justify a match
+        through a different, stale shared_with_groups entry.
+        """
+        if not value:
+            return queryset
+        match = Q()
+        for group in value:
+            owner_active_in_group = Q(
+                owner__membership__group_id=group.pk,
+                owner__membership__status=MembershipStatus.ACTIVE,
+            )
+            match |= owner_active_in_group & (
+                Q(shared_with_groups=group.pk) | Q(share_with_all_groups=True)
+            )
+        return queryset.filter(match).distinct()
 
     @property
     def qs(self) -> QuerySet[Item]:
@@ -87,4 +135,4 @@ class ItemFilter(FilterSet):  # type: ignore[misc]
 
     class Meta:
         model = Item
-        fields = ["categories", "search"]
+        fields = ["categories", "search", "groups"]

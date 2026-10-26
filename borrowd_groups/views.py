@@ -433,8 +433,10 @@ class GroupJoinView(LoginRequiredMixin, View):
             return val_res
 
         group: BorrowdGroup = val_res
+        user = get_authenticated_user(request)
 
-        membership = group.add_user(get_authenticated_user(request))
+        membership = group.add_user(user)
+        NotificationService.send_add_item_nudge_if_needed(user, group)
         if membership.status == MembershipStatus.PENDING:
             messages.info(request, "Your request is pending approval by a moderator.")
             return redirect("borrowd_groups:group-list")

@@ -257,6 +257,24 @@ class CommunityRequestVisibleToTests(CommunityRequestModelTestBase):
 
         self.assertIn(request, visible)
 
+    def test_visible_to_includes_the_requesters_own_requests_with_no_active_memberships(
+        self,
+    ) -> None:
+        """
+        Own requests are visible even when the requester shares no active
+        group with themself in the membership sense -- e.g. no active
+        memberships at all -- so "All" is never missing what "Yours" shows.
+        """
+        request = CommunityRequest.objects.create(
+            requester=self.outsider,
+            category=self.category_tools,
+            item_name="Drill",
+        )
+
+        visible = CommunityRequest.objects.visible_to(self.outsider)
+
+        self.assertIn(request, visible)
+
     def test_visible_to_excludes_requests_from_users_outside_shared_groups(
         self,
     ) -> None:

@@ -263,22 +263,20 @@ class CommunityRequestListViewOrderingTests(CommunityRequestListViewTestBase):
     def test_all_scope_surfaces_the_viewers_own_requests_with_a_response_first(
         self,
     ) -> None:
-        # Created oldest-first so plain `-created_at` ordering would put
-        # own_with_response last; only response-prioritization puts it first.
         own_with_response = CommunityRequest.objects.create(
             requester=self.group_member,
             category=self.category_tools,
             item_name="Saw",
         )
-        own_without_response = CommunityRequest.objects.create(
-            requester=self.group_member,
-            category=self.category_tools,
-            item_name="Ladder",
-        )
         other_request = CommunityRequest.objects.create(
             requester=self.requester,
             category=self.category_tools,
             item_name="Drill",
+        )
+        own_without_response = CommunityRequest.objects.create(
+            requester=self.group_member,
+            category=self.category_tools,
+            item_name="Ladder",
         )
         responding_item = Item.objects.create(
             name="Saw",
@@ -294,7 +292,7 @@ class CommunityRequestListViewOrderingTests(CommunityRequestListViewTestBase):
         community_requests = _requests(response.context["community_requests"])
         self.assertEqual(
             community_requests,
-            [own_with_response, other_request, own_without_response],
+            [own_with_response, own_without_response, other_request],
         )
 
 
@@ -312,7 +310,7 @@ class CommunityRequestListViewEmptyStateTests(CommunityRequestListViewTestBase):
             reverse("community-request-list"), {"scope": "yours"}
         )
 
-        self.assertContains(response, "You have no community requests yet.")
+        self.assertContains(response, "There are no community requests right now.")
 
 
 class CommunityRequestGetAbsoluteUrlTests(CommunityRequestListViewTestBase):

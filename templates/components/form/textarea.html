@@ -4,15 +4,25 @@
         max_length="200"
         input_class=""
         required="false"
-        help_text="" />
+        help_text=""
+        hide_label="false" />
 
 <fieldset class="fieldset">
-    <legend class="fieldset-legend text-xs font-normal text-base-content/60"
+    <legend class="fieldset-legend text-xs font-normal text-base-content/60{% if hide_label == "true" %} sr-only{% endif %}"
             id="{{ id }}-label">
         {{ label }}
     </legend>
 
-    <div x-data="{ charCount: {{ value|length|default:0 }} }">
+    {# send_action is an optional named slot: a submit control that joins the
+    counter row, below the textarea.
+
+    leading_action is an optional named slot that takes the counter's usual
+    spot; the counter itself only appears once typing nears max_length,
+    displacing leading_action until the length drops back below that mark.
+
+    Both slots are unused by other callers of this component, which keep the
+    plain stacked layout and an always-visible counter. #}
+    <div x-data="{ charCount: {{ value|length|default:0 }}, maxLength: {{ max_length }}, get nearLimit() { return this.charCount >= this.maxLength * 0.9 } }">
         <textarea name="{{ name }}"
                   id="{{ id }}"
                   aria-labelledby="{{ id }}-label"
@@ -23,10 +33,21 @@
                   @input="charCount = $event.target.value.length"
                   {% if required == "true" %}required{% endif %}>{{ value }}</textarea>
 
-        <div class="flex justify-start mt-1">
-            <span class="text-xs text-base-content/50">
+        <div class="mt-1 flex flex-wrap items-center gap-2">
+            {% if leading_action %}
+                <div x-show="!nearLimit" x-cloak>
+                    {{ leading_action }}
+                </div>
+            {% endif %}
+            <span class="text-xs text-base-content/50"
+                  {% if leading_action %}x-show="nearLimit" x-cloak{% endif %}>
                 <span x-text="charCount">{{ value|length|default:0 }}</span>/{{ max_length }}
             </span>
+            {% if send_action %}
+                <div class="shrink-0 ms-auto">
+                    {{ send_action }}
+                </div>
+            {% endif %}
         </div>
     </div>
 

@@ -34,7 +34,10 @@ class CommunityRequestQuerySet(QuerySet["CommunityRequest"]):
         return self.filter(status=CommunityRequestStatus.OPEN)
 
     def visible_to(self, user: BorrowdUser) -> "CommunityRequestQuerySet":
-        # Visibility follows shared active group membership.
+        # Visibility follows shared active group membership, but the viewer's
+        # own requests are always included -- a user with no active
+        # memberships (or who has since left every group a request's
+        # requester shares with them) still owns their own request.
         group_ids = Membership.objects.filter(
             user=user,
             status=MembershipStatus.ACTIVE,
@@ -47,7 +50,7 @@ class CommunityRequestQuerySet(QuerySet["CommunityRequest"]):
 
         return (
             self.open()
-            .filter(requester_id__in=requester_ids)
+            .filter(Q(requester_id__in=requester_ids) | Q(requester=user))
             .exclude(dismissals__user=user)
             .distinct()
             .order_by("-created_at")

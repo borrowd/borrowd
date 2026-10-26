@@ -7,7 +7,7 @@
 {% endblock %}
 
 {% block layout %}
-    <div class="flex justify-center items-center md:p-8">
+    <main class="flex-grow flex justify-center items-center md:p-8">
         <div class="p-8 w-full max-w-2xl shadow-sm relative max-w-[485px] md:bg-primary-content">
             <div class="text-center">
                 <c-h1 class="font-normal text-2xl text-black">
@@ -135,11 +135,11 @@
                     </label>
                 </div>
                 <div class="mx-auto w-fit md:w-full">
-                    <c-button type="submit" class="btn btn-primary mr-2 md:w-full">
+                    <button type="submit" class="btn btn-primary mr-2 md:w-full">
                         {% trans "Continue" %}
-                    </c-button>
+                    </button>
                 </div>
             </form>
         </div>
-    </div>
+    </main>
 {% endblock %}
