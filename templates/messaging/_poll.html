@@ -1,6 +1,12 @@
 {# The poll endpoint's (ChatThreadPollView) response appends unseen messages,
-refreshes the conversation status, removes the pre-request actions once a request owns the thread,
-and replaces the composer if the thread became archived. #}
+refreshes the conversation status, removes the pre-request actions once a request owns the thread
+or the thread archives, and replaces the composer if the thread became archived.
+
+The request button (#chat-pre-request-actions, in the item card header) and the
+close link (#chat-close-conversation-action, in the composer) are removed
+independently: archiving swaps out the whole composer, which already carries
+the close link away, but the header button needs its own out-of-band removal
+either way. #}
 
 {% include "messaging/_messages.html" with chat_messages=chat_messages viewer=viewer %}
 
@@ -10,6 +16,10 @@ and replaces the composer if the thread became archived. #}
     {% include "messaging/_composer_archived.html" with oob=True %}
 
 {% elif chat_thread.transaction_id %}
+    <div id="chat-close-conversation-action" hx-swap-oob="true">
+    </div>
+{% endif %}
+{% if chat_thread.is_archived or chat_thread.transaction_id %}
     <div id="chat-pre-request-actions" hx-swap-oob="true">
     </div>
 {% endif %}
