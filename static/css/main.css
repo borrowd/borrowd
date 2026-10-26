@@ -3,6 +3,11 @@
 /*
 Borrow'd theme for DaisyUI
 */
+/* The illustration steps down as the viewport gets shorter, so the Sign up
+   button stays visible. The footer may fall below the fold. Thresholds are
+   estimates; tune after device testing. */
+@custom-variant short-screen (@media (max-height: 900px));
+@custom-variant very-short-screen (@media (max-height: 830px));
 @plugin "daisyui/theme" {
   name: "light";
   default: true;

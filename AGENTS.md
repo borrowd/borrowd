@@ -1,5 +1,15 @@
 # AGENTS.md
 
+## AI Contribution Policy
+
+Read [docs/AI_POLICY.md](docs/AI_POLICY.md) before opening or updating a pull request. In short:
+
+- Open the PR `Summary` with a plain-language TL;DR; describe the final state, not your session.
+- Keep the `Co-Authored-By` commit trailer and note significant AI involvement in the PR description.
+- Never read or transmit `.env`, secrets, `db.sqlite3`, `media/`, or production data.
+- Don't post reviews, issues, or comments the human hasn't verified.
+- Help the human verify the change beyond unit tests and confirm they can explain it.
+
 ## Project Overview
 
 Borrow'd is a Django 5.2 web application (Python 3.13+) for peer-to-peer item lending within groups. Users can share items with group members based on group sharing configuration.

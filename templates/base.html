@@ -40,10 +40,7 @@
         {% endif %}
         {% include "includes/messages.html" %}
 
-        {% if user.is_authenticated %}
-            {% include "includes/header.html" %}
-
-        {% endif %}
+        {% include "includes/header.html" %}
 
         {% block layout %}
         {% endblock %}

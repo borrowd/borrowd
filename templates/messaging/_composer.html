@@ -1,4 +1,4 @@
-{# Active-thread controls: message composer (typing box) and pre-request close button.
+{# Active-thread controls: message composer (typing box) and pre-request close link.
 The fixed `chat-composer` id lets an archived poll response replace this block.
 See messaging/_poll.html and messaging/_composer_archived.html. #}
 
@@ -24,13 +24,31 @@ See messaging/_poll.html and messaging/_composer_archived.html. #}
         <c-form.textarea name="body"
                          id="chat-composer-body"
                          label="Message"
+                         hide_label="true"
                          rows="2"
                          max_length="{{ message_body_max_length }}"
                          required="true"
-                         placeholder="Write a message" />
-        <button type="submit" class="btn btn-primary">
-            Send
-        </button>
+                         placeholder="Write a message">
+            <c-slot name="send_action">
+                <button type="submit" class="btn btn-primary">
+                    Send
+                </button>
+            </c-slot>
+            {#  Either party may close a pre-request chat manually. Takes the
+            word counter's place until typing nears the limit.
+            Transaction lifecycle handles linked thread progression/archival. (see borrowd_messaging.signals) #}
+            {% if not chat_thread.transaction_id %}
+                <c-slot name="leading_action">
+                    <div id="chat-close-conversation-action">
+                        <button type="button"
+                                class="btn btn-ghost"
+                                onclick="showModal('close-conversation-modal')">
+                            Close conversation
+                        </button>
+                    </div>
+                </c-slot>
+            {% endif %}
+        </c-form.textarea>
         <p id="chat-composer-error"
            class="mt-2 text-error text-sm"
            role="alert"
@@ -38,60 +56,25 @@ See messaging/_poll.html and messaging/_composer_archived.html. #}
         </p>
     </form>
 
-    {#  The borrower may turn a pre-request chat into a request.
-        Either party may close the thread manually.
-        Transaction lifecycle handles linked thread progression/archival. (see borrowd_messaging.signals) #}
-    <div id="chat-pre-request-actions">
-        {% if not chat_thread.transaction_id %}
-            <div class="mt-2 flex flex-wrap gap-2">
-                {% if pre_request_action.name == 'REQUEST_ITEM' %}
-                    <button id="request-listing-button"
-                            type="button"
-                            class="btn btn-primary"
-                            onclick="showModal('request-item-from-chat-modal')">
-                        Request item
-                    </button>
-                {% elif pre_request_action.name == 'REQUEST_GIVEAWAY' %}
-                    <button id="request-listing-button"
-                            type="button"
-                            class="btn btn-primary"
-                            onclick="showModal('request-giveaway-from-chat-modal')">
-                        Request gift
-                    </button>
-                {% endif %}
+    {# Separate wrapper id from #chat-pre-request-actions (in the item card
+    header) so a poll can remove each independently. #}
+    {% if not chat_thread.transaction_id %}
+        <form id="close-conversation-form"
+              class="hidden"
+              method="post"
+              action="{% url 'chat-thread-pre-request-close' chat_thread.pk %}">
+            {% csrf_token %}
+        </form>
 
-                <button type="button"
-                        class="btn btn-error btn-soft"
-                        onclick="showModal('close-conversation-modal')">
-                    Close conversation
-                </button>
-            </div>
-
-            {% if pre_request_action.name == 'REQUEST_ITEM' %}
-                {% include "components/items/modals/request_item_modal.html" with item=chat_thread.item modal_id="request-item-from-chat-modal" %}
-
-            {% elif pre_request_action.name == 'REQUEST_GIVEAWAY' %}
-                {% include "components/items/modals/request_giveaway_modal.html" with item=chat_thread.item modal_id="request-giveaway-from-chat-modal" %}
-
-            {% endif %}
-
-            <form id="close-conversation-form"
-                  class="hidden"
-                  method="post"
-                  action="{% url 'chat-thread-pre-request-close' chat_thread.pk %}">
-                {% csrf_token %}
-            </form>
-
-            <c-modal modal_id="close-conversation-modal"
-                     modal_title="Close conversation?"
-                     cancel_button_text="Cancel"
-                     confirm_button_text="Close conversation"
-                     confirm_submit_form_id="close-conversation-form"
-                     confirm_button_class="btn btn-error btn-soft font-semibold">
-                <p>
-                    Closing is permanent. Neither person can send more messages, but both can still read the conversation.
-                </p>
-            </c-modal>
-        {% endif %}
-    </div>
+        <c-modal modal_id="close-conversation-modal"
+                 modal_title="Close conversation?"
+                 cancel_button_text="Cancel"
+                 confirm_button_text="Close conversation"
+                 confirm_submit_form_id="close-conversation-form"
+                 confirm_button_class="btn btn-error btn-soft font-semibold">
+            <p>
+                Closing is permanent. Neither person can send more messages, but both can still read the conversation.
+            </p>
+        </c-modal>
+    {% endif %}
 </div>
