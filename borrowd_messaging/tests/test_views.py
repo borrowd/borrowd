@@ -419,9 +419,19 @@ class ChatThreadActivePageTests(MessagingTestCase):
         self.client.force_login(self.borrower)
 
         response = self.client.get(self.url)
+        body = response.content.decode()
+        # Scoped to the composer's own fieldset: the page also carries an
+        # sr-only conversation heading and "Messages" nav text, so a
+        # whole-response assertion would still pass with the composer's
+        # legend deleted. The legend precedes the textarea in the fieldset,
+        # so the fieldset start is found by searching backward from it.
+        textarea_start = body.index('id="chat-composer-body"')
+        fieldset_start = body.rindex("<fieldset", 0, textarea_start)
+        fieldset_end = body.index("</fieldset>", textarea_start)
+        composer_fieldset = body[fieldset_start:fieldset_end]
 
-        self.assertContains(response, "sr-only")
-        self.assertContains(response, "Message")
+        self.assertIn("sr-only", composer_fieldset)
+        self.assertIn("Message", composer_fieldset)
 
 
 @override_settings(MESSAGING_ENABLED=True)
