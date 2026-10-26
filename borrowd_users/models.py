@@ -96,6 +96,14 @@ class Profile(models.Model):
             " join a group after adding an item while in no active group."
         ),
     )
+    add_item_nudge_sent = models.BooleanField(
+        default=False,
+        help_text=(
+            "Whether this user has already been shown the one-time nudge to"
+            " add an item after joining a group through an invite link while"
+            " owning none."
+        ),
+    )
     add_profile_photo_nudge_sent = models.BooleanField(
         default=False,
         help_text=(

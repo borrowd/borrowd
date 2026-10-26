@@ -357,6 +357,39 @@ class NotificationService:
         Profile.objects.filter(pk=profile.pk).update(invite_friends_nudge_sent=True)
 
     @classmethod
+    def send_add_item_nudge_if_needed(
+        cls, user: BorrowdUser, group: BorrowdGroup
+    ) -> None:
+        """Nudge a user to add an item the first time they join a group
+        through an invite link — otherwise they land on the group's shared
+        items with no prompt to add their own and onboarding stalls. Shown at
+        most once per user, regardless of how many groups they join while
+        still itemless.
+
+        Called directly from `GroupJoinView.post` (the invite-link join
+        flow) rather than wired as a Membership post_save signal, so it
+        fires only for a user's own deliberate invite-link join and not for
+        every programmatic `BorrowdGroup.add_user()` call (fixtures, the
+        group-creation signal, other flows).
+        """
+        profile = Profile.objects.get(user=user)
+        if profile.add_item_nudge_sent:
+            return
+
+        if Item.objects.filter(owner=user).exists():
+            return
+
+        notify.send(
+            get_system_user(),
+            recipient=[user],
+            verb=NotificationType.GROUP_JOINED_NEEDS_ITEM.value,
+            action_object=group,
+            target=group,
+            description="Add an item to share with your group",
+        )
+        Profile.objects.filter(pk=profile.pk).update(add_item_nudge_sent=True)
+
+    @classmethod
     def send_pending_digests(cls) -> int:
         """Send summary digest emails for all due pending digests. Returns count sent."""
         now = timezone.now()
