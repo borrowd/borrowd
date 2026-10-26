@@ -7,13 +7,15 @@
         help_text="" />
 
 <fieldset class="fieldset">
-    <legend class="fieldset-legend text-xs font-normal text-base-content/60">
+    <legend class="fieldset-legend text-xs font-normal text-base-content/60"
+            id="{{ id }}-label">
         {{ label }}
     </legend>
 
     <div x-data="{ charCount: {{ value|length|default:0 }} }">
         <textarea name="{{ name }}"
                   id="{{ id }}"
+                  aria-labelledby="{{ id }}-label"
                   class="textarea w-full text-base bg-primary-content placeholder:text-base-content/50 placeholder:text-xs resize-none {{ input_class }}"
                   placeholder="{{ placeholder }}"
                   rows="{{ rows }}"

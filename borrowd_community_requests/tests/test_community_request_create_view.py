@@ -5,6 +5,7 @@ from borrowd_community_requests.models import CommunityRequest, CommunityRequest
 from borrowd_groups.models import BorrowdGroup
 from borrowd_items.models import ItemCategory
 from borrowd_users.models import BorrowdUser
+from tests.helpers import link_href_by_text
 
 MAX_ACTIVE_REQUESTS_PER_USER = 3
 
@@ -210,7 +211,7 @@ class CommunityRequestCreateViewTemplateTests(CommunityRequestCreateViewTestBase
             HTTP_REFERER="http://testserver" + reverse("item-list"),
         )
 
-        self.assertContains(response, f'href="{reverse("item-list")}"')
+        self.assertEqual(link_href_by_text(response, "Cancel"), reverse("item-list"))
 
     def test_category_field_has_a_visible_label_and_placeholder(self) -> None:
         response = self.client.get(reverse("community-request-create"))
@@ -218,7 +219,16 @@ class CommunityRequestCreateViewTemplateTests(CommunityRequestCreateViewTestBase
         self.assertContains(response, "Category")
         self.assertContains(response, "Select a category")
 
+    def test_item_name_and_description_fields_have_a_programmatic_label(self) -> None:
+        response = self.client.get(reverse("community-request-create"))
+
+        self.assertContains(response, 'id="id_item_name-label"')
+        self.assertContains(response, 'aria-labelledby="id_item_name-label"')
+        self.assertContains(response, 'id="id_description-label"')
+        self.assertContains(response, 'aria-labelledby="id_description-label"')
+
     def test_submit_button_disables_itself_on_submit(self) -> None:
         response = self.client.get(reverse("community-request-create"))
 
-        self.assertContains(response, "isSubmitting")
+        self.assertContains(response, '@submit="submitForm($event)"')
+        self.assertContains(response, 'x-bind:disabled="isSubmitting"')

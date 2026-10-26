@@ -3,6 +3,7 @@ from django.urls import reverse
 
 from borrowd_groups.models import BorrowdGroup
 from borrowd_users.models import BorrowdUser
+from tests.helpers import link_href_by_text
 
 
 class GroupCreateViewBackUrlTests(TestCase):
@@ -46,7 +47,7 @@ class GroupCreateViewTemplateTests(TestCase):
             HTTP_REFERER="http://testserver" + reverse("item-list"),
         )
 
-        self.assertContains(response, f'href="{reverse("item-list")}"')
+        self.assertEqual(link_href_by_text(response, "Cancel"), reverse("item-list"))
 
     def test_name_and_description_fields_have_visible_labels_and_counters(
         self,
@@ -58,10 +59,19 @@ class GroupCreateViewTemplateTests(TestCase):
         self.assertContains(response, "/50")
         self.assertContains(response, "/500")
 
+    def test_name_and_description_fields_have_a_programmatic_label(self) -> None:
+        response = self.client.get(reverse("borrowd_groups:group-create"))
+
+        self.assertContains(response, 'id="id_name-label"')
+        self.assertContains(response, 'aria-labelledby="id_name-label"')
+        self.assertContains(response, 'id="id_description-label"')
+        self.assertContains(response, 'aria-labelledby="id_description-label"')
+
     def test_submit_button_disables_itself_on_submit(self) -> None:
         response = self.client.get(reverse("borrowd_groups:group-create"))
 
-        self.assertContains(response, "isSubmitting")
+        self.assertContains(response, '@submit="submitForm($event)"')
+        self.assertContains(response, 'x-bind:disabled="isSubmitting"')
 
 
 class GroupUpdateViewBackUrlTests(TestCase):

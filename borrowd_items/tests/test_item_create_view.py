@@ -1,3 +1,4 @@
+import re
 from typing import Any
 
 from django.test import TestCase
@@ -9,6 +10,7 @@ from borrowd_groups.models import BorrowdGroup
 from borrowd_items.models import Item, ItemCategory, ListingType
 from borrowd_notifications.models import NotificationType
 from borrowd_users.models import BorrowdUser
+from tests.helpers import link_href_by_text
 
 
 class ItemCreateViewTestBase(TestCase):
@@ -301,7 +303,9 @@ class ItemCreateViewTemplateTests(ItemCreateViewTestBase):
             HTTP_REFERER="http://testserver" + reverse("profile-inventory"),
         )
 
-        self.assertContains(response, f'href="{reverse("profile-inventory")}"')
+        self.assertEqual(
+            link_href_by_text(response, "Cancel"), reverse("profile-inventory")
+        )
 
     def test_categories_and_photos_fields_have_visible_labels(self) -> None:
         response = self.client.get(reverse("item-create"))
@@ -320,6 +324,25 @@ class ItemCreateViewTemplateTests(ItemCreateViewTestBase):
         self.assertContains(response, "Choose file")
         self.assertContains(response, "No file chosen")
 
+    def test_name_and_description_fields_have_a_programmatic_label(self) -> None:
+        response = self.client.get(reverse("item-create"))
+
+        self.assertContains(response, 'id="id_name-label"')
+        self.assertContains(response, 'aria-labelledby="id_name-label"')
+        self.assertContains(response, 'id="id_description-label"')
+        self.assertContains(response, 'aria-labelledby="id_description-label"')
+
+    def test_photo_input_stays_keyboard_focusable(self) -> None:
+        response = self.client.get(reverse("item-create"))
+
+        image_input = re.search(
+            r'<input[^>]*id="id_image"[^>]*>', response.content.decode(), re.DOTALL
+        )
+        self.assertIsNotNone(image_input)
+        assert image_input is not None  # narrows the type for mypy
+        self.assertIn("sr-only", image_input.group())
+        self.assertNotIn("hidden", image_input.group())
+
     def test_listing_type_radio_cards_render_both_choices(self) -> None:
         response = self.client.get(reverse("item-create"))
 
@@ -332,4 +355,5 @@ class ItemCreateViewTemplateTests(ItemCreateViewTestBase):
     def test_submit_button_disables_itself_on_submit(self) -> None:
         response = self.client.get(reverse("item-create"))
 
-        self.assertContains(response, "isSubmitting")
+        self.assertContains(response, '@submit="submitForm($event)"')
+        self.assertContains(response, 'x-bind:disabled="isSubmitting"')

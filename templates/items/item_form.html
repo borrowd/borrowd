@@ -235,7 +235,7 @@
                             <legend class="fieldset-legend text-xs font-normal text-base-content/60">
                                 {{ field.label }}
                             </legend>
-                            <label class="border border-base-content/20 rounded flex items-center w-full cursor-pointer bg-primary-content hover:bg-base-200/40 transition-colors h-10 overflow-hidden">
+                            <label class="border border-base-content/20 rounded flex items-center w-full cursor-pointer bg-primary-content hover:bg-base-200/40 transition-colors h-10 overflow-hidden focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-2">
                                 <span class="inline-flex items-center justify-center self-stretch bg-base-200 font-semibold text-sm px-4 shrink-0">Choose file</span>
                                 <span class="text-base-content/50 text-sm truncate px-4"
                                       x-text="selectedFileName || 'No file chosen'"></span>
@@ -243,7 +243,7 @@
                                        name="{{ field.html_name }}"
                                        id="{{ field.auto_id }}"
                                        accept="{{ field.field.widget.attrs.accept }}"
-                                       class="hidden">
+                                       class="sr-only">
                             </label>
                         {% else %}
                             {{ field }}

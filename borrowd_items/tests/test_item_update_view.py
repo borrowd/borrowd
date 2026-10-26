@@ -3,6 +3,7 @@ from django.urls import reverse
 
 from borrowd_items.models import Item, ItemCategory
 from borrowd_users.models import BorrowdUser
+from tests.helpers import link_href_by_text
 
 
 class ItemUpdateViewBackUrlTests(TestCase):
@@ -43,7 +44,9 @@ class ItemUpdateViewBackUrlTests(TestCase):
             HTTP_REFERER="http://testserver" + reverse("profile-inventory"),
         )
 
-        self.assertContains(response, f'href="{reverse("profile-inventory")}"')
+        self.assertEqual(
+            link_href_by_text(response, "Cancel"), reverse("profile-inventory")
+        )
 
     def test_edit_title_and_submit_label_are_unchanged(self) -> None:
         response = self.client.get(reverse("item-edit", args=[self.item.pk]))
