@@ -75,23 +75,27 @@ class ItemFilter(FilterSet):  # type: ignore[misc]
         """
         Filter items by selected groups.
 
-        An item matches a selected group either when it's explicitly shared
-        with that group, or when its owner shares it with all of their
-        groups (share_with_all_groups) and is an active member of that
-        group -- mirroring Item.groups_allowed_to_view()'s own visibility
-        rule. As with categories, multiple selections are OR'd together.
+        An item matches a selected group only when its owner is an active
+        member of that same group, and either the item is explicitly shared
+        with it or the owner shares with all of their groups
+        (share_with_all_groups) -- mirroring Item.groups_allowed_to_view()'s
+        own visibility rule. As with categories, multiple selections are
+        OR'd together; each group is checked separately so an owner's
+        active membership in one selected group can't justify a match
+        through a different, stale shared_with_groups entry.
         """
         if not value:
             return queryset
-        group_ids = [group.pk for group in value]
-        return queryset.filter(
-            Q(shared_with_groups__in=group_ids)
-            | Q(
-                share_with_all_groups=True,
-                owner__membership__group_id__in=group_ids,
+        match = Q()
+        for group in value:
+            owner_active_in_group = Q(
+                owner__membership__group_id=group.pk,
                 owner__membership__status=MembershipStatus.ACTIVE,
             )
-        ).distinct()
+            match |= owner_active_in_group & (
+                Q(shared_with_groups=group.pk) | Q(share_with_all_groups=True)
+            )
+        return queryset.filter(match).distinct()
 
     @property
     def qs(self) -> QuerySet[Item]:

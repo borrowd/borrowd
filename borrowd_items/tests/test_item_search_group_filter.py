@@ -73,6 +73,27 @@ class ItemSearchGroupFilterTests(TestCase):
 
         self.assertNotContains(response, "Drill")
 
+    def test_filter_excludes_item_when_owner_left_the_shared_group(self) -> None:
+        """Regression: an owner leaving group A doesn't retract the item's
+        stale shared_with_groups(A) entry, and the item stays guardian-
+        visible to the viewer through group B's still-active sharing -- so
+        excluding it from an A-only filter has to come from
+        filter_by_groups's own owner-membership check, not from the
+        earlier guardian-permission filtering (which group B satisfies
+        regardless)."""
+        group_a = self._create_group("Group A")
+        group_b = self._create_group("Group B")
+        group_a.add_user(self.viewer)
+        group_b.add_user(self.viewer)
+        item = self._create_item("Drill", share_with_all_groups=False)
+        item.shared_with_groups.add(group_a, group_b)
+        group_a.remove_user(self.owner, bypass_last_moderator_check=True)
+
+        self.client.force_login(self.viewer)
+        response = self.client.get(reverse("item-list"), {"groups": group_a.pk})
+
+        self.assertNotContains(response, "Drill")
+
     def test_filter_by_multiple_groups_is_or_matched(self) -> None:
         group_a = self._create_group("Group A")
         group_b = self._create_group("Group B")

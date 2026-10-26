@@ -27,7 +27,7 @@
     {% endfor %}
     ], groups: [
     {% for choice in filter.form.groups.field.choices %}
-        { id: '{{ choice.0 }}', name: '{{ choice.1 }}' }
+        { id: '{{ choice.0 }}', name: '{{ choice.1|escapejs }}' }
         {% if not forloop.last %}
             ,
         {% endif %}
