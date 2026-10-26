@@ -1,0 +1,7 @@
+Welcome to {{ group_name }}!
+
+Add your first item to start sharing with {{ group_name }}.
+
+Add an item: {{ add_item_url }}
+
+The Borrow'd team

@@ -37,9 +37,9 @@
                       inputmode="numeric"
                       errors="{{ form.code.errors|join:', ' }}" />
 
-        <c-button type="submit" class="btn btn-primary w-full">
+        <button type="submit" class="btn btn-primary w-full">
             {% trans "Sign in" %}
-        </c-button>
+        </button>
 
         <c-button-nav class="btn btn-ghost w-full "
                       url="{% url 'account_login_cancel' %}{% if redirect_field_value %}?{{ redirect_field_name }}={{ redirect_field_value|urlencode }}{% endif %}">

@@ -4418,6 +4418,7 @@ class OnboardingNotificationCategoryTests(TestCase):
         self.assertIn(NotificationType.ITEM_ADDED_NEEDS_GROUP, types)
         self.assertIn(NotificationType.GROUP_CREATED_NEEDS_PHOTO, types)
         self.assertIn(NotificationType.PHOTO_ADDED_NEEDS_INVITES, types)
+        self.assertIn(NotificationType.GROUP_JOINED_NEEDS_ITEM, types)
 
     def test_preferences_page_includes_the_category(self) -> None:
         user = BorrowdUser.objects.create_user(
@@ -4702,6 +4703,186 @@ class InviteFriendsNudgePreferenceSeedMigrationTests(TestCase):
         )
 
 
+class AddItemNudgeNotificationTests(TestCase):
+    """GROUP_JOINED_NEEDS_ITEM, fired by NotificationService.
+    send_add_item_nudge_if_needed() from GroupJoinView.post (see
+    borrowd_groups/tests/test_add_item_nudge_on_invite_join.py for the
+    view-level wiring test): nudges a user to add an item after they join a
+    group through an invite link, at most once."""
+
+    def setUp(self) -> None:
+        self.user = BorrowdUser.objects.create_user(
+            username="joiner", email="joiner@example.com", password="password"
+        )
+        self.category = ItemCategory.objects.create(name="Tools")
+
+    def _create_group(self, name: str = "A Group") -> BorrowdGroup:
+        creator = BorrowdUser.objects.create_user(
+            username=f"creator-{name}", email=f"creator-{name}@example.com"
+        )
+        return BorrowdGroup.objects.create_group(
+            name=name,
+            created_by=creator,
+            updated_by=creator,
+            membership_requires_approval=False,
+        )
+
+    def _join(self, group: BorrowdGroup) -> None:
+        NotificationService.send_add_item_nudge_if_needed(self.user, group)
+
+    def _nudges(self) -> Any:
+        return Notification.objects.filter(
+            recipient=self.user,
+            verb=NotificationType.GROUP_JOINED_NEEDS_ITEM.value,
+        )
+
+    def test_sent_when_itemless_user_joins_a_group(self) -> None:
+        group = self._create_group()
+
+        self._join(group)
+
+        self.assertEqual(self._nudges().count(), 1)
+
+    def test_not_sent_when_user_already_owns_an_item(self) -> None:
+        item = Item.objects.create(
+            name="Drill",
+            description="A description",
+            owner=self.user,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+        item.categories.add(self.category)
+        group = self._create_group()
+
+        self._join(group)
+
+        self.assertEqual(self._nudges().count(), 0)
+
+    def test_not_sent_again_for_a_second_group(self) -> None:
+        self._join(self._create_group("First Group"))
+        self._join(self._create_group("Second Group"))
+
+        self.assertEqual(self._nudges().count(), 1)
+
+    def test_sets_the_profile_flag_after_sending(self) -> None:
+        self._join(self._create_group())
+
+        profile = Profile.objects.get(user=self.user)
+        self.assertTrue(profile.add_item_nudge_sent)
+
+    def test_not_sent_once_the_flag_is_already_set(self) -> None:
+        Profile.objects.filter(user=self.user).update(add_item_nudge_sent=True)
+
+        self._join(self._create_group())
+
+        self.assertEqual(self._nudges().count(), 0)
+
+    def test_action_object_is_the_group(self) -> None:
+        group = self._create_group()
+
+        self._join(group)
+
+        notification = self._nudges().get()
+        self.assertEqual(notification.action_object, group)
+
+    def test_action_url_resolves_to_item_create(self) -> None:
+        self._join(self._create_group())
+
+        notification = self._nudges().get()
+        self.assertEqual(_notification_action_url(notification), reverse("item-create"))
+
+    def test_in_app_copy_renders_with_the_group_name(self) -> None:
+        self._join(self._create_group("Book Club"))
+
+        notification = self._nudges().get()
+        context = NotificationType._get_template_context_for(notification)
+        message = NotificationType.GROUP_JOINED_NEEDS_ITEM.message_template.format(
+            **context
+        )
+        self.assertIn("Book Club", message)
+
+    def test_no_email_is_sent(self) -> None:
+        """Onboarding nudges are in-app only -- see
+        NotificationType.email_excluded_types()."""
+        group = self._create_group("Book Club")
+
+        with self.captureOnCommitCallbacks(execute=True):
+            self._join(group)
+
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_no_email_even_if_preference_row_has_email_enabled(self) -> None:
+        """The exclusion is enforced at dispatch, not just via the seeded
+        preference default -- a stale True row must not slip an email through."""
+        group = self._create_group("Book Club")
+        NotificationPreference.objects.update_or_create(
+            user=self.user,
+            notification_type=NotificationType.GROUP_JOINED_NEEDS_ITEM.value,
+            defaults={
+                "in_app_enabled": True,
+                "email_enabled": True,
+                "push_enabled": False,
+            },
+        )
+
+        with self.captureOnCommitCallbacks(execute=True):
+            self._join(group)
+
+        self.assertEqual(len(mail.outbox), 0)
+
+
+class AddItemNudgePreferenceSeedMigrationTests(TestCase):
+    """The 0017 migration backfills an in-app-enabled, email-disabled
+    preference row for GROUP_JOINED_NEEDS_ITEM for every existing user --
+    without it, a user who signed up before this type existed would show
+    the toggle as off even though they'd actually receive the notification
+    the first time it fires.
+    """
+
+    def test_seeds_the_type_in_app_only_for_an_existing_user(self) -> None:
+        from django.apps import apps as live_apps
+
+        user = BorrowdUser.objects.create_user(
+            username="veteran", email="veteran@example.com", password="password"
+        )
+        NotificationPreference.objects.filter(
+            user=user,
+            notification_type=NotificationType.GROUP_JOINED_NEEDS_ITEM.value,
+        ).delete()
+
+        migration_module = importlib.import_module(
+            "borrowd_notifications.migrations.0017_seed_group_joined_needs_item_preferences"
+        )
+        migration_module.seed_group_joined_needs_item_preferences(live_apps, None)
+
+        pref = NotificationPreference.objects.get(
+            user=user,
+            notification_type=NotificationType.GROUP_JOINED_NEEDS_ITEM.value,
+        )
+        self.assertTrue(pref.in_app_enabled)
+        self.assertFalse(pref.email_enabled)
+
+    def test_is_idempotent_against_existing_rows(self) -> None:
+        from django.apps import apps as live_apps
+
+        user = BorrowdUser.objects.create_user(
+            username="veteran", email="veteran@example.com", password="password"
+        )
+
+        migration_module = importlib.import_module(
+            "borrowd_notifications.migrations.0017_seed_group_joined_needs_item_preferences"
+        )
+        migration_module.seed_group_joined_needs_item_preferences(live_apps, None)
+
+        self.assertEqual(
+            NotificationPreference.objects.filter(
+                user=user,
+                notification_type=NotificationType.GROUP_JOINED_NEEDS_ITEM.value,
+            ).count(),
+            1,
+        )
+
+
 class DisableEmailForOnboardingTypesMigrationTests(TestCase):
     """The 0015 migration backfills email_enabled=False for any onboarding
     preference rows left over with a stale True value from before email
@@ -4761,3 +4942,28 @@ class DisableEmailForOnboardingTypesMigrationTests(TestCase):
             user=user, notification_type=NotificationType.ITEM_REQUEST_ACCEPTED.value
         )
         self.assertTrue(pref.email_enabled)
+
+
+class MessageEmailTemplatesExtendLayoutTests(TestCase):
+    """Every HTML email template in notifications/messages/ must extend the
+    shared layout.html, or it renders as a bare, unstyled fragment with no
+    header, logo or footer (see UX audit finding EML-02)."""
+
+    def test_every_html_template_except_layout_extends_the_shared_layout(
+        self,
+    ) -> None:
+        messages_dir = settings.BASE_DIR / "templates" / "notifications" / "messages"
+        html_templates = sorted(messages_dir.glob("*.html"))
+        self.assertGreater(len(html_templates), 0, "No message templates found.")
+
+        for template_path in html_templates:
+            if template_path.name == "layout.html":
+                continue
+            with self.subTest(template=template_path.name):
+                source = template_path.read_text()
+                self.assertIn(
+                    '{% extends "notifications/messages/layout.html" %}',
+                    source,
+                    f"{template_path.name} does not extend the shared layout, "
+                    "so it will render as an unstyled fragment.",
+                )

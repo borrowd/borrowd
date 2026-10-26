@@ -354,6 +354,15 @@ class ChatThreadPollView(
         # dispute raised or resolved mid-conversation reaches the reader here.
         status_label, status_kind = conversation_status(chat_thread)
 
+        # Link only where the viewer may actually go: a removed Item 404s, and
+        # so does one whose group the viewer has since left.
+        listed = listed_item(chat_thread)
+        item_url = (
+            reverse("item-detail", args=[listed.pk])
+            if listed is not None and viewer.has_perm(ItemOLP.VIEW, listed)
+            else None
+        )
+
         # An archived thread is finished; nobody can write to it again, so hand
         # over whatever the reader is missing and shut the poller down.
         # 286 swaps the body one last time and then cancels polling.
@@ -368,6 +377,7 @@ class ChatThreadPollView(
                 "chat_messages": newer,
                 "conversation_status_label": status_label,
                 "conversation_status_kind": status_kind,
+                "item_url": item_url,
                 "viewer": viewer,
             },
             status=286 if chat_thread.is_archived else 200,

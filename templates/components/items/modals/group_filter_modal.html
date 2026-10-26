@@ -1,0 +1,18 @@
+<!--
+    Group Filter Modal Component
+
+    Renders the groups the user belongs to as toggleable badge chips
+    inside a modal. Must be placed inside an Alpine.js x-data scope that
+    provides:
+      - groups: array of {id, name} objects
+      - selectedGroupIds: array of selected group ID strings
+      - toggleGroup(id): add/remove a group from selection
+      - isGroupSelected(id): check if a group is selected
+      - clearGroupFilters(): clear all selections and close modal
+      - applyGroupFilters(): apply selections and close modal
+
+    Parameters:
+      - modal_id: unique ID for this modal instance
+      - confirm_button_text: text for the right-side confirm button
+-->
+{% include "components/modal.html" with modal_id=modal_id modal_title="Select groups" modal_size="full" button_layout="equal" cancel_button_text="Clear" cancel_action="clearGroupFilters()" cancel_button_class="btn text-primary btn-ghost font-semibold" confirm_button_text=confirm_button_text confirm_click_expression="applyGroupFilters()" modal_content_template="components/items/modals/_group_filter_modal_content.html" %}
