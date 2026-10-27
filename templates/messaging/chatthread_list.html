@@ -6,71 +6,55 @@
     Messages
 {% endblock %}
 {% block content %}
-    <div class="w-full max-w-3xl self-start px-4">
-        <c-h1 class="font-normal text-[24px]">
-            Messages
-        </c-h1>
+    <div class="w-full max-w-5xl self-start px-4">
+        <c-page-header title="Messages" hide_back_button="true" />
 
         {% if has_conversations %}
-            <nav class="mt-4 flex" aria-label="Conversations">
-                <div class="join">
-                    {% for tab in conversation_tabs %}
-                        {% if tab.is_selected %}
-                            <span class="join-item btn btn-primary btn-sm h-10 px-4"
-                                  aria-current="page">{{ tab.title }}</span>
-                        {% else %}
-                            <a href="{{ tab.url }}"
-                               class="join-item btn btn-sm h-10 border-base-300 bg-base-300 px-4 text-base-content shadow-sm hover:bg-base-200">{{ tab.title }}</a>
-                        {% endif %}
-                    {% endfor %}
-                </div>
-            </nav>
+            <!-- Control Row: scope control -->
+            <div class="flex items-center gap-3 mb-4">
+                <c-scope-control :segments="scope_segments" />
+            </div>
 
-            {# A plain <details> keeps the toggle working without JavaScript.
-               It starts open when something is filtered, so the values and the
-               way to clear them are never hidden. #}
-            <details class="collapse collapse-arrow mt-4 border border-base-300 bg-base-100"
-                     {% if filters_applied %}open{% endif %}>
-                <summary class="collapse-title min-h-0 py-3 text-sm font-medium">
-                    Filters
-                </summary>
-                <div class="collapse-content">
-                    {# Applying carries the open tab and drops the page, so
-                       results always start from the first page. #}
-                    <form method="get" class="flex flex-wrap items-end gap-x-2 gap-y-4">
-                        <input type="hidden" name="section" value="{{ selected_section }}" />
-                        <c-form.icon-input icon="magnifying-glass"
-                                           name="{{ conversation_filter.form.item.html_name }}"
-                                           id="{{ conversation_filter.form.item.id_for_label }}"
-                                           value="{{ conversation_filter.form.item.value|default_if_none:'' }}"
-                                           placeholder="Item name" />
-                        <c-form.icon-input icon="user"
-                                           name="{{ conversation_filter.form.person.html_name }}"
-                                           id="{{ conversation_filter.form.person.id_for_label }}"
-                                           value="{{ conversation_filter.form.person.value|default_if_none:'' }}"
-                                           placeholder="Person" />
-                        <label class="label cursor-pointer w-full">
-                            <input type="checkbox"
-                                   class="checkbox checkbox-sm"
-                                   name="{{ conversation_filter.form.unread.html_name }}"
-                                   id="{{ conversation_filter.form.unread.id_for_label }}"
-                                   {% if conversation_filter.form.unread.value %}checked{% endif %} />
-                            <span class="label-text">Unread only</span>
-                        </label>
-                        <button type="submit" class="btn btn-primary w-32">
-                            Apply
-                        </button>
-                        {% if filters_applied %}
-                            <a href="{{ clear_filters_url }}" class="btn btn-outline w-32">Clear filters</a>
-                        {% endif %}
-                    </form>
-                </div>
-            </details>
+            <!-- Search row, modelled on Item search -->
+            <form method="get" class="flex gap-4 items-start mb-4">
+                <input type="hidden" name="scope" value="{{ active_scope }}" />
+                <input type="hidden"
+                       name="archived"
+                       value="{{ archived|yesno:'true,false' }}" />
+                {% if unread_on %}
+                    <input type="hidden" name="unread" value="on" />
+                {% endif %}
+                <label class="input input-bordered w-full flex items-center gap-2">
+                    {% heroicon_mini "magnifying-glass" class="size-5 opacity-50" %}
+                    <input type="text"
+                           name="{{ conversation_filter.form.search.html_name }}"
+                           id="{{ conversation_filter.form.search.id_for_label }}"
+                           class="grow"
+                           value="{{ conversation_filter.form.search.value|default:'' }}"
+                           placeholder="Search by item or person">
+                </label>
+                <input type="submit" value="Search" class="btn btn-primary">
+            </form>
+
+            <!-- Toggle chips -->
+            <div class="flex items-center gap-2 flex-wrap mb-4">
+                <a href="{{ unread_toggle_url }}"
+                   class="btn btn-sm {% if unread_on %}btn-soft text-primary{% else %}bg-white text-base-content/60 border border-base-300{% endif %}">
+                    Unread
+                </a>
+                <a href="{{ archived_toggle_url }}"
+                   class="btn btn-sm {% if archived %}btn-soft text-primary{% else %}bg-white text-base-content/60 border border-base-300{% endif %}">
+                    Archived
+                </a>
+                {% if filters_applied %}
+                    <a href="{{ clear_filters_url }}" class="btn btn-ghost btn-sm">Clear filters</a>
+                {% endif %}
+            </div>
 
             {% if cards %}
-                <div class="mt-4 flex flex-col gap-2">
+                <div class="bg-white rounded-2xl shadow-md overflow-hidden">
                     {% for card in cards %}
-                        {% include "messaging/_thread_summary_card.html" with summary=card.summary show_item=True item_name=card.item_name item_thumbnail_url=card.item_thumbnail_url item_removed=card.item_removed only %}
+                        {% include "messaging/_thread_summary_card.html" with summary=card.summary show_item=True item_name=card.item_name item_thumbnail_url=card.item_thumbnail_url item_removed=card.item_removed hub_row=True is_last=forloop.last only %}
 
                     {% endfor %}
                 </div>
@@ -79,11 +63,7 @@
 
             {% else %}
                 <p class="mt-4 text-sm opacity-70">
-                    {% if filters_applied %}
-                        No conversations match your filters.
-                    {% else %}
-                        No {{ selected_section }} conversations.
-                    {% endif %}
+                    {{ empty_state_message }}
                 </p>
             {% endif %}
         {% else %}

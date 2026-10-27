@@ -39,34 +39,25 @@ _PERSON_SEARCH_MAX_TERMS = 4
 class ConversationFilter(FilterSet):  # type: ignore[misc]
     """Narrow a viewer's conversations. The caller scopes them first."""
 
-    item = CharFilter(label="Item", method="filter_by_item")
-    person = CharFilter(label="Person", method="filter_by_person")
+    search = CharFilter(label="Search", method="filter_by_search")
     unread = BooleanFilter(
         label="Unread only", method="filter_by_unread", widget=_UnreadCheckboxInput
     )
 
-    def filter_by_item(
+    def filter_by_search(
         self, queryset: QuerySet[ChatThread], name: str, value: Any
     ) -> QuerySet[ChatThread]:
-        """Match on the Item's name.
+        """Match the Item's name OR the other participant's name.
 
         A hard-deleted Item leaves no row to match, so its conversations drop
-        out of a name search. A removed Item keeps its name and still matches.
+        out of a name search by Item; a removed Item keeps its name and still
+        matches. For the person half, `Profile.full_name` is built in Python,
+        so there is no single column to search -- every word has to match a
+        first or last name instead, which makes "ada lovelace" and "lovelace
+        ada" both find the same person. Only the first few distinct words
+        count, so the query stays small.
         """
-        if not value:
-            return queryset
-        return queryset.filter(item__name__icontains=value)
-
-    def filter_by_person(
-        self, queryset: QuerySet[ChatThread], name: str, value: Any
-    ) -> QuerySet[ChatThread]:
-        """Match the other participant on any part of their name.
-
-        `Profile.full_name` is built in Python, so there is no single column to
-        search. Every word has to match a first or last name instead, which
-        makes "ada lovelace" and "lovelace ada" both find the same person.
-        Only the first few distinct words count, so the query stays small.
-        """
+        value = value.strip()
         if not value:
             return queryset
         viewer = get_authenticated_user(self.request)
@@ -82,12 +73,12 @@ class ConversationFilter(FilterSet):  # type: ignore[misc]
         )
         # icontains ignores case, so "Ada ada" is one word.
         terms = list(dict.fromkeys(value.lower().split()))[:_PERSON_SEARCH_MAX_TERMS]
-        return queryset.filter(
-            *(
-                Q(other_first_name__icontains=term) | Q(other_last_name__icontains=term)
-                for term in terms
+        person_match = Q()
+        for term in terms:
+            person_match &= Q(other_first_name__icontains=term) | Q(
+                other_last_name__icontains=term
             )
-        )
+        return queryset.filter(Q(item__name__icontains=value) | person_match)
 
     def filter_by_unread(
         self,
@@ -109,4 +100,4 @@ class ConversationFilter(FilterSet):  # type: ignore[misc]
 
     class Meta:
         model = ChatThread
-        fields: list[str] = ["item", "person", "unread"]
+        fields: list[str] = ["search", "unread"]
