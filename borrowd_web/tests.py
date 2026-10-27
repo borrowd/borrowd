@@ -63,6 +63,17 @@ class BetaGateRedirectLoopTests(TestCase):
         response = self.client.get(reverse("item-list"))
         self.assertRedirects(response, reverse("account_login"))
 
+    def test_authenticated_user_without_beta_cookie_does_not_loop(self) -> None:
+        user = BorrowdUser.objects.create_user(
+            username="u", email="u@example.com", password="pw"
+        )
+        self.client.force_login(user)
+
+        response = self.client.get("/", follow=True)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.redirect_chain[-1][0], reverse("item-list"))
+
 
 class OnboardingStepLinksTests(TestCase):
     """Each step's Back/Continue links use {% url %}, not a hardcoded path --
