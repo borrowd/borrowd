@@ -69,6 +69,7 @@ from .models import (
     ItemAction,
     ItemPhoto,
     ItemStatus,
+    ListingType,
 )
 
 _MOBILE_UA_KEYWORDS = ("mobile", "android", "iphone", "ipad", "ipod")
@@ -274,6 +275,7 @@ class ItemCreateView(
         context = super().get_context_data(**kwargs)
         context["page_title"] = "Add item"
         context["fulfills_request"] = self._get_fulfills_request_param()
+        context["ListingType"] = ListingType
         context["back_url"] = resolve_back_url(
             self.request,
             fallback_url=reverse("profile-inventory"),
@@ -639,9 +641,14 @@ class ItemUpdateView(
         context = super().get_context_data(**kwargs)
         context["page_title"] = "Edit item"
         context["photo_accept"] = ALLOWED_IMAGE_ACCEPT
+        fallback_url = (
+            reverse("item-detail", args=[self.object.pk])
+            if self.object is not None
+            else reverse("profile-inventory")
+        )
         context["back_url"] = resolve_back_url(
             self.request,
-            fallback_url=reverse("profile-inventory"),
+            fallback_url=fallback_url,
             allowed_url_names=BROWSABLE_BACK_TARGETS,
         )
         return context

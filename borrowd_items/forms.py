@@ -78,7 +78,7 @@ class ItemCreateWithPhotoForm(ItemForm):
 
     image = forms.ImageField(
         required=False,
-        label="Photos (optional)",
+        label="Photo (optional)",
         validators=[
             FileExtensionValidator(allowed_extensions=ALLOWED_IMAGE_EXTENSIONS)
         ],

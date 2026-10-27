@@ -531,9 +531,14 @@ class GroupUpdateView(
 
     def get_context_data(self, **kwargs: str) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
+        fallback_url = (
+            reverse("borrowd_groups:group-detail", args=[self.object.pk])
+            if self.object is not None
+            else reverse("borrowd_groups:group-list")
+        )
         context["back_url"] = resolve_back_url(
             self.request,
-            fallback_url=reverse("borrowd_groups:group-list"),
+            fallback_url=fallback_url,
             allowed_url_names=BROWSABLE_BACK_TARGETS,
         )
         return context

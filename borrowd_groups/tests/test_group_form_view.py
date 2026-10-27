@@ -86,25 +86,24 @@ class GroupUpdateViewBackUrlTests(TestCase):
         )
         self.client.force_login(self.owner)
 
-    def test_back_url_falls_back_to_the_group_list(self) -> None:
+    def test_back_url_falls_back_to_the_group_detail_page(self) -> None:
         response = self.client.get(
             reverse("borrowd_groups:group-edit", args=[self.group.pk])
         )
 
         self.assertEqual(
-            response.context["back_url"], reverse("borrowd_groups:group-list")
+            response.context["back_url"],
+            reverse("borrowd_groups:group-detail", args=[self.group.pk]),
         )
 
     def test_back_url_honors_a_trusted_referer(self) -> None:
         response = self.client.get(
             reverse("borrowd_groups:group-edit", args=[self.group.pk]),
-            HTTP_REFERER="http://testserver"
-            + reverse("borrowd_groups:group-detail", args=[self.group.pk]),
+            HTTP_REFERER="http://testserver" + reverse("borrowd_groups:group-list"),
         )
 
         self.assertEqual(
-            response.context["back_url"],
-            reverse("borrowd_groups:group-detail", args=[self.group.pk]),
+            response.context["back_url"], reverse("borrowd_groups:group-list")
         )
 
     def test_edit_title_and_submit_label(self) -> None:

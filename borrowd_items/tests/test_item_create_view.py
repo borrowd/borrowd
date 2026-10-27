@@ -311,7 +311,7 @@ class ItemCreateViewTemplateTests(ItemCreateViewTestBase):
         response = self.client.get(reverse("item-create"))
 
         self.assertContains(response, "Categories")
-        self.assertContains(response, "Photos (optional)")
+        self.assertContains(response, "Photo (optional)")
 
     def test_category_trigger_shows_the_shared_placeholder(self) -> None:
         response = self.client.get(reverse("item-create"))

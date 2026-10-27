@@ -22,21 +22,20 @@ class ItemUpdateViewBackUrlTests(TestCase):
         self.item.categories.add(self.category)
         self.client.force_login(self.owner)
 
-    def test_back_url_falls_back_to_inventory(self) -> None:
+    def test_back_url_falls_back_to_the_item_detail_page(self) -> None:
         response = self.client.get(reverse("item-edit", args=[self.item.pk]))
-
-        self.assertEqual(response.context["back_url"], reverse("profile-inventory"))
-
-    def test_back_url_honors_a_trusted_referer(self) -> None:
-        response = self.client.get(
-            reverse("item-edit", args=[self.item.pk]),
-            HTTP_REFERER="http://testserver"
-            + reverse("item-detail", args=[self.item.pk]),
-        )
 
         self.assertEqual(
             response.context["back_url"], reverse("item-detail", args=[self.item.pk])
         )
+
+    def test_back_url_honors_a_trusted_referer(self) -> None:
+        response = self.client.get(
+            reverse("item-edit", args=[self.item.pk]),
+            HTTP_REFERER="http://testserver" + reverse("profile-inventory"),
+        )
+
+        self.assertEqual(response.context["back_url"], reverse("profile-inventory"))
 
     def test_cancel_link_points_at_the_back_url(self) -> None:
         response = self.client.get(

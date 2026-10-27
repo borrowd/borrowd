@@ -81,7 +81,7 @@
                                 {% endfor %}
                                 ], categories: [
                                 {% for choice in field.field.choices %}
-                                    { id: '{{ choice.0 }}', name: '{{ choice.1 }}' }
+                                    { id: '{{ choice.0 }}', name: '{{ choice.1|escapejs }}' }
                                     {% if not forloop.last %}
                                         ,
                                     {% endif %}
@@ -148,7 +148,7 @@
                                             <span class="font-semibold text-sm">{{ choice.1 }}</span>
                                         </span>
                                         <span class="text-xs text-base-content/60 pl-7">
-                                            {% if choice.1 == "Lend" %}
+                                            {% if choice.0 == ListingType.LEND %}
                                                 You keep it. Borrowers return it when they're done.
                                             {% else %}
                                                 Someone in your groups can request to keep it.

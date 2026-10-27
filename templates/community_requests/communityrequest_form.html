@@ -60,7 +60,7 @@
                     {% for choice in form.category.field.choices %}
 
                         {% if choice.0 %}
-                            { id: '{{ choice.0 }}', name: '{{ choice.1 }}' }
+                            { id: '{{ choice.0 }}', name: '{{ choice.1|escapejs }}' }
                             {% if not forloop.last %}
                                 ,
                             {% endif %}
