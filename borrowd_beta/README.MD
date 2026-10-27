@@ -49,7 +49,7 @@ Models, signup form/view, and middleware to support beta release of app
 Available Settings:
 
 ```settings.py
-BETA_SIGNUP_REDIRECT_PATH = '/'  # Default to base path
+BETA_SIGNUP_REDIRECT_PATH = '/accounts/login/'  # Must be a path BETA_CHECK_EXCLUDE_PATHS or the middleware itself exempts, or ungated requests will redirect-loop
 BETA_COOKIE_DOMAIN = None  # domain (if not localhost)
 BETA_SECURE_COOKIE = False # whether cookie is https only
 ```

@@ -1,4 +1,4 @@
-BETA_SIGNUP_REDIRECT_PATH = "/"
+BETA_SIGNUP_REDIRECT_PATH = "/accounts/login/"
 BETA_CHECK_EXCLUDE_PATHS = [
     r"^/favicon.ico$",
     r"^/admin/.*",

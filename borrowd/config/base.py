@@ -271,7 +271,10 @@ ITEMS_FLOW_PARITY_CHECK = env.bool("ITEMS_FLOW_PARITY_CHECK", default=True)
 
 # borrowd_beta settings
 BORROWD_BETA_ENABLED = env.bool("BORROWD_BETA_ENABLED", default=False)
-BETA_SIGNUP_REDIRECT_PATH = "/"
+# Must be a path the beta middleware exempts from the beta-cookie check (see
+# BetaAccessMiddleware.is_redirect_required) -- otherwise ungated requests
+# redirect here, hit the gate again, and loop.
+BETA_SIGNUP_REDIRECT_PATH = "/accounts/login/"
 BETA_CHECK_EXCLUDE_PATHS = [
     r"^/favicon.ico$",
     r"^/admin/.*",
