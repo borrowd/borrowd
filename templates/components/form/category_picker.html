@@ -1,0 +1,93 @@
+{% load heroicons %}
+
+{% comment %}
+Category Picker Component
+
+An Alpine-driven chip modal in place of a native <select>, so the open list
+is themed instead of browser-native.
+
+1. Alpine manages the selected category IDs in the selectedIds array.
+2. A reactive <template x-for> renders one hidden <input> per selected ID,
+   so the form always submits the current state (e.g. categories=3&categories=7).
+3. Django's form field validates the submitted IDs as usual.
+
+Parameters:
+- field: the bound category field (ModelChoiceField or ModelMultipleChoiceField)
+- modal_id: unique ID for the selection modal
+- multiple: when set, toggling accumulates selections and the trigger shows
+  chips; otherwise toggling replaces the selection and shows the name
+- modal_title: optional modal title
+- confirm_button_text: text for the modal's confirm button
+{% endcomment %}
+
+<c-vars multiple="" modal_title="" />
+
+<div x-data="{ multiple: {{ multiple|yesno:'true,false' }}, selectedIds: [
+    {% if multiple %}
+
+        {% for val in field.value %}
+
+            {% if val %}
+                '{{ val }}'
+                {% if not forloop.last %}
+                    ,
+                {% endif %}
+
+            {% endif %}
+
+        {% endfor %}
+
+    {% elif field.value %}
+        '{{ field.value }}'
+    {% endif %}
+    ], categories: [
+    {% for choice in field.field.choices %}
+
+        {% if choice.0 %}
+            { id: '{{ choice.0 }}', name: '{{ choice.1|escapejs }}' }
+            {% if not forloop.last %}
+                ,
+            {% endif %}
+
+        {% endif %}
+
+    {% endfor %}
+    ], toggle(id) { if (this.selectedIds.includes(id)) { this.selectedIds = this.selectedIds.filter(s => s !== id); } else if (this.multiple) { this.selectedIds.push(id); } else { this.selectedIds = [id]; } }, isSelected(id) { return this.selectedIds.includes(id); }, get buttonText() { if (this.selectedIds.length === 0) return 'Select a category'; const names = this.selectedIds.slice(0, 2).map(id => this.categories.find(c => c.id === id)?.name || ''); if (this.selectedIds.length <= 2) return names.join(', '); return names.join(', ') + ' + ' + (this.selectedIds.length - 2) + ' more'; }, /* Snapshot of selectedIds taken when the modal opens. The confirm button stays disabled until the selection differs from it. */ initialIds: [], openCategoryModal() { this.initialIds = [...this.selectedIds]; showModal('{{ modal_id }}'); }, hasChangedSelection() { const a = [...this.selectedIds].sort(); const b = [...this.initialIds].sort(); return JSON.stringify(a) !== JSON.stringify(b); }, clearFilters() { this.selectedIds = []; closeModal('{{ modal_id }}'); }, applyFilters() { closeModal('{{ modal_id }}'); } }">
+    <button type="button"
+            @click="openCategoryModal()"
+            :aria-label="buttonText"
+            class="input input-bordered w-full flex items-center gap-2 bg-primary-content h-auto min-h-10 py-2.5 px-3 cursor-pointer">
+        {% if multiple %}
+            <span class="flex flex-wrap gap-2.5 items-center flex-1 min-w-0 overflow-hidden">
+                <span x-show="selectedIds.length === 0"
+                      class="text-sm text-base-content/50 leading-none">Select a category</span>
+                <template x-if="selectedIds.length > 0">
+                    <span class="inline-flex items-center justify-center h-[18px] px-[9px] py-px rounded-full border border-base-300 bg-base-100 text-base-content text-[10px] font-medium whitespace-nowrap shrink-0"
+                          x-text="categories.find(c => c.id === selectedIds[0])?.name || ''"></span>
+                </template>
+                <template x-if="selectedIds.length > 1">
+                    <span class="inline-flex items-center justify-center h-[18px] px-[9px] py-px rounded-full border border-base-300 bg-base-100 text-base-content text-[10px] font-medium whitespace-nowrap shrink-0"
+                          x-text="categories.find(c => c.id === selectedIds[1])?.name || ''"></span>
+                </template>
+                <template x-if="selectedIds.length > 2">
+                    <span class="inline-flex items-center justify-center h-[18px] px-[5px] py-px rounded-full border border-base-300 bg-base-100 text-base-content text-[10px] font-medium whitespace-nowrap shrink-0"
+                          x-text="'+ ' + (selectedIds.length - 2)"></span>
+                </template>
+            </span>
+        {% else %}
+            <span class="flex-1 min-w-0 text-left truncate">
+                <span x-show="selectedIds.length === 0"
+                      class="text-sm text-base-content/50 leading-none">Select a category</span>
+                <span x-show="selectedIds.length > 0" class="text-sm" x-text="buttonText"></span>
+            </span>
+        {% endif %}
+        {% heroicon_micro "chevron-down" class="size-3 text-base-content/60 shrink-0 ml-1" %}
+    </button>
+
+    <template x-for="id in selectedIds" :key="id">
+        <input type="hidden" name="{{ field.html_name }}" :value="id">
+    </template>
+
+    {% include "components/items/modals/category_filter_modal.html" with modal_id=modal_id modal_title=modal_title confirm_button_text=confirm_button_text %}
+
+</div>

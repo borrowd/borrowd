@@ -1,7 +1,5 @@
 {% extends "layouts/default.html" %}
 
-{% load heroicons %}
-
 {% block head_title %}
     {{ page_title }}
 {% endblock %}
@@ -10,11 +8,7 @@
     <div class="w-full max-w-2xl self-start px-4">
         <c-page-header title="{{ page_title }}" />
 
-        <form method="post"
-              class="bg-white rounded-2xl shadow-md p-6 flex flex-col gap-4"
-              x-data="{ isSubmitting: false, submitForm(event) { if (this.isSubmitting) { event.preventDefault(); return; } this.isSubmitting = true; } }"
-              @submit="submitForm($event)">
-            {% csrf_token %}
+        <c-form.frame>
 
             {% if form.non_field_errors %}
                 <div class="alert alert-error text-sm">
@@ -44,50 +38,10 @@
                 <legend class="fieldset-legend text-xs font-normal text-base-content/60">
                     {{ form.category.label }}
                 </legend>
-                <!--
-                    Category field
-
-                    Mirrors the Add Item category picker (templates/items/item_form.html):
-                    an Alpine-driven chip modal instead of a native <select>, so the open
-                    list is themed instead of browser-native. Single-select here: toggle()
-                    replaces rather than accumulates selectedIds.
-                -->
-                <div x-data="{ selectedIds: [
-                    {% if form.category.value %}
-                        '{{ form.category.value }}'
-                    {% endif %}
-                    ], categories: [
-                    {% for choice in form.category.field.choices %}
-
-                        {% if choice.0 %}
-                            { id: '{{ choice.0 }}', name: '{{ choice.1|escapejs }}' }
-                            {% if not forloop.last %}
-                                ,
-                            {% endif %}
-
-                        {% endif %}
-
-                    {% endfor %}
-                    ], toggle(id) { this.selectedIds = this.selectedIds.includes(id) ? [] : [id]; }, isSelected(id) { return this.selectedIds.includes(id); }, get buttonText() { return this.categories.find(c => c.id === this.selectedIds[0])?.name || 'Select a category'; }, initialIds: [], openCategoryModal() { this.initialIds = [...this.selectedIds]; showModal('community-request-category-modal'); }, hasChangedSelection() { return this.selectedIds[0] !== this.initialIds[0]; }, clearFilters() { this.selectedIds = []; closeModal('community-request-category-modal'); }, applyFilters() { closeModal('community-request-category-modal'); } }">
-                    <button type="button"
-                            @click="openCategoryModal()"
-                            :aria-label="buttonText"
-                            class="input input-bordered w-full flex items-center gap-2 bg-primary-content h-auto min-h-10 py-2.5 px-3 cursor-pointer">
-                        <span class="flex-1 min-w-0 text-left truncate">
-                            <span x-show="selectedIds.length === 0"
-                                  class="text-sm text-base-content/50 leading-none">Select a category</span>
-                            <span x-show="selectedIds.length > 0" class="text-sm" x-text="buttonText"></span>
-                        </span>
-                        {% heroicon_micro "chevron-down" class="size-3 text-base-content/60 shrink-0 ml-1" %}
-                    </button>
-
-                    <template x-for="id in selectedIds" :key="id">
-                        <input type="hidden" name="{{ form.category.html_name }}" :value="id">
-                    </template>
-
-                    {% include "components/items/modals/category_filter_modal.html" with modal_id="community-request-category-modal" modal_title="Select a category" confirm_button_text="Select category" %}
-
-                </div>
+                <c-form.category-picker :field="form.category"
+                                        modal_id="community-request-category-modal"
+                                        modal_title="Select a category"
+                                        confirm_button_text="Select category" />
 
                 {% if form.category.errors %}
                     <div class="label pt-1">
@@ -102,6 +56,6 @@
                     Post a request
                 </button>
             </div>
-        </form>
+        </c-form.frame>
     </div>
 {% endblock %}

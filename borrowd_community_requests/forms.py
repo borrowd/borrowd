@@ -17,30 +17,14 @@ class CommunityRequestForm(forms.ModelForm[CommunityRequest]):
         }
         widgets = {
             "item_name": forms.TextInput(
-                attrs={
-                    "class": "input w-full text-base bg-primary-content",
-                    "placeholder": "Drill, stepladder, etc.",
-                    "maxlength": "50",
-                }
+                attrs={"placeholder": "Drill, stepladder, etc."}
             ),
             "description": forms.Textarea(
                 attrs={
-                    "rows": 4,
-                    "class": "textarea w-full text-base resize-y bg-primary-content",
-                    "placeholder": "Enter a detailed description of your requested item",
-                    "maxlength": "500",
+                    "placeholder": "Enter a detailed description of your requested item"
                 }
             ),
-            "category": forms.Select(
-                attrs={"class": "select w-full text-base bg-primary-content"}
-            ),
         }
-
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
-        # django-stubs types self.fields values as the base Field, which has
-        # no empty_label; category is actually a ModelChoiceField at runtime.
-        self.fields["category"].empty_label = "Select a category"  # type: ignore[attr-defined]
 
     def clean(self) -> dict[str, Any]:
         cleaned_data = super().clean() or {}

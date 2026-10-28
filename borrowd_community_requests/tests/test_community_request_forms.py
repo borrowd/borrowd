@@ -38,14 +38,6 @@ class CommunityRequestFormTestBase(TestCase):
         return form
 
 
-class CommunityRequestFormCategoryFieldTests(CommunityRequestFormTestBase):
-    def test_empty_category_choice_reads_select_a_category(self) -> None:
-        form = CommunityRequestForm()
-
-        self.assertIn("Select a category", str(form["category"]))
-        self.assertNotIn("---------", str(form["category"]))
-
-
 class CommunityRequestFormDuplicateValidationTests(CommunityRequestFormTestBase):
     def test_rejects_duplicate_open_request_for_same_item_and_category(self) -> None:
         CommunityRequest.objects.create(

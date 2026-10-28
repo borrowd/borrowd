@@ -26,12 +26,7 @@ check if we are creating or editing. {% endcomment %}
         <c-page-header title="Edit group" />
     {% endif %}
 
-    <form method="post"
-          enctype="multipart/form-data"
-          class="bg-white rounded-2xl shadow-md p-6 flex flex-col gap-4"
-          x-data="{ isSubmitting: false, submitForm(event) { if (this.isSubmitting) { event.preventDefault(); return; } this.isSubmitting = true; } }"
-          @submit="submitForm($event)">
-        {% csrf_token %}
+    <c-form.frame enctype="multipart/form-data">
         {% for field in form %}
             {% if field.name == "name" %}
                 <c-form.field type="text"
@@ -184,5 +179,5 @@ check if we are creating or editing. {% endcomment %}
                 </button>
             {% endif %}
         </div>
-    </form>
+    </c-form.frame>
 {% endblock %}

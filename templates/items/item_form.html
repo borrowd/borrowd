@@ -15,12 +15,7 @@
     <div class="flex flex-col w-full max-w-2xl mx-auto gap-6 pb-6">
         {% include "components/page_header.html" with title=page_title %}
 
-        <form method="post"
-              enctype="multipart/form-data"
-              class="bg-white rounded-2xl shadow-md p-6 flex flex-col gap-4"
-              x-data="{ isSubmitting: false, submitForm(event) { if (this.isSubmitting) { event.preventDefault(); return; } this.isSubmitting = true; } }"
-              @submit="submitForm($event)">
-            {% csrf_token %}
+        <c-form.frame enctype="multipart/form-data">
 
             {% if fulfills_request %}
                 <input type="hidden" name="fulfills_request" value="{{ fulfills_request }}">
@@ -54,78 +49,13 @@
                               {% if field.name == "image" %} x-data="{ selectedFileName: '', async handleImageSelect(event) { const file = event.target.files[0]; if (!file) return; this.selectedFileName = file.name; const resized = await window.resizeImageFile(file, 1600, 1600); const dt = new DataTransfer(); dt.items.add(resized); event.target.files = dt.files; } }" @change="handleImageSelect($event)" {% endif %}>
 
                         {% if field.name == "categories" %}
-                            <!--
-                    Category field
-
-                    1. Alpine.js manages selected categories via the selectedIds array
-                    2. A reactive <template x-for> generates hidden <input> fields
-                       for each selected ID, so the form always submits the current state
-                    3. When user clicks "Save item", browser submits the form with
-                       POST data like: categories=3&categories=7
-                    4. Django's ItemForm processes this (borrowd_items/forms.py)
-                -->
                             <legend class="fieldset-legend text-xs font-normal text-base-content/60">
                                 Categories
                             </legend>
-                            <div x-data="{ /* * Alpine UI state: which category IDs are currently selected. * Pre-populated from Django form's current value on page load. * (Empty on create, has values on edit.) */ selectedIds: [
-                                {% for val in field.value %}
-
-                                    {% if val %}
-                                        '{{ val }}'
-                                        {% if not forloop.last %}
-                                            ,
-                                        {% endif %}
-
-                                    {% endif %}
-
-                                {% endfor %}
-                                ], categories: [
-                                {% for choice in field.field.choices %}
-                                    { id: '{{ choice.0 }}', name: '{{ choice.1|escapejs }}' }
-                                    {% if not forloop.last %}
-                                        ,
-                                    {% endif %}
-
-                                {% endfor %}
-                                ],  /* Toggle a category by id: add if not selected, remove if already selected. */ toggle(id) { const idx = this.selectedIds.indexOf(id); if (idx === -1) { this.selectedIds.push(id); } else { this.selectedIds.splice(idx, 1); } },  isSelected(id) { return this.selectedIds.includes(id); },  /* * Display text for the trigger button. * No selection: 'Select a category' * One selected: full category name * Multiple: first name truncated (12 chars) + '... + N more' *   e.g.: 'Home & Kitch... + 3 more' */ get buttonText() { if (this.selectedIds.length === 0) return 'Select a category'; const names = this.selectedIds.slice(0, 2).map(id => this.categories.find(c => c.id === id)?.name || ''); if (this.selectedIds.length <= 2) return names.join(', '); return names.join(', ') + ' + ' + (this.selectedIds.length - 2) + ' more'; },  /* Snapshot of selectedIds taken when the modal opens. The confirm button stays disabled until the user makes a change relative to this snapshot. */ initialIds: [],  openCategoryModal() { this.initialIds = [...this.selectedIds]; showModal('item-category-modal'); },  hasChangedSelection() { const a = [...this.selectedIds].sort(); const b = [...this.initialIds].sort(); return JSON.stringify(a) !== JSON.stringify(b); },  clearFilters() { this.selectedIds = []; closeModal('item-category-modal'); },  applyFilters() { closeModal('item-category-modal'); } }">
-                                <!-- Trigger button: opens the category selection modal -->
-                                <button type="button"
-                                        @click="openCategoryModal()"
-                                        :aria-label="buttonText"
-                                        class="input input-bordered w-full flex items-center gap-2 bg-primary-content h-auto min-h-10 py-2.5 px-3 cursor-pointer">
-                                    <span class="flex flex-wrap gap-2.5 items-center flex-1 min-w-0 overflow-hidden">
-                                        <span x-show="selectedIds.length === 0"
-                                              class="text-sm text-base-content/50 leading-none">Select a category</span>
-                                        <template x-if="selectedIds.length > 0">
-                                            <span class="inline-flex items-center justify-center h-[18px] px-[9px] py-px rounded-full border border-base-300 bg-base-100 text-base-content text-[10px] font-medium whitespace-nowrap shrink-0"
-                                                  x-text="categories.find(c => c.id === selectedIds[0])?.name || ''">
-                                            </span>
-                                        </template>
-                                        <template x-if="selectedIds.length > 1">
-                                            <span class="inline-flex items-center justify-center h-[18px] px-[9px] py-px rounded-full border border-base-300 bg-base-100 text-base-content text-[10px] font-medium whitespace-nowrap shrink-0"
-                                                  x-text="categories.find(c => c.id === selectedIds[1])?.name || ''">
-                                            </span>
-                                        </template>
-                                        <template x-if="selectedIds.length > 2">
-                                            <span class="inline-flex items-center justify-center h-[18px] px-[5px] py-px rounded-full border border-base-300 bg-base-100 text-base-content text-[10px] font-medium whitespace-nowrap shrink-0"
-                                                  x-text="'+ ' + (selectedIds.length - 2)"></span>
-                                        </template>
-                                    </span>
-                                    {% heroicon_micro "chevron-down" class="size-3 text-base-content/60 shrink-0 ml-1" %}
-                                </button>
-
-                                <!--
-                        Hidden inputs for selected categories.
-                        Alpine reactively generates one <input> per selected ID,
-                        so the form always submits the current selectedIds state.
-                    -->
-                                <template x-for="id in selectedIds" :key="id">
-                                    <input type="hidden" name="{{ field.html_name }}" :value="id">
-                                </template>
-
-                                {% include "components/items/modals/category_filter_modal.html" with modal_id="item-category-modal" confirm_button_text="Select categories" %}
-
-                            </div>
+                            <c-form.category-picker :field="field"
+                                                    modal_id="item-category-modal"
+                                                    multiple
+                                                    confirm_button_text="Select categories" />
                         {% elif field.name == "listing_type" %}
                             {# Lend | Give away radio cards. Selection state mirrors the
                                category/group-sharing pickers above: an Alpine x-data scope
@@ -367,7 +297,7 @@
                     </button>
                 {% endif %}
             </div>
-        </form>
+        </c-form.frame>
 
         {% if form.instance.pk %}
             <div class="flex justify-center">
