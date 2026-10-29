@@ -21,6 +21,9 @@
             <button class="btn btn-primary" @click.prevent="onShareClick">
                 Copy link
             </button>
+            <a class="btn btn-outline btn-primary mt-2"
+               href="{% url 'borrowd_groups:group-poster' object.pk %}"
+               target="_blank">Create sharing poster</a>
         </div>
     </c-box>
     <script>

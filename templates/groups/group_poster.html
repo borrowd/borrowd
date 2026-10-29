@@ -1,0 +1,323 @@
+{% load static %}
+{% load django_vite %}
+{% load i18n %}
+
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <link rel="icon" href="/favicon.ico" sizes="32x32">
+        <title>
+            {% blocktranslate with name=object.name %}{{ name }} poster{% endblocktranslate %}
+        - Borrow'd 🐝</title>
+        {% vite_hmr_client %}
+        {% vite_asset 'static/js/main.js' %}
+        {% if debug %}
+            <style id="fouc-guard">body{visibility:hidden}</style>
+            <script>document.addEventListener('DOMContentLoaded',function(){var s=document.getElementById('fouc-guard');if(s)s.remove()})</script>
+        {% endif %}
+        <style>
+            /* One US Letter page. A zero page margin also stops browsers from
+               printing their own header and footer (URL, date, page number). */
+            @page {
+                size: letter;
+                margin: 0;
+            }
+
+            .poster-screen {
+                min-height: 100vh;
+                padding: 24px 16px;
+                background: var(--color-base-300);
+                color-scheme: light;
+            }
+
+            .poster-toolbar {
+                display: flex;
+                justify-content: center;
+                margin-bottom: 24px;
+            }
+
+            .poster {
+                --poster-indigo: var(--color-borrowd-indigo-600);
+                --poster-indigo-light: var(--color-borrowd-indigo-300);
+                box-sizing: border-box;
+                display: flex;
+                flex-direction: column;
+                width: 8.5in;
+                height: 11in;
+                margin: 0 auto;
+                padding: 0.58in 0.67in 0.5in;
+                overflow: hidden;
+                background: #ffffff;
+                color: #000000;
+                box-shadow: 0 4px 24px rgb(0 0 0 / 0.15);
+                print-color-adjust: exact;
+                -webkit-print-color-adjust: exact;
+            }
+
+            .poster-wordmark {
+                display: block;
+                width: 2.5in;
+            }
+
+            .poster-label {
+                align-self: flex-start;
+                margin-top: 0.5in;
+                padding: 4pt 10pt;
+                border-radius: 6px;
+                background: var(--poster-indigo-light);
+                color: var(--poster-indigo);
+                font-size: 11pt;
+                font-weight: 600;
+                letter-spacing: 0.12em;
+                text-transform: uppercase;
+            }
+
+            /* Always one line; fitGroupName() below shrinks names too wide for 60pt. */
+            .poster-group-name {
+                margin-top: 0.3in;
+                color: var(--poster-indigo);
+                font-family: var(--font-roboto-slab);
+                font-weight: 700;
+                font-size: 60pt;
+                line-height: 1;
+                white-space: nowrap;
+            }
+
+            .poster-subheading {
+                margin-top: 0.3in;
+                font-size: 16pt;
+                font-weight: 400;
+                line-height: 1.35;
+            }
+
+            .poster-columns {
+                display: flex;
+                gap: 0.4in;
+                margin-top: 0.55in;
+            }
+
+            /* Stretches to the QR card's height so the values block below can
+               centre itself between its divider and the card's bottom edge. */
+            .poster-copy {
+                display: flex;
+                flex: 1;
+                flex-direction: column;
+                min-width: 0;
+            }
+
+            .poster-copy p {
+                font-size: 13.5pt;
+                line-height: 1.55;
+            }
+
+            .poster-copy p + p {
+                margin-top: 0.12in;
+            }
+
+            .poster-values {
+                display: flex;
+                flex: 1;
+                flex-direction: column;
+                justify-content: center;
+                margin-top: 0.2in;
+                padding: 0.15in 0;
+                border-top: 1px solid #000000;
+            }
+
+            .poster-copy .poster-values p {
+                font-size: 12pt;
+                line-height: 1.45;
+            }
+
+            .poster-copy .poster-values p + p {
+                margin-top: 0.1in;
+            }
+
+            .poster-values strong {
+                color: var(--poster-indigo);
+                font-weight: 600;
+            }
+
+            .poster-card {
+                align-self: flex-start;
+                flex: none;
+                box-sizing: border-box;
+                width: 3.33in;
+                padding: 0.26in;
+                border-radius: 16px;
+                background: var(--poster-indigo);
+                color: #ffffff;
+                text-align: center;
+            }
+
+            .poster-qr {
+                box-sizing: border-box;
+                width: 2.8in;
+                height: 2.8in;
+                padding: 0.2in;
+                border-radius: 8px;
+                background: #ffffff;
+            }
+
+            .poster-qr svg {
+                display: block;
+                width: 100%;
+                height: 100%;
+            }
+
+            .poster-card-heading {
+                margin-top: 0.18in;
+                font-size: 22pt;
+                font-weight: 700;
+                line-height: 1.2;
+            }
+
+            .poster-card-caption {
+                margin-top: 4pt;
+                font-size: 11pt;
+            }
+
+            .poster-footer {
+                display: flex;
+                align-items: center;
+                gap: 0.18in;
+                margin-top: auto;
+                padding-top: 0.2in;
+                border-top: 2px solid var(--poster-indigo);
+                font-size: 12pt;
+            }
+
+            .poster-bee {
+                display: block;
+                flex: none;
+                width: 0.5in;
+                height: 0.5in;
+            }
+
+            .poster-bee svg {
+                display: block;
+                width: 100%;
+                height: 100%;
+            }
+
+            .poster-footer strong {
+                color: var(--poster-indigo);
+                font-weight: 600;
+            }
+
+            @media print {
+                .poster-screen {
+                    min-height: 0;
+                    padding: 0;
+                    background: none;
+                }
+
+                .poster-toolbar {
+                    display: none;
+                }
+
+                .poster {
+                    box-shadow: none;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <div class="poster-screen">
+            <div class="poster-toolbar">
+                <button type="button" class="btn btn-primary" onclick="window.print()">
+                    {% translate "Print" %}
+                </button>
+            </div>
+            <main class="poster">
+                <img class="poster-wordmark"
+                     src="{% static 'borrowd-logo-indigo.svg' %}"
+                     alt="Borrow'd">
+                <p class="poster-label">
+                    {% translate "Join our sharing group" %}
+                </p>
+                <h1 class="poster-group-name">
+                    {{ object.name }}
+                </h1>
+                <h2 class="poster-subheading">
+                    {% translate "A free way to borrow and lend everyday things with each other." %}
+                </h2>
+                <div class="poster-columns">
+                    <div class="poster-copy">
+                        <p>
+                            {% blocktranslate trimmed %}
+                                Need a ladder for an afternoon or a tent for the weekend? Someone here might have one sitting in a closet.
+                            {% endblocktranslate %}
+                        </p>
+                        <p>
+                            {% blocktranslate trimmed %}
+                                Share what you have, borrow what you need, and keep good stuff in use instead of buying new.
+                            {% endblocktranslate %}
+                        </p>
+                        <div class="poster-values">
+                            <p>
+                                {% blocktranslate trimmed %}
+                                    <strong>Free.</strong> No fees, no ads, no data harvesting.
+                                {% endblocktranslate %}
+                            </p>
+                            <p>
+                                {% blocktranslate trimmed %}
+                                    <strong>Group only.</strong> You choose which groups you're sharing with, never with the public. You always decide who you lend to.
+                                {% endblocktranslate %}
+                            </p>
+                            <p>
+                                {% blocktranslate trimmed %}
+                                    <strong>Nonprofit.</strong> Borrow'd is a nonprofit and open source.
+                                {% endblocktranslate %}
+                            </p>
+                        </div>
+                    </div>
+                    <div class="poster-card">
+                        <div class="poster-qr" data-qr-svg-value="{{ join_url }}">
+                        </div>
+                        <p class="poster-card-heading">
+                            {% translate "Scan to join" %}
+                        </p>
+                        <p class="poster-card-caption">
+                            {% translate "Opens in your browser. No app to download." %}
+                        </p>
+                    </div>
+                </div>
+                <footer class="poster-footer">
+                    <span class="poster-bee">
+                        {% include "icons/borrowdbee.svg" %}
+
+                    </span>
+                    <p>
+                        {% blocktranslate trimmed %}
+                            Together, we waste less and share more. Learn how it works at <strong>borrowd.org</strong>
+                        {% endblocktranslate %}
+                    </p>
+                </footer>
+            </main>
+        </div>
+        <script>
+        // Shrink the group name until it fits the content width on one line.
+        // Text width scales with font size, so scale once, then step down to
+        // absorb rounding.
+        function fitGroupName(name) {
+            let size = parseFloat(getComputedStyle(name).fontSize);
+            if (name.scrollWidth > name.clientWidth) {
+                size = Math.floor(size * name.clientWidth / name.scrollWidth);
+                name.style.fontSize = `${size}px`;
+            }
+            while (name.scrollWidth > name.clientWidth && size > 6) {
+                size -= 1;
+                name.style.fontSize = `${size}px`;
+            }
+        }
+
+        // Measure only once the name's own font has loaded; the fallback font
+        // has different widths.
+        const groupName = document.querySelector('.poster-group-name');
+        document.fonts.load(getComputedStyle(groupName).font)
+            .finally(() => fitGroupName(groupName));
+        </script>
+    </body>
+</html>
