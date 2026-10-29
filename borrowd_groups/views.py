@@ -207,6 +207,17 @@ class InviteSigner:
         return GroupInvite(*decoded)
 
 
+def build_join_url(request: HttpRequest, group: BorrowdGroup) -> str:
+    """
+    Absolute URL of the invite link for `group`, as shown on the invite
+    page and encoded in the printable poster's QR code.
+    """
+    encoded: str = InviteSigner.sign_invite(group.pk, group.name)
+    return request.build_absolute_uri(
+        reverse("borrowd_groups:group-join", kwargs={"encoded": encoded})
+    )
+
+
 class GroupCreateView(
     LoginRequiredMixin,
     BorrowdTemplateFinderMixin,
@@ -300,11 +311,27 @@ class GroupInviteView(
 
     def get_context_data(self, **kwargs: str) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
-        group: BorrowdGroup = self.object
-        encoded: str = InviteSigner.sign_invite(group.pk, group.name)
-        context["join_url"] = self.request.build_absolute_uri(
-            reverse("borrowd_groups:group-join", kwargs={"encoded": encoded})
-        )
+        context["join_url"] = build_join_url(self.request, self.object)
+        return context
+
+
+class GroupPosterView(
+    LoginOr404PermissionMixin,
+    DetailView[BorrowdGroup],
+):
+    """
+    Print-ready Letter poster inviting people to join the group.
+
+    Visible to exactly the users who can see the invite link.
+    """
+
+    model = BorrowdGroup
+    permission_required = BorrowdGroupOLP.VIEW
+    template_name = "groups/group_poster.html"
+
+    def get_context_data(self, **kwargs: str) -> dict[str, Any]:
+        context = super().get_context_data(**kwargs)
+        context["join_url"] = build_join_url(self.request, self.object)
         return context
 
 
