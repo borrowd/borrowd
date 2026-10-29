@@ -84,7 +84,6 @@ class ItemCreateWithPhotoForm(ItemForm):
         ],
         widget=forms.FileInput(
             attrs={
-                "class": "file-input file-input-bordered w-full max-w-full bg-primary-content",
                 "accept": ALLOWED_IMAGE_ACCEPT,
             }
         ),
