@@ -36,4 +36,7 @@ class GroupsNeedingModeratorContextProcessorTests(TestCase):
         ):
             context = groups_needing_moderator(request)
 
-        self.assertEqual(context, {"has_groups_needing_moderator": True})
+        self.assertEqual(
+            context,
+            {"has_groups_needing_moderator": True, "group_action_count": 1},
+        )

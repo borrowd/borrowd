@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from typing import TypedDict
 
 from django.conf import settings
@@ -100,11 +101,9 @@ def mark_thread_read(
         return advanced
 
 
-def threads_with_unread_state(
-    viewer: BorrowdUser,
-) -> QuerySet[WithAnnotations[ChatThread, ThreadReadState]]:
-    """Return the participant's threads annotated with has_unread_messages."""
-    threads = ChatThread.objects.filter(Q(lender=viewer) | Q(borrower=viewer)).alias(
+def _participant_threads(viewer: BorrowdUser) -> QuerySet[ChatThread]:
+    """The viewer's threads, aliased with what `_unread_messages` refers to."""
+    return ChatThread.objects.filter(Q(lender=viewer) | Q(borrower=viewer)).alias(
         viewer_read_cursor=Coalesce(
             Case(
                 When(lender=viewer, then=F("lender_last_read_message_id")),
@@ -118,14 +117,43 @@ def threads_with_unread_state(
             default=F("lender_id"),
         ),
     )
-    unread_messages = Message.objects.filter(
+
+
+def _unread_messages() -> QuerySet[Message]:
+    """Incoming messages and notices past the viewer's cursor in the outer thread."""
+    return Message.objects.filter(
         Q(is_system=True) | Q(sender_id=OuterRef("other_participant_id")),
         thread_id=OuterRef("pk"),
         pk__gt=OuterRef("viewer_read_cursor"),
     )
-    return threads.annotate(has_unread_messages=Exists(unread_messages))
+
+
+def threads_with_unread_state(
+    viewer: BorrowdUser,
+) -> QuerySet[WithAnnotations[ChatThread, ThreadReadState]]:
+    """Return the participant's threads annotated with has_unread_messages."""
+    return _participant_threads(viewer).annotate(
+        has_unread_messages=Exists(_unread_messages())
+    )
 
 
 def unread_threads_for(viewer: BorrowdUser) -> QuerySet[ChatThread]:
     """Return threads with unacknowledged incoming messages or system notices."""
     return threads_with_unread_state(viewer).filter(has_unread_messages=True)
+
+
+def menu_badge_threads_for(
+    viewer: BorrowdUser, *, seen_at: datetime | None
+) -> QuerySet[ChatThread]:
+    """Threads that count toward the Messages menu badge.
+
+    A thread counts while it is active (archived threads never count) and has
+    an unread incoming message or notice sent after the viewer last opened
+    Messages (`seen_at`; None means never opened, so every unread one counts).
+    """
+    new_unread_messages = _unread_messages()
+    if seen_at is not None:
+        new_unread_messages = new_unread_messages.filter(created_at__gt=seen_at)
+    return _participant_threads(viewer).filter(
+        Exists(new_unread_messages), archived_at__isnull=True
+    )

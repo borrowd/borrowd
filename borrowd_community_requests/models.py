@@ -56,6 +56,19 @@ class CommunityRequestQuerySet(QuerySet["CommunityRequest"]):
             .order_by("-created_at")
         )
 
+    def menu_badge_for(self, user: BorrowdUser) -> "CommunityRequestQuerySet":
+        """Requests that count toward the Community requests menu badge.
+
+        Visible requests from others created since the user last opened
+        Community requests. Opening the page clears them even while they
+        stay open.
+        """
+        requests = self.visible_to(user).exclude(requester=user)
+        seen_at = user.profile.community_requests_seen_at
+        if seen_at is not None:
+            requests = requests.filter(created_at__gt=seen_at)
+        return requests
+
     def owned_by(self, user: BorrowdUser) -> "CommunityRequestQuerySet":
         return self.filter(requester=user).order_by("-created_at")
 

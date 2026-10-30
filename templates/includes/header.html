@@ -7,15 +7,8 @@
     <div class="navbar-start">
         <!-- If authed, show 🍔  -->
         {% if user.is_authenticated %}
-            <label for="main-drawer"
-                   class="btn btn-ghost btn-circle relative"
-                   aria-label="{% if community_request_count or unread_conversation_count %}{% trans 'Menu, unread items' %}{% else %}{% trans 'Menu' %}{% endif %}">
-                {% heroicon_outline "bars-3-bottom-left" class="h-5 w-5" stroke_width=2 %}
-                {% if community_request_count or unread_conversation_count %}
-                    <span class="badge badge-primary absolute top-0 right-0 translate-x-[15%] -translate-y-[15%] h-2 w-2 min-w-0 p-0 rounded-full border-0"
-                          aria-hidden="true"></span>
-                {% endif %}
-            </label>
+            {% include "includes/_menu_toggle.html" %}
+
         {% endif %}
     </div>
     <div class="navbar-center">
@@ -73,14 +66,22 @@
                                 <span>{% trans "Groups" %}</span>
                             </div>
 
-                            {% if has_groups_needing_moderator %}
-                                <span class="inline-flex items-center justify-center w-5 h-5 text-warning"
-                                      title="One or more groups need a moderator"
-                                      aria-label="One or more groups need a moderator"
-                                      data-testid="nav-groups-needing-moderator-indicator">
-                                    {% heroicon_solid "exclamation-circle" class="w-5 h-5" %}
-                                </span>
-                            {% endif %}
+                            <span class="flex items-center gap-2">
+                                {% if has_groups_needing_moderator %}
+                                    <span class="inline-flex items-center justify-center w-5 h-5 text-warning"
+                                          title="One or more groups need a moderator"
+                                          aria-label="One or more groups need a moderator"
+                                          data-testid="nav-groups-needing-moderator-indicator">
+                                        {% heroicon_solid "exclamation-circle" class="w-5 h-5" %}
+                                    </span>
+                                {% endif %}
+                                {% if group_action_count %}
+                                    <span class="badge badge-primary badge-xs"
+                                          data-testid="nav-group-action-count-indicator">
+                                        {{ group_action_count }}
+                                    </span>
+                                {% endif %}
+                            </span>
                         </a>
                     </li>
                     <li>

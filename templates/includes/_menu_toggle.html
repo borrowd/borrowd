@@ -1,0 +1,19 @@
+{% load i18n %}
+{% load heroicons %}
+
+{% comment %}
+    The navbar dot shows while any menu badge is non-zero. The Messages badge
+    refresh re-renders this out of band (swap_out_of_band) so the two agree.
+{% endcomment %}
+<label id="nav-menu-toggle"
+       for="main-drawer"
+       class="btn btn-ghost btn-circle relative"
+       aria-label="{% if unread_conversation_count or community_request_count or group_action_count %}{% trans 'Menu, unread items' %}{% else %}{% trans 'Menu' %}{% endif %}"
+       {% if swap_out_of_band %}hx-swap-oob="true"{% endif %}>
+    {% heroicon_outline "bars-3-bottom-left" class="h-5 w-5" stroke_width=2 %}
+    {% if unread_conversation_count or community_request_count or group_action_count %}
+        <span class="badge badge-primary absolute top-0 right-0 translate-x-[15%] -translate-y-[15%] h-2 w-2 min-w-0 p-0 rounded-full border-0"
+              aria-hidden="true"
+              data-testid="nav-menu-dot"></span>
+    {% endif %}
+</label>
