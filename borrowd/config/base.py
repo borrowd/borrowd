@@ -172,6 +172,11 @@ ACCOUNT_ADAPTER = "borrowd_users.adapters.BorrowdAccountAdapter"
 ACCOUNT_LOGIN_BY_CODE_FORMAT = {"numeric": True, "dashed": False, "length": 6}
 ACCOUNT_LOGIN_BY_CODE_ENABLED = True
 ACCOUNT_LOGIN_METHODS = ["email"]
+# The login form has no "Remember me" checkbox, and allauth reads its absence
+# as "forget me": the session would end when the browser closes, which in the
+# native app (mobile/) means every time the app is quit. Logins instead last
+# SESSION_COOKIE_AGE (Django's default, two weeks).
+ACCOUNT_SESSION_REMEMBER = True
 
 """
 https://docs.allauth.org/en/latest/account/forms.html

@@ -1,5 +1,5 @@
 import type { CapacitorConfig } from '@capacitor/cli';
-import { writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 /**
@@ -51,9 +51,10 @@ const server = serverUrl();
 
 if (server) {
   // The offline page's "Try again" needs the site URL, which differs per build.
+  const offlinePage = readFileSync(join(__dirname, 'offline.html'), 'utf8');
   writeFileSync(
-    join(__dirname, 'www', 'server-url.js'),
-    `window.BORROWD_SERVER_URL = ${JSON.stringify(server.url)};\n`,
+    join(__dirname, 'www', 'offline.html'),
+    offlinePage.replace('"__BORROWD_SERVER_URL__"', JSON.stringify(server.url)),
   );
 }
 

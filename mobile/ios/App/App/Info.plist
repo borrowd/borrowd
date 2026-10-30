@@ -43,6 +43,10 @@
       </array>
     </dict>
 	</dict>
+	<!-- Photo fields on the site offer "Take Photo"; iOS terminates the app on
+	     camera access without this. -->
+	<key>NSCameraUsageDescription</key>
+	<string>Borrow'd uses the camera so you can take photos of items to share.</string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
@@ -57,13 +61,10 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
-	<key>UISupportedInterfaceOrientations~ipad</key>
-	<array>
-		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationPortraitUpsideDown</string>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
-		<string>UIInterfaceOrientationLandscapeRight</string>
-	</array>
+	<!-- iPhone only (TARGETED_DEVICE_FAMILY = 1 in project.pbxproj, where Xcode
+	     doesn't keep comments). Supporting iPad would mean iPad screenshots and an
+	     iPad layout review for every App Store submission; iPads still run the app
+	     in iPhone compatibility mode. -->
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
 </dict>

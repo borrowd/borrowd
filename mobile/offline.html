@@ -44,10 +44,13 @@
     <h1>Can't reach Borrow'd</h1>
     <p>Check your internet connection and try again.</p>
     <button type="button" id="retry">Try again</button>
-    <script src="server-url.js"></script>
     <script>
+      // Filled in by capacitor.config.ts when it copies this page into www/.
+      // Inlined rather than loaded from a separate file: Android serves only
+      // the error page itself from the app bundle, not files next to it.
+      const SERVER_URL = "__BORROWD_SERVER_URL__";
       document.getElementById('retry').addEventListener('click', () => {
-        window.location.replace(window.BORROWD_SERVER_URL);
+        window.location.replace(SERVER_URL);
       });
     </script>
   </body>
