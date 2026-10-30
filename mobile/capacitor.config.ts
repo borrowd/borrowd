@@ -20,8 +20,20 @@ const SERVER_URLS = {
 
 type AppEnv = keyof typeof SERVER_URLS;
 
-function serverUrl(): { appEnv: AppEnv; url: string } {
+// Commands that copy this config into ios/ and android/, so the build gets
+// whichever server URL was chosen. Others (e.g. `cap open`) don't need one.
+const CONFIG_COPYING_COMMANDS = ['add', 'copy', 'run', 'sync'];
+
+function serverUrl(): { appEnv: AppEnv; url: string } | null {
   const appEnv = process.env.BORROWD_APP_ENV;
+  if (!appEnv) {
+    const command = process.argv.find((arg) =>
+      CONFIG_COPYING_COMMANDS.includes(arg),
+    );
+    if (!command) {
+      return null;
+    }
+  }
   if (!appEnv || !(appEnv in SERVER_URLS)) {
     throw new Error(
       `Set BORROWD_APP_ENV to one of: ${Object.keys(SERVER_URLS).join(', ')} ` +
@@ -35,13 +47,15 @@ function serverUrl(): { appEnv: AppEnv; url: string } {
   return { appEnv: appEnv as AppEnv, url };
 }
 
-const { appEnv, url } = serverUrl();
+const server = serverUrl();
 
-// The offline page's "Try again" needs the site URL, which differs per build.
-writeFileSync(
-  join(__dirname, 'www', 'server-url.js'),
-  `window.BORROWD_SERVER_URL = ${JSON.stringify(url)};\n`,
-);
+if (server) {
+  // The offline page's "Try again" needs the site URL, which differs per build.
+  writeFileSync(
+    join(__dirname, 'www', 'server-url.js'),
+    `window.BORROWD_SERVER_URL = ${JSON.stringify(server.url)};\n`,
+  );
+}
 
 const config: CapacitorConfig = {
   // Must match NATIVE_APP_ID in borrowd/config/base.py.
@@ -49,12 +63,12 @@ const config: CapacitorConfig = {
   appName: "Borrow'd",
   // Only used for the offline page below; the site itself is loaded from `url`.
   webDir: 'www',
-  server: {
-    url,
-    cleartext: appEnv === 'dev',
+  server: server ? {
+    url: server.url,
+    cleartext: server.appEnv === 'dev',
     // Shown when the site can't be reached, instead of a blank WebView.
     errorPath: 'offline.html',
-  },
+  } : undefined,
   ios: {
     // Keep the site's top bar below the status bar and its bottom content
     // above the home indicator, without the site needing safe-area CSS.
