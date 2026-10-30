@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Optional, cast
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.db import models, transaction
+from django.db import IntegrityError, models, transaction
 from django.db.models import (
     CASCADE,
     DO_NOTHING,
@@ -109,33 +109,43 @@ class PrecomputedItemState:
     requesting_user: BorrowdUser | None
     current_transaction: Optional["Transaction"]
     has_active_subscription: bool = False
-    # Every non-terminal Transaction the caller loaded for this item, so
-    # current_transaction_for_user() can tell "not this user's transaction"
-    # apart from "more than one transaction matched this user".
-    candidate_transactions: tuple["Transaction", ...] = ()
+
+    @classmethod
+    def from_transaction(
+        cls,
+        transaction: Optional["Transaction"],
+        *,
+        has_active_subscription: bool = False,
+    ) -> "PrecomputedItemState":
+        """Derive the state from the item's open transaction without querying."""
+        current_borrower = None
+        requesting_user = None
+        if transaction is not None:
+            if transaction.status in REQUEST_TRANSACTION_STATUSES:
+                requesting_user = transaction.party2
+            elif transaction.status in BORROWER_TRANSACTION_STATUSES:
+                current_borrower = transaction.party2
+        return cls(
+            current_borrower=current_borrower,
+            requesting_user=requesting_user,
+            current_transaction=transaction,
+            has_active_subscription=has_active_subscription,
+        )
 
     def current_transaction_for_user(
         self, user: BorrowdUser
     ) -> Optional["Transaction"]:
         """
-        Returns the non-terminal Transaction on this item that the given
-        user is a party to, mirroring Item.get_current_transaction_for_user().
-
-        Raises Transaction.MultipleObjectsReturned if more than one matches,
-        for the same reason get_current_transaction_for_user() does: there
-        should only ever be one.
+        Returns the current Transaction if the given user is a party to it,
+        mirroring Item.get_current_transaction_for_user().
         """
-        matches = [
-            transaction
-            for transaction in self.candidate_transactions
-            if transaction.party1_id == user.id or transaction.party2_id == user.id
-        ]
-        if len(matches) > 1:
-            raise Transaction.MultipleObjectsReturned(
-                "current_transaction_for_user() matched more than one "
-                "non-terminal Transaction for this item and user."
-            )
-        return matches[0] if matches else None
+        transaction = self.current_transaction
+        if transaction is not None and user.id in (
+            transaction.party1_id,
+            transaction.party2_id,
+        ):
+            return transaction
+        return None
 
 
 class ItemCategory(Model):
@@ -281,33 +291,11 @@ class Item(Model):
         also build banner info for the same item without asking twice).
         """
 
-        if precomputed is not None:
-            current_borrower = precomputed.current_borrower
-            requesting_user = precomputed.requesting_user
-            current_tx = precomputed.current_transaction_for_user(user)
-        else:
-            current_borrower = self.get_current_borrower()
-            requesting_user = self.get_requesting_user()
-            current_tx = self.get_current_transaction_for_user(user)
-            needs_subscription_state = self.owner_id != user.id and (
-                current_tx is not None or self.status != ItemStatus.AVAILABLE
-            )
-            has_active_subscription = (
-                AvailabilitySubscription.objects.filter(
-                    item=self,
-                    user=user,
-                    status=AvailabilitySubscriptionStatus.ACTIVE,
-                ).exists()
-                if needs_subscription_state
-                else False
-            )
-            precomputed = PrecomputedItemState(
-                current_borrower=current_borrower,
-                requesting_user=requesting_user,
-                current_transaction=current_tx,
-                has_active_subscription=has_active_subscription,
-                candidate_transactions=(current_tx,) if current_tx is not None else (),
-            )
+        if precomputed is None:
+            precomputed = self.precompute_state_for(user)
+        current_borrower = precomputed.current_borrower
+        requesting_user = precomputed.requesting_user
+        current_tx = precomputed.current_transaction_for_user(user)
         actions = self.get_actions_for(user, precomputed=precomputed)
 
         # Generate status text based on user role and current actions/status
@@ -333,6 +321,25 @@ class Item(Model):
 
         return ItemActionContext(
             actions=actions, status_text=status_text, waiting_text=waiting_text
+        )
+
+    def precompute_state_for(self, user: BorrowdUser) -> PrecomputedItemState:
+        """Read the item's open transaction once and derive the user's state."""
+        current_tx = self.get_current_transaction()
+        needs_subscription_state = self.owner_id != user.id and (
+            current_tx is not None or self.status != ItemStatus.AVAILABLE
+        )
+        has_active_subscription = (
+            AvailabilitySubscription.objects.filter(
+                item=self,
+                user=user,
+                status=AvailabilitySubscriptionStatus.ACTIVE,
+            ).exists()
+            if needs_subscription_state
+            else False
+        )
+        return PrecomputedItemState.from_transaction(
+            current_tx, has_active_subscription=has_active_subscription
         )
 
     def _get_status_text_for_user(
@@ -494,8 +501,6 @@ class Item(Model):
         - The status of the current open Transaction involving this
           Item and the given User, if any.
         """
-        # This may raise Transaction.MultipleObjectsReturned.
-        # Let it propagate.
         if precomputed is not None:
             current_tx = precomputed.current_transaction_for_user(user)
             current_borrower = precomputed.current_borrower
@@ -576,16 +581,6 @@ class Item(Model):
             return transaction.party2
         except Transaction.DoesNotExist:
             return None
-        except Transaction.MultipleObjectsReturned:
-            # Return the most recent request (for now)
-            txn: Transaction | None = (
-                Transaction.objects.filter(
-                    Q(item=self) & Q(status__in=REQUEST_TRANSACTION_STATUSES)
-                )
-                .order_by("-created_at")
-                .first()
-            )
-            return txn.party2 if txn else None
 
     def get_current_borrower(self) -> BorrowdUser | None:
         """
@@ -600,38 +595,21 @@ class Item(Model):
             return transaction.party2
         except Transaction.DoesNotExist:
             return None
-        except Transaction.MultipleObjectsReturned:
-            # This shouldn't happen with proper business logic, but just in case
-            # return the most recent one
-            txn: Transaction | None = (
-                Transaction.objects.filter(
-                    Q(item=self) & Q(status__in=BORROWER_TRANSACTION_STATUSES)
-                )
-                .order_by("-updated_at")
-                .first()
-            )
-            return txn.party2 if txn else None
 
     def get_current_transaction(self) -> Optional["Transaction"]:
         """
         Returns the transaction involving this item regardless of the user
         """
-        try:
-            # Use `first()` so unexpected data issues (multiple non-terminal transactions)
-            # don't 500 the page; the most recent active transaction wins.
-            return (
-                Transaction.objects.select_related(
-                    "party1",
-                    "party1__profile",
-                    "party2",
-                    "party2__profile",
-                )
-                .filter(Q(item=self) & Q(status__in=OPEN_TRANSACTION_STATUSES))
-                .order_by("-created_at")
-                .first()
+        return (
+            Transaction.objects.select_related(
+                "party1",
+                "party1__profile",
+                "party2",
+                "party2__profile",
             )
-        except Transaction.DoesNotExist:
-            return None
+            .filter(Q(item=self) & Q(status__in=OPEN_TRANSACTION_STATUSES))
+            .first()
+        )
 
     def get_current_transaction_for_user(
         self, user: BorrowdUser
@@ -641,9 +619,6 @@ class Item(Model):
         given User, if any.
         """
         try:
-            # Using `get()` here because if there *is* a current
-            # Transaction involving this Item and this User, there
-            # should only be one.
             return Transaction.objects.get(
                 Q(item=self)
                 & (Q(party1=user) | Q(party2=user))
@@ -683,7 +658,8 @@ class Item(Model):
         if self.deleted_at is not None and action != ItemAction.RESOLVE_TRANSACTION:
             raise InvalidItemAction("This item is no longer available.")
 
-        current_tx = self.get_current_transaction_for_user(user=user)
+        state = self.precompute_state_for(user)
+        current_tx = state.current_transaction_for_user(user)
         if current_tx is not None and current_tx.party1_id != self.owner_id:
             logger.error(
                 "Open transaction %s has lender %s but item %s is owned by %s.",
@@ -699,13 +675,13 @@ class Item(Model):
         # Check for specific case: trying to request an item that already has a pending request
         if (
             action in (ItemAction.REQUEST_ITEM, ItemAction.REQUEST_GIVEAWAY)
-            and self.get_requesting_user() is not None
+            and state.requesting_user is not None
         ):
             raise ItemAlreadyRequested(
                 f"Item '{self}' already has a pending request from another user."
             )
 
-        valid_actions = self.get_actions_for(user=user)
+        valid_actions = self.get_actions_for(user=user, precomputed=state)
         if action not in valid_actions:
             raise InvalidItemAction(
                 f"User '{user}' cannot perform action '{action}' on"
@@ -713,38 +689,13 @@ class Item(Model):
             )
 
         if action == ItemAction.REQUEST_ITEM:
-            with transaction.atomic():
-                created_tx = Transaction.objects.create(
-                    item=self,
-                    # By convention "party1" is the owner/lender/giver.
-                    party1=self.owner,
-                    party2=user,
-                    created_by=user,
-                    updated_by=user,
-                    # This is default; just being explicit
-                    status=TransactionStatus.REQUESTED,
-                )
-                sync_item_status(self, created_tx)
-                created_tx._record_status_change(
-                    from_status=None, action=action, actor=user
-                )
+            self._open_request(user, TransactionStatus.REQUESTED, action=action)
             return
 
         if action == ItemAction.REQUEST_GIVEAWAY:
-            with transaction.atomic():
-                created_tx = Transaction.objects.create(
-                    item=self,
-                    # By convention "party1" is the owner/lender/giver.
-                    party1=self.owner,
-                    party2=user,
-                    created_by=user,
-                    updated_by=user,
-                    status=TransactionStatus.GIVEAWAY_REQUESTED,
-                )
-                sync_item_status(self, created_tx)
-                created_tx._record_status_change(
-                    from_status=None, action=action, actor=user
-                )
+            self._open_request(
+                user, TransactionStatus.GIVEAWAY_REQUESTED, action=action
+            )
             return
 
         if (
@@ -785,6 +736,33 @@ class Item(Model):
             raise ValueError("No existing Transaction")
 
         execute_transition(self, current_tx, user, action, now=timezone.now())
+
+    def _open_request(
+        self, user: BorrowdUser, status: TransactionStatus, *, action: ItemAction
+    ) -> None:
+        try:
+            # A savepoint, so losing to the one-open-transaction constraint
+            # leaves the enclosing transaction usable for the check below.
+            with transaction.atomic():
+                created_tx = Transaction.objects.create(
+                    item=self,
+                    # By convention "party1" is the owner/lender/giver.
+                    party1=self.owner,
+                    party2=user,
+                    created_by=user,
+                    updated_by=user,
+                    status=status,
+                )
+        except IntegrityError:
+            if not Transaction.objects.filter(
+                item=self, status__in=OPEN_TRANSACTION_STATUSES
+            ).exists():
+                raise
+            raise ItemAlreadyRequested(
+                f"Item '{self}' already has an open transaction."
+            ) from None
+        sync_item_status(self, created_tx)
+        created_tx._record_status_change(from_status=None, action=action, actor=user)
 
     def groups_allowed_to_view(self) -> "QuerySet[BorrowdGroup]":
         """
@@ -1243,6 +1221,15 @@ class Transaction(Model):
         return Transaction.objects.filter(
             Q(disputed_at__isnull=False) & (Q(party1=user) | Q(party2=user))
         )
+
+    class Meta:
+        constraints = [
+            UniqueConstraint(
+                fields=["item"],
+                condition=Q(status__in=OPEN_TRANSACTION_STATUSES),
+                name="unique_open_transaction_per_item",
+            )
+        ]
 
 
 class TransactionStatusChange(Model):
