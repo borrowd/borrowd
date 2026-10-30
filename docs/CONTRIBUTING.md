@@ -269,6 +269,9 @@ repo.
 * Resources for specific areas are kept in other, namespaced subdirs,
   e.g. `templates/[users|web|etc...]/`.
 
+The iOS and Android apps are in `mobile/`: a native shell that loads the
+site. See [mobile/README.md](../mobile/README.md) to run them.
+
 ## Front-end
 
 We do not (currently) use a full frontend framework like React or Vue.

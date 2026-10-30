@@ -25,7 +25,7 @@ from django.urls import URLPattern, URLResolver, include, path
 
 from borrowd_notifications.push_views import service_worker
 from borrowd_users.views import CustomPasswordChangeView, CustomSignupView
-from borrowd_web.views import favicon
+from borrowd_web.views import apple_app_site_association, assetlinks, favicon
 
 
 def redirect_to_custom_signup(request: HttpRequest) -> HttpResponse:
@@ -70,6 +70,12 @@ urlpatterns: list[URLPattern | URLResolver] = [
     path("sw.js", service_worker, name="service-worker"),
     path("community-requests/", include("borrowd_community_requests.urls")),
     path("favicon.ico", favicon, name="favicon"),
+    path(
+        ".well-known/apple-app-site-association",
+        apple_app_site_association,
+        name="apple-app-site-association",
+    ),
+    path(".well-known/assetlinks.json", assetlinks, name="assetlinks"),
     path("", include("borrowd_web.urls")),
 ]
 
