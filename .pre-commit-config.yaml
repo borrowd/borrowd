@@ -37,7 +37,8 @@ repos:
         args: [--fix=no]
     -   id: pretty-format-json
         args: [--indent=4, --top-keys, "model,pk"]
-        exclude: ^package-lock\.json$
+        # Lockfiles and Xcode asset catalogs are rewritten by their own tools.
+        exclude: ^(mobile/)?package-lock\.json$|^mobile/ios/.*\.xcassets/.*\.json$
     -   id: trailing-whitespace
 
 -   repo: https://github.com/astral-sh/ruff-pre-commit

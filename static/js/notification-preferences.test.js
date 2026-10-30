@@ -18,8 +18,14 @@ const template = fs.readFileSync(
 const script = template.match(/<script>\s*([\s\S]*?)<\/script>/)?.[1];
 assert.ok(script, 'notification preferences template has an inline script');
 
-function createNotificationSettings({ permission, subscription = null, prefs = {} }) {
+function createNotificationSettings({
+  permission,
+  subscription = null,
+  prefs = {},
+  nativeApp = false,
+}) {
   let registrationLookups = 0;
+  let fetches = 0;
   const events = [];
   const notificationApi = {
     permission,
@@ -59,8 +65,12 @@ function createNotificationSettings({ permission, subscription = null, prefs = {
       PushManager: {},
       dispatchEvent: (event) => events.push(event),
       getCsrfToken: () => 'csrf-token',
+      ...(nativeApp && { Capacitor: { isNativePlatform: () => true } }),
     },
-    fetch: async () => ({ ok: true }),
+    fetch: async () => {
+      fetches += 1;
+      return { ok: true };
+    },
     console,
   };
 
@@ -71,6 +81,7 @@ function createNotificationSettings({ permission, subscription = null, prefs = {
     events,
     permissionStatus,
     registrationLookups: () => registrationLookups,
+    fetches: () => fetches,
     setPermission(value) {
       notificationApi.permission = value;
       permissionStatus.state = value;
@@ -131,4 +142,23 @@ test('a denied subscription attempt preserves preferences and refreshes the bloc
   await settings.cta._refresh();
   assert.equal(settings.cta.show, true);
   assert.equal(settings.cta.permissionDenied, true);
+});
+
+test('inside the native app the web-push CTA stays hidden and nothing subscribes', async () => {
+  const settings = createNotificationSettings({
+    permission: 'default',
+    nativeApp: true,
+    prefs: {
+      example: { push: true, is_mandatory: false, category: 'general' },
+    },
+  });
+
+  await settings.cta.init();
+  assert.equal(settings.cta.show, false);
+
+  await settings.preferences._ensurePushSubscribed();
+  await settings.preferences._dropPushSubscription();
+  assert.equal(settings.registrationLookups(), 0);
+  assert.equal(settings.fetches(), 0);
+  assert.equal(settings.events.length, 0);
 });

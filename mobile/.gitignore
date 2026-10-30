@@ -1,0 +1,3 @@
+node_modules/
+# Generated from capacitor.config.ts on every sync.
+www/server-url.js
