@@ -4,7 +4,11 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 
-function loadInstallPrompt({ installed = false, storage = new Map() } = {}) {
+function loadInstallPrompt({
+  capacitorApp = false,
+  installed = false,
+  storage = new Map(),
+} = {}) {
   const windowListeners = new Map();
   const installListeners = new Map();
   const dismissListeners = new Map();
@@ -22,15 +26,18 @@ function loadInstallPrompt({ installed = false, storage = new Map() } = {}) {
     addEventListener: (type, listener) => windowListeners.set(type, listener),
     matchMedia: () => ({ matches: installed }),
     navigator: {},
+    Capacitor: capacitorApp ? {} : undefined,
     localStorage: {
       getItem: (key) => storage.get(key) ?? null,
       setItem: (key, value) => storage.set(key, value),
     },
   };
   const document = { querySelector: () => banner };
-  const source = fs.readFileSync(path.join(__dirname, 'install-prompt.js'), 'utf8');
+  const platformSource = fs.readFileSync(path.join(__dirname, 'platform.js'), 'utf8');
+  const installPromptSource = fs.readFileSync(path.join(__dirname, 'install-prompt.js'), 'utf8');
 
-  vm.runInNewContext(source, { document, window, console });
+  vm.runInNewContext(platformSource, { window });
+  vm.runInNewContext(installPromptSource, { document, window, console });
   return { banner, installListeners, dismissListeners, windowListeners, storage };
 }
 
@@ -97,6 +104,16 @@ test('persists dismissal and does not show the banner again', () => {
 
 test('does not show the banner when the app is already installed', () => {
   const { banner, windowListeners } = loadInstallPrompt({ installed: true });
+  const installEvent = createInstallEvent();
+
+  windowListeners.get('beforeinstallprompt')(installEvent.event);
+
+  assert.equal(installEvent.wasPrevented(), true);
+  assert.equal(banner.hidden, true);
+});
+
+test('does not show the banner inside a Capacitor app', () => {
+  const { banner, windowListeners } = loadInstallPrompt({ capacitorApp: true });
   const installEvent = createInstallEvent();
 
   windowListeners.get('beforeinstallprompt')(installEvent.event);

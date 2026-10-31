@@ -9,7 +9,8 @@
 
   const isInstalled = () =>
     window.matchMedia("(display-mode: standalone)").matches ||
-    window.navigator.standalone === true;
+    window.navigator.standalone === true ||
+    window.borrowdPlatform.isCapacitorApp();
 
   const hideBanner = () => {
     banner.hidden = true;
