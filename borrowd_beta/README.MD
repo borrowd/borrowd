@@ -46,10 +46,11 @@ Models, signup form/view, and middleware to support beta release of app
 
 ## Configuration
 
-Available Settings:
+Available Settings (set in `borrowd/config/base.py`). `BetaAccessMiddleware` must come after
+`AuthenticationMiddleware` in `MIDDLEWARE`, since signed-in users bypass the gate:
 
 ```settings.py
-BETA_SIGNUP_REDIRECT_PATH = '/'  # Default to base path
+BETA_SIGNUP_REDIRECT_PATH = '/accounts/login/'  # Where ungated requests go. The gate always exempts this path itself; it must render a page rather than redirect on to a gated path, or requests loop
 BETA_COOKIE_DOMAIN = None  # domain (if not localhost)
 BETA_SECURE_COOKIE = False # whether cookie is https only
 ```
