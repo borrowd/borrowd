@@ -25,7 +25,7 @@ from django.urls import URLPattern, URLResolver, include, path
 
 from borrowd_notifications.push_views import service_worker
 from borrowd_users.views import CustomPasswordChangeView, CustomSignupView
-from borrowd_web.views import favicon
+from borrowd_web.views import favicon, web_app_manifest
 
 
 def redirect_to_custom_signup(request: HttpRequest) -> HttpResponse:
@@ -67,6 +67,7 @@ urlpatterns: list[URLPattern | URLResolver] = [
     path("settings/", include("borrowd_users.settings_urls")),
     path("settings/", include("borrowd_notifications.urls")),
     path("push/", include("borrowd_notifications.push_urls")),
+    path("manifest.json", web_app_manifest, name="web-app-manifest"),
     path("sw.js", service_worker, name="service-worker"),
     path("community-requests/", include("borrowd_community_requests.urls")),
     path("favicon.ico", favicon, name="favicon"),

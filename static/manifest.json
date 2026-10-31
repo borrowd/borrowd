@@ -1,24 +1,11 @@
 {
-    "background_color": "#0b0907",
+    "background_color": "#ffffff",
     "display": "standalone",
     "icons": [
         {
             "purpose": "any",
-            "sizes": "any",
-            "src": "icon.svg",
-            "type": "image/svg+xml"
-        },
-        {
-            "purpose": "any",
             "sizes": "192x192",
             "src": "icon-192.png",
-            "type": "image/png"
-        },
-        {
-            "media": "(prefers-color-scheme: dark)",
-            "purpose": "any",
-            "sizes": "192x192",
-            "src": "icon-dark-192.png",
             "type": "image/png"
         },
         {
@@ -28,36 +15,15 @@
             "type": "image/png"
         },
         {
-            "media": "(prefers-color-scheme: dark)",
-            "purpose": "any",
-            "sizes": "512x512",
-            "src": "icon-dark-512.png",
-            "type": "image/png"
-        },
-        {
             "purpose": "maskable",
             "sizes": "192x192",
             "src": "icon-maskable-192.png",
             "type": "image/png"
         },
         {
-            "media": "(prefers-color-scheme: dark)",
-            "purpose": "maskable",
-            "sizes": "192x192",
-            "src": "icon-maskable-dark-192.png",
-            "type": "image/png"
-        },
-        {
             "purpose": "maskable",
             "sizes": "512x512",
             "src": "icon-maskable-512.png",
-            "type": "image/png"
-        },
-        {
-            "media": "(prefers-color-scheme: dark)",
-            "purpose": "maskable",
-            "sizes": "512x512",
-            "src": "icon-maskable-dark-512.png",
             "type": "image/png"
         }
     ],
