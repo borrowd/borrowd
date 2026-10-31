@@ -5,18 +5,28 @@
 <html lang="en">
     <head>
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <meta name="theme-color" content="#0b0907" />
-        <link rel="manifest" href="{% url 'web-app-manifest' %}">
-        <link rel="apple-touch-icon" href="{% static 'icon-192.png' %}">
+        <meta name="theme-color"
+              content="#ffffff"
+              data-color-scheme-light="#ffffff"
+              data-color-scheme-dark="#0b0907" />
+        <link rel="manifest"
+              href="{% url 'web-app-manifest' %}"
+              data-color-scheme-light="{% url 'web-app-manifest' %}?color_scheme=light&amp;v=4"
+              data-color-scheme-dark="{% url 'web-app-manifest' %}?color_scheme=dark&amp;v=4">
         <link rel="apple-touch-icon"
-              href="{% static 'icon-dark-192.png' %}"
-              media="(prefers-color-scheme: dark)">
-        <link rel="icon" href="/favicon.ico" sizes="32x32">
+              href="{% static 'icon-192.png' %}"
+              data-color-scheme-light="{% static 'icon-192.png' %}?v=4"
+              data-color-scheme-dark="{% static 'icon-dark-192.png' %}?v=4">
         <link rel="icon"
-              href="{% static 'favicon-dark.ico' %}"
+              href="{% static 'favicon.ico' %}"
               sizes="32x32"
-              media="(prefers-color-scheme: dark)">
-        <link rel="icon" href="{% static 'icon.svg' %}" type="image/svg+xml">
+              data-color-scheme-light="{% static 'favicon.ico' %}"
+              data-color-scheme-dark="{% static 'favicon-dark.ico' %}">
+        <link rel="icon"
+              href="{% static 'icon.svg' %}"
+              type="image/svg+xml"
+              data-color-scheme-light="{% static 'icon.svg' %}?color_scheme=light"
+              data-color-scheme-dark="{% static 'icon.svg' %}?color_scheme=dark">
         <title>
             {% block head_title %}
             {% endblock %}

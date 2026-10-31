@@ -15,30 +15,33 @@ def favicon(request: HttpRequest) -> FileResponse:
 def web_app_manifest(request: HttpRequest) -> HttpResponse:
     manifest_path = settings.BASE_DIR / "static" / "manifest.json"
     manifest = json.loads(manifest_path.read_text())
-    color_scheme = (
-        request.headers.get("Sec-CH-Prefers-Color-Scheme", "")
-        .strip()
-        .strip('"')
-        .lower()
-    )
+    color_scheme = request.GET.get("color_scheme", "")
+    if color_scheme not in {"dark", "light"}:
+        color_scheme = (
+            request.headers.get("Sec-CH-Prefers-Color-Scheme", "")
+            .strip()
+            .strip('"')
+            .lower()
+        )
+    base_icons = [icon for icon in manifest["icons"] if icon["purpose"] == "any"]
+    manifest["icons"] = []
     if color_scheme == "dark":
         manifest["background_color"] = "#0b0907"
     else:
         manifest["background_color"] = "#ffffff"
-        manifest["icons"] = [
-            icon for icon in manifest["icons"] if icon["purpose"] == "any"
-        ]
-    for icon in manifest["icons"]:
-        icon_path = settings.BASE_DIR / "static" / icon["src"]
-        if color_scheme == "dark":
-            filename, separator, size = icon_path.stem.rpartition("-")
-            if separator and size.isdigit():
-                dark_icon_path = icon_path.with_name(
-                    f"{filename}-dark-{size}{icon_path.suffix}"
-                )
-                if dark_icon_path.is_file():
-                    icon_path = dark_icon_path
-        icon["src"] = f"/static/{icon_path.name}"
+    for icon in base_icons:
+        icon_size = icon["sizes"].split("x")[0]
+        dark_suffix = "-dark" if color_scheme == "dark" else ""
+        maskable_path = (
+            settings.BASE_DIR / "static" / f"icon-maskable{dark_suffix}-{icon_size}.png"
+        )
+        manifest["icons"].append(
+            {
+                **icon,
+                "purpose": "maskable",
+                "src": f"/static/{maskable_path.name}?v=4",
+            }
+        )
 
     response = HttpResponse(
         json.dumps(manifest), content_type="application/manifest+json"

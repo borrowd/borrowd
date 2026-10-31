@@ -52,20 +52,24 @@ class PwaManifestTests(SimpleTestCase):
     def test_base_template_links_pwa_metadata(self) -> None:
         template = " ".join(self.base_template_path.read_text().split())
 
-        self.assertIn('<meta name="theme-color" content="#0b0907" />', template)
         self.assertIn(
-            '<link rel="manifest" href="{% url \'web-app-manifest\' %}">', template
-        )
-        self.assertIn(
-            '<link rel="apple-touch-icon" href="{% static \'icon-192.png\' %}">',
+            'data-color-scheme-light="#ffffff" data-color-scheme-dark="#0b0907"',
             template,
         )
         self.assertIn(
-            '<link rel="apple-touch-icon" href="{% static \'icon-dark-192.png\' %}" media="(prefers-color-scheme: dark)">',
+            "data-color-scheme-dark=\"{% url 'web-app-manifest' %}?color_scheme=dark&amp;v=4\"",
             template,
         )
         self.assertIn(
-            '<link rel="icon" href="{% static \'favicon-dark.ico\' %}" sizes="32x32" media="(prefers-color-scheme: dark)">',
+            "data-color-scheme-light=\"{% static 'icon-192.png' %}?v=4\"",
+            template,
+        )
+        self.assertIn(
+            "data-color-scheme-dark=\"{% static 'icon-dark-192.png' %}?v=4\"",
+            template,
+        )
+        self.assertIn(
+            "data-color-scheme-dark=\"{% static 'favicon-dark.ico' %}\"",
             template,
         )
 
@@ -84,10 +88,10 @@ class PwaManifestTests(SimpleTestCase):
         self.assertEqual(response["Content-Type"], "application/manifest+json")
         self.assertEqual(manifest["background_color"], "#ffffff")
         self.assertEqual(
-            {icon["src"] for icon in manifest["icons"]},
+            {(icon["src"], icon["purpose"]) for icon in manifest["icons"]},
             {
-                "/static/icon-192.png",
-                "/static/icon-512.png",
+                ("/static/icon-maskable-192.png?v=4", "maskable"),
+                ("/static/icon-maskable-512.png?v=4", "maskable"),
             },
         )
         self.assertIn("Sec-CH-Prefers-Color-Scheme", response["Vary"])
@@ -101,13 +105,24 @@ class PwaManifestTests(SimpleTestCase):
 
         self.assertEqual(manifest["background_color"], "#0b0907")
         self.assertEqual(
-            {icon["src"] for icon in manifest["icons"]},
+            {(icon["src"], icon["purpose"]) for icon in manifest["icons"]},
             {
-                "/static/icon-dark-192.png",
-                "/static/icon-dark-512.png",
-                "/static/icon-maskable-dark-192.png",
-                "/static/icon-maskable-dark-512.png",
+                ("/static/icon-maskable-dark-192.png?v=4", "maskable"),
+                ("/static/icon-maskable-dark-512.png?v=4", "maskable"),
             },
+        )
+
+    def test_manifest_color_scheme_query_overrides_client_hint(self) -> None:
+        response = self.client.get(
+            "/manifest.json?color_scheme=dark",
+            HTTP_SEC_CH_PREFERS_COLOR_SCHEME='"light"',
+        )
+        manifest = json.loads(response.content)
+
+        self.assertEqual(manifest["background_color"], "#0b0907")
+        self.assertIn(
+            "/static/icon-maskable-dark-192.png?v=4",
+            {i["src"] for i in manifest["icons"]},
         )
 
     def test_html_response_opts_in_to_color_scheme_client_hint(self) -> None:
