@@ -172,6 +172,11 @@ ACCOUNT_ADAPTER = "borrowd_users.adapters.BorrowdAccountAdapter"
 ACCOUNT_LOGIN_BY_CODE_FORMAT = {"numeric": True, "dashed": False, "length": 6}
 ACCOUNT_LOGIN_BY_CODE_ENABLED = True
 ACCOUNT_LOGIN_METHODS = ["email"]
+# The login form has no "Remember me" checkbox, and allauth reads its absence
+# as "forget me": the session would end when the browser closes, which in the
+# native app (mobile/) means every time the app is quit. Logins instead last
+# SESSION_COOKIE_AGE (Django's default, two weeks).
+ACCOUNT_SESSION_REMEMBER = True
 
 """
 https://docs.allauth.org/en/latest/account/forms.html
@@ -222,6 +227,20 @@ EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 VAPID_PRIVATE_KEY: str = env("VAPID_PRIVATE_KEY", default="")
 VAPID_PUBLIC_KEY: str = env("VAPID_PUBLIC_KEY", default="")
 VAPID_ADMIN_EMAIL: str = env("VAPID_ADMIN_EMAIL", default="")
+
+# Native app (Capacitor shell in mobile/)
+# iOS bundle ID and Android applicationId; must match mobile/capacitor.config.ts.
+NATIVE_APP_ID = "org.borrowd.app"
+# Universal Links / App Links verification files are only served once these are
+# set, so an unconfigured deployment 404s instead of publishing a broken file.
+# APPLE_TEAM_ID: the 10-character Team ID from the Apple Developer account.
+APPLE_TEAM_ID: str = env("APPLE_TEAM_ID", default="")
+# ANDROID_CERT_SHA256_FINGERPRINTS: comma-separated SHA-256 fingerprints of the
+# certificates that sign the Android app (the Play App Signing key, plus any
+# upload/debug key whose builds should also open links in-app).
+ANDROID_CERT_SHA256_FINGERPRINTS: list[str] = env.list(
+    "ANDROID_CERT_SHA256_FINGERPRINTS", default=[]
+)
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
@@ -283,6 +302,7 @@ BETA_CHECK_EXCLUDE_PATHS = [
     r"^/static/.*",
     r"^/media/.*",
     r"^/sw.js$",
+    r"^/\.well-known/.*",
     r"^/beta/.*",
     r"^/__reload__/.*",
 ]

@@ -164,6 +164,15 @@
     </div>
 
     <script>
+        // Inside the native app shell (mobile/), push is delivered natively, so this
+        // page's web-push subscription flow stays out of the way there. Checked
+        // inline rather than via static/js/native-app.js because Alpine may call
+        // these components before that module has run; window.Capacitor itself is
+        // injected by the shell before any page script.
+        function isNativeApp() {
+            return window.Capacitor?.isNativePlatform?.() === true;
+        }
+
         function urlBase64ToUint8Array(base64String) {
             const padding = '='.repeat((4 - base64String.length % 4) % 4);
             const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
@@ -177,6 +186,7 @@
                 permissionDenied: false,
 
                 async init() {
+                    if (isNativeApp()) return;
                     if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
                         return;
                     }
@@ -301,7 +311,7 @@
                 },
 
                 async _dropPushSubscription() {
-                    if (!('serviceWorker' in navigator)) return;
+                    if (isNativeApp() || !('serviceWorker' in navigator)) return;
                     try {
                         const reg = await navigator.serviceWorker.getRegistration('/sw.js');
                         if (!reg) return;
@@ -323,7 +333,7 @@
                 },
 
                 async _ensurePushSubscribed() {
-                    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+                    if (isNativeApp() || !('serviceWorker' in navigator) || !('PushManager' in window)) return;
                     try {
                         const permission = await Notification.requestPermission();
                         if (permission !== 'granted') {
