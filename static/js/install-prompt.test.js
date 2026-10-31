@@ -7,6 +7,7 @@ const vm = require('node:vm');
 function loadInstallPrompt({
   capacitorApp = false,
   installed = false,
+  mobile = true,
   storage = new Map(),
 } = {}) {
   const windowListeners = new Map();
@@ -25,7 +26,9 @@ function loadInstallPrompt({
   const window = {
     addEventListener: (type, listener) => windowListeners.set(type, listener),
     matchMedia: () => ({ matches: installed }),
-    navigator: {},
+    navigator: {
+      userAgentData: { mobile },
+    },
     Capacitor: capacitorApp ? {} : undefined,
     localStorage: {
       getItem: (key) => storage.get(key) ?? null,
@@ -85,6 +88,22 @@ test('does not persist dismissal of the browser install dialog', async () => {
   assert.equal(banner.hidden, true);
 });
 
+test('remembers an accepted install across page loads', async () => {
+  const firstLoad = loadInstallPrompt();
+  const installEvent = createInstallEvent('accepted');
+  firstLoad.windowListeners.get('beforeinstallprompt')(installEvent.event);
+  await firstLoad.installListeners.get('click')();
+
+  assert.equal(firstLoad.storage.get('borrowd-pwa-installed'), 'true');
+
+  const nextLoad = loadInstallPrompt({ storage: firstLoad.storage });
+  const nextInstallEvent = createInstallEvent();
+  nextLoad.windowListeners.get('beforeinstallprompt')(nextInstallEvent.event);
+
+  assert.equal(nextInstallEvent.wasPrevented(), true);
+  assert.equal(nextLoad.banner.hidden, true);
+});
+
 test('persists dismissal and does not show the banner again', () => {
   const { banner, dismissListeners, storage, windowListeners } = loadInstallPrompt();
 
@@ -122,13 +141,29 @@ test('does not show the banner inside a Capacitor app', () => {
   assert.equal(banner.hidden, true);
 });
 
+test('does not intercept or show the install prompt on desktop browsers', () => {
+  const { banner, windowListeners } = loadInstallPrompt({ mobile: false });
+  let prevented = false;
+  const installEvent = {
+    preventDefault: () => {
+      prevented = true;
+    },
+  };
+
+  windowListeners.get('beforeinstallprompt')(installEvent);
+
+  assert.equal(prevented, false);
+  assert.equal(banner.hidden, true);
+});
+
 test('hides the banner after the app is installed', () => {
-  const { banner, windowListeners } = loadInstallPrompt();
+  const { banner, windowListeners, storage } = loadInstallPrompt();
 
   windowListeners.get('beforeinstallprompt')(createInstallEvent().event);
   assert.equal(banner.hidden, false);
 
   windowListeners.get('appinstalled')();
 
+  assert.equal(storage.get('borrowd-pwa-installed'), 'true');
   assert.equal(banner.hidden, true);
 });
