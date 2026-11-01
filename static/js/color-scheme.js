@@ -1,26 +1,17 @@
 (() => {
   const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-  const themeColor = document.querySelector('meta[name="theme-color"]');
-  const colorSchemeLinks = document.querySelectorAll(
-    "link[data-color-scheme-light][data-color-scheme-dark]",
-  );
-  const capitalize = (value) => value[0].toUpperCase() + value.slice(1);
-
-  const updateColorScheme = () => {
+  const manifestLink = document.querySelector("link[rel='manifest']");
+  const updateManifest = () => {
+    if (!manifestLink) return;
     const scheme = mediaQuery.matches ? "dark" : "light";
-    if (themeColor) {
-      themeColor.content = themeColor.dataset[`colorScheme${capitalize(scheme)}`];
-    }
-
-    colorSchemeLinks.forEach((link) => {
-      link.href = link.dataset[`colorScheme${capitalize(scheme)}`];
-    });
+    const dataKey = `colorScheme${scheme[0].toUpperCase()}${scheme.slice(1)}`;
+    manifestLink.href = manifestLink.dataset[dataKey];
   };
 
-  updateColorScheme();
+  updateManifest();
   if (typeof mediaQuery.addEventListener === "function") {
-    mediaQuery.addEventListener("change", updateColorScheme);
+    mediaQuery.addEventListener("change", updateManifest);
   } else {
-    mediaQuery.addListener(updateColorScheme);
+    mediaQuery.addListener(updateManifest);
   }
 })();

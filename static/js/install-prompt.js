@@ -5,7 +5,7 @@
   const installButton = banner.querySelector("[data-install-prompt-action]");
   const dismissButton = banner.querySelector("[data-install-prompt-dismiss]");
   const dismissalKey = "borrowd-pwa-install-prompt-dismissed";
-  const installedKey = "borrowd-pwa-installed";
+  const dismissalDuration = 7 * 24 * 60 * 60 * 1000;
   let deferredPrompt = null;
 
   const isInstalled = () =>
@@ -17,12 +17,21 @@
     banner.hidden = true;
   };
 
-  const markInstalled = () => {
+  const isDismissed = () => {
     try {
-      window.localStorage.setItem(installedKey, "true");
+      const dismissedAt = window.localStorage.getItem(dismissalKey);
+      if (dismissedAt === null) return false;
+
+      const elapsed = Date.now() - Number(dismissedAt);
+      if (Number.isFinite(elapsed) && elapsed >= 0 && elapsed < dismissalDuration) {
+        return true;
+      }
+
+      window.localStorage.removeItem(dismissalKey);
     } catch (error) {
-      console.error("Unable to save installed app status:", error);
+      console.error("Unable to read install prompt dismissal:", error);
     }
+    return false;
   };
 
   window.addEventListener("beforeinstallprompt", (event) => {
@@ -30,16 +39,7 @@
 
     event.preventDefault();
 
-    let dismissed = false;
-    let installed = false;
-    try {
-      dismissed = window.localStorage.getItem(dismissalKey) === "true";
-      installed = window.localStorage.getItem(installedKey) === "true";
-    } catch (error) {
-      console.error("Unable to read install prompt status:", error);
-    }
-
-    if (dismissed || installed || isInstalled()) return;
+    if (isDismissed() || isInstalled()) return;
 
     deferredPrompt = event;
     banner.hidden = false;
@@ -55,8 +55,7 @@
 
     try {
       await prompt.prompt();
-      const choice = await prompt.userChoice;
-      if (choice.outcome === "accepted") markInstalled();
+      await prompt.userChoice;
     } catch (error) {
       console.error("Unable to show the install prompt:", error);
     } finally {
@@ -69,7 +68,7 @@
     hideBanner();
 
     try {
-      window.localStorage.setItem(dismissalKey, "true");
+      window.localStorage.setItem(dismissalKey, String(Date.now()));
     } catch (error) {
       console.error("Unable to save install prompt dismissal:", error);
     }
@@ -77,7 +76,6 @@
 
   window.addEventListener("appinstalled", () => {
     deferredPrompt = null;
-    markInstalled();
     hideBanner();
   });
 })();

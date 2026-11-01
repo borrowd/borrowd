@@ -1,5 +1,4 @@
 {
-    "background_color": "#ffffff",
     "display": "standalone",
     "icons": [
         {
@@ -13,6 +12,12 @@
             "sizes": "512x512",
             "src": "icon-512.png",
             "type": "image/png"
+        },
+        {
+            "purpose": "any",
+            "sizes": "any",
+            "src": "icon.svg",
+            "type": "image/svg+xml"
         },
         {
             "purpose": "maskable",
@@ -29,6 +34,5 @@
     ],
     "name": "Borrow'd",
     "short_name": "Borrow'd",
-    "start_url": "/",
-    "theme_color": "#0b0907"
+    "start_url": "/"
 }

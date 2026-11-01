@@ -8,6 +8,7 @@ function loadInstallPrompt({
   capacitorApp = false,
   installed = false,
   mobile = true,
+  now = 1_000_000,
   storage = new Map(),
 } = {}) {
   const windowListeners = new Map();
@@ -33,6 +34,7 @@ function loadInstallPrompt({
     localStorage: {
       getItem: (key) => storage.get(key) ?? null,
       setItem: (key, value) => storage.set(key, value),
+      removeItem: (key) => storage.delete(key),
     },
   };
   const document = { querySelector: () => banner };
@@ -40,7 +42,12 @@ function loadInstallPrompt({
   const installPromptSource = fs.readFileSync(path.join(__dirname, 'install-prompt.js'), 'utf8');
 
   vm.runInNewContext(platformSource, { window });
-  vm.runInNewContext(installPromptSource, { document, window, console });
+  vm.runInNewContext(installPromptSource, {
+    Date: { now: () => now },
+    document,
+    window,
+    console,
+  });
   return { banner, installListeners, dismissListeners, windowListeners, storage };
 }
 
@@ -88,20 +95,20 @@ test('does not persist dismissal of the browser install dialog', async () => {
   assert.equal(banner.hidden, true);
 });
 
-test('remembers an accepted install across page loads', async () => {
+test('does not persist installed state after accepting the browser prompt', async () => {
   const firstLoad = loadInstallPrompt();
   const installEvent = createInstallEvent('accepted');
   firstLoad.windowListeners.get('beforeinstallprompt')(installEvent.event);
   await firstLoad.installListeners.get('click')();
 
-  assert.equal(firstLoad.storage.get('borrowd-pwa-installed'), 'true');
+  assert.equal(firstLoad.storage.has('borrowd-pwa-installed'), false);
 
   const nextLoad = loadInstallPrompt({ storage: firstLoad.storage });
   const nextInstallEvent = createInstallEvent();
   nextLoad.windowListeners.get('beforeinstallprompt')(nextInstallEvent.event);
 
   assert.equal(nextInstallEvent.wasPrevented(), true);
-  assert.equal(nextLoad.banner.hidden, true);
+  assert.equal(nextLoad.banner.hidden, false);
 });
 
 test('persists dismissal and does not show the banner again', () => {
@@ -110,7 +117,7 @@ test('persists dismissal and does not show the banner again', () => {
   windowListeners.get('beforeinstallprompt')(createInstallEvent().event);
   dismissListeners.get('click')();
 
-  assert.equal(storage.get('borrowd-pwa-install-prompt-dismissed'), 'true');
+  assert.equal(storage.get('borrowd-pwa-install-prompt-dismissed'), '1000000');
   assert.equal(banner.hidden, true);
 
   const nextLoad = loadInstallPrompt({ storage });
@@ -119,6 +126,19 @@ test('persists dismissal and does not show the banner again', () => {
 
   assert.equal(nextInstallEvent.wasPrevented(), true);
   assert.equal(nextLoad.banner.hidden, true);
+});
+
+test('shows the banner again after a dismissal expires', () => {
+  const firstLoad = loadInstallPrompt();
+  firstLoad.dismissListeners.get('click')();
+
+  const nowAfterExpiry = 1_000_000 + 8 * 24 * 60 * 60 * 1000;
+  const nextLoad = loadInstallPrompt({ now: nowAfterExpiry, storage: firstLoad.storage });
+  const installEvent = createInstallEvent();
+  nextLoad.windowListeners.get('beforeinstallprompt')(installEvent.event);
+
+  assert.equal(nextLoad.banner.hidden, false);
+  assert.equal(firstLoad.storage.has('borrowd-pwa-install-prompt-dismissed'), false);
 });
 
 test('does not show the banner when the app is already installed', () => {
@@ -164,6 +184,6 @@ test('hides the banner after the app is installed', () => {
 
   windowListeners.get('appinstalled')();
 
-  assert.equal(storage.get('borrowd-pwa-installed'), 'true');
+  assert.equal(storage.has('borrowd-pwa-installed'), false);
   assert.equal(banner.hidden, true);
 });

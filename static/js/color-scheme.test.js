@@ -6,29 +6,13 @@ const vm = require("node:vm");
 
 function loadColorScheme(initiallyDark = false) {
   let changeListener;
-  const themeColor = {
-    content: "",
+  const manifestLink = {
+    href: "",
     dataset: {
-      colorSchemeLight: "#ffffff",
-      colorSchemeDark: "#0b0907",
+      colorSchemeLight: "/manifest.json?color_scheme=light&v=5",
+      colorSchemeDark: "/manifest.json?color_scheme=dark&v=5",
     },
   };
-  const links = [
-    {
-      href: "",
-      dataset: {
-        colorSchemeLight: "/manifest.json?color_scheme=light&v=4",
-        colorSchemeDark: "/manifest.json?color_scheme=dark&v=4",
-      },
-    },
-    {
-      href: "",
-      dataset: {
-        colorSchemeLight: "/static/icon-192.png?v=4",
-        colorSchemeDark: "/static/icon-dark-192.png?v=4",
-      },
-    },
-  ];
   const mediaQuery = {
     matches: initiallyDark,
     addEventListener: (type, listener) => {
@@ -37,8 +21,7 @@ function loadColorScheme(initiallyDark = false) {
     },
   };
   const document = {
-    querySelector: () => themeColor,
-    querySelectorAll: () => links,
+    querySelector: () => manifestLink,
   };
   const window = { matchMedia: () => mediaQuery };
   const source = fs.readFileSync(path.join(__dirname, "color-scheme.js"), "utf8");
@@ -49,29 +32,22 @@ function loadColorScheme(initiallyDark = false) {
       mediaQuery.matches = dark;
       changeListener();
     },
-    links,
-    themeColor,
+    manifestLink,
   };
 }
 
-test("applies the current display color scheme to browser metadata", () => {
-  const { links, themeColor } = loadColorScheme(true);
+test("applies the current display color scheme to the manifest link", () => {
+  const { manifestLink } = loadColorScheme(true);
 
-  assert.equal(themeColor.content, "#0b0907");
-  assert.equal(links[0].href, "/manifest.json?color_scheme=dark&v=4");
-  assert.equal(links[1].href, "/static/icon-dark-192.png?v=4");
+  assert.equal(manifestLink.href, "/manifest.json?color_scheme=dark&v=5");
 });
 
-test("updates browser metadata when the display color scheme changes", () => {
-  const { changeTo, links, themeColor } = loadColorScheme(false);
+test("updates the manifest link when the display color scheme changes", () => {
+  const { changeTo, manifestLink } = loadColorScheme(false);
 
-  assert.equal(themeColor.content, "#ffffff");
-  assert.equal(links[0].href, "/manifest.json?color_scheme=light&v=4");
-  assert.equal(links[1].href, "/static/icon-192.png?v=4");
+  assert.equal(manifestLink.href, "/manifest.json?color_scheme=light&v=5");
 
   changeTo(true);
 
-  assert.equal(themeColor.content, "#0b0907");
-  assert.equal(links[0].href, "/manifest.json?color_scheme=dark&v=4");
-  assert.equal(links[1].href, "/static/icon-dark-192.png?v=4");
+  assert.equal(manifestLink.href, "/manifest.json?color_scheme=dark&v=5");
 });
