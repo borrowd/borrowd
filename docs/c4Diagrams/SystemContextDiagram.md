@@ -2,14 +2,10 @@
 flowchart TD
     user["User"]
     app["Borrow'd — Django web app"]
-    db["Database PostgreSQL in production, SQLite locally"]
-    s3["S3 Bucket Image storage"]
     ses["AWS SES Email service"]
-    sentry["Errors and diagnostics"]
+    sentry["Sentry Errors and diagnostics"]
 
-    user --> app
-    app -->|"Reads/writes user data"| db
-    app -->|"Displays and stores images"| s3
+    user -->|"Lists and borrows items via a web browser"| app
     app -->|"Notification emails"| ses
     app -->|"Reports errors"| sentry
 
@@ -19,5 +15,5 @@ flowchart TD
 
     class user userStyle
     class app appStyle
-    class db,s3,ses,sentry serviceStyle
+    class ses,sentry serviceStyle
 ```
