@@ -8,7 +8,8 @@
 --   requests_30d            requests in the 30 days before params.end_at
 --   handovers_30d           handovers in the 30 days before params.end_at
 --   sharing_members         distinct members party to a handover in the period
---   joins / departures      memberships started and ended in the period
+--   joins / departures      memberships started and ended in the period;
+--                           joins leave out the creator founding the group
 -- Requests and handovers count toward each group the item is shared with in
 -- which both parties were members at the time; see README.md "Group
 -- attribution".
@@ -31,14 +32,16 @@ excluded_users AS (
 ),
 
 groups AS (
-    SELECT g.id, g.name
+    SELECT g.id, g.name, g.created_by_id
     FROM borrowd_groups_borrowdgroup g
     WHERE g.deleted_at IS NULL
       AND (g.created_by_id IS NULL OR g.created_by_id NOT IN (SELECT id FROM excluded_users))
 ),
 
 -- Who was in which group, and when. Pending join requests aren't
--- memberships yet; departures cover members who have since left.
+-- memberships yet; departures cover members who have since left. Any other
+-- status counts as a member with no end date, including SUSPENDED, BANNED and
+-- ENDED; nothing sets those yet, so revisit this if that changes.
 member_spans AS (
     SELECT m.user_id, m.group_id, m.joined_at, NULL::timestamptz AS left_at
     FROM borrowd_groups_membership m
@@ -106,17 +109,17 @@ items_shared AS (
     JOIN borrowd_items_item i
       ON i.deleted_at IS NULL
      AND i.owner_id NOT IN (SELECT id FROM excluded_users)
+     -- Leaving a group doesn't clear an item's shares, so the owner must
+     -- still be an active member for the group to see either kind of share.
+     AND EXISTS (
+         SELECT 1 FROM active_memberships am
+         WHERE am.group_id = g.id AND am.user_id = i.owner_id
+     )
      AND (
-         EXISTS (
+         i.share_with_all_groups
+         OR EXISTS (
              SELECT 1 FROM borrowd_items_item_shared_with_groups s
              WHERE s.item_id = i.id AND s.borrowdgroup_id = g.id
-         )
-         OR (
-             i.share_with_all_groups
-             AND EXISTS (
-                 SELECT 1 FROM active_memberships am
-                 WHERE am.group_id = g.id AND am.user_id = i.owner_id
-             )
          )
      )
     GROUP BY g.id
@@ -145,11 +148,22 @@ sharing_members AS (
     GROUP BY sm.group_id
 ),
 
+-- The creator's first membership is the group being created, not a join.
 joins AS (
     SELECT ms.group_id, count(*) AS joins
-    FROM member_spans ms, params p
+    FROM member_spans ms
+    JOIN groups g ON g.id = ms.group_id
+    CROSS JOIN params p
     WHERE ms.joined_at >= p.start_at AND ms.joined_at < p.end_at
       AND ms.user_id NOT IN (SELECT id FROM excluded_users)
+      AND NOT (
+          g.created_by_id IS NOT NULL
+          AND ms.user_id = g.created_by_id
+          AND ms.joined_at = (
+              SELECT min(first_span.joined_at) FROM member_spans first_span
+              WHERE first_span.group_id = ms.group_id AND first_span.user_id = ms.user_id
+          )
+      )
     GROUP BY ms.group_id
 ),
 

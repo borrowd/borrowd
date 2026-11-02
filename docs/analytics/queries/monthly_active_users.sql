@@ -30,7 +30,8 @@ active AS (
     CROSS JOIN params p
     WHERE NOT u.exclude_from_metrics
       AND a.date >= (p.start_at AT TIME ZONE 'UTC')::date
-      AND a.date < (p.end_at AT TIME ZONE 'UTC')::date
+      -- Days that start before end_at, so the default now() includes today.
+      AND a.date < (p.end_at AT TIME ZONE 'UTC')
     GROUP BY 1
 )
 

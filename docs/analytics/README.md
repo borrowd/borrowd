@@ -136,6 +136,8 @@ every group that:
   shared with all groups), and
 - both parties were members of at that moment (current memberships plus
   `MembershipDeparture` records; pending join requests don't count).
+  Suspended, banned and ended memberships count as members with no end
+  date; nothing sets those statuses yet.
 
 One handover can count toward several groups; platform totals count it once.
 
@@ -154,8 +156,8 @@ Limitations:
 | Bucket | Statuses |
 |---|---|
 | Completed | 70 `RETURNED`, 95 `OWNERSHIP_TRANSFERRED` |
-| In progress, after handover | 50 `COLLECTED`, 55 `RETURN_REQUESTED`, 60 `RETURN_ASSERTED` |
-| Open, before handover | 10 `REQUESTED`, 15 `GIVEAWAY_REQUESTED`, 30 `ACCEPTED`, 40 `COLLECTION_ASSERTED`, 52 `GIVEAWAY_OFFERED` |
+| In progress, after handover | 50 `COLLECTED`, 52 `GIVEAWAY_OFFERED`, 55 `RETURN_REQUESTED`, 60 `RETURN_ASSERTED` |
+| Open, before handover | 10 `REQUESTED`, 15 `GIVEAWAY_REQUESTED`, 30 `ACCEPTED`, 40 `COLLECTION_ASSERTED` |
 | Rejected | 20 `REJECTED` |
 | Cancelled | 80 `CANCELLED` |
 | Disputed | 65 `DISPUTED` |
@@ -197,7 +199,7 @@ Limitations:
 |---|---|---|---|
 | [`item_request_rate.sql`](queries/item_request_rate.sql) | Item request rate | Share of non-deleted items that existed at the start of the 90 days before `as_of` and received at least 1 request during them | All time |
 | [`handovers_by_category.sql`](queries/handovers_by_category.sql) | Handovers by category | Handovers in the period per item category. Items with several categories count in each, so a final row gives the total with each handover counted once. | 2026-10-26 |
-| [`group_health.sql`](queries/group_health.sql) | Group health | One row per group: ID and name, creator user ID (`join_method = GROUP_CREATOR`), moderator user IDs, active members, items shared to the group, requests and handovers in the last 30 days, distinct sharing members, and joins and departures in the period. User IDs only, no names or emails. | 2026-10-26 |
+| [`group_health.sql`](queries/group_health.sql) | Group health | One row per group: ID and name, creator user ID (`join_method = GROUP_CREATOR`), moderator user IDs, active members, items shared to the group, requests and handovers in the last 30 days, distinct sharing members, and joins (not counting the creator founding the group) and departures in the period. User IDs only, no names or emails. | 2026-10-26 |
 
 ## Out of scope
 

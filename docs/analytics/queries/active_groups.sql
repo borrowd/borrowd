@@ -30,7 +30,9 @@ groups AS (
 ),
 
 -- Who was in which group, and when. Pending join requests aren't
--- memberships yet; departures cover members who have since left.
+-- memberships yet; departures cover members who have since left. Any other
+-- status counts as a member with no end date, including SUSPENDED, BANNED and
+-- ENDED; nothing sets those yet, so revisit this if that changes.
 member_spans AS (
     SELECT m.user_id, m.group_id, m.joined_at, NULL::timestamptz AS left_at
     FROM borrowd_groups_membership m

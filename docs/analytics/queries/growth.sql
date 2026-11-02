@@ -1,7 +1,9 @@
 -- Growth
 --
 -- New users, groups, items and requests per calendar month (UTC). Items
--- count when created, including items later deleted.
+-- count when created, including items later deleted. Excluded users' items
+-- are matched on created_by_id, the user who created them; the snapshot
+-- queries match on owner_id, which changes on a give-away.
 --
 -- Reads:          borrowd_users_borrowduser, borrowd_groups_borrowdgroup,
 --                 borrowd_items_item, borrowd_items_transaction

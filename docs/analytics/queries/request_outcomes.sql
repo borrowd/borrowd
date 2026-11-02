@@ -20,8 +20,8 @@ requests AS (
     SELECT
         CASE
             WHEN t.status IN (70, 95) THEN '1. Completed'  -- RETURNED, OWNERSHIP_TRANSFERRED
-            WHEN t.status IN (50, 55, 60) THEN '2. In progress, after handover'  -- COLLECTED, RETURN_REQUESTED, RETURN_ASSERTED
-            WHEN t.status IN (10, 15, 30, 40, 52) THEN '3. Open, before handover'  -- REQUESTED, GIVEAWAY_REQUESTED, ACCEPTED, COLLECTION_ASSERTED, GIVEAWAY_OFFERED
+            WHEN t.status IN (50, 52, 55, 60) THEN '2. In progress, after handover'  -- COLLECTED, GIVEAWAY_OFFERED, RETURN_REQUESTED, RETURN_ASSERTED
+            WHEN t.status IN (10, 15, 30, 40) THEN '3. Open, before handover'  -- REQUESTED, GIVEAWAY_REQUESTED, ACCEPTED, COLLECTION_ASSERTED
             WHEN t.status = 20 THEN '4. Rejected'  -- REJECTED
             WHEN t.status = 80 THEN '5. Cancelled'  -- CANCELLED
             WHEN t.status = 65 THEN '6. Disputed'  -- DISPUTED

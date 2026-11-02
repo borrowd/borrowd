@@ -36,7 +36,9 @@ new_users AS (
 ),
 
 -- Every group membership a user has had, including ones since ended.
--- Pending join requests aren't memberships yet.
+-- Pending join requests aren't memberships yet. Any other status counts,
+-- including SUSPENDED, BANNED and ENDED; nothing sets those yet, so revisit
+-- this if that changes.
 member_spans AS (
     SELECT m.user_id, m.joined_at
     FROM borrowd_groups_membership m

@@ -65,4 +65,4 @@ SELECT
     round(percentile_cont(0.5) WITHIN GROUP (ORDER BY hours)::numeric, 1) AS median_hours
 FROM response_hours
 GROUP BY GROUPING SETS ((request_type), ())
-ORDER BY request_type NULLS LAST;
+ORDER BY GROUPING(request_type), request_type;  -- the "All" row last
