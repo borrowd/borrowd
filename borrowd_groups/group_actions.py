@@ -38,19 +38,15 @@ def pending_memberships_moderated_by(user: BorrowdUser) -> QuerySet[Membership]:
     )
 
 
-def group_action_count(
-    user: BorrowdUser, *, groups_without_moderator: int | None = None
-) -> int:
+def group_action_count(user: BorrowdUser) -> int:
     """Group actions waiting on the user, for the Groups menu badge.
 
     Pending join requests the user can approve or deny, plus each of the
     user's groups that needs a moderator. Unlike the other menu badges this
     does not clear when the user opens Groups; each action counts until it
     is resolved.
-
-    Pass `groups_without_moderator` when the caller has already counted
-    `memberships_in_groups_without_moderator(user)`, to skip that query.
     """
-    if groups_without_moderator is None:
-        groups_without_moderator = memberships_in_groups_without_moderator(user).count()
-    return pending_memberships_moderated_by(user).count() + groups_without_moderator
+    return (
+        pending_memberships_moderated_by(user).count()
+        + memberships_in_groups_without_moderator(user).count()
+    )

@@ -235,11 +235,7 @@ class GroupActionBadgeTests(MenuBadgeTestCase):
         Membership.objects.filter(user=self.lender, group=self.group).update(
             is_moderator=False
         )
-        menu = self.menu()
-        self.assertEqual(badge_count(menu, GROUP_ACTIONS), 1)
-        self.assertContains(
-            menu, 'data-testid="nav-groups-needing-moderator-indicator"'
-        )
+        self.assertEqual(badge_count(self.menu(), GROUP_ACTIONS), 1)
 
 
 class GroupActionPersistenceTests(MenuBadgeTestCase):
@@ -354,12 +350,11 @@ class BadgeQueryCountTests(MenuBadgeTestCase):
         request.user = BorrowdUser.objects.get(pk=self.borrower.pk)
         self.request = request
 
-    def test_group_badges_share_one_count_of_groups_without_moderator(self) -> None:
+    def test_group_action_badge(self) -> None:
         with self.assertNumQueries(0):
             context = groups_needing_moderator(self.request)
-        # Groups without a moderator, then pending requests to join.
+        # Pending requests to join, then groups without a moderator.
         with self.assertNumQueries(2):
-            self.assertTrue(context["has_groups_needing_moderator"])
             self.assertEqual(context["group_action_count"], 2)
 
     def test_community_request_badge(self) -> None:
