@@ -3,7 +3,7 @@ from urllib.parse import urlparse
 from django.test import TestCase
 from django.urls import resolve, reverse
 
-from borrowd_groups.models import BorrowdGroup
+from borrowd_groups.models import BorrowdGroup, MembershipStatus
 from borrowd_groups.views import InviteSigner
 from borrowd_users.models import BorrowdUser
 
@@ -97,3 +97,53 @@ class GroupPosterViewTests(TestCase):
 
         self.assertContains(response, f'href="{self.poster_url}"')
         self.assertContains(response, "Create sharing poster")
+
+    def test_member_who_is_not_active_is_refused(self) -> None:
+        membership = self.group.add_user(self.outsider)
+        self.client.force_login(self.outsider)
+
+        for status in (
+            MembershipStatus.PENDING,
+            MembershipStatus.SUSPENDED,
+            MembershipStatus.BANNED,
+            MembershipStatus.ENDED,
+        ):
+            with self.subTest(status=status):
+                # save() rather than update(), so permissions sync.
+                membership.status = status
+                membership.save()
+                self.assertEqual(self.client.get(self.poster_url).status_code, 404)
+
+    def test_group_name_is_escaped(self) -> None:
+        self.group.name = 'Café "Ünity" <Tools> & Co'
+        self.group.save()
+        self.client.force_login(self.owner)
+
+        response = self.client.get(self.poster_url)
+
+        escaped = "Café &quot;Ünity&quot; &lt;Tools&gt; &amp; Co"
+        self.assertContains(response, f"{escaped} poster")  # <title>
+        self.assertContains(response, escaped, count=2)  # <title> and <h1>
+        self.assertNotContains(response, "<Tools>")
+        join_url = response.context["join_url"]
+        self.assertContains(response, f'data-qr-svg-value="{join_url}"')
+
+    def test_qr_box_has_fallback_until_the_code_renders(self) -> None:
+        self.client.force_login(self.owner)
+
+        response = self.client.get(self.poster_url)
+
+        self.assertContains(response, "QR code unavailable.")
+
+    def test_long_names_get_a_smaller_wrapping_size(self) -> None:
+        self.client.force_login(self.owner)
+        cases = {
+            "Short Name": 'class="poster-group-name"',
+            "A" * 25: 'class="poster-group-name is-long"',
+            "A" * 41: 'class="poster-group-name is-very-long"',
+        }
+        for name, expected in cases.items():
+            with self.subTest(length=len(name)):
+                self.group.name = name
+                self.group.save()
+                self.assertContains(self.client.get(self.poster_url), expected)

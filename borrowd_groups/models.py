@@ -1,3 +1,4 @@
+import secrets
 from typing import Any  # Unfortunately needed for more mypy shenanigans
 
 from django.contrib.auth.models import Group
@@ -21,6 +22,7 @@ from django.db.models import (
     UniqueConstraint,
 )
 from django.urls import reverse
+from django.utils import timezone
 from imagekit.models import ProcessedImageField
 from imagekit.processors import ResizeToFit
 
@@ -28,6 +30,11 @@ from borrowd.validators import ALLOWED_IMAGE_EXTENSIONS, validate_image_size
 from borrowd_groups.exceptions import ExistingMemberException
 from borrowd_permissions.models import BorrowdGroupOLP
 from borrowd_users.models import BorrowdUser
+
+
+def new_invite_code() -> str:
+    """A random code that, with the group's ID, makes up its invite links."""
+    return secrets.token_urlsafe(9)
 
 
 class BorrowdGroupManager(Manager["BorrowdGroup"]):
@@ -86,6 +93,21 @@ class BorrowdGroup(Model):
     membership_requires_approval = BooleanField(
         default=True,
         help_text="New members require Moderator approval to join the group",
+    )
+    members_can_share_invite_link = BooleanField(
+        default=True,
+        help_text="Group members can share invitation links",
+    )
+    invite_code = CharField(
+        max_length=16,
+        default=new_invite_code,
+        help_text="Signed into the group's invite links. Resetting it invalidates every existing link and printed poster.",
+    )
+    invite_code_reset_at = DateTimeField(
+        null=True,
+        blank=True,
+        default=None,
+        help_text="When a moderator last reset the invite link. NULL means never.",
     )
     users = ManyToManyField(
         BorrowdUser,
@@ -149,6 +171,36 @@ class BorrowdGroup(Model):
 
     def get_absolute_url(self) -> str:
         return reverse("borrowd_groups:group-detail", args=[self.pk])
+
+    def can_share_invite_link(self, user: BorrowdUser) -> bool:
+        """Whether `user` may see the invite link and poster.
+
+        Moderators always can. Other active members can unless the group
+        requires approval to join and its moderators have turned off
+        `members_can_share_invite_link`; a group anyone can join is open
+        to invites from anyone in it.
+        """
+        if user.has_perm(BorrowdGroupOLP.EDIT, self):
+            return True
+        if not user.has_perm(BorrowdGroupOLP.VIEW, self):
+            return False
+        return (
+            not self.membership_requires_approval or self.members_can_share_invite_link
+        )
+
+    def reset_invite_code(self, by: BorrowdUser) -> None:
+        """Replace the invite code, invalidating every existing invite link."""
+        self.invite_code = new_invite_code()
+        self.invite_code_reset_at = timezone.now()
+        self.updated_by = by
+        self.save(
+            update_fields=[
+                "invite_code",
+                "invite_code_reset_at",
+                "updated_by",
+                "updated_at",
+            ]
+        )
 
     @property
     def needs_moderator(self) -> bool:

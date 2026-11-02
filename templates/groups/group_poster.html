@@ -33,8 +33,11 @@
 
             .poster-toolbar {
                 display: flex;
-                justify-content: center;
+                flex-direction: column;
+                align-items: center;
+                gap: 8px;
                 margin-bottom: 24px;
+                text-align: center;
             }
 
             .poster {
@@ -73,14 +76,28 @@
                 text-transform: uppercase;
             }
 
-            /* Always one line; fitGroupName() below shrinks names too wide for 60pt. */
+            /* Wraps by default, sized by name length, so the name stays whole
+               if the script doesn't run. fitGroupName() below then fits it to
+               one line, unless that would make it too small to read. */
             .poster-group-name {
                 margin-top: 0.3in;
                 color: var(--poster-indigo);
                 font-family: var(--font-roboto-slab);
                 font-weight: 700;
                 font-size: 60pt;
-                line-height: 1;
+                line-height: 1.05;
+                overflow-wrap: anywhere;
+            }
+
+            .poster-group-name.is-long {
+                font-size: 40pt;
+            }
+
+            .poster-group-name.is-very-long {
+                font-size: 32pt;
+            }
+
+            .poster-group-name.is-one-line {
                 white-space: nowrap;
             }
 
@@ -166,6 +183,17 @@
                 height: 100%;
             }
 
+            /* Shown until the QR code renders, and in its place if it can't. */
+            .poster-qr-fallback {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                height: 100%;
+                color: #000000;
+                font-size: 12pt;
+                line-height: 1.35;
+            }
+
             .poster-card-heading {
                 margin-top: 0.18in;
                 font-size: 22pt;
@@ -229,6 +257,9 @@
                 <button type="button" class="btn btn-primary" onclick="window.print()">
                     {% translate "Print" %}
                 </button>
+                <p class="text-sm">
+                    {% translate "The QR code below will stop working if a group moderator resets the group's invite link." %}
+                </p>
             </div>
             <main class="poster">
                 <img class="poster-wordmark"
@@ -237,7 +268,7 @@
                 <p class="poster-label">
                     {% translate "Join our sharing group" %}
                 </p>
-                <h1 class="poster-group-name">
+                <h1 class="poster-group-name{% if object.name|length > 40 %} is-very-long{% elif object.name|length > 24 %} is-long{% endif %}">
                     {{ object.name }}
                 </h1>
                 <h2 class="poster-subheading">
@@ -275,6 +306,9 @@
                     </div>
                     <div class="poster-card">
                         <div class="poster-qr" data-qr-svg-value="{{ join_url }}">
+                            <p class="poster-qr-fallback">
+                                {% translate "QR code unavailable. Reload this page before printing." %}
+                            </p>
                         </div>
                         <p class="poster-card-heading">
                             {% translate "Scan to join" %}
@@ -298,26 +332,42 @@
             </main>
         </div>
         <script>
+        // Below this a one-line name is hard to read across a room, so the
+        // name wraps at its CSS size instead.
+        const MIN_ONE_LINE_PX = 32;
+
         // Shrink the group name until it fits the content width on one line.
         // Text width scales with font size, so scale once, then step down to
         // absorb rounding.
         function fitGroupName(name) {
+            name.style.fontSize = '';
+            name.classList.remove('is-long', 'is-very-long');
+            name.classList.add('is-one-line');
             let size = parseFloat(getComputedStyle(name).fontSize);
             if (name.scrollWidth > name.clientWidth) {
                 size = Math.floor(size * name.clientWidth / name.scrollWidth);
                 name.style.fontSize = `${size}px`;
             }
-            while (name.scrollWidth > name.clientWidth && size > 6) {
+            while (name.scrollWidth > name.clientWidth && size > MIN_ONE_LINE_PX) {
                 size -= 1;
                 name.style.fontSize = `${size}px`;
+            }
+            if (name.scrollWidth > name.clientWidth) {
+                name.style.fontSize = '';
+                name.classList.remove('is-one-line');
+                name.classList.add(...name.dataset.wrapClasses.split(' ').filter(Boolean));
             }
         }
 
         // Measure only once the name's own font has loaded; the fallback font
-        // has different widths.
+        // has different widths. Print layout can differ from the screen, so
+        // fit again just before printing.
         const groupName = document.querySelector('.poster-group-name');
+        groupName.dataset.wrapClasses = [...groupName.classList]
+            .filter((c) => c.startsWith('is-')).join(' ');
         document.fonts.load(getComputedStyle(groupName).font)
             .finally(() => fitGroupName(groupName));
+        window.addEventListener('beforeprint', () => fitGroupName(groupName));
         </script>
     </body>
 </html>

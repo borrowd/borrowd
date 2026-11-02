@@ -14,6 +14,7 @@ from .views import (
     GroupUpdateView,
     LeaveGroupView,
     RemoveMemberView,
+    ResetInviteLinkView,
 )
 
 app_name = "borrowd_groups"
@@ -24,6 +25,11 @@ urlpatterns = [
     path("<int:pk>/", GroupDetailView.as_view(), name="group-detail"),
     path("<int:pk>/invite/", GroupInviteView.as_view(), name="group-invite"),
     path("<int:pk>/poster/", GroupPosterView.as_view(), name="group-poster"),
+    path(
+        "<int:pk>/reset-invite-link/",
+        ResetInviteLinkView.as_view(),
+        name="reset-invite-link",
+    ),
     path("<int:pk>/edit/", GroupUpdateView.as_view(), name="group-edit"),
     path(
         "<int:pk>/remove-member/<int:user_id>/",

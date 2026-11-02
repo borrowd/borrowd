@@ -112,4 +112,22 @@ class GroupCreateForm(BorrowdGroupForm):
 
 
 class GroupUpdateForm(BorrowdGroupForm):
-    pass
+    class Meta(BorrowdGroupForm.Meta):
+        # Only applies when the group requires approval to join; the edit
+        # page shows it only while that box is ticked.
+        fields = [*BorrowdGroupForm.Meta.fields, "members_can_share_invite_link"]
+        labels = {**BorrowdGroupForm.Meta.labels, "members_can_share_invite_link": ""}
+        widgets = {
+            **BorrowdGroupForm.Meta.widgets,
+            "members_can_share_invite_link": forms.CheckboxInput(
+                attrs={
+                    "class": "h-5 w-5 rounded-md border-gray-300 text-black focus:ring-0",
+                }
+            ),
+        }
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.fields["membership_requires_approval"].widget.attrs["x-model"] = (
+            "requiresApproval"
+        )

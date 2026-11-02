@@ -27,7 +27,7 @@ class AddItemNudgeOnInviteJoinTests(TestCase):
         self.category = ItemCategory.objects.create(name="Tools")
 
     def _join_url_for(self, group: BorrowdGroup) -> str:
-        encoded = InviteSigner.sign_invite(group.pk, group.name)
+        encoded = InviteSigner.sign_invite(group.pk, group.invite_code)
         return reverse("borrowd_groups:group-join", kwargs={"encoded": encoded})
 
     def _create_group(self, *, requires_approval: bool) -> BorrowdGroup:
