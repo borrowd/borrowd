@@ -61,7 +61,9 @@ class CommunityRequestQuerySet(QuerySet["CommunityRequest"]):
 
         Visible requests from others created since the user last opened
         Community requests. Opening the page clears them even while they
-        stay open.
+        stay open. The cutoff is the request's creation time, so a request
+        created before `seen_at` that only becomes visible later (e.g. the
+        user joins its group) does not count.
         """
         requests = self.visible_to(user).exclude(requester=user)
         seen_at = user.profile.community_requests_seen_at

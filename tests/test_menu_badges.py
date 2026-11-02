@@ -10,16 +10,20 @@ import re
 
 from django.http import HttpResponse
 from django.http.response import HttpResponseBase
-from django.test import override_settings
+from django.test import RequestFactory, override_settings
 from django.urls import reverse
 
+from borrowd_community_requests.context_processors import community_request_count
 from borrowd_community_requests.models import CommunityRequest, CommunityRequestStatus
+from borrowd_groups.context_processors import groups_needing_moderator
 from borrowd_groups.models import Membership, MembershipStatus
 from borrowd_items.models import ItemCategory
+from borrowd_messaging.context_processors import messaging_enabled
 from borrowd_messaging.models import ArchiveReason, Message
 from borrowd_messaging.read_state import unread_threads_for
 from borrowd_messaging.services import MessagingService
 from borrowd_messaging.tests.base import MessagingTestCase
+from borrowd_users.models import BorrowdUser
 
 MESSAGES = "nav-messages-unread-count"
 COMMUNITY_REQUESTS = "nav-community-request-count-indicator"
@@ -329,3 +333,52 @@ class NavbarDotTests(MenuBadgeTestCase):
         response = self.client.get(reverse("chat-thread-unread-badge"))
         self.assertEqual(badge_count(response, MESSAGES), 0)
         self.assertContains(response, MENU_DOT)
+
+
+class BadgeQueryCountTests(MenuBadgeTestCase):
+    """The badges run on every page and every badge refresh, so their query
+    counts are pinned. Every badge has something to count, so none of them
+    short-circuits."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        self.receive_message()
+        self.receive_community_request()
+        self.make_pending_request_to_join()
+        self.make_group("Unmoderated").add_user(self.borrower)
+        Membership.objects.filter(group__name="Unmoderated", user=self.lender).update(
+            is_moderator=False
+        )
+        request = RequestFactory().get("/")
+        # Fetched fresh so no profile is cached on the user.
+        request.user = BorrowdUser.objects.get(pk=self.borrower.pk)
+        self.request = request
+
+    def test_group_badges_share_one_count_of_groups_without_moderator(self) -> None:
+        with self.assertNumQueries(0):
+            context = groups_needing_moderator(self.request)
+        # Groups without a moderator, then pending requests to join.
+        with self.assertNumQueries(2):
+            self.assertTrue(context["has_groups_needing_moderator"])
+            self.assertEqual(context["group_action_count"], 2)
+
+    def test_community_request_badge(self) -> None:
+        # The viewer's profile, then the count.
+        with self.assertNumQueries(2):
+            context = community_request_count(self.request)
+        self.assertEqual(context["community_request_count"], 1)
+
+    def test_messages_badge(self) -> None:
+        with self.assertNumQueries(0):
+            context = messaging_enabled(self.request)
+        # The viewer's profile, then the count.
+        with self.assertNumQueries(2):
+            self.assertEqual(context["unread_conversation_count"], 1)
+            self.assertEqual(str(context["unread_conversation_label"]), "conversation")
+
+    def test_badge_refresh(self) -> None:
+        # Session, user, profile, then one count each for messages, community
+        # requests, groups without a moderator and pending requests to join.
+        with self.assertNumQueries(7):
+            response = self.client.get(reverse("chat-thread-unread-badge"))
+        self.assertEqual(badge_count(response, MESSAGES), 1)

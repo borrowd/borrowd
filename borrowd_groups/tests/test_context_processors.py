@@ -35,8 +35,6 @@ class GroupsNeedingModeratorContextProcessorTests(TestCase):
             side_effect=AssertionError("context processor should use an EXISTS query"),
         ):
             context = groups_needing_moderator(request)
-
-        self.assertEqual(
-            context,
-            {"has_groups_needing_moderator": True, "group_action_count": 1},
-        )
+            # The values are lazy, so they are read while the patch is active.
+            self.assertTrue(context["has_groups_needing_moderator"])
+            self.assertEqual(context["group_action_count"], 1)
