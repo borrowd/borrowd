@@ -6,18 +6,12 @@ from .views import (
     CommunityRequestDismissView,
     CommunityRequestListView,
     CommunityRequestMarkFulfilledView,
-    CommunityRequestSuccessView,
 )
 
 urlpatterns = [
     path("", CommunityRequestListView.as_view(), name="community-request-list"),
     path(
         "create/", CommunityRequestCreateView.as_view(), name="community-request-create"
-    ),
-    path(
-        "<int:pk>/success/",
-        CommunityRequestSuccessView.as_view(),
-        name="community-request-success",
     ),
     path(
         "<int:pk>/dismiss/",

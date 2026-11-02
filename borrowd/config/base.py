@@ -88,8 +88,8 @@ MIDDLEWARE = [
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
-    "borrowd_beta.middleware.BetaAccessMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "borrowd_beta.middleware.BetaAccessMiddleware",
     "borrowd_users.middleware.RecordUserActivityMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
@@ -271,7 +271,12 @@ ITEMS_FLOW_PARITY_CHECK = env.bool("ITEMS_FLOW_PARITY_CHECK", default=True)
 
 # borrowd_beta settings
 BORROWD_BETA_ENABLED = env.bool("BORROWD_BETA_ENABLED", default=False)
-BETA_SIGNUP_REDIRECT_PATH = "/"
+# Where the beta gate sends ungated requests. The middleware always exempts
+# this exact path from the cookie check (BetaAccessMiddleware.is_redirect_required),
+# so the loop risk is one hop later: the target must render a page itself. If
+# it redirects onward to a gated path (as "/" does, via index -> account_login),
+# the gate bounces that redirect back here and the browser loops.
+BETA_SIGNUP_REDIRECT_PATH = "/accounts/login/"
 BETA_CHECK_EXCLUDE_PATHS = [
     r"^/favicon.ico$",
     r"^/admin/.*",

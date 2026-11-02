@@ -6,39 +6,54 @@
 creating and editing. Checking `view.object.pk` is strangely the best way to
 check if we are creating or editing. {% endcomment %}
 {% block head_title %}
-    {%
-    if not view.object.pk %}Create
-{% else %}
-    Edit
-{% endif %}
-group
+    {% if not view.object.pk %}
+        Create group
+    {% else %}
+        Edit group
+    {% endif %}
 {% endblock %}
-{%
-block groups_content %}
-{% load static %}
 
-<c-box>
-    <div class="relative">
+{% block groups_content_frame %}
+    max-w-2xl mx-auto self-start
+{% endblock %}
 
-        {% if not view.object.pk %}
-            {% include "components/page_header.html" with title="Create a group" %}
+{% block groups_content %}
+    {% load static %}
 
-        {% else %}
-            {% include "components/page_header.html" with title="Edit group" %}
+    {% if not view.object.pk %}
+        <c-page-header title="Create group" />
+    {% else %}
+        <c-page-header title="Edit group" />
+    {% endif %}
 
-        {% endif %}
+    <c-form.frame enctype="multipart/form-data">
+        {# Its own scope, since the frame's <form> already has x-data. `contents` keeps the frame's gap between fields. #}
+        <div class="contents"
+             x-data="{ requiresApproval: {{ form.membership_requires_approval.value|yesno:'true,false' }} }">
+            {% for field in form %}
+                {% if field.name == "name" %}
+                    <c-form.field type="text"
+                                  name="{{ field.html_name }}"
+                                  id="{{ field.auto_id }}"
+                                  label="{{ field.label }}"
+                                  value="{{ field.value|default:'' }}"
+                                  placeholder="{{ field.field.widget.attrs.placeholder }}"
+                                  max_length="50"
+                                  errors="{{ field.errors }}" />
 
-    </div>
-    <form method="post"
-          enctype="multipart/form-data"
-          class="flex flex-col space-y-2"
-          onsubmit="this.querySelector('button[type=submit]').disabled = true"
-          x-data="{ requiresApproval: {{ form.membership_requires_approval.value|yesno:'true,false' }} }">
-        {% csrf_token %}
-        {% for field in form %}
-            <div {% if field.name == "members_can_share_invite_link" %}class="ml-8" x-show="requiresApproval"{% endif %}>
-                {% if field.field.widget.input_type == "checkbox" %}
-                    <div class="mt-2 flex mb-3 items-center gap-3 font-sans font-normal leading-snug text-sm text-black/60">
+                {% elif field.name == "description" %}
+                    <c-form.textarea name="{{ field.html_name }}"
+                                     id="{{ field.auto_id }}"
+                                     label="{{ field.label }}"
+                                     value="{{ field.value|default:'' }}"
+                                     placeholder="{{ field.field.widget.attrs.placeholder }}"
+                                     rows="4"
+                                     max_length="500"
+                                     errors="{{ field.errors }}" />
+
+                {% elif field.field.widget.input_type == "checkbox" %}
+                    <div class="flex items-center gap-3 font-sans font-normal leading-snug text-sm text-black/60{% if field.name == "members_can_share_invite_link" %} ml-8{% endif %}"
+                         {% if field.name == "members_can_share_invite_link" %}x-show="requiresApproval"{% endif %}>
                         {{ field.as_widget }}
                         <div>
                             {% if field.help_text %}
@@ -50,133 +65,124 @@ block groups_content %}
                     </div>
 
                 {% else %}
-                    <div class="flex items-center gap-1">
-                        <label for="{{ field.id_for_label }}"
-                               class="font-sans font-normal leading-[1.8] text-black/60">
+                    <fieldset class="fieldset w-full gap-0">
+                        <legend class="fieldset-legend text-xs font-normal text-base-content/60">
                             {{ field.label }}
-                        </label>
-                    </div>
+                        </legend>
 
-                    {% if field.help_text %}
-                        <p class="help italic" id="{{ field.auto_id }}_helptext">
-                            {{ field.help_text|safe }}
-                        </p>
-                    {% endif %}
+                        {% if field.help_text %}
+                            <p class="help italic" id="{{ field.auto_id }}_helptext">
+                                {{ field.help_text|safe }}
+                            </p>
+                        {% endif %}
 
-                    {% if field.name == "banner" %}
-                        <div class="border border-base-100 rounded-lg px-2.5 py-4 flex flex-col gap-4 items-center mt-1.5" x-data="{ pendingPreview: null, pendingFile: null, showExisting:
-                            {% if view.object.pk and view.object.banner %}
-                                true
-                            {% else %}
-                                false
-                            {% endif %}
-                            , async handleFileSelect(event) { const file = event.target.files[0]; if (!file) return; event.target.value = ''; const resized = await window.resizeImageFile(file, 1600, 400); if (this.pendingPreview) URL.revokeObjectURL(this.pendingPreview); this.pendingFile = resized; this.pendingPreview = URL.createObjectURL(resized); this.syncSubmitInput(); }, removePending() { URL.revokeObjectURL(this.pendingPreview); this.pendingPreview = null; this.pendingFile = null; this.syncSubmitInput(); }, removeExisting() { this.showExisting = false; document.getElementById('banner-clear-checkbox').checked = true; }, syncSubmitInput() { const dt = new DataTransfer(); if (this.pendingFile) dt.items.add(this.pendingFile); document.getElementById('banner-submit-input').files = dt.files; } }">
-
-                            {# Preview grid: existing saved banner + pending preview #}
-                            <div class="flex flex-wrap gap-6 justify-center w-full"
-                                 x-show="showExisting || pendingPreview">
-
-                                {# Existing saved banner #}
+                        {% if field.name == "banner" %}
+                            <div class="border border-base-100 rounded-lg px-2.5 py-4 flex flex-col gap-4 items-center mt-1.5" x-data="{ pendingPreview: null, pendingFile: null, showExisting:
                                 {% if view.object.pk and view.object.banner %}
-                                    <div class="border border-base-100 rounded flex flex-col items-center pb-2 overflow-hidden w-full max-w-[96px]"
-                                         x-show="showExisting">
-                                        <div class="w-full aspect-square overflow-hidden rounded-t">
-                                            <img src="{{ view.object.banner.url }}"
-                                                 alt="Current picture"
-                                                 class="w-full h-full object-cover" />
-                                        </div>
-                                        <button type="button"
-                                                class="btn btn-xs gap-1 mt-2 text-[11px] font-semibold"
-                                                @click="removeExisting()">
-                                            {% heroicon_mini "trash" class="size-3" %}
-                                            Remove
-                                        </button>
-                                    </div>
+                                    true
+                                {% else %}
+                                    false
                                 {% endif %}
+                                , async handleFileSelect(event) { const file = event.target.files[0]; if (!file) return; event.target.value = ''; const resized = await window.resizeImageFile(file, 1600, 400); if (this.pendingPreview) URL.revokeObjectURL(this.pendingPreview); this.pendingFile = resized; this.pendingPreview = URL.createObjectURL(resized); this.syncSubmitInput(); }, removePending() { URL.revokeObjectURL(this.pendingPreview); this.pendingPreview = null; this.pendingFile = null; this.syncSubmitInput(); }, removeExisting() { this.showExisting = false; document.getElementById('banner-clear-checkbox').checked = true; }, syncSubmitInput() { const dt = new DataTransfer(); if (this.pendingFile) dt.items.add(this.pendingFile); document.getElementById('banner-submit-input').files = dt.files; } }">
 
-                                {# Pending preview — shown immediately, saved on form submit #}
-                                <template x-if="pendingPreview">
-                                    <div class="border border-dashed border-base-content/30 rounded flex flex-col items-center pb-2 overflow-hidden w-full max-w-[96px] relative">
-                                        <div class="w-full aspect-square overflow-hidden rounded-t">
-                                            <img :src="pendingPreview"
-                                                 alt="Pending upload"
-                                                 class="w-full h-full object-cover" />
+                                {# Preview grid: existing saved banner + pending preview #}
+                                <div class="flex flex-wrap gap-6 justify-center w-full"
+                                     x-show="showExisting || pendingPreview">
+
+                                    {# Existing saved banner #}
+                                    {% if view.object.pk and view.object.banner %}
+                                        <div class="border border-base-100 rounded flex flex-col items-center pb-2 overflow-hidden w-full max-w-[96px]"
+                                             x-show="showExisting">
+                                            <div class="w-full aspect-square overflow-hidden rounded-t">
+                                                <img src="{{ view.object.banner.url }}"
+                                                     alt="Current picture"
+                                                     class="w-full h-full object-cover" />
+                                            </div>
+                                            <button type="button"
+                                                    class="btn btn-xs gap-1 mt-2 text-[11px] font-semibold"
+                                                    @click="removeExisting()">
+                                                {% heroicon_mini "trash" class="size-3" %}
+                                                Remove
+                                            </button>
                                         </div>
-                                        <span class="absolute top-1 right-1 bg-base-content/70 text-base-100 text-[9px] font-semibold px-1 py-px rounded leading-none">New</span>
-                                        <button type="button"
-                                                class="btn btn-xs gap-1 mt-2 text-[11px] font-semibold"
-                                                @click="removePending()">
-                                            {% heroicon_mini "trash" class="size-3" %}
-                                            Remove
-                                        </button>
-                                    </div>
-                                </template>
-                            </div>
+                                    {% endif %}
 
-                            {# File picker — hidden once a pending file is selected (only one banner allowed) #}
-                            <fieldset class="fieldset w-full gap-0 px-2.5" x-show="!pendingPreview">
-                                <legend class="fieldset-legend text-xs font-semibold text-base-content/60">
-                                    Upload picture
-                                </legend>
-                                <label class="border border-base-content/20 rounded flex items-center w-full cursor-pointer bg-primary-content hover:bg-base-200/40 transition-colors h-10 overflow-hidden">
-                                    <span class="inline-flex items-center justify-center self-stretch bg-base-200 font-semibold text-sm px-4 shrink-0">Choose file</span>
-                                    <span class="text-base-content/50 text-sm truncate px-4">No file chosen</span>
-                                    {# Picker input — no name, so it is never submitted. Cleared after each selection. #}
-                                    <input type="file"
-                                           accept="image/*"
-                                           class="hidden"
-                                           @change="handleFileSelect($event)">
-                                </label>
-                                {% if form.banner.errors %}
-                                    <div class="label pt-1">
-                                        <span class="label-text-alt text-error">{{ form.banner.errors }}</span>
-                                    </div>
-                                {% endif %}
-                                <div class="label pt-1">
-                                    <span class="label-text-alt text-base-content/60">Max size 10MB</span>
+                                    {# Pending preview — shown immediately, saved on form submit #}
+                                    <template x-if="pendingPreview">
+                                        <div class="border border-dashed border-base-content/30 rounded flex flex-col items-center pb-2 overflow-hidden w-full max-w-[96px] relative">
+                                            <div class="w-full aspect-square overflow-hidden rounded-t">
+                                                <img :src="pendingPreview"
+                                                     alt="Pending upload"
+                                                     class="w-full h-full object-cover" />
+                                            </div>
+                                            <span class="absolute top-1 right-1 bg-base-content/70 text-base-100 text-[9px] font-semibold px-1 py-px rounded leading-none">New</span>
+                                            <button type="button"
+                                                    class="btn btn-xs gap-1 mt-2 text-[11px] font-semibold"
+                                                    @click="removePending()">
+                                                {% heroicon_mini "trash" class="size-3" %}
+                                                Remove
+                                            </button>
+                                        </div>
+                                    </template>
                                 </div>
-                            </fieldset>
 
-                            {# Submission input — kept in sync by DataTransfer in syncSubmitInput() #}
-                            <input type="file"
-                                   id="banner-submit-input"
-                                   name="{{ field.html_name }}"
-                                   class="hidden">
-                            <input type="checkbox"
-                                   name="{{ field.html_name }}-clear"
-                                   id="banner-clear-checkbox"
-                                   class="hidden">
-                        </div>
-                    {% else %}
-                        <div class="relative border-2 border-gray-200 w-full mt-1.5 rounded-md">
-                            {{ field }}
-                            {% if field.field.widget.input_type == "select" %}
-                                {% heroicon_outline "chevron-down" class="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 pointer-events-none" stroke_width=2 %}
-                            {% endif %}
-                        </div>
-                    {% endif %}
+                                {# File picker — hidden once a pending file is selected (only one banner allowed) #}
+                                <fieldset class="fieldset w-full gap-0 px-2.5" x-show="!pendingPreview">
+                                    <legend class="fieldset-legend text-xs font-semibold text-base-content/60">
+                                        Upload picture
+                                    </legend>
+                                    <label class="border border-base-content/20 rounded flex items-center w-full cursor-pointer bg-primary-content hover:bg-base-200/40 transition-colors h-10 overflow-hidden">
+                                        <span class="inline-flex items-center justify-center self-stretch bg-base-200 font-semibold text-sm px-4 shrink-0">Choose file</span>
+                                        <span class="text-base-content/50 text-sm truncate px-4">No file chosen</span>
+                                        {# Picker input — no name, so it is never submitted. Cleared after each selection. #}
+                                        <input type="file"
+                                               accept="image/*"
+                                               class="hidden"
+                                               @change="handleFileSelect($event)">
+                                    </label>
+                                    {% if form.banner.errors %}
+                                        <div class="label pt-1">
+                                            <span class="label-text-alt text-error">{{ form.banner.errors }}</span>
+                                        </div>
+                                    {% endif %}
+                                    <div class="label pt-1">
+                                        <span class="label-text-alt text-base-content/60">Max size 10MB</span>
+                                    </div>
+                                </fieldset>
 
+                                {# Submission input — kept in sync by DataTransfer in syncSubmitInput() #}
+                                <input type="file"
+                                       id="banner-submit-input"
+                                       name="{{ field.html_name }}"
+                                       class="hidden">
+                                <input type="checkbox"
+                                       name="{{ field.html_name }}-clear"
+                                       id="banner-clear-checkbox"
+                                       class="hidden">
+                            </div>
+                        {% else %}
+                            <div class="relative border-2 border-gray-200 w-full mt-1.5 rounded-md">
+                                {{ field }}
+                                {% if field.field.widget.input_type == "select" %}
+                                    {% heroicon_outline "chevron-down" class="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 pointer-events-none" stroke_width=2 %}
+                                {% endif %}
+                            </div>
+                        {% endif %}
+                    </fieldset>
                 {% endif %}
-            </div>
-        {% endfor %}
-        <div class="mt-6 w-full flex items-center justify-end gap-4">
+            {% endfor %}
+        </div>
+        <div class="flex items-center justify-end gap-4 pt-4">
+            <a href="{{ back_url }}" class="btn btn-ghost">Cancel</a>
             {% if form.instance.pk %}
-                <c-button-nav url="{% url 'borrowd_groups:group-detail' form.instance.pk %}"
-                              class="btn btn-ghost">
-                    Cancel
-                </c-button-nav>
-                <button class="btn btn-primary" type="submit">
-                    Save group
+                <button type="submit" class="btn btn-primary" x-bind:disabled="isSubmitting">
+                    Save changes
                 </button>
             {% else %}
-                <c-button-nav url="{% url 'borrowd_groups:group-list' %}" class="btn btn-ghost">
-                    Cancel
-                </c-button-nav>
-                <button type="submit" class="btn btn-primary">
+                <button type="submit" class="btn btn-primary" x-bind:disabled="isSubmitting">
                     Create group
                 </button>
             {% endif %}
         </div>
-    </form>
-</c-box>
+    </c-form.frame>
 {% endblock %}

@@ -29,9 +29,7 @@ class AddNewItem:
         self.item_name_input = page.locator("#id_name")
         self.item_description_input = page.locator("#id_description")
 
-        self.categories_button = page.get_by_role(
-            "button", name="Select an item category"
-        )
+        self.categories_button = page.get_by_role("button", name="Select a category")
 
         # modal
         self.categories_modal = page.locator("#item-category-modal")
@@ -54,7 +52,8 @@ class AddNewItem:
         self.upload_photo_button = page.get_by_role("button", name="Choose File")
 
         self.add_item_button = page.get_by_role(
-            "button", name=re.compile(r"Add an item|Create New Item|Add item", re.IGNORECASE)
+            "button",
+            name=re.compile(r"Add an item|Create New Item|Add item", re.IGNORECASE),
         )
 
     def expect_opened(self):

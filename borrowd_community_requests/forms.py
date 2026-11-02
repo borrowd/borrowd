@@ -13,26 +13,16 @@ class CommunityRequestForm(forms.ModelForm[CommunityRequest]):
         fields = ["item_name", "description", "category"]
         labels = {
             "item_name": "Item name",
-            "description": "Item description",
+            "description": "Description",
         }
         widgets = {
             "item_name": forms.TextInput(
-                attrs={
-                    "class": "input input-bordered w-full bg-primary-content",
-                    "placeholder": "Drill, stepladder, etc.",
-                    "maxlength": "50",
-                }
+                attrs={"placeholder": "Drill, stepladder, etc."}
             ),
             "description": forms.Textarea(
                 attrs={
-                    "rows": 4,
-                    "class": "textarea textarea-bordered w-full resize-y bg-primary-content",
-                    "placeholder": "Enter a detailed description of your requested item",
-                    "maxlength": "500",
+                    "placeholder": "Enter a detailed description of your requested item"
                 }
-            ),
-            "category": forms.Select(
-                attrs={"class": "select select-bordered w-full bg-primary-content"}
             ),
         }
 

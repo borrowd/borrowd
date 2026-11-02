@@ -1,16 +1,14 @@
-{% extends "base.html" %}
+{% extends "layouts/default.html" %}
 
 {% block head_title %}
     {{ page_title }}
 {% endblock %}
 
-{% block layout %}
-    <main class="flex-1 w-full max-w-xs mx-auto px-4 py-4">
+{% block content %}
+    <div class="w-full max-w-2xl self-start px-4">
+        <c-page-header title="{{ page_title }}" />
 
-        <c-page-header title="Create a request" />
-
-        <form method="post" class="flex flex-col gap-5">
-            {% csrf_token %}
+        <c-form.frame>
 
             {% if form.non_field_errors %}
                 <div class="alert alert-error text-sm">
@@ -18,32 +16,46 @@
                 </div>
             {% endif %}
 
-            <label class="form-control gap-2">
-                <span class="label-text text-sm text-base-content/60">Item name</span>
-                {{ form.item_name }}
-                {{ form.item_name.errors }}
-            </label>
+            <c-form.field type="text"
+                          name="{{ form.item_name.html_name }}"
+                          id="{{ form.item_name.auto_id }}"
+                          label="{{ form.item_name.label }}"
+                          value="{{ form.item_name.value|default:'' }}"
+                          placeholder="{{ form.item_name.field.widget.attrs.placeholder }}"
+                          max_length="50"
+                          errors="{{ form.item_name.errors }}" />
 
-            <label class="form-control gap-2">
-                <span class="label-text text-sm text-base-content/60">Item description</span>
-                {{ form.description }}
-                {{ form.description.errors }}
-            </label>
+            <c-form.textarea name="{{ form.description.html_name }}"
+                             id="{{ form.description.auto_id }}"
+                             label="{{ form.description.label }}"
+                             value="{{ form.description.value|default:'' }}"
+                             placeholder="{{ form.description.field.widget.attrs.placeholder }}"
+                             rows="4"
+                             max_length="500"
+                             errors="{{ form.description.errors }}" />
 
-            <label class="form-control gap-2">
-                <span class="label-text text-sm text-base-content/60">Category</span>
-                {{ form.category }}
-                {{ form.category.errors }}
-            </label>
+            <fieldset class="fieldset w-full gap-0">
+                <legend class="fieldset-legend text-xs font-normal text-base-content/60">
+                    {{ form.category.label }}
+                </legend>
+                <c-form.category-picker :field="form.category"
+                                        modal_id="community-request-category-modal"
+                                        modal_title="Select a category"
+                                        confirm_button_text="Select category" />
 
-            <div class="flex items-center justify-end gap-4 pt-1">
-                <a href="{% url 'item-list' %}" class="btn btn-ghost btn-sm">
-                    Cancel
-                </a>
-                <button type="submit" class="btn btn-primary btn-sm">
+                {% if form.category.errors %}
+                    <div class="label pt-1">
+                        <span class="label-text-alt text-error">{{ form.category.errors }}</span>
+                    </div>
+                {% endif %}
+            </fieldset>
+
+            <div class="flex items-center justify-end gap-4 pt-4">
+                <a href="{{ back_url }}" class="btn btn-ghost">Cancel</a>
+                <button type="submit" class="btn btn-primary" x-bind:disabled="isSubmitting">
                     Post a request
                 </button>
             </div>
-        </form>
-    </main>
+        </c-form.frame>
+    </div>
 {% endblock %}
