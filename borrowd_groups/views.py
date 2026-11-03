@@ -9,6 +9,7 @@ from django.core.signing import SignatureExpired, TimestampSigner
 from django.db import transaction
 from django.db.models import Q, QuerySet
 from django.http import (
+    Http404,
     HttpRequest,
     HttpResponse,
     HttpResponseBase,
@@ -34,6 +35,7 @@ from borrowd_items.models import (
 from borrowd_notifications.models import NotificationType
 from borrowd_notifications.services import NotificationService
 from borrowd_permissions.mixins import (
+    CachedObjectMixin,
     LoginOr403PermissionMixin,
     LoginOr404PermissionMixin,
 )
@@ -50,7 +52,9 @@ from .forms import (
 )
 from .models import BorrowdGroup, Membership, MembershipStatus
 
-GroupInvite = namedtuple("GroupInvite", ["group_id", "group_name"])
+# `invite_code` is the group's invite code, or its name in links signed
+# before groups had invite codes.
+GroupInvite = namedtuple("GroupInvite", ["group_id", "invite_code"])
 
 
 def get_members_data(group: BorrowdGroup) -> list[dict[str, Any]]:
@@ -188,8 +192,10 @@ class InviteSigner:
     Static class to handle signing and unsigning of group invites.
 
     Uses Django's built-in signing library to create a timestamped
-    signature of the group ID and name; this wrapper class just adds
-    some default settings.
+    signature of the group ID and invite code; this wrapper class just
+    adds some default settings. The code, not the name, is signed so
+    renaming a group doesn't break its links, and a moderator can
+    invalidate them all by resetting the code.
 
     Signing / encrypting / securely obfuscating invite links is in
     line with Borrowd's core value of Trust: since Groups should be
@@ -200,8 +206,8 @@ class InviteSigner:
     _signer = TimestampSigner(sep="+")
 
     @staticmethod
-    def sign_invite(group_id: int, group_name: str) -> str:
-        return InviteSigner._signer.sign_object(obj=(group_id, group_name))
+    def sign_invite(group_id: int, invite_code: str) -> str:
+        return InviteSigner._signer.sign_object(obj=(group_id, invite_code))
 
     @staticmethod
     def unsign_invite(signed: str, max_age: int = 60 * 60 * 24 * 7) -> GroupInvite:
@@ -209,6 +215,17 @@ class InviteSigner:
         # decoded = InviteSigner._signer.unsign_object(signed, max_age=expiry)
         decoded = InviteSigner._signer.unsign_object(signed)
         return GroupInvite(*decoded)
+
+
+def build_join_url(request: HttpRequest, group: BorrowdGroup) -> str:
+    """
+    Absolute URL of the invite link for `group`, as shown on the invite
+    page and encoded in the printable poster's QR code.
+    """
+    encoded: str = InviteSigner.sign_invite(group.pk, group.invite_code)
+    return request.build_absolute_uri(
+        reverse("borrowd_groups:group-join", kwargs={"encoded": encoded})
+    )
 
 
 class GroupCreateView(
@@ -293,6 +310,7 @@ class GroupDetailView(
             context["leave_group_requires_approval_to_rejoin"] = (
                 group.membership_requires_approval
             )
+            context["can_share_invite_link"] = group.can_share_invite_link(user)
 
             # 255: Show pending members to moderators only
             if context["is_moderator"]:
@@ -303,8 +321,24 @@ class GroupDetailView(
         return context
 
 
+class InviteLinkSharerMixin(CachedObjectMixin[BorrowdGroup]):
+    """404 unless the user may share the group's invite link; see
+    `BorrowdGroup.can_share_invite_link`."""
+
+    request: HttpRequest
+
+    def get_object(
+        self, queryset: QuerySet[BorrowdGroup] | None = None
+    ) -> BorrowdGroup:
+        group = super().get_object(queryset)
+        if not group.can_share_invite_link(get_authenticated_user(self.request)):
+            raise Http404
+        return group
+
+
 class GroupInviteView(
     LoginOr404PermissionMixin,
+    InviteLinkSharerMixin,
     DetailView[BorrowdGroup],
 ):
     model = BorrowdGroup
@@ -313,11 +347,55 @@ class GroupInviteView(
 
     def get_context_data(self, **kwargs: str) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
-        group: BorrowdGroup = self.object
-        encoded: str = InviteSigner.sign_invite(group.pk, group.name)
-        context["join_url"] = self.request.build_absolute_uri(
-            reverse("borrowd_groups:group-join", kwargs={"encoded": encoded})
+        context["join_url"] = build_join_url(self.request, self.object)
+        context["can_reset_invite_link"] = get_authenticated_user(
+            self.request
+        ).has_perm(BorrowdGroupOLP.EDIT, self.object)
+        return context
+
+
+class ResetInviteLinkView(
+    LoginOr404PermissionMixin,
+    CachedObjectMixin[BorrowdGroup],
+    View,
+):
+    """
+    Moderators replace the group's invite code, so every existing invite
+    link and printed poster stops working.
+    """
+
+    model = BorrowdGroup
+    permission_required = BorrowdGroupOLP.EDIT
+    http_method_names = ["post"]
+
+    def post(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
+        group = self.get_object()
+        group.reset_invite_code(by=get_authenticated_user(request))
+        messages.success(
+            request,
+            "Invite link reset. Old links and printed posters no longer work.",
         )
+        return redirect("borrowd_groups:group-invite", pk=group.pk)
+
+
+class GroupPosterView(
+    LoginOr404PermissionMixin,
+    InviteLinkSharerMixin,
+    DetailView[BorrowdGroup],
+):
+    """
+    Print-ready Letter poster inviting people to join the group.
+
+    Visible to exactly the users who can see the invite link.
+    """
+
+    model = BorrowdGroup
+    permission_required = BorrowdGroupOLP.VIEW
+    template_name = "groups/group_poster.html"
+
+    def get_context_data(self, **kwargs: str) -> dict[str, Any]:
+        context = super().get_context_data(**kwargs)
+        context["join_url"] = build_join_url(self.request, self.object)
         return context
 
 
@@ -372,21 +450,23 @@ class GroupJoinView(LoginRequiredMixin, View):
             context = {"error_type": err}
             return render(request, "groups/group_join_error.html", context, status=400)
 
-        # Check if the group exists
-        # and if the name matches the ID
-        group: BorrowdGroup
+        # Check the group exists and the link carries its current code.
+        # Links signed before groups had invite codes carry the group name
+        # instead; they keep working until a moderator first resets the link.
+        group: BorrowdGroup | None
         try:
-            # Why does mypy think `BorrowdGroup.objects.get` is
-            # returning a `Group` and not a `BorrowdGroup`?
-            group = BorrowdGroup.objects.get(
-                pk=group_invite.group_id, name=group_invite.group_name
+            group = BorrowdGroup.objects.filter(pk=group_invite.group_id).first()
+        except ValueError:
+            group = None
+        if group is None or not (
+            group_invite.invite_code == group.invite_code
+            or (
+                group.invite_code_reset_at is None
+                and group_invite.invite_code == group.name
             )
-        except (BorrowdGroup.DoesNotExist, ValueError):
+        ):
             # Don't reveal any info about Group lookup
-            err = "invalid"
-
-        if err:
-            context = {"error_type": err}
+            context = {"error_type": "invalid"}
             return render(request, "groups/group_join_error.html", context, status=400)
 
         # Check if the user already has a membership record
