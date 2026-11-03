@@ -10,6 +10,7 @@ from borrowd_messaging.models import ArchiveReason, Message
 from borrowd_messaging.read_state import mark_thread_read
 from borrowd_messaging.services import MessagingService
 from borrowd_messaging.views import ChatThreadUnreadBadgeView
+from borrowd_users.models import BorrowdUser
 
 from .base import MessagingTestCase
 from .test_views import _element_attributes
@@ -79,7 +80,7 @@ class UnreadBadgeViewTests(MessagingTestCase):
         self.assertContains(response, "0 unread conversations")
         self.assertNotContains(response, 'data-testid="nav-messages-unread-count"')
 
-    def test_counts_threads_in_both_roles_including_archived_notices(self) -> None:
+    def test_counts_threads_in_both_roles_excluding_archived_notices(self) -> None:
         for _ in range(3):
             Message.objects.create(
                 thread=self.thread, sender=self.lender, body="Hello."
@@ -92,6 +93,15 @@ class UnreadBadgeViewTests(MessagingTestCase):
         MessagingService.archive_thread(lending_thread, ArchiveReason.CLOSED)
         unrelated = self.make_thread(borrower=self.make_user("outsider"))
         MessagingService.post_system_message(unrelated, "Private notice.")
+
+        lending_thread_with_unread = self.make_thread(
+            item=self.make_item(owner=self.borrower),
+            lender=self.borrower,
+            borrower=self.lender,
+        )
+        Message.objects.create(
+            thread=lending_thread_with_unread, sender=self.lender, body="Hi."
+        )
 
         response = self.client.get(self.url)
 
@@ -132,15 +142,20 @@ class UnreadBadgeViewTests(MessagingTestCase):
         self.assertIsNone(self.thread.borrower_last_read_message_id)
         self.assertEqual((self.thread.updated_at, self.thread.updated_by_id), before)
 
-    def test_archived_history_survives_item_deletion_in_badge(self) -> None:
+    def test_item_deletion_archives_the_thread_out_of_the_badge(self) -> None:
         self.item.delete()
-        self.assertContains(self.client.get(self.url), "1 unread conversation</span>")
+        self.assertContains(self.client.get(self.url), "0 unread conversations")
 
-    def test_fragment_costs_one_query_without_page_context_processors(self) -> None:
+    def test_fragment_runs_only_badge_queries_without_page_context_processors(
+        self,
+    ) -> None:
         MessagingService.post_system_message(self.thread, "An update.")
         request = RequestFactory().get(self.url)
-        request.user = self.borrower
-        with self.assertNumQueries(1):
+        # A fresh instance, as on a real request, so the profile is not cached.
+        request.user = BorrowdUser.objects.get(pk=self.borrower.pk)
+        # Profile, then one count each for Messages and Community requests
+        # and two for group actions -- the latter three feed the navbar dot.
+        with self.assertNumQueries(5):
             response = ChatThreadUnreadBadgeView.as_view()(request)
         self.assertContains(response, "1 unread conversation</span>")
         self.assertNotContains(response, "<html")
@@ -185,8 +200,9 @@ class UnreadBadgeNavigationTests(MessagingTestCase):
 
     def test_navigation_renders_count_once_with_refresh_hooks(self) -> None:
         MessagingService.post_system_message(self.thread, "An update.")
+        # Any page but Messages itself, which clears the badge it renders.
         with CaptureQueriesContext(connection) as queries:
-            response = self.client.get(self.url)
+            response = self.client.get(reverse("item-list"))
 
         self.assertContains(response, 'id="nav-messages-unread"', count=1)
         self.assertContains(response, "1 unread conversation</span>")

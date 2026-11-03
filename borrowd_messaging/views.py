@@ -9,12 +9,15 @@ from django.http import HttpRequest, HttpResponse, HttpResponseBadRequest, Query
 from django.shortcuts import redirect, render
 from django.template.loader import render_to_string
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.generic import DetailView, TemplateView, View
 
 from borrowd.util import BorrowdTemplateFinderMixin
+from borrowd_community_requests.models import CommunityRequest
+from borrowd_groups.group_actions import group_action_count
 from borrowd_items.card_helpers import item_thumbnail_url
 from borrowd_items.models import Item, ItemAction, ItemStatus
 from borrowd_permissions.mixins import CachedObjectMixin, LoginOr404PermissionMixin
@@ -43,7 +46,7 @@ from .models import MESSAGE_BODY_MAX_LENGTH, ChatThread
 from .read_state import (
     cursor_names_message_in_thread,
     mark_thread_read,
-    unread_threads_for,
+    menu_badge_threads_for,
 )
 from .services import MessagingService
 
@@ -215,18 +218,33 @@ class ChatThreadUnreadBadgeView(MessagingEnabledMixin, LoginRequiredMixin, View)
     raise_exception = True
 
     def get(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
-        count = unread_threads_for(get_authenticated_user(request)).count()
-        return HttpResponse(
-            render_to_string(
-                "messaging/_unread_badge.html",
-                {
-                    "unread_conversation_count": count,
-                    "unread_conversation_label": "conversation"
-                    if count == 1
-                    else "conversations",
-                },
-            )
+        viewer = get_authenticated_user(request)
+        count = menu_badge_threads_for(
+            viewer, seen_at=viewer.profile.messages_seen_at
+        ).count()
+        badge = render_to_string(
+            "messaging/_unread_badge.html",
+            {
+                "unread_conversation_count": count,
+                "unread_conversation_label": "conversation"
+                if count == 1
+                else "conversations",
+            },
         )
+        # The navbar dot reflects every menu badge, so it is re-rendered
+        # out of band to stay in step with the Messages count.
+        menu_toggle = render_to_string(
+            "includes/_menu_toggle.html",
+            {
+                "unread_conversation_count": count,
+                "community_request_count": CommunityRequest.objects.menu_badge_for(
+                    viewer
+                ).count(),
+                "group_action_count": group_action_count(viewer),
+                "swap_out_of_band": True,
+            },
+        )
+        return HttpResponse(badge + menu_toggle)
 
 
 class ChatThreadReadView(
@@ -437,6 +455,10 @@ class ChatThreadListView(
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
         viewer = get_authenticated_user(self.request)
+        # Stamped before the page queries run, so a message sent while this
+        # page renders still counts as new on the next page.
+        viewer.profile.messages_seen_at = timezone.now()
+        viewer.profile.save(update_fields=["messages_seen_at"])
 
         scope = self.request.GET.get("scope")
         if scope not in _SCOPES:
