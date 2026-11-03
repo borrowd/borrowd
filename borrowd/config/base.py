@@ -91,6 +91,7 @@ MIDDLEWARE = [
     "borrowd_beta.middleware.BetaAccessMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "borrowd_users.middleware.RecordUserActivityMiddleware",
+    "borrowd_users.middleware.NativeAppSessionMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "allauth.account.middleware.AccountMiddleware",
@@ -172,11 +173,6 @@ ACCOUNT_ADAPTER = "borrowd_users.adapters.BorrowdAccountAdapter"
 ACCOUNT_LOGIN_BY_CODE_FORMAT = {"numeric": True, "dashed": False, "length": 6}
 ACCOUNT_LOGIN_BY_CODE_ENABLED = True
 ACCOUNT_LOGIN_METHODS = ["email"]
-# The login form has no "Remember me" checkbox, and allauth reads its absence
-# as "forget me": the session would end when the browser closes, which in the
-# native app (mobile/) means every time the app is quit. Logins instead last
-# SESSION_COOKIE_AGE (Django's default, two weeks).
-ACCOUNT_SESSION_REMEMBER = True
 
 """
 https://docs.allauth.org/en/latest/account/forms.html
@@ -231,6 +227,14 @@ VAPID_ADMIN_EMAIL: str = env("VAPID_ADMIN_EMAIL", default="")
 # Native app (Capacitor shell in mobile/)
 # iOS bundle ID and Android applicationId; must match mobile/capacitor.config.ts.
 NATIVE_APP_ID = "org.borrowd.app"
+# Added to the app's User-Agent; must match appendUserAgent in
+# mobile/capacitor.config.ts.
+NATIVE_APP_USER_AGENT = "BorrowdApp"
+# Web password logins end when the browser closes (the login form has no
+# "Remember me" box). In the app that would mean every time it's quit, so app
+# logins instead last this long after the app was last used
+# (borrowd_users.middleware.NativeAppSessionMiddleware).
+NATIVE_APP_SESSION_AGE = 60 * 60 * 24 * 90  # 90 days, in seconds
 # Universal Links / App Links verification files are only served once these are
 # set, so an unconfigured deployment 404s instead of publishing a broken file.
 # APPLE_TEAM_ID: the 10-character Team ID from the Apple Developer account.

@@ -70,6 +70,9 @@ const config: CapacitorConfig = {
     // Shown when the site can't be reached, instead of a blank WebView.
     errorPath: 'offline.html',
   } : undefined,
+  // Lets the site recognise the app, e.g. to keep app users logged in.
+  // Must match NATIVE_APP_USER_AGENT in borrowd/config/base.py.
+  appendUserAgent: 'BorrowdApp',
   ios: {
     // Keep the site's top bar below the status bar and its bottom content
     // above the home indicator, without the site needing safe-area CSS.
