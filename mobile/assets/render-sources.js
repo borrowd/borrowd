@@ -1,6 +1,8 @@
-// Renders mobile/assets/*.png (capacitor-assets inputs) from static/icon.svg.
+// Renders mobile/assets/*.png (capacitor-assets inputs) and the Android
+// launch icon from static/icon.svg.
 const sharp = require('sharp');
 const fs = require('fs');
+const path = require('path');
 const [svgPath, outDir] = process.argv.slice(2);
 const svg = fs.readFileSync(svgPath, 'utf8')
   .replace(/@media\(prefers-color-scheme:dark\)\{[^}]*\}\}/, '');
@@ -25,4 +27,12 @@ async function canvas(size, bg, mark, markSize) {
   // Splash: 2732 square, cropped to the screen shape, so the bee sits small in the middle.
   await (await canvas(2732, PAPER, INK, 520)).flatten({ background: PAPER }).toFile(`${outDir}/splash.png`);
   await (await canvas(2732, INK, PAPER, 520)).flatten({ background: INK }).toFile(`${outDir}/splash-dark.png`);
+  // Android 12+ ignores the splash images and shows this icon on
+  // windowSplashScreenBackground instead. 288dp at xxxhdpi; Android crops it
+  // to a 192dp circle, so the bee stays well inside that.
+  const res = path.join(__dirname, '../android/app/src/main/res');
+  for (const [dir, mark] of [['drawable-xxxhdpi', INK], ['drawable-night-xxxhdpi', PAPER]]) {
+    fs.mkdirSync(`${res}/${dir}`, { recursive: true });
+    await (await canvas(1152, '#0000', mark, 560)).toFile(`${res}/${dir}/splash_icon.png`);
+  }
 })();

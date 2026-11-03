@@ -10,6 +10,10 @@ into every icon and splash size under `ios/` and `android/`.
 | `icon-foreground.png`, `icon-background.png` | Android adaptive icon layers |
 | `splash.png`, `splash-dark.png` | Launch screen, light and dark mode (2732×2732, cropped to the screen) |
 
+`render-sources.js` also writes `android/app/src/main/res/drawable-*xxxhdpi/splash_icon.png`
+directly: Android 12+ ignores the splash images and shows that icon on a plain
+background (`values*/splash.xml`) instead.
+
 To regenerate after the logo changes, from `mobile/`:
 
 ```bash
