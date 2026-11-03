@@ -110,3 +110,6 @@ e2e_tests/allure-results/
 e2e_tests/allure-report/
 e2e_tests/test-results/
 playwright-report/
+
+# Local review/feature worktrees
+.worktrees/
