@@ -231,20 +231,25 @@ class ChatThreadUnreadBadgeView(MessagingEnabledMixin, LoginRequiredMixin, View)
                 else "conversations",
             },
         )
-        # The navbar dot reflects every menu badge, so it is re-rendered
-        # out of band to stay in step with the Messages count.
-        menu_toggle = render_to_string(
-            "includes/_menu_toggle.html",
-            {
-                "unread_conversation_count": count,
-                "community_request_count": CommunityRequest.objects.menu_badge_for(
-                    viewer
-                ).count(),
-                "group_action_count": group_action_count(viewer),
-                "swap_out_of_band": True,
-            },
+        # The other menu badges and the navbar dot they all feed are
+        # re-rendered out of band, so the menu stays in step as a whole.
+        out_of_band_context = {
+            "unread_conversation_count": count,
+            "community_request_count": CommunityRequest.objects.menu_badge_for(
+                viewer
+            ).count(),
+            "group_action_count": group_action_count(viewer),
+            "swap_out_of_band": True,
+        }
+        out_of_band = "".join(
+            render_to_string(template, out_of_band_context)
+            for template in (
+                "includes/_menu_toggle.html",
+                "includes/_group_action_badge.html",
+                "includes/_community_request_badge.html",
+            )
         )
-        return HttpResponse(badge + menu_toggle)
+        return HttpResponse(badge + out_of_band)
 
 
 class ChatThreadReadView(
