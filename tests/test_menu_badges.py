@@ -330,6 +330,34 @@ class NavbarDotTests(MenuBadgeTestCase):
         self.assertEqual(badge_count(response, MESSAGES), 0)
         self.assertContains(response, MENU_DOT)
 
+    def test_badge_refresh_updates_the_other_badges_out_of_band(self) -> None:
+        url = reverse("chat-thread-unread-badge")
+        # Loaded before anything arrives, as on a page left open.
+        self.assertEqual(badge_count(self.menu(), GROUP_ACTIONS), 0)
+        self.assertEqual(badge_count(self.menu(), COMMUNITY_REQUESTS), 0)
+
+        self.make_pending_request_to_join()
+        self.receive_community_request()
+        response = self.client.get(url)
+
+        content = response.content.decode()
+        for badge_id in ("nav-group-action-badge", "nav-community-request-badge"):
+            self.assertRegex(content, rf'id="{badge_id}"\s+hx-swap-oob="true"')
+        self.assertEqual(badge_count(response, GROUP_ACTIONS), 1)
+        self.assertEqual(badge_count(response, COMMUNITY_REQUESTS), 1)
+
+    def test_badge_refresh_clears_resolved_group_actions(self) -> None:
+        membership = self.make_pending_request_to_join()
+        url = reverse("chat-thread-unread-badge")
+        self.assertEqual(badge_count(self.client.get(url), GROUP_ACTIONS), 1)
+
+        membership.status = MembershipStatus.ACTIVE
+        membership.save()
+
+        response = self.client.get(url)
+        self.assertContains(response, 'id="nav-group-action-badge"')
+        self.assertEqual(badge_count(response, GROUP_ACTIONS), 0)
+
 
 class BadgeQueryCountTests(MenuBadgeTestCase):
     """The badges run on every page and every badge refresh, so their query
