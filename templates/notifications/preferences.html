@@ -15,6 +15,9 @@
         <p class="text-sm text-base-content/60">
             {% trans "Choose how you want to be notified." %}
         </p>
+        <p x-show="nativeApp" x-cloak class="text-sm text-base-content/60">
+            {% trans "Push notifications aren't available in the app yet." %}
+        </p>
 
         {# Push prefs are account-wide; whether this browser can receive them is client-only. #}
         <div x-data="pushPermissionCta()"
@@ -56,7 +59,9 @@
                 <div class="flex items-center gap-6">
                     <span class="text-xs text-base-content/50 font-medium">{% trans "In-app" %}</span>
                     <span class="text-xs text-base-content/50 font-medium">{% trans "Email" %}</span>
-                    <span class="text-xs text-base-content/50 font-medium">{% trans "Push" %}</span>
+                    <span x-show="!nativeApp"
+                          x-cloak
+                          class="text-xs text-base-content/50 font-medium">{% trans "Push" %}</span>
                 </div>
             </div>
             <div class="flex items-center justify-between">
@@ -73,6 +78,8 @@
                            @change="bulkToggle('master', 'EMAIL', 'email', $event.target.checked)"
                            class="toggle toggle-primary toggle-sm">
                     <input type="checkbox"
+                           x-show="!nativeApp"
+                           x-cloak
                            :checked="masterEnabled('push')"
                            @change="bulkToggle('master', 'PUSH', 'push', $event.target.checked)"
                            class="toggle toggle-primary toggle-sm">
@@ -103,6 +110,8 @@
                                    class="toggle toggle-primary toggle-xs opacity-40">
                         {% endif %}
                         <input type="checkbox"
+                               x-show="!nativeApp"
+                               x-cloak
                                :checked="categoryEnabled('{{ category.slug }}', 'push')"
                                @change="bulkToggle('{{ category.slug }}', 'PUSH', 'push', $event.target.checked)"
                                class="toggle toggle-primary toggle-xs">
@@ -151,6 +160,8 @@
                                     {% endif %}
                                 {% endif %}
                                 <input type="checkbox"
+                                       x-show="!nativeApp"
+                                       x-cloak
                                        :checked="prefs['{{ type.type_value|escapejs }}'].push"
                                        @change="toggle('{{ type.type_value|escapejs }}', 'PUSH', 'push', $event.target.checked)"
                                        class="toggle toggle-primary toggle-sm">
@@ -164,8 +175,9 @@
     </div>
 
     <script>
-        // Inside the native app shell (mobile/), push is delivered natively, so this
-        // page's web-push subscription flow stays out of the way there. Checked
+        // Web push doesn't work inside the native app shell (mobile/), and native
+        // push isn't wired up yet, so the push controls are hidden there and this
+        // page's web-push subscription flow stays out of the way. Checked
         // inline rather than via static/js/native-app.js because Alpine may call
         // these components before that module has run; window.Capacitor itself is
         // injected by the shell before any page script.
@@ -251,6 +263,7 @@
         function notificationPrefs() {
             return {
                 prefs: JSON.parse(document.getElementById('notification-prefs').textContent),
+                nativeApp: isNativeApp(),
 
                 toggle(typeValue, channel, field, enabled) {
                     this.prefs[typeValue][field] = enabled;

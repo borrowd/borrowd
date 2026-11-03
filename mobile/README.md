@@ -71,3 +71,9 @@ files return 404:
 - `APPLE_TEAM_ID` — from the Apple Developer account
 - `ANDROID_CERT_SHA256_FINGERPRINTS` — comma-separated; use the app signing
   key's fingerprint from Play Console's App signing page
+
+## Push notifications
+
+Not available in the app yet. Web push doesn't work inside the app's
+WebView, and native push (APNs / Firebase) isn't wired up, so the
+notification settings page hides its push controls in the app.
