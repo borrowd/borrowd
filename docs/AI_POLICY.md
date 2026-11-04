@@ -4,7 +4,11 @@ Borrow'd exists to make a positive difference for the environment and our
 communities. AI is in tension with that mission: it carries real environmental
 and social costs, and it is also the reason we have come as far as we have. We
 hold both truths. We use AI deliberately, watch its impact, and will revisit
-this policy as the tools and our understanding change.
+this policy as the tools and our understanding change. Using AI deliberately 
+also means matching the model to the job: Borrow’d is a conventional Django app 
+built on well-established tools, so most work on it doesn’t need the latest 
+frontier model. Start with a smaller, more efficient one and step up only when 
+the task calls for it.
 
 We are also a community-driven open source project. Anyone should be able to
 read, understand, and contribute to this code, so it must always be legible to
