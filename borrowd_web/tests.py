@@ -37,6 +37,15 @@ class OnboardingStepLinksTests(TestCase):
         self.assertNotContains(response, 'href="/onboarding/3"')
 
 
+# Written out rather than imported from the view, so dropping a path fails.
+EXCLUDED_PATH_RULES = [
+    {"/": "/admin/*", "exclude": True},
+    {"/": "/static/*", "exclude": True},
+    {"/": "/media/*", "exclude": True},
+    {"/": "/.well-known/*", "exclude": True},
+]
+
+
 @override_settings(APPLE_TEAM_ID="ABCDE12345")
 class AppleAppSiteAssociationTests(TestCase):
     url = "/.well-known/apple-app-site-association"
@@ -49,14 +58,14 @@ class AppleAppSiteAssociationTests(TestCase):
         details = response.json()["applinks"]["details"]
         self.assertEqual(details[0]["appIDs"], ["ABCDE12345.org.borrowd.app"])
 
-    def test_admin_stays_in_the_browser(self) -> None:
+    def test_only_non_page_paths_stay_in_the_browser(self) -> None:
         components = self.client.get(self.url).json()["applinks"]["details"][0][
             "components"
         ]
 
-        self.assertIn({"/": "/admin/*", "exclude": True}, components)
-        # Exclusions only apply when listed before the catch-all.
-        self.assertEqual(components[-1], {"/": "/*"})
+        # Exclusions only apply when listed before the catch-all, which sends
+        # every other path to the app.
+        self.assertEqual(components, [*EXCLUDED_PATH_RULES, {"/": "/*"}])
 
     @override_settings(APPLE_TEAM_ID="")
     def test_404s_when_team_id_is_not_configured(self) -> None:
@@ -88,6 +97,16 @@ class AssetLinksTests(TestCase):
                 "sha256_cert_fingerprints": ["AA:BB", "CC:DD"],
             },
         )
+
+    def test_only_non_page_paths_stay_in_the_browser(self) -> None:
+        [statement] = self.client.get(self.url).json()
+        components = statement["relation_extensions"][
+            "delegate_permission/common.handle_all_urls"
+        ]["dynamic_app_link_components"]
+
+        # Exclusions only apply when listed before the catch-all, which sends
+        # every other path to the app.
+        self.assertEqual(components, [*EXCLUDED_PATH_RULES, {"/": "*"}])
 
     @override_settings(ANDROID_CERT_SHA256_FINGERPRINTS=[])
     def test_404s_when_fingerprints_are_not_configured(self) -> None:

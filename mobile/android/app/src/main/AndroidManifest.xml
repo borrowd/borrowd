@@ -28,7 +28,9 @@
             </intent-filter>
 
             <!-- App Links: open links to the prod site in the app. Verified against
-                 /.well-known/assetlinks.json (borrowd_web.views.assetlinks). -->
+                 /.well-known/assetlinks.json (borrowd_web.views.assetlinks), which
+                 also keeps /admin/ etc. in the browser on Android 15+. A manifest
+                 filter can't exclude paths, so earlier versions open those in the app. -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />

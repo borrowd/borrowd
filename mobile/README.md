@@ -72,6 +72,12 @@ files return 404:
 - `ANDROID_CERT_SHA256_FINGERPRINTS` — comma-separated; use the app signing
   key's fingerprint from Play Console's App signing page
 
+`/admin/`, `/static/`, `/media/` and `/.well-known/` links stay in the
+browser (`_APP_LINK_EXCLUDED_PATHS` in `borrowd_web/views.py`). On Android
+this needs Android 15 or later: the exclusions are in `assetlinks.json`
+("Dynamic App Links"), which earlier versions ignore, so they open those
+links in the app too.
+
 ## Push notifications
 
 Not available in the app yet. Web push doesn't work inside the app's
