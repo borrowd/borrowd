@@ -2,13 +2,15 @@
 
 ## AI Contribution Policy
 
-Read [docs/AI_POLICY.md](docs/AI_POLICY.md) before opening or updating a pull request. In short:
+Follow [docs/AI_POLICY.md](docs/AI_POLICY.md); read it in full if it isn't included below. In short:
 
 - Open the PR `Summary` with a plain-language TL;DR; describe the final state, not your session.
 - Keep the `Co-Authored-By` commit trailer and note significant AI involvement in the PR description.
 - Never read or transmit `.env`, secrets, `db.sqlite3`, `media/`, or production data.
 - Don't post reviews, issues, or comments the human hasn't verified.
 - Help the human verify the change beyond unit tests and confirm they can explain it.
+
+@docs/AI_POLICY.md
 
 ## Project Overview
 
