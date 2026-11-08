@@ -23,6 +23,13 @@ the existing-feedback check, and tell the human that existing threads and
 reviews were not considered. Print the full draft review (verdict, overview,
 inline comments with file and line) and do not post.
 
+## Summary
+
+After the size check, print the full-form PR summary from
+`.agents/shared/pr-summary.md` as its own message, before any further tool
+call (this section comes before worktrees and reviewer launches for that
+reason). Do not post it.
+
 ## Worktrees
 
 Create three read-only worktrees at the PR head and fetch the base, as

@@ -42,6 +42,12 @@ diff are expensive and the PR may be too large to review well; if so, tell the
 human and ask whether to continue or review part of it. Say so too if a PR is a
 draft.
 
+Then print the summary in the full form from `.agents/shared/pr-summary.md`.
+Print it as its own message, before any further tool call (no worktrees,
+fetches or reviewer launches first), so it is on screen and the human can read
+it while the reviewers work. Gather what you need for it (title, stats,
+description, diff) beforehand, and write nothing else in that message.
+
 ### 1. Launch three reviewers
 
 Build one reviewer prompt from

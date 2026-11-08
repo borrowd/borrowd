@@ -3,6 +3,9 @@
 The user wrote the PR. Turn the feedback into a plan, get approval, then
 apply it, push, and reply.
 
+Start with the short-form summary from `.agents/shared/pr-summary.md`, with the
+thread count, as its own message before any further tool call.
+
 ## 1. Collect the feedback
 
 From `pr_feedback.sh <n> --unresolved`, list every piece of feedback that still
