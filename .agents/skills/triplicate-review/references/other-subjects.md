@@ -16,10 +16,11 @@ Examples: a design comment, an issue, a plan, a doc, a branch with no PR.
 4. Reviewers need no worktrees unless they must read or run code; if so, give
    each its own, as in the PR reference.
 
-Before launching the reviewers, print a summary of the subject in the form
+Before launching the reviewers, prepare a summary of the subject in the form
 from `.agents/shared/pr-summary.md`, replacing "PR" with the subject type and
-dropping any part that does not apply (for example the diff stats). Print it as
-its own message, before any further tool call.
+dropping any part that does not apply (for example the diff stats). Print it
+after the reviewers are launched, as the last message of the turn (see step 1
+of the main workflow).
 
 Then run steps 1 to 3 of the main workflow. Use the findings format from the
 reviewer prompt, adapting severity to the subject: `high` is a flaw that would

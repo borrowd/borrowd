@@ -15,8 +15,12 @@ posted to GitHub and never goes into a review body.
   Membership, group sharing, the state machines, object-level permissions,
   notifications, the beta wall).
 - Keep the full form to about 8 to 12 lines.
-- Print it as its own message, before any further tool call, so it is not
-  buried between tool outputs. Gather the facts first, then print.
+- Use the template exactly: the header line, then each bold label on its own
+  line, in order. Do not merge sections into a paragraph. `Touches` is always
+  present, even if only to say nothing core is touched.
+- Print it as the last message of a turn, with no tool call after it. Text
+  written between tool calls can be collapsed to a one-line recap; a turn's
+  final message is shown in full. Gather the facts first, then print.
 
 ## Full form
 
@@ -40,6 +44,34 @@ touches and why that matters.
 - <only if there is something; at most two bullets>
 ```
 
+### Filled example
+
+```
+### PR #660 — feat/one open transaction per item   (vguzman812, 12 files, +378/−406, draft)
+
+**What it does**
+Makes the database guarantee that an Item has at most one open Transaction at
+a time. Code that coped with "what if there are several?" is removed. A request
+that loses a race to another request now gets "already requested" instead of
+an error.
+
+**Where it fits in Borrow'd**
+This is the core of the Item/Transaction lifecycle, the path every request,
+accept, pickup and return goes through. It builds on the locking work in its
+base branch, `fix/item-lifecycle-locking`, so the diff is only the changes on
+top of that.
+
+**Touches**
+Data & queries (new unique constraint, migration that aborts on duplicates,
+needs a Postgres run) · Item/Transaction state machines (request path) ·
+Notifications (messaging tests adjusted)
+
+**Worth knowing before reviewing**
+- Draft, stacked on another branch, with an unfilled description template.
+- The migration fails on databases that already have duplicate open
+  transactions, so data cleanup comes first.
+```
+
 ### Touches
 
 Choose from these areas. List only the ones that apply; an unlisted area means
@@ -58,9 +90,9 @@ Choose from these areas. List only the ones that apply; an unlisted area means
    platform.sh.
 7. **User-facing UI**: templates, components, styling.
 
-Example: `Touches: Groups & sharing (who sees an Item) · Permissions (view check)`
+Example line: `Groups & sharing (who sees an Item) · Permissions (view check)`
 
-If none apply: `Touches: nothing in the app's core paths (docs/tooling/tests only)`.
+If none apply: `nothing in the app's core paths (docs/tooling/tests only)`.
 
 ### Worth knowing
 

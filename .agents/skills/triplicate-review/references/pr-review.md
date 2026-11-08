@@ -25,10 +25,9 @@ inline comments with file and line) and do not post.
 
 ## Summary
 
-After the size check, print the full-form PR summary from
-`.agents/shared/pr-summary.md` as its own message, before any further tool
-call (this section comes before worktrees and reviewer launches for that
-reason). Do not post it.
+After the size check, prepare the full-form PR summary from
+`.agents/shared/pr-summary.md`. Print it after the reviewers are launched, as
+the last message of the turn (see step 1 of the main workflow). Do not post it.
 
 ## Worktrees
 

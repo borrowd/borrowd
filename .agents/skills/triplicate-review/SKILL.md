@@ -42,11 +42,10 @@ diff are expensive and the PR may be too large to review well; if so, tell the
 human and ask whether to continue or review part of it. Say so too if a PR is a
 draft.
 
-Then print the summary in the full form from `.agents/shared/pr-summary.md`.
-Print it as its own message, before any further tool call (no worktrees,
-fetches or reviewer launches first), so it is on screen and the human can read
-it while the reviewers work. Gather what you need for it (title, stats,
-description, diff) beforehand, and write nothing else in that message.
+Then prepare the summary in the exact full form (template, labels and all)
+from `.agents/shared/pr-summary.md`: gather what it needs (title, stats,
+description, diff) now, but do not print it yet. See step 1 for when it is
+shown.
 
 ### 1. Launch three reviewers
 
@@ -57,9 +56,18 @@ subagents in parallel, all with exactly the same prompt, model and effort. For
 a PR, each reviewer works in its own worktree; the prompt is identical except
 for the worktree path.
 
+Once the reviewers are launched in the background, print the summary as the
+last message of the turn and make no tool call after it, then wait for the
+reviewers' completion notifications and continue at step 2. Text written
+between tool calls can be collapsed to a one-line recap by the terminal;
+the last message of a turn is shown in full. The human reads it while the
+reviewers work.
+
 If the tool cannot run subagents in parallel, run three sequential passes, each
 in a fresh context with the same prompt, and say that the passes were not
-isolated from the main session. If it cannot run subagents at all, tell the
+isolated from the main session. The turn cannot end after launching in that
+case, so print the summary before the first pass and tell the human it may
+appear collapsed. If it cannot run subagents at all, tell the
 human, do one careful pass, and treat every finding as a singleton.
 
 The reviewers are deliberately identical so that agreement between them counts

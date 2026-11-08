@@ -4,8 +4,8 @@ The user is reviewing someone else's PR. Find what changed since their last
 review, decide whether the PR is now approvable, and offer the right response.
 
 Once you know what changed (step 1), print the short-form summary from
-`.agents/shared/pr-summary.md`, with its "Since your last review" line, as its
-own message before the thread checks and any further tool call.
+`.agents/shared/pr-summary.md`, with its "Since your last review" line, as the
+opening of your response, before the thread checks.
 
 ## 1. Find what changed
 

@@ -4,7 +4,7 @@ The user wrote the PR. Turn the feedback into a plan, get approval, then
 apply it, push, and reply.
 
 Start with the short-form summary from `.agents/shared/pr-summary.md`, with the
-thread count, as its own message before any further tool call.
+thread count, as the opening of your response.
 
 ## 1. Collect the feedback
 

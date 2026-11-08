@@ -59,9 +59,8 @@ lists; tell the human about these).
   is neither the author nor a previous reviewer), say what you found and ask.
   An author cannot approve or request changes on their own PR.
 
-Each mode prints the short-form PR summary from `.agents/shared/pr-summary.md`
-at the point its reference says. Print it as its own message, before any
-further tool call.
+Each mode prints the short-form PR summary, in its exact form, from
+`.agents/shared/pr-summary.md` at the point its reference says.
 
 Then follow [references/author-mode.md](references/author-mode.md) or
 [references/reviewer-mode.md](references/reviewer-mode.md). Both post through
