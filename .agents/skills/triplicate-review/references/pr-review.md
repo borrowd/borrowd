@@ -13,6 +13,16 @@ posted against that commit), `baseRefName`, whether the PR is a draft, and
 whether the current user is the author (`is_author`). Keep the existing
 unresolved threads and reviews in mind: you use them when adjudicating, below.
 
+## When `gh` is unavailable
+
+If `gh` is missing, unauthenticated, or blocked (for example in a sandbox), do
+not stop. Review the checked-out branch against its merge-base with the base
+branch (`git diff $(git merge-base HEAD <base>)...HEAD`) in the current
+checkout, with all three reviewers reading it directly. Skip the worktrees and
+the existing-feedback check, and tell the human that existing threads and
+reviews were not considered. Print the full draft review (verdict, overview,
+inline comments with file and line) and do not post.
+
 ## Worktrees
 
 Create three read-only worktrees at the PR head and fetch the base, as

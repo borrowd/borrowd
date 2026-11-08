@@ -1,7 +1,7 @@
 ---
 name: triplicate-review
 description: Review a pull request (or other artifact such as a design comment) with three independent reviewers running the same prompt, keep what they converge on, adjudicate one-off findings, and recommend approve, comment, or request changes. Use when asked for a triplicate review, a thorough or multi-reviewer review, or to review a PR by number or link.
-compatibility: Requires git, an authenticated gh CLI and jq; run from the repo root.
+compatibility: Requires git and jq; run from the repo root. Posting and existing-feedback checks need an authenticated gh CLI; without it, reviews a local branch and prints the draft.
 ---
 
 # Triplicate review
@@ -55,6 +55,10 @@ If the tool cannot run subagents in parallel, run three sequential passes, each
 in a fresh context with the same prompt, and say that the passes were not
 isolated from the main session. If it cannot run subagents at all, tell the
 human, do one careful pass, and treat every finding as a singleton.
+
+The reviewers are deliberately identical so that agreement between them counts
+as independent confirmation. Review styles that vary the reviewers (personas,
+multiple models) are separate skills, not options here.
 
 Do not suggest likely findings to the reviewers or share one reviewer's output
 with another.

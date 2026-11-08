@@ -35,6 +35,9 @@ and with the human.
 
 ### 1. Gather the state
 
+This skill works from review threads, so it needs `gh`. If `gh` is unavailable,
+stop and tell the human.
+
 ```bash
 .agents/shared/pr_feedback.sh <n>              # add --unresolved to skip resolved threads
 ```
