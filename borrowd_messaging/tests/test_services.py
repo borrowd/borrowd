@@ -7,7 +7,13 @@ from django.utils import timezone
 from guardian.shortcuts import assign_perm
 
 from borrowd_groups.models import BorrowdGroup
-from borrowd_items.models import Item, ItemStatus, ListingType
+from borrowd_items.models import (
+    Item,
+    ItemStatus,
+    ListingType,
+    Transaction,
+    TransactionStatus,
+)
 from borrowd_messaging.exceptions import (
     ConversationGroupSelectionRequired,
     InvalidMessageBody,
@@ -455,6 +461,10 @@ class AttachExistingPreRequestThreadTests(MessagingTestCase):
 
     def test_losing_a_claim_race_does_not_create_a_conversation(self) -> None:
         winner = self.make_transaction()
+        # An item has one open transaction, so the winner has to finish first.
+        Transaction.objects.filter(pk=winner.pk).update(
+            status=TransactionStatus.CANCELLED
+        )
         loser = self.make_transaction()
         thread = self.make_thread()
         stale = ChatThread.objects.get(pk=thread.pk)
@@ -610,6 +620,10 @@ class AttachThreadToTransactionTests(MessagingTestCase):
         stale = ChatThread.objects.get(pk=thread.pk)
         # What a racing caller would have read just before the winner claimed it.
         stale.transaction = None
+        # An item has one open transaction, so the winner has to finish first.
+        Transaction.objects.filter(pk=winner.pk).update(
+            status=TransactionStatus.CANCELLED
+        )
         with override_settings(MESSAGING_ENABLED=False):
             loser = self.make_transaction()
 
