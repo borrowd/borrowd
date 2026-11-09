@@ -66,14 +66,8 @@
                                 <span>{% trans "Groups" %}</span>
                             </div>
 
-                            {% if group_action_count %}
-                                <span class="sr-only">{% trans "Group actions waiting:" %} {{ group_action_count }}</span>
-                                <span class="badge badge-primary badge-xs"
-                                      aria-hidden="true"
-                                      data-testid="nav-group-action-count-indicator">
-                                    {{ group_action_count }}
-                                </span>
-                            {% endif %}
+                            {% include "includes/_group_action_badge.html" %}
+
                         </a>
                     </li>
                     <li>
@@ -84,14 +78,8 @@
                                 <span>{% trans "Community requests" %}</span>
                             </div>
 
-                            {% if community_request_count %}
-                                <span class="sr-only">{% trans "New community requests:" %} {{ community_request_count }}</span>
-                                <span class="badge badge-primary badge-xs"
-                                      aria-hidden="true"
-                                      data-testid="nav-community-request-count-indicator">
-                                    {{ community_request_count }}
-                                </span>
-                            {% endif %}
+                            {% include "includes/_community_request_badge.html" %}
+
                         </a>
                     </li>
                     <li>
