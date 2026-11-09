@@ -6,6 +6,7 @@ from django.db import transaction as db_transaction
 from borrowd_items.models import (
     OPEN_TRANSACTION_STATUSES,
     TERMINAL_TRANSACTION_STATUSES,
+    Item,
     Transaction,
     TransactionStatus,
 )
@@ -80,24 +81,29 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(summary))
 
     def _backfill(self, transaction_id: int, actor: BorrowdUser) -> bool:
-        """Lock the Transaction and its Item, then add a thread if still needed."""
+        """Lock the Transaction's Item, then add a thread if still needed."""
         with db_transaction.atomic():
-            # Locking the Item too makes a concurrent removal wait for this
-            # commit, so its archive pass sees the new thread.
-            transaction = (
-                Transaction.objects.select_for_update(of=("self", "item"))
-                .select_related("item")
-                .filter(pk=transaction_id)
+            item_id = (
+                Transaction.objects.filter(pk=transaction_id)
+                .values_list("item_id", flat=True)
                 .first()
             )
+            if item_id is None:
+                return False
+            # The Item lock is the one every lifecycle writer takes. It also
+            # makes a concurrent removal wait for this commit, so its archive
+            # pass sees the new thread.
+            item = Item.lock_for_update(item_id)
+            transaction = Transaction.objects.filter(pk=transaction_id).first()
             if (
                 transaction is None
                 or transaction.deleted_at is not None
                 or transaction.status in TERMINAL_TRANSACTION_STATUSES
-                or transaction.item.deleted_at is not None
+                or item.deleted_at is not None
                 or ChatThread.objects.filter(transaction=transaction).exists()
             ):
                 return False
+            transaction.item = item
 
             thread = MessagingService.attach_thread_to(transaction, actor=actor)
             if transaction.status == TransactionStatus.DISPUTED:
