@@ -7,8 +7,8 @@ hold both truths, use AI deliberately, and attempt to keep its impact in balance
 
 Borrow'd is a conventional Django app built on well-established tools, so most
 work on it doesn't demand the strongest model or effort setting. Defaulting to
-smaller, more efficient configurations does the job we need with a smaller 
-footprint. 
+smaller, more efficient configurations does the job we need with a smaller
+footprint.
 
 We are a community-driven open source project. Anyone should be able to
 read, understand, and contribute to this code, so it must always be legible to
