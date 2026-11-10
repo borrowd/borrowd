@@ -1,0 +1,17 @@
+{% load i18n %}
+
+{% comment %}
+    The Community requests menu badge. The Messages badge refresh re-renders
+    this out of band (swap_out_of_band), alongside the navbar dot it feeds.
+{% endcomment %}
+<span id="nav-community-request-badge"
+      {% if swap_out_of_band %}hx-swap-oob="true"{% endif %}>
+    {% if community_request_count %}
+        <span class="sr-only">{% trans "New community requests:" %} {{ community_request_count }}</span>
+        <span class="badge badge-primary badge-xs"
+              aria-hidden="true"
+              data-testid="nav-community-request-count-indicator">
+            {{ community_request_count }}
+        </span>
+    {% endif %}
+</span>

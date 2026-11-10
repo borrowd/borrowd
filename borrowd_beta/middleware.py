@@ -15,7 +15,13 @@ class BetaAccessMiddleware:
         if not getattr(settings, "BORROWD_BETA_ENABLED", False):
             request.has_beta_access = True
         else:
-            request.has_beta_access = self.get_beta_signup(request) is not None
+            # A signed-in user is a beta user by construction (signup is gated),
+            # and sending one to the login page would bounce them to
+            # LOGIN_REDIRECT_URL, which is gated, and loop.
+            request.has_beta_access = (
+                request.user.is_authenticated
+                or self.get_beta_signup(request) is not None
+            )
 
         if not request.has_beta_access and self.is_redirect_required(request):
             return redirect(self.signup_redirect_path)

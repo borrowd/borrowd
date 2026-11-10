@@ -118,6 +118,26 @@ class Profile(models.Model):
             " invite friends to their group after adding a profile photo."
         ),
     )
+    messages_seen_at = DateTimeField(
+        null=True,
+        blank=True,
+        default=None,
+        help_text=(
+            "When this user last opened Messages. Only conversations with"
+            " messages sent after this count toward the menu badge."
+            " NULL means never opened."
+        ),
+    )
+    community_requests_seen_at = DateTimeField(
+        null=True,
+        blank=True,
+        default=None,
+        help_text=(
+            "When this user last opened Community requests. Only requests"
+            " created after this count toward the menu badge."
+            " NULL means never opened."
+        ),
+    )
     created_by = ForeignKey(
         BorrowdUser,
         related_name="+",  # No reverse relation needed

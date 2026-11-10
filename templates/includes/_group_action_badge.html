@@ -1,0 +1,17 @@
+{% load i18n %}
+
+{% comment %}
+    The Groups menu badge. The Messages badge refresh re-renders this out of
+    band (swap_out_of_band), alongside the navbar dot it feeds.
+{% endcomment %}
+<span id="nav-group-action-badge"
+      {% if swap_out_of_band %}hx-swap-oob="true"{% endif %}>
+    {% if group_action_count %}
+        <span class="sr-only">{% trans "Group actions waiting:" %} {{ group_action_count }}</span>
+        <span class="badge badge-primary badge-xs"
+              aria-hidden="true"
+              data-testid="nav-group-action-count-indicator">
+            {{ group_action_count }}
+        </span>
+    {% endif %}
+</span>

@@ -21,8 +21,38 @@
             <button class="btn btn-primary" @click.prevent="onShareClick">
                 Copy link
             </button>
+            <a class="btn btn-outline btn-primary mt-2"
+               href="{% url 'borrowd_groups:group-poster' object.pk %}"
+               target="_blank">Create sharing poster</a>
+            {% if can_reset_invite_link %}
+                <button type="button"
+                        class="btn btn-ghost text-error mt-2"
+                        onclick="showModal('reset-invite-link-modal')">
+                    Reset invite link
+                </button>
+            {% endif %}
         </div>
     </c-box>
+    {% if can_reset_invite_link %}
+        <form id="reset-invite-link-form"
+              method="post"
+              action="{% url 'borrowd_groups:reset-invite-link' object.pk %}"
+              class="hidden">
+            {% csrf_token %}
+        </form>
+        <c-modal modal_id="reset-invite-link-modal"
+                 modal_title="Reset the invite link?"
+                 cancel_button_text="Cancel"
+                 confirm_button_text="Reset link"
+                 confirm_submit_form_id="reset-invite-link-form"
+                 button_layout="end"
+                 cancel_button_class="btn btn-ghost font-semibold"
+                 confirm_button_class="btn btn-error btn-soft font-semibold transition-none hover:scale-100">
+            <p class="text-base leading-8">
+                The current link and every printed poster will stop working. Anyone who already joined stays in the group. Share the new link or print a new poster afterwards.
+            </p>
+        </c-modal>
+    {% endif %}
     <script>
     function onShareClick(e) {
         const inviteLink = document.getElementById('join-link').innerText;

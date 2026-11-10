@@ -5,6 +5,7 @@ from django.db.models import Case, Count, IntegerField, Q, QuerySet, Value, When
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
+from django.utils import timezone
 from django.views.generic import CreateView, TemplateView, View
 from guardian.mixins import LoginRequiredMixin
 
@@ -83,6 +84,10 @@ class CommunityRequestListView(
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
         user = get_authenticated_user(self.request)
+        # Stamped before the page queries run, so a request created while
+        # this page renders still counts as new on the next page.
+        user.profile.community_requests_seen_at = timezone.now()
+        user.profile.save(update_fields=["community_requests_seen_at"])
 
         scope = self.request.GET.get("scope")
         if scope not in {"all", "yours"}:

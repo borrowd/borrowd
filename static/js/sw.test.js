@@ -26,6 +26,11 @@ function loadServiceWorker() {
   return { listeners, notifications, openedWindows };
 }
 
+test('does not install a fetch handler', () => {
+  const { listeners } = loadServiceWorker();
+  assert.equal(listeners.has('fetch'), false);
+});
+
 test('push handler displays the notification payload', async () => {
   const { listeners, notifications } = loadServiceWorker();
   let pending;

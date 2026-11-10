@@ -15,7 +15,7 @@ from borrowd_users.models import BorrowdUser
 
 
 def _join_url_for(group: BorrowdGroup) -> str:
-    encoded = InviteSigner.sign_invite(group.pk, group.name)
+    encoded = InviteSigner.sign_invite(group.pk, group.invite_code)
     return reverse("borrowd_groups:group-join", kwargs={"encoded": encoded})
 
 

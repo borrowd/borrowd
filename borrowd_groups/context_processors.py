@@ -1,37 +1,27 @@
 from typing import Any
 
-from django.db.models import Exists, OuterRef
 from django.http import HttpRequest
+from django.utils.functional import SimpleLazyObject
 
-from borrowd_groups.models import Membership, MembershipStatus
 from borrowd_users.request import get_authenticated_user
+
+from .group_actions import group_action_count
 
 
 def groups_needing_moderator(
     request: HttpRequest,
 ) -> dict[str, Any]:
     """
-    Adds a flag indicating whether the user belongs to a group
-    that currently has no moderator.
+    Adds the count of group actions waiting on the user for the Groups nav
+    badge, including each of the user's groups that has no moderator.
+
+    The count is lazy, so pages that don't render it run no queries.
     """
     if not request.user.is_authenticated:
         return {}
 
-    active_moderator_memberships = Membership.objects.filter(
-        group_id=OuterRef("group_id"),
-        status=MembershipStatus.ACTIVE,
-        is_moderator=True,
-    )
+    user = get_authenticated_user(request)
 
-    has_groups_needing_moderator = (
-        Membership.objects.filter(
-            user=get_authenticated_user(request),
-            status=MembershipStatus.ACTIVE,
-            is_moderator=False,
-        )
-        .annotate(has_active_moderator=Exists(active_moderator_memberships))
-        .filter(has_active_moderator=False)
-        .exists()
-    )
-
-    return {"has_groups_needing_moderator": has_groups_needing_moderator}
+    return {
+        "group_action_count": SimpleLazyObject(lambda: group_action_count(user)),
+    }
