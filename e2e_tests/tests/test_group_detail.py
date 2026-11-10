@@ -10,7 +10,6 @@ from pages.groups_page import GroupsPage
 fake = Faker()
 
 
-@pytest.mark.smoke
 @pytest.mark.regression
 @allure.feature("Groups")
 @allure.title("User can create a group and see it in the groups list")

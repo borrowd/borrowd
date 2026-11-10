@@ -10,7 +10,6 @@ from pages.item_details_page import ItemDetails
 fake = Faker()
 
 
-@pytest.mark.smoke
 @pytest.mark.regression
 @allure.feature("Items")
 @allure.title("User can create an item and see it in inventory")

@@ -15,7 +15,7 @@ class GroupEditPage:
         self.banner_submit_input = page.locator("#banner-submit-input")
         self.approval_checkbox = page.locator("#id_membership_requires_approval")
 
-        self.save_button = page.get_by_role("button", name="Save group")
+        self.save_button = page.get_by_role("button", name="Save changes")
         self.cancel_button = page.get_by_role("link", name="Cancel")
 
     def expect_opened(self):

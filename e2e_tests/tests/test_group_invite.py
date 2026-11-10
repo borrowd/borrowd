@@ -11,7 +11,6 @@ from pages.groups_page import GroupsPage
 fake = Faker()
 
 
-@pytest.mark.smoke
 @pytest.mark.regression
 @allure.feature("Groups")
 @allure.title("Moderator can generate an invite link for their group")
