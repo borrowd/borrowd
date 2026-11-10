@@ -4,6 +4,7 @@ import "./toast.js";
 import "./qrcode-render.js";
 import "./htmx-csrf.js";
 import "./image-resize.js";
+import "./native-app.js";
 import "./read-ack.js";
 import "./platform.js";
 import "./color-scheme.js";

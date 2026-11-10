@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Universal Links: open links to the prod site in the app. Verified against
+	     /.well-known/apple-app-site-association (borrowd_web.views). -->
+	<key>com.apple.developer.associated-domains</key>
+	<array>
+		<string>applinks:app.borrowd.org</string>
+	</array>
+</dict>
+</plist>

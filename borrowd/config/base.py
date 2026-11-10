@@ -91,6 +91,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "borrowd_beta.middleware.BetaAccessMiddleware",
     "borrowd_users.middleware.RecordUserActivityMiddleware",
+    "borrowd_users.middleware.NativeAppSessionMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "allauth.account.middleware.AccountMiddleware",
@@ -224,6 +225,28 @@ VAPID_PRIVATE_KEY: str = env("VAPID_PRIVATE_KEY", default="")
 VAPID_PUBLIC_KEY: str = env("VAPID_PUBLIC_KEY", default="")
 VAPID_ADMIN_EMAIL: str = env("VAPID_ADMIN_EMAIL", default="")
 
+# Native app (Capacitor shell in mobile/)
+# iOS bundle ID and Android applicationId; must match mobile/capacitor.config.ts.
+NATIVE_APP_ID = "org.borrowd.app"
+# Added to the app's User-Agent; must match appendUserAgent in
+# mobile/capacitor.config.ts.
+NATIVE_APP_USER_AGENT = "BorrowdApp"
+# Web password logins end when the browser closes (the login form has no
+# "Remember me" box). In the app that would mean every time it's quit, so app
+# logins instead last this long after the app was last used
+# (borrowd_users.middleware.NativeAppSessionMiddleware).
+NATIVE_APP_SESSION_AGE = 60 * 60 * 24 * 90  # 90 days, in seconds
+# Universal Links / App Links verification files are only served once these are
+# set, so an unconfigured deployment 404s instead of publishing a broken file.
+# APPLE_TEAM_ID: the 10-character Team ID from the Apple Developer account.
+APPLE_TEAM_ID: str = env("APPLE_TEAM_ID", default="")
+# ANDROID_CERT_SHA256_FINGERPRINTS: comma-separated SHA-256 fingerprints of the
+# certificates that sign the Android app (the Play App Signing key, plus any
+# upload/debug key whose builds should also open links in-app).
+ANDROID_CERT_SHA256_FINGERPRINTS: list[str] = env.list(
+    "ANDROID_CERT_SHA256_FINGERPRINTS", default=[]
+)
+
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
 
@@ -285,6 +308,7 @@ BETA_CHECK_EXCLUDE_PATHS = [
     r"^/media/.*",
     r"^/manifest.json$",
     r"^/sw.js$",
+    r"^/\.well-known/.*",
     r"^/beta/.*",
     r"^/__reload__/.*",
 ]

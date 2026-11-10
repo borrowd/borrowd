@@ -93,3 +93,48 @@ class RecordUserActivityMiddleware:
             sentry_sdk.capture_exception()
             return
         request.session[SESSION_KEY] = today.isoformat()
+
+
+NATIVE_SESSION_REFRESHED_KEY = "native_app_session_refreshed_on"
+
+
+def is_native_app_request(request: HttpRequest) -> bool:
+    """
+    True for requests from the native app shell (mobile/), which adds
+    NATIVE_APP_USER_AGENT to its WebView's User-Agent. Anyone can send that
+    header, so only use this for conveniences, never for access decisions.
+    """
+    user_agent = request.headers.get("User-Agent", "")
+    return settings.NATIVE_APP_USER_AGENT in user_agent.split()
+
+
+class NativeAppSessionMiddleware:
+    """
+    Keep native app users logged in while they keep using the app: each day
+    the app is used, the session's expiry is pushed back to
+    NATIVE_APP_SESSION_AGE. Web logins are untouched, so a password login in
+    a browser still ends when the browser closes.
+
+    Runs after the view, so it also overrides the browser-close expiry that
+    allauth sets on the password login response itself.
+    """
+
+    def __init__(self, get_response: Callable[[HttpRequest], HttpResponse]) -> None:
+        self.get_response = get_response
+
+    def __call__(self, request: HttpRequest) -> HttpResponse:
+        response = self.get_response(request)
+        # Checked after the view: a login or logout during this request
+        # changes request.user.
+        if request.user.is_authenticated and is_native_app_request(request):
+            session = request.session
+            today = timezone.now().date().isoformat()
+            # At most one session write per day, plus right after a login,
+            # whose expiry allauth has just reset.
+            if (
+                session.get(NATIVE_SESSION_REFRESHED_KEY) != today
+                or session.get_expire_at_browser_close()
+            ):
+                session.set_expiry(settings.NATIVE_APP_SESSION_AGE)
+                session[NATIVE_SESSION_REFRESHED_KEY] = today
+        return response

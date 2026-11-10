@@ -1,0 +1,3 @@
+node_modules/
+# Generated from offline.html by capacitor.config.ts on every sync.
+www/offline.html

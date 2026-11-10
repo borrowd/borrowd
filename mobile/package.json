@@ -1,0 +1,26 @@
+{
+    "dependencies": {
+        "@capacitor/android": "8.5.3",
+        "@capacitor/app": "8.1.2",
+        "@capacitor/core": "8.5.3",
+        "@capacitor/ios": "8.5.3",
+        "@capacitor/push-notifications": "8.1.3",
+        "@capacitor/splash-screen": "8.0.2",
+        "@capacitor/status-bar": "8.0.4"
+    },
+    "description": "Capacitor native shell (iOS + Android) that loads the live Borrow'd site.",
+    "devDependencies": {
+        "@capacitor/cli": "8.5.3",
+        "typescript": "5.9.3"
+    },
+    "license": "AGPL",
+    "name": "borrowd-mobile",
+    "private": true,
+    "scripts": {
+        "open:android": "cap open android",
+        "open:ios": "cap open ios",
+        "sync:cert": "BORROWD_APP_ENV=cert cap sync",
+        "sync:dev": "BORROWD_APP_ENV=dev cap sync",
+        "sync:prod": "BORROWD_APP_ENV=prod cap sync"
+    }
+}

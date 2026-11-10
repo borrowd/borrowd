@@ -88,6 +88,7 @@ Repo-local `PostToolUse` hooks (configured in `.claude/settings.json`, scripts i
 - `borrowd_beta/` — Beta-access wall (middleware, signup form, allowlist)
 - `borrowd_permissions/` — Object-level permission enums (`ItemOLP`, `BorrowdGroupOLP`) and view mixins (`LoginOr403PermissionMixin`, `LoginOr404PermissionMixin`)
 - `borrowd_web/` — Landing pages and shared web bits (favicon, etc.)
+- `mobile/` — Capacitor iOS/Android shell that loads the live site; see [mobile/README.md](mobile/README.md)
 
 ### Key Domain Concepts
 
