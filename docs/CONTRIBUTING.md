@@ -239,6 +239,44 @@ Example demo data load command:
 uv run manage.py loadborrowddata fixtures/demo_data.yaml
 ```
 
+## End-to-end tests
+
+Playwright browser tests live in `e2e_tests/` and run separately from
+`manage.py test`. They have two modes, selected by `E2E_MODE`:
+
+* `ephemeral` (what CI runs on every pull request, `pytest -m regression`):
+  the app runs against a freshly migrated, seeded database, so runs don't
+  share state.
+* `cert` (the default, `pytest -m smoke`): a small set of critical journeys
+  against the shared cert deployment, run nightly by the `E2E smoke (cert)`
+  workflow and available to trigger manually from the Actions tab. It needs
+  the `E2E_*` repository secrets, so it doesn't run for forks.
+
+To run the regression suite locally, start Postgres and a seeded server, then
+run the tests from `e2e_tests/`:
+
+```
+docker compose up -d db
+export DJANGO_SETTINGS_MODULE=borrowd.config.ci.django DJANGO_SECRET_KEY=local DEBUG=True
+npm run build
+uv run manage.py collectstatic --noinput
+uv run manage.py migrate
+uv run manage.py loaddata items/item_categories
+uv run manage.py seed_e2e_data
+uv run manage.py runserver 127.0.0.1:8000        # leave running
+
+# in another terminal
+cd e2e_tests
+pip install -r requirements.txt && playwright install chromium
+E2E_MODE=ephemeral pytest -m regression --reruns 0
+```
+
+New user-facing functionality should come with an end-to-end test of its main
+path in the same pull request; edge cases belong in unit tests. If you change
+user-visible text, markup or a flow that a test covers, update the matching
+page object in `e2e_tests/pages/` in the same pull request.
+`e2e_tests/AGENTS.md` describes the suite's conventions.
+
 ## Working with tools via `uv`
 
 Use the `uvx` command to invoke tools installed via `uv`:
