@@ -3,15 +3,21 @@
 Borrow'd exists to make a positive difference for the environment and our
 communities. AI is in tension with that mission: it carries real environmental
 and social costs, and it is also the reason we have come as far as we have. We
-hold both truths. We use AI deliberately, watch its impact, and will revisit
-this policy as the tools and our understanding change.
+hold both truths, use AI deliberately, and attempt to keep its impact in balance.
 
-We are also a community-driven open source project. Anyone should be able to
+Borrow'd is a conventional Django app built on well-established tools, so most
+work on it doesn't demand the strongest model or effort setting. Defaulting to
+smaller, more efficient configurations does the job we need with a smaller 
+footprint. 
+
+We are a community-driven open source project. Anyone should be able to
 read, understand, and contribute to this code, so it must always be legible to
 a human. This policy applies to contributors and to the AI agents working for
 them; "you" means either, and the human is always accountable. AI is welcome
 for code, tests, docs, review, triage, and replying to comments, and the policy
 covers all of them, including issues and bug reports.
+
+We will revisit this policy as the tools and our understanding change.
 
 ## Outcomes we expect
 
