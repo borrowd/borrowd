@@ -58,6 +58,13 @@ This reuses `borrowd.config.ci.django` — the same settings module CI
 uses — so there's no separate local-Postgres settings file to maintain, and
 its `DB_*` env var defaults already match `docker-compose.yml`.
 
+### E2E tests
+Playwright browser tests live in `e2e_tests/` and are **not** part of `manage.py test`. CI runs the `regression` set on every PR against an app booted inside the job on a seeded database, and a small `smoke` set nightly against the cert deployment. Local run, from a seeded server (see [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md#end-to-end-tests) for the full steps):
+```bash
+cd e2e_tests && E2E_MODE=ephemeral pytest -m regression --reruns 0
+```
+Read [e2e_tests/AGENTS.md](e2e_tests/AGENTS.md) before adding or changing E2E tests.
+
 ### Code Quality
 ```bash
 uvx ruff format                 # Format code
@@ -183,6 +190,14 @@ Evergreen comments only — describe current state, not evolution. Don't referen
 
 ### Error Handling
 Domain-specific exceptions live in `<app>/exceptions.py`, all subclassing `BorrowdException` (`borrowd/exceptions.py`). Raise early on invalid state; surface user-facing failures via Django's messages framework.
+
+### E2E Coverage for New Functionality
+New user-facing functionality ships with E2E coverage in the same PR, alongside the unit tests: a new page, a new user flow, or a new interaction a user performs in the browser (a form, a modal, an action button). Add or extend a `regression` test in `e2e_tests/` that walks the primary happy path as a user would. Follow [e2e_tests/AGENTS.md](e2e_tests/AGENTS.md), and run the new test locally before opening the PR.
+
+Skip it when the change is backend-only, a copy or styling tweak, or a variation of a flow an existing E2E test already walks and unit tests cover the variation. When you skip, say so in the PR description with the reason. Don't add E2E tests for edge cases and permission matrices; those belong in unit tests, which are faster and less brittle.
+
+### E2E Locators
+E2E page objects in `e2e_tests/pages/` depend on button labels, headings, element ids and template structure. When you change user-visible text, markup or a user flow, search `e2e_tests/pages/` for what depends on it and update it in the same PR. Only the E2E suite itself catches a stale locator, and only if it runs.
 
 ### Data Migrations
 A `RunPython` migration that calls `apps.get_model(...)` gets a frozen historical model class, not the live one. Calling `.save()` on an instance of it does **not** dispatch `post_save`/`pre_save` to receivers registered against the live model (Django's dispatcher matches `sender` by exact class identity) — this class of bug has silently broken permission enrollment before (`borrowd_groups/signals.py`'s `sync_membership_permissions`, backfilled via `repair_membership_permissions`). If a migration needs a live model's signal side effects or another live-only behavior (e.g. guardian's `isinstance` checks against `auth.Group`, see `0012_backfill_item_view_perms_for_members.py`), import and use the live class/function directly instead of going through `apps.get_model()`.

@@ -21,3 +21,8 @@ DATABASES = {
         "PORT": env("DB_PORT", default="5432"),
     }
 }
+
+# Lets CI boot a live server for the E2E suite: with DEBUG on, runserver also
+# serves static and media files, and the loopback hosts are accepted.
+DEBUG = env.bool("DEBUG", default=False)
+ALLOWED_HOSTS = ["localhost", "127.0.0.1"]

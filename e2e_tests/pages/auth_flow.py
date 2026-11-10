@@ -48,6 +48,11 @@ class AuthFlow:
         expect(self.sign_in_link).to_be_visible()
 
     def open_email_password_login(self):
+        # Without a beta wall the landing page is the login form itself, so
+        # there is no "Log In" link to follow.
+        if re.search(r"/accounts/login/?$", self.page.url):
+            expect(self.email_input).to_be_visible()
+            return
         expect(self.sign_in_link).to_be_visible()
         close_sidebar = self.page.get_by_role(
             "checkbox", name=re.compile("close sidebar", re.IGNORECASE)
@@ -76,7 +81,7 @@ class AuthFlow:
         expect(self.page).to_have_url(re.compile(r"/items/?$"))
 
     def expect_logged_out(self):
-        expect(self.sign_in_link).to_be_visible()
+        expect(self.sign_in_link.or_(self.email_input)).to_be_visible()
 
     def save_state(self, file_path):
         self.page.context.storage_state(path=file_path)

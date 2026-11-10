@@ -5,11 +5,6 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
-    inputs:
-      skip_e2e:
-        description: "Skip E2E tests"
-        type: boolean
-        default: true
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -101,31 +96,75 @@ jobs:
       - run: uv run manage.py test
 
   e2e:
-    name: E2E tests (Playwright/Python)
+    name: E2E regression tests (Playwright/Python)
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 30
+    # Not yet a required check: failures are reported but don't fail the run.
     continue-on-error: true
-    # E2E runs on manual dispatch only: run the workflow and untick "Skip E2E
-    # tests". `inputs` is empty on pull_request/push, so the event check is
-    # what keeps this job -- and the Allure jobs that need it -- off automatic
-    # runs.
-    if: ${{ github.event_name == 'workflow_dispatch' && !inputs.skip_e2e }}
-    defaults:
-      run:
-        working-directory: e2e_tests
 
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: borrowd
+          POSTGRES_PASSWORD: borrowd
+          POSTGRES_DB: borrowd
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U borrowd"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    # The app runs ephemerally inside this job against a freshly migrated and
+    # seeded database; see e2e-smoke.yml for the run against the cert deployment.
     env:
-      E2E_BASE_URL: ${{ secrets.E2E_BASE_URL }}
-      E2E_BETA_CODE: ${{ secrets.E2E_BETA_CODE }}
-      E2E_USER_EMAIL: ${{ secrets.E2E_USER_EMAIL }}
-      E2E_USER_PASSWORD: ${{ secrets.E2E_USER_PASSWORD }}
-      E2E_BORROWER_EMAIL: ${{ secrets.E2E_BORROWER_EMAIL }}
-      E2E_BORROWER_PASSWORD: ${{ secrets.E2E_BORROWER_PASSWORD }}
-      E2E_LENDER_EMAIL: ${{ secrets.E2E_LENDER_EMAIL }}
-      E2E_LENDER_PASSWORD: ${{ secrets.E2E_LENDER_PASSWORD }}
+      DJANGO_SETTINGS_MODULE: borrowd.config.ci.django
+      DJANGO_SECRET_KEY: ci-not-a-real-secret
+      BORROWD_BETA_ENABLED: "False"
+      DEBUG: "True"
+      DB_NAME: borrowd
+      DB_USER: borrowd
+      DB_PASSWORD: borrowd
+      DB_HOST: 127.0.0.1
+      DB_PORT: "5432"
+      E2E_MODE: ephemeral
+      E2E_BASE_URL: http://127.0.0.1:8000
 
     steps:
       - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.13"
+          enable-cache: true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - run: uv sync --frozen
+      - run: npm ci
+      - run: npm run build
+      - run: uv run manage.py collectstatic --noinput
+      - run: uv run manage.py migrate
+      - run: uv run manage.py loaddata items/item_categories
+      - run: uv run manage.py seed_e2e_data
+
+      - name: Start the app
+        run: |
+          nohup uv run manage.py runserver 127.0.0.1:8000 --noreload > server.log 2>&1 &
+          for _ in $(seq 1 30); do
+            if curl -fsS -o /dev/null http://127.0.0.1:8000/accounts/login/; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "App did not become healthy in time" >&2
+          cat server.log
+          exit 1
 
       - uses: actions/setup-python@v5
         with:
@@ -133,11 +172,13 @@ jobs:
           cache: pip
           cache-dependency-path: e2e_tests/requirements.txt
 
-      - run: pip install -r requirements.txt
+      - run: pip install -r e2e_tests/requirements.txt
 
       - run: playwright install chromium --with-deps
 
-      - run: pytest --tb=short --durations=0
+      - name: Run regression tests
+        working-directory: e2e_tests
+        run: pytest -m regression --tb=short --durations=0
 
       - name: Upload Allure results
         uses: actions/upload-artifact@v4
@@ -147,13 +188,30 @@ jobs:
           path: e2e_tests/allure-results/
           retention-days: 1
 
+      - name: Upload server log
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: server-log
+          path: server.log
+          retention-days: 7
+
   deploy-report:
     name: Deploy Allure report to GitHub Pages
     runs-on: ubuntu-latest
     needs: [e2e]
-    if: always() && needs.e2e.result != 'skipped'
+    # Pull requests from forks get a read-only token and can't publish.
+    if: >-
+      always() && needs.e2e.result != 'skipped' &&
+      (github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name == github.repository)
     permissions:
       contents: write
+    # Each deploy rewrites gh-pages from the history it checked out, so
+    # concurrent deploys must queue rather than race.
+    concurrency:
+      group: allure-report-deploy
+      cancel-in-progress: false
 
     steps:
       - uses: actions/checkout@v4
@@ -173,7 +231,7 @@ jobs:
           path: gh-pages
 
       - name: Generate Allure report with history
-        uses: simple-elf/allure-report-action@v1.14
+        uses: simple-elf/allure-report-action@v1.15
         with:
           allure_results: e2e_tests/allure-results
           gh_pages: gh-pages

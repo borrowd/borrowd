@@ -18,7 +18,7 @@ from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 load_dotenv()
 
 # The shared cert environment can be slow (long POSTs, late Alpine renders);
-# Hence, extra timeout
+# hence the generous timeout
 expect.set_options(timeout=30_000)
 
 AUTH_DIR = pathlib.Path(__file__).parent / "tests" / ".auth"
@@ -55,100 +55,125 @@ def _maybe_attach_video(request: pytest.FixtureRequest, page: Page) -> None:
             pass
 
 
+# Two ways to run the suite:
+#   ephemeral (default in CI): a freshly migrated app seeded by
+#     `manage.py seed_e2e_data`; credentials default to the seeded accounts and
+#     there is no beta wall, so no cleanup is needed.
+#   cert: a shared, long-lived deployment reached through E2E_BASE_URL with
+#     real accounts from the E2E_* variables; leftovers are swept before and
+#     after the run.
+EPHEMERAL_DEFAULTS = {
+    "E2E_BASE_URL": "http://127.0.0.1:8000",
+    "E2E_USER_EMAIL": "e2e-user@example.com",
+    "E2E_BORROWER_EMAIL": "e2e-borrower@example.com",
+    "E2E_LENDER_EMAIL": "e2e-lender@example.com",
+    "E2E_USER_PASSWORD": "e2e-password-not-a-secret",
+    "E2E_BORROWER_PASSWORD": "e2e-password-not-a-secret",
+    "E2E_LENDER_PASSWORD": "e2e-password-not-a-secret",
+}
+
+
+def is_ephemeral() -> bool:
+    return os.environ.get("E2E_MODE", "cert") == "ephemeral"
+
+
+def _setting(name: str) -> str:
+    if is_ephemeral() and name in EPHEMERAL_DEFAULTS:
+        return os.environ.get(name, EPHEMERAL_DEFAULTS[name])
+    return os.environ[name]
+
+
 @pytest.fixture(scope="session")
 def base_url():
-    return os.environ["E2E_BASE_URL"]
+    return _setting("E2E_BASE_URL")
 
 
 @pytest.fixture(scope="session")
 def beta_code():
+    """The beta wall code, or None when the environment has no beta wall."""
+    if is_ephemeral():
+        return os.environ.get("E2E_BETA_CODE") or None
     return os.environ["E2E_BETA_CODE"]
 
 
 @pytest.fixture(scope="session")
 def user_email():
-    return os.environ["E2E_USER_EMAIL"]
+    return _setting("E2E_USER_EMAIL")
 
 
 @pytest.fixture(scope="session")
 def user_password():
-    return os.environ["E2E_USER_PASSWORD"]
+    return _setting("E2E_USER_PASSWORD")
 
 
 @pytest.fixture(scope="session")
 def borrower_email():
-    return os.environ["E2E_BORROWER_EMAIL"]
+    return _setting("E2E_BORROWER_EMAIL")
 
 
 @pytest.fixture(scope="session")
 def borrower_password():
-    return os.environ["E2E_BORROWER_PASSWORD"]
+    return _setting("E2E_BORROWER_PASSWORD")
 
 
 @pytest.fixture(scope="session")
 def lender_email():
-    return os.environ["E2E_LENDER_EMAIL"]
+    return _setting("E2E_LENDER_EMAIL")
 
 
 @pytest.fixture(scope="session")
 def lender_password():
-    return os.environ["E2E_LENDER_PASSWORD"]
+    return _setting("E2E_LENDER_PASSWORD")
 
 
-@pytest.fixture(scope="session")
-def user_auth_state(browser: Browser, base_url, beta_code, user_email, user_password):
-    """Authenticate once per session; save cookies/localStorage to file."""
+def _save_auth_state(
+    browser: Browser,
+    base_url: str,
+    beta_code: str | None,
+    email: str,
+    password: str,
+    name: str,
+) -> str:
+    """Log in once and save cookies/localStorage to a file for reuse."""
     AUTH_DIR.mkdir(parents=True, exist_ok=True)
-    auth_file = str(AUTH_DIR / "user.json")
+    auth_file = str(AUTH_DIR / f"{name}.json")
     context = browser.new_context()
     page = context.new_page()
     auth = AuthFlow(page)
     auth.open_base(base_url)
-    auth.pass_beta(beta_code)
+    if beta_code:
+        auth.pass_beta(beta_code)
     auth.open_email_password_login()
-    auth.login_with_email_password(user_email, user_password)
+    auth.login_with_email_password(email, password)
     auth.expect_logged_in()
     context.storage_state(path=auth_file)
     context.close()
     return auth_file
+
+
+@pytest.fixture(scope="session")
+def user_auth_state(browser: Browser, base_url, beta_code, user_email, user_password):
+    return _save_auth_state(
+        browser, base_url, beta_code, user_email, user_password, "user"
+    )
 
 
 @pytest.fixture(scope="session")
 def borrower_auth_state(
     browser: Browser, base_url, beta_code, borrower_email, borrower_password
 ):
-    AUTH_DIR.mkdir(parents=True, exist_ok=True)
-    auth_file = str(AUTH_DIR / "borrower.json")
-    context = browser.new_context()
-    page = context.new_page()
-    auth = AuthFlow(page)
-    auth.open_base(base_url)
-    auth.pass_beta(beta_code)
-    auth.open_email_password_login()
-    auth.login_with_email_password(borrower_email, borrower_password)
-    auth.expect_logged_in()
-    context.storage_state(path=auth_file)
-    context.close()
-    return auth_file
+    return _save_auth_state(
+        browser, base_url, beta_code, borrower_email, borrower_password, "borrower"
+    )
 
 
 @pytest.fixture(scope="session")
 def lender_auth_state(
     browser: Browser, base_url, beta_code, lender_email, lender_password
 ):
-    AUTH_DIR.mkdir(parents=True, exist_ok=True)
-    auth_file = str(AUTH_DIR / "lender.json")
-    context = browser.new_context()
-    page = context.new_page()
-    auth = AuthFlow(page)
-    auth.open_base(base_url)
-    auth.pass_beta(beta_code)
-    auth.open_email_password_login()
-    auth.login_with_email_password(lender_email, lender_password)
-    auth.expect_logged_in()
-    context.storage_state(path=auth_file)
-    context.close()
-    return auth_file
+    return _save_auth_state(
+        browser, base_url, beta_code, lender_email, lender_password, "lender"
+    )
 
 
 @pytest.fixture
@@ -193,11 +218,6 @@ def lender_page(request: pytest.FixtureRequest, browser: Browser, lender_auth_st
     _maybe_attach_screenshot(request, page, "lender_page")
     context.close()
     _maybe_attach_video(request, page)
-
-
-@pytest.fixture
-def existing_item_name():
-    return "E2E TEST BORROW-RETURN ITEM"
 
 
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
@@ -292,6 +312,9 @@ def cleanup_e2e_items(browser: Browser, base_url, user_auth_state):
 
     # Sweep before the run too: a failed run skips its own cleanup, and the
     # leftovers slow the inventory page down for every run after it.
+    if is_ephemeral():
+        yield
+        return
     sweep()
     yield
     sweep()
@@ -366,6 +389,9 @@ def cleanup_e2e_groups(browser: Browser, base_url, user_auth_state):
         finally:
             context.close()
 
+    if is_ephemeral():
+        yield
+        return
     sweep()
     yield
     sweep()
