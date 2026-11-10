@@ -1,0 +1,22 @@
+"DESCRIPTION","DURATION IN MS","NAME","PARENT SUITE","START TIME","STATUS","STOP TIME","SUB SUITE","SUITE","TEST CLASS","TEST METHOD"
+"","82493","User can create a group and see it in the groups list","tests","2026-07-21","failed","2026-07-21","","test_group_detail","",""
+"","2955","User can log out successfully","tests","2026-07-21","passed","2026-07-21","","test_logout","",""
+"No DB access to the cert environment, so this reads counts straight
+off the UI instead — both the inventory and groups list views render
+every owned item/group with no pagination (see inventory_view and
+GroupListView), so a DOM count here matches the real total. Useful for
+confirming/refuting the O(items owned) group-creation slowness in #527
+without needing direct database access.","10058","Report item and group counts for the shared e2e test account","tests","2026-07-21","passed","2026-07-21","","test_diagnostics","",""
+"","583","Profile page loads and displays personal information","tests","2026-07-21","passed","2026-07-21","","test_profile","",""
+"","7887","User can add a new item to their inventory","tests","2026-07-21","passed","2026-07-21","","test_add_item","",""
+"","5316","Groups list page loads and displays correctly","tests","2026-07-21","passed","2026-07-21","","test_groups_list","",""
+"","48932","Moderator can edit group name and description","tests","2026-07-21","failed","2026-07-21","","test_edit_group","",""
+"","1086","User can update their bio on the profile page","tests","2026-07-21","passed","2026-07-21","","test_profile","",""
+"","44755","User can create a new group and become its moderator","tests","2026-07-21","failed","2026-07-21","","test_create_group","",""
+"","2939","User can log in with email and password","tests","2026-07-21","passed","2026-07-21","","test_login","",""
+"","75263","Moderator can generate an invite link for their group","tests","2026-07-21","failed","2026-07-21","","test_group_invite","",""
+"","27936","User can edit item name and description","tests","2026-07-21","passed","2026-07-21","","test_edit_item","",""
+"","29466","User can delete an available item","tests","2026-07-21","passed","2026-07-21","","test_delete_item","",""
+"","2094","Items list page loads and search is available","tests","2026-07-21","passed","2026-07-21","","test_items_list","",""
+"","6065","User can create an item and see it in inventory","tests","2026-07-21","passed","2026-07-21","","test_item_detail","",""
+"","0","Full borrow and return flow — from request to confirmed return","tests","2026-07-21","skipped","2026-07-21","","test_borrow_return_flow","",""

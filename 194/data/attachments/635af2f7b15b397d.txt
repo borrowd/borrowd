@@ -1,0 +1,4 @@
+E2E item cleanup skipped: Page.goto: Timeout 120000ms exceeded.
+Call log:
+  - navigating to "https://staging-5em2ouy-wrpvbokn22dsg.us-3.platformsh.site//profile/inventory/", waiting until "domcontentloaded"
+

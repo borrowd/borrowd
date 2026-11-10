@@ -1,0 +1,22 @@
+"DESCRIPTION","DURATION IN MS","NAME","PARENT SUITE","START TIME","STATUS","STOP TIME","SUB SUITE","SUITE","TEST CLASS","TEST METHOD"
+"","802","Profile page loads and displays personal information","tests","2026-07-21","passed","2026-07-21","","test_profile","",""
+"","24129","User can delete an available item","tests","2026-07-21","passed","2026-07-21","","test_delete_item","",""
+"","3424","User can log out successfully","tests","2026-07-21","passed","2026-07-21","","test_logout","",""
+"","44167","User can create a group and see it in the groups list","tests","2026-07-21","broken","2026-07-21","","test_group_detail","",""
+"","20966","User can edit item name and description","tests","2026-07-21","passed","2026-07-21","","test_edit_item","",""
+"","8350","User can add a new item to their inventory","tests","2026-07-21","passed","2026-07-21","","test_add_item","",""
+"","0","Full borrow and return flow — from request to confirmed return","tests","2026-07-21","skipped","2026-07-21","","test_borrow_return_flow","",""
+"","37979","User can create a new group and become its moderator","tests","2026-07-21","broken","2026-07-21","","test_create_group","",""
+"","37761","Moderator can edit group name and description","tests","2026-07-21","broken","2026-07-21","","test_edit_group","",""
+"","1818","Items list page loads and search is available","tests","2026-07-21","passed","2026-07-21","","test_items_list","",""
+"","1272","User can update their bio on the profile page","tests","2026-07-21","passed","2026-07-21","","test_profile","",""
+"","36753","Moderator can generate an invite link for their group","tests","2026-07-21","broken","2026-07-21","","test_group_invite","",""
+"","3268","User can log in with email and password","tests","2026-07-21","passed","2026-07-21","","test_login","",""
+"","10166","User can create an item and see it in inventory","tests","2026-07-21","passed","2026-07-21","","test_item_detail","",""
+"No DB access to the cert environment, so this reads counts straight
+off the UI instead — both the inventory and groups list views render
+every owned item/group with no pagination (see inventory_view and
+GroupListView), so a DOM count here matches the real total. Useful for
+confirming/refuting the O(items owned) group-creation slowness in #527
+without needing direct database access.","8879","Report item and group counts for the shared e2e test account","tests","2026-07-21","passed","2026-07-21","","test_diagnostics","",""
+"","8377","Groups list page loads and displays correctly","tests","2026-07-21","passed","2026-07-21","","test_groups_list","",""

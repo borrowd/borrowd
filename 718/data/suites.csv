@@ -1,0 +1,25 @@
+"DESCRIPTION","DURATION IN MS","NAME","PARENT SUITE","START TIME","STATUS","STOP TIME","SUB SUITE","SUITE","TEST CLASS","TEST METHOD"
+"","1823","User can add a new item to their inventory","tests","2026-11-10","passed","2026-11-10","","test_add_item","",""
+"","1832","User can create an item and see it in inventory","tests","2026-11-10","passed","2026-11-10","","test_item_detail","",""
+"","2214","User can delete an available item","tests","2026-11-10","passed","2026-11-10","","test_delete_item","",""
+"","1091","Moderator can edit group name and description","tests","2026-11-10","passed","2026-11-10","","test_edit_group","",""
+"","537","'View all' in the popup navigates to the notification inbox","tests","2026-11-10","passed","2026-11-10","","test_notification_bell","",""
+"","957","User can create a group and see it in the groups list","tests","2026-11-10","passed","2026-11-10","","test_group_detail","",""
+"","1293","Moderator can generate an invite link for their group","tests","2026-11-10","passed","2026-11-10","","test_group_invite","",""
+"","1524","Group names with quotes or script-breaking characters render inertly in the item search filter","tests","2026-11-10","passed","2026-11-10","","test_item_search_group_filter_names","",""
+"","252","Groups list page loads and displays correctly","tests","2026-11-10","passed","2026-11-10","","test_groups_list","",""
+"","1838","User can edit item name and description","tests","2026-11-10","passed","2026-11-10","","test_edit_item","",""
+"","359","Profile page loads and displays personal information","tests","2026-11-10","passed","2026-11-10","","test_profile","",""
+"","1207","User can log out successfully","tests","2026-11-10","passed","2026-11-10","","test_logout","",""
+"","302","Items list page loads and search is available","tests","2026-11-10","passed","2026-11-10","","test_items_list","",""
+"","647","User can log in with email and password","tests","2026-11-10","passed","2026-11-10","","test_login","",""
+"Regression test for a bug where the badge's htmx poll selected two
+elements with the same id from the full inbox-page response (the
+navbar's own badge and the inbox page's inline badge) and swapped both
+in, doubling the badge. Both now use distinct ids so only one is ever
+matched.
+","32296","Unread badge does not duplicate on the 30s htmx poll","tests","2026-11-10","passed","2026-11-10","","test_notification_bell","",""
+"","7007","Full borrow and return flow — from request to confirmed return","tests","2026-11-10","passed","2026-11-10","","test_borrow_return_flow","",""
+"","759","User can create a new group and become its moderator","tests","2026-11-10","passed","2026-11-10","","test_create_group","",""
+"","455","Notification bell opens a popup with recent notifications","tests","2026-11-10","passed","2026-11-10","","test_notification_bell","",""
+"","601","User can update their bio on the profile page","tests","2026-11-10","passed","2026-11-10","","test_profile","",""
