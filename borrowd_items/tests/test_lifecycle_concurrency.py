@@ -6,14 +6,16 @@ from concurrent.futures import TimeoutError as StillWaiting
 from threading import Barrier, Event
 from typing import Any
 from unittest import skipUnless
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
+from django.contrib.admin.sites import AdminSite
 from django.db import close_old_connections, connection, connections
-from django.test import Client, TransactionTestCase, override_settings
+from django.test import Client, RequestFactory, TransactionTestCase, override_settings
 from django.urls import reverse
 from guardian.shortcuts import assign_perm
 
 from borrowd_groups.models import BorrowdGroup
+from borrowd_items.admin import ItemAdmin
 from borrowd_items.exceptions import InvalidItemAction
 from borrowd_items.models import (
     OPEN_TRANSACTION_STATUSES,
@@ -118,6 +120,13 @@ class LifecycleConcurrencyTests(TransactionTestCase):
         client.force_login(self.owner)
         return client.post(reverse("item-delete", args=[self.item.pk])).status_code
 
+    def edit_item_in_admin(self) -> None:
+        item = Item.objects.get(pk=self.item.pk)
+        item.name = "Hammer drill"
+        ItemAdmin(Item, AdminSite()).save_model(
+            RequestFactory().post("/"), item, Mock(changed_data=["name"]), change=True
+        )
+
     def run_behind[T, U](
         self, hold: Hold, first: Callable[[], T], second: Callable[[], U]
     ) -> tuple[T, U]:
@@ -207,6 +216,36 @@ class LifecycleConcurrencyTests(TransactionTestCase):
         self.item.refresh_from_db()
         self.assertIsNone(self.item.deleted_at)
         self.assertEqual(self.item.status, ItemStatus.REQUESTED)
+
+    def test_a_request_waits_for_an_admin_edit(self) -> None:
+        hold = Hold()
+        with self.held_inside(Item, "save", hold):
+            _, request = self.run_behind(
+                hold,
+                self.edit_item_in_admin,
+                self.act(self.borrower, ItemAction.REQUEST_ITEM, self.item),
+            )
+
+        self.assertEqual(request, "done")
+        self.item.refresh_from_db()
+        self.assertEqual(self.item.name, "Hammer drill")
+        self.assertEqual(self.item.status, ItemStatus.REQUESTED)
+        self.assertEqual(self.open_transactions(item=self.item), 1)
+
+    def test_an_admin_edit_waits_for_a_request_and_preserves_its_status(self) -> None:
+        hold = Hold()
+        with self.held_inside(Transaction.objects, "create", hold):
+            request, _ = self.run_behind(
+                hold,
+                self.act(self.borrower, ItemAction.REQUEST_ITEM, self.item),
+                self.edit_item_in_admin,
+            )
+
+        self.assertEqual(request, "done")
+        self.item.refresh_from_db()
+        self.assertEqual(self.item.name, "Hammer drill")
+        self.assertEqual(self.item.status, ItemStatus.REQUESTED)
+        self.assertEqual(self.open_transactions(item=self.item), 1)
 
     def test_a_closing_borrower_cannot_make_a_new_request(self) -> None:
         cancelled = self.make_transaction(

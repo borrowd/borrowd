@@ -9,6 +9,7 @@ from unittest import mock
 from django.contrib.admin.sites import AdminSite
 from django.core.exceptions import PermissionDenied
 from django.core.management import call_command
+from django.forms import modelform_factory
 from django.test import RequestFactory, TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -204,6 +205,95 @@ class ItemAdminOwnerTests(LockingTestCase):
     def setUp(self) -> None:
         self.admin = ItemAdmin(Item, AdminSite())
         self.request = RequestFactory().get("/")
+        self.request.user = self.owner
+
+    def test_lifecycle_fields_cannot_be_edited_through_the_admin_form(self) -> None:
+        item = self.make_item()
+        form_class = self.admin.get_form(self.request, item)
+
+        for field in ("status", "deleted_at", "deleted_by"):
+            with self.subTest(field=field):
+                self.assertNotIn(field, form_class.base_fields)
+
+    def test_a_name_edit_preserves_a_request_made_since_the_item_was_loaded(
+        self,
+    ) -> None:
+        item = self.make_item()
+        self.make_transaction(item, TransactionStatus.REQUESTED)
+        Item.objects.filter(pk=item.pk).update(status=ItemStatus.REQUESTED)
+        item.name = "Hammer drill"
+
+        self.admin.save_model(
+            self.request, item, mock.Mock(changed_data=["name"]), change=True
+        )
+
+        saved = Item.objects.get(pk=item.pk)
+        self.assertEqual(saved.name, "Hammer drill")
+        self.assertEqual(saved.status, ItemStatus.REQUESTED)
+        self.assertEqual(item.status, ItemStatus.REQUESTED)
+
+    def test_a_name_edit_preserves_a_concurrent_owner_change(self) -> None:
+        item = self.make_item()
+        Item.objects.filter(pk=item.pk).update(owner=self.other)
+        item.name = "Hammer drill"
+
+        self.admin.save_model(
+            self.request, item, mock.Mock(changed_data=["name"]), change=True
+        )
+
+        saved = Item.objects.get(pk=item.pk)
+        self.assertEqual(saved.name, "Hammer drill")
+        self.assertEqual(saved.owner_id, self.other.pk)
+        self.assertEqual(item.owner_id, self.other.pk)
+
+    def test_an_edit_cannot_restore_an_item_deleted_since_it_was_loaded(self) -> None:
+        item = self.make_item()
+        deleted_at = timezone.now()
+        Item.objects.filter(pk=item.pk).update(
+            deleted_at=deleted_at, deleted_by=self.owner
+        )
+        item.name = "Hammer drill"
+
+        with self.assertRaises(PermissionDenied):
+            self.admin.save_model(
+                self.request, item, mock.Mock(changed_data=["name"]), change=True
+            )
+
+        saved = Item.all_objects.get(pk=item.pk)
+        self.assertEqual(saved.deleted_at, deleted_at)
+        self.assertEqual(saved.name, "Drill")
+
+    def test_category_edits_still_save_without_overwriting_current_state(self) -> None:
+        item = self.make_item()
+        old_category = ItemCategory.objects.create(name="Tools")
+        new_category = ItemCategory.objects.create(name="Power tools")
+        item.categories.add(old_category)
+        form_class = modelform_factory(Item, fields=("categories",))
+        form = form_class(data={"categories": [new_category.pk]}, instance=item)
+        self.assertTrue(form.is_valid(), form.errors)
+        obj = form.save(commit=False)
+        self.make_transaction(item, TransactionStatus.REQUESTED)
+        Item.objects.filter(pk=item.pk).update(status=ItemStatus.REQUESTED)
+
+        self.admin.save_model(self.request, obj, form, change=True)
+        form.save_m2m()
+
+        item.refresh_from_db()
+        self.assertEqual(item.status, ItemStatus.REQUESTED)
+        self.assertQuerySetEqual(item.categories.all(), [new_category])
+
+    def test_an_owner_change_preserves_unrelated_concurrent_edits(self) -> None:
+        item = self.make_item()
+        Item.objects.filter(pk=item.pk).update(description="Updated description")
+        item.owner = self.other
+
+        self.admin.save_model(
+            self.request, item, mock.Mock(changed_data=["owner"]), change=True
+        )
+
+        item.refresh_from_db()
+        self.assertEqual(item.owner_id, self.other.pk)
+        self.assertEqual(item.description, "Updated description")
 
     def test_owner_is_read_only_while_a_transaction_is_open(self) -> None:
         idle = self.make_item()

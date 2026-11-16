@@ -13,6 +13,9 @@ from .models import Item, ItemCategory, ItemPhoto, Transaction, TransactionStatu
 
 @admin.register(Item)
 class ItemAdmin(admin.ModelAdmin[Item]):
+    # Lifecycle actions and repair commands manage these fields together.
+    readonly_fields = ("status", "deleted_at", "deleted_by")
+
     def get_readonly_fields(
         self, request: HttpRequest, obj: Item | None = None
     ) -> list[str] | tuple[Any, ...]:
@@ -25,22 +28,36 @@ class ItemAdmin(admin.ModelAdmin[Item]):
     def save_model(
         self, request: HttpRequest, obj: Item, form: ModelForm[Item], change: bool
     ) -> None:
-        if change and "owner" not in form.changed_data:
-            super().save_model(request, obj, form, change)
-            return
         with transaction.atomic():
             # Account before Item. A closing account must not be handed an item.
             if not BorrowdUser.lock_account(obj.owner_id).is_active:
                 raise PermissionDenied("An inactive account cannot own an item.")
+            if not change:
+                super().save_model(request, obj, form, change)
+                return
+
+            item = Item.lock_for_update(obj.pk)
+            if item.deleted_at is not None:
+                raise PermissionDenied("This item is no longer available.")
             # A request may have arrived after the form was rendered.
             if (
-                change
-                and Item.lock_for_update(obj.pk).get_current_transaction() is not None
+                "owner" in form.changed_data
+                and item.get_current_transaction() is not None
             ):
                 raise PermissionDenied(
                     "An item's owner cannot change while it has an open transaction."
                 )
-            super().save_model(request, obj, form, change)
+            # Apply only submitted concrete fields to the current, locked row.
+            # The admin saves many-to-many fields separately through the form.
+            changed_fields = set(form.changed_data)
+            update_fields = {"updated_at"}
+            for field in Item._meta.concrete_fields:
+                if field.name in changed_fields:
+                    setattr(item, field.attname, getattr(obj, field.attname))
+                    update_fields.add(field.name)
+            item.save(update_fields=update_fields)
+            # The form and its relation signals must also see current state.
+            obj.refresh_from_db()
 
 
 admin.site.register([ItemCategory, ItemPhoto])
