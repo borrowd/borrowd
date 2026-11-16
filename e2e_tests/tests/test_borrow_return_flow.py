@@ -81,7 +81,7 @@ def test_borrow_and_return_item(borrower_page: Page, lender_page: Page, base_url
         lender_lent_item.confirm_collection_modal_lender_click_confirm()
         lender_lent_item.expect_item_is_collected()
 
-    with allure.step("Lender marks item as returned"):
+    with allure.step("Lender confirms return"):
         lender_lent_item.open_inventory(base_url)
         # The lender's "Confirm returned" button is the CONFIRM_RETURNED action,
         # whose modal is the "confirm-returned" one.

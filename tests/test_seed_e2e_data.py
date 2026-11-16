@@ -4,6 +4,7 @@ from allauth.account.models import EmailAddress
 from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.test import TestCase, override_settings
+from django.utils import timezone
 
 from borrowd.management.commands.seed_e2e_data import (
     E2E_GROUP_NAME,
@@ -74,6 +75,15 @@ class SeedE2EDataTests(TestCase):
             user.notifications.count(),  # type: ignore[attr-defined]  # django-notifications is untyped
             len(E2E_USERS) - 1,
         )
+
+    def test_soft_deleted_group_is_restored(self) -> None:
+        _seed()
+        BorrowdGroup.objects.filter(name=E2E_GROUP_NAME).update(
+            deleted_at=timezone.now()
+        )
+        _seed()
+        group = BorrowdGroup.objects.get(name=E2E_GROUP_NAME)
+        self.assertIsNone(group.deleted_at)
 
 
 class SeedE2EDataSafetyTests(TestCase):

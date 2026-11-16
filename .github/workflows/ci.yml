@@ -186,7 +186,7 @@ jobs:
         with:
           name: allure-results
           path: e2e_tests/allure-results/
-          retention-days: 1
+          retention-days: 7
 
       - name: Upload server log
         uses: actions/upload-artifact@v4
@@ -200,11 +200,9 @@ jobs:
     name: Deploy Allure report to GitHub Pages
     runs-on: ubuntu-latest
     needs: [e2e]
-    # Pull requests from forks get a read-only token and can't publish.
-    if: >-
-      always() && needs.e2e.result != 'skipped' &&
-      (github.event_name != 'pull_request' ||
-      github.event.pull_request.head.repo.full_name == github.repository)
+    # Only main publishes: PR runs keep their results as the allure-results
+    # artifact so they don't overwrite the shared report or its history.
+    if: always() && needs.e2e.result != 'skipped' && github.event_name != 'pull_request'
     permissions:
       contents: write
     # Each deploy rewrites gh-pages from the history it checked out, so
@@ -248,20 +246,3 @@ jobs:
           publish_branch: gh-pages
           publish_dir: allure-history
           force_orphan: true
-
-  comment-pr:
-    name: Post Allure report link to PR
-    runs-on: ubuntu-latest
-    needs: [deploy-report]
-    if: always() && needs.deploy-report.result != 'skipped' && github.event_name == 'pull_request'
-    permissions:
-      pull-requests: write
-
-    steps:
-      - name: Post report link to PR
-        uses: marocchino/sticky-pull-request-comment@v2
-        with:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          message: |
-            ## E2E Test Report
-            [View Allure Report](https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/)

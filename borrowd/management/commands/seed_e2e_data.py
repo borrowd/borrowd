@@ -78,6 +78,10 @@ class Command(BaseCommand):
     def _ensure_group(self, owner: BorrowdUser) -> BorrowdGroup:
         existing = BorrowdGroup.objects.filter(name=E2E_GROUP_NAME).first()
         if existing is not None:
+            if existing.deleted_at is not None:
+                existing.deleted_at = None
+                existing.deleted_by = None
+                existing.save()
             return existing
         return BorrowdGroup.objects.create_group(
             name=E2E_GROUP_NAME,
