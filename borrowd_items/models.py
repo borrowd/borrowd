@@ -254,8 +254,8 @@ class Item(Model):
     def lock_for_update(
         cls, pk: int, *, select_related: tuple[str, ...] = ()
     ) -> "Item":
-        """Lock this item's row, deleted or not, and return it fresh."""
-        # of=("self",): lock the item only, not the rows select_related joins in.
+        """Fetch and lock this item, including soft-deleted items."""
+        # Only lock the item, even when select_related() loads other objects.
         # https://docs.djangoproject.com/en/5.2/ref/models/querysets/#select-for-update
         queryset = cls.all_objects.select_for_update(of=("self",))
         if select_related:
@@ -679,7 +679,7 @@ class Item(Model):
             self.refresh_from_db()
 
     def _process_action_locked(self, user: BorrowdUser, action: ItemAction) -> None:
-        # A deleted item stays reachable only to close out a stranded loan.
+        # A deleted item may still have an open loan that needs to be resolved.
         if self.deleted_at is not None and action != ItemAction.RESOLVE_TRANSACTION:
             raise InvalidItemAction("This item is no longer available.")
 
@@ -1121,18 +1121,15 @@ class Transaction(Model):
         self, *, resolved_by: BorrowdUser, reason: ResolutionReason
     ) -> None:
         """
-        Deprecated: close this Transaction forcibly for manual shell repairs.
+        Resolve a transaction manually from the Django shell.
 
-        Application actions use the transition executor. This helper is
-        retained only for manual repairs and is scheduled for removal with
-        the legacy flow code. It does not record status history; callers must
-        call _record_status_change() afterward in the same atomic block.
+        Deprecated:
+            Kept for manual repairs. Normal item actions use Item.process_action().
 
-        For cases the standard flow can't finish: a party closed their account,
-        a moderator stepped in, the counterparty went unresponsive, etc. The
-        transaction is always set to RESOLVED with the given reason. The item is
-        freed back to AVAILABLE if it's still active; a soft-deleted item (e.g. a
-        departed owner's) is left as-is.
+        Sets the transaction to RESOLVED and makes the item AVAILABLE unless
+        the item is soft-deleted.
+
+        Call _record_status_change() in the same atomic block to record the change.
         """
 
         with transaction.atomic():

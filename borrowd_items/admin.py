@@ -13,14 +13,16 @@ from .models import Item, ItemCategory, ItemPhoto, Transaction, TransactionStatu
 
 @admin.register(Item)
 class ItemAdmin(admin.ModelAdmin[Item]):
-    # Lifecycle actions and repair commands manage these fields together.
+    # Keep these read-only so an item with an open request or loan
+    # can't be marked available or deleted here.
     readonly_fields = ("status", "deleted_at", "deleted_by")
 
     def get_readonly_fields(
         self, request: HttpRequest, obj: Item | None = None
     ) -> list[str] | tuple[Any, ...]:
         fields = super().get_readonly_fields(request, obj)
-        # An open transaction names the owner as its lender.
+        # The open transaction lists the current owner as its lender,
+        # so don't allow an owner change until it is closed.
         if obj is not None and obj.get_current_transaction() is not None:
             return (*fields, "owner")
         return fields
@@ -29,7 +31,6 @@ class ItemAdmin(admin.ModelAdmin[Item]):
         self, request: HttpRequest, obj: Item, form: ModelForm[Item], change: bool
     ) -> None:
         with transaction.atomic():
-            # Account before Item. A closing account must not be handed an item.
             if not BorrowdUser.lock_account(obj.owner_id).is_active:
                 raise PermissionDenied("An inactive account cannot own an item.")
             if not change:
@@ -47,8 +48,7 @@ class ItemAdmin(admin.ModelAdmin[Item]):
                 raise PermissionDenied(
                     "An item's owner cannot change while it has an open transaction."
                 )
-            # Apply only submitted concrete fields to the current, locked row.
-            # The admin saves many-to-many fields separately through the form.
+            # Save only edited fields so we don't overwrite other changes.
             changed_fields = set(form.changed_data)
             update_fields = {"updated_at"}
             for field in Item._meta.concrete_fields:
@@ -56,7 +56,7 @@ class ItemAdmin(admin.ModelAdmin[Item]):
                     setattr(item, field.attname, getattr(obj, field.attname))
                     update_fields.add(field.name)
             item.save(update_fields=update_fields)
-            # The form and its relation signals must also see current state.
+            # Keep the form's item up to date for save_m2m().
             obj.refresh_from_db()
 
 

@@ -72,8 +72,8 @@ class BorrowdUser(AbstractUser, GuardianUserMixin):
 
     @classmethod
     def lock_account(cls, pk: int) -> "BorrowdUser":
-        """Lock this user's row until the transaction ends and return it fresh."""
-        # no_key: a plain FOR UPDATE blocks every insert that references the user.
+        """Fetch and lock this user until the transaction ends."""
+        # Allow notifications and transactions to reference this user while locked.
         # https://docs.djangoproject.com/en/5.2/ref/models/querysets/#select-for-update
         # https://www.postgresql.org/docs/17/explicit-locking.html#LOCKING-ROWS
         return cls.objects.select_for_update(no_key=True, of=("self",)).get(pk=pk)

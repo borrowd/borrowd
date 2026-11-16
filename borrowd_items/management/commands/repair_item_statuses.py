@@ -29,7 +29,11 @@ class Command(BaseCommand):
         )
 
     def _repair(self, item_pk: int) -> bool:
-        """Fix one item on current state. False if it no longer needs fixing."""
+        """
+        Recheck the item and repair its status if needed.
+
+        Return True if repaired, or False if skipped or already correct.
+        """
         with transaction.atomic():
             item = Item.lock_for_update(item_pk)
             open_statuses = list(
@@ -53,8 +57,8 @@ class Command(BaseCommand):
     def handle(self, *args: Any, **options: Any) -> None:
         dry_run = options["dry_run"]
 
-        # Fetch open transactions once to find candidates.
-        # Each repair rechecks the item under its row lock.
+        # Fetch all open transactions to find items that may need a repair.
+        # _repair() rechecks each item under a lock before changing its status.
         open_statuses_by_item: dict[int, list[TransactionStatus]] = {}
         for item_id, status in Transaction.objects.filter(
             status__in=OPEN_TRANSACTION_STATUSES

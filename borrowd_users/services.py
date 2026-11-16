@@ -52,8 +52,7 @@ def soft_delete_account(user: BorrowdUser, *, deleted_by: BorrowdUser) -> None:
     data, deactivated, and dropped from any sessions.
     """
     with transaction.atomic():
-        # The account, then every item it touches, before reading anything
-        # those locks protect. Lifecycle actions lock in the same order.
+        # Check for outstanding loans after locking the account and its items.
         user = BorrowdUser.lock_account(user.pk)
         if user.deleted_at is not None:
             return
@@ -82,8 +81,9 @@ def _lock_items_involving(user: BorrowdUser) -> None:
         Q(party1=user) | Q(party2=user),
         status__in=OPEN_TRANSACTION_STATUSES,
     ).values("item_id")
-    # all_objects: a soft-deleted item can still carry an open transaction.
-    # pk order: one order for every closure, so two sharing items cannot deadlock.
+    # Include deleted items that still have open transactions.
+    # Lock items in ID order to avoid deadlocks between account deletions.
+    # https://docs.djangoproject.com/en/5.2/ref/models/querysets/#select-for-update
     # https://www.postgresql.org/docs/17/explicit-locking.html#LOCKING-DEADLOCKS
     list(
         Item.all_objects.select_for_update(of=("self",))

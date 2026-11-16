@@ -90,9 +90,7 @@ class Command(BaseCommand):
             )
             if item_id is None:
                 return False
-            # The Item lock is the one every lifecycle writer takes. It also
-            # makes a concurrent removal wait for this commit, so its archive
-            # pass sees the new thread.
+            # Item deletion must wait so it can archive the conversation we create.
             item = Item.lock_for_update(item_id)
             transaction = Transaction.objects.filter(pk=transaction_id).first()
             if (

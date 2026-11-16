@@ -1,4 +1,4 @@
-"""Lifecycle writes decide on current state, not on what the caller loaded."""
+"""Tests that item changes use current database values."""
 
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
@@ -72,7 +72,8 @@ class ProcessActionUsesCurrentStateTests(LockingTestCase):
         self.make_transaction(item, TransactionStatus.REQUESTED)
         BorrowdUser.objects.filter(pk=self.owner.pk).update(is_active=False)
 
-        self.assertTrue(self.owner.is_active)  # the caller's copy is stale
+        # The object in memory still says the account is active.
+        self.assertTrue(self.owner.is_active)
         with self.assertRaises(InvalidItemAction):
             item.process_action(self.owner, ItemAction.ACCEPT_REQUEST)
 
@@ -130,7 +131,7 @@ class ItemViewsRecheckUnderTheLockTests(LockingTestCase):
 
     @contextmanager
     def arrives_while_locking(self, change: Callable[[], None]) -> Iterator[None]:
-        """Run `change` at the moment the view takes the item lock."""
+        """Make a change just before the view locks the item."""
         lock = Item.lock_for_update
 
         def lock_after_change(pk: int, **kwargs: Any) -> Item:
@@ -161,7 +162,7 @@ class ItemViewsRecheckUnderTheLockTests(LockingTestCase):
         self.assertIsNone(Item.all_objects.get(pk=self.item.pk).deleted_at)
 
     def test_an_item_with_an_open_transaction_is_not_deleted(self) -> None:
-        # The stored status has drifted; the transaction still counts.
+        # The item says AVAILABLE, but its transaction is still open.
         self.make_transaction(self.item, TransactionStatus.ACCEPTED)
         self.client.post(reverse("item-delete", args=[self.item.pk]))
         self.assertIsNone(Item.all_objects.get(pk=self.item.pk).deleted_at)

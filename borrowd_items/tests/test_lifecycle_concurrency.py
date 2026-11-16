@@ -1,4 +1,4 @@
-"""Lifecycle writers on separate connections take turns instead of colliding."""
+"""Tests for item actions and account deletion running at the same time."""
 
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
@@ -36,7 +36,7 @@ from borrowd_users.system import SYSTEM_USER_USERNAME
 
 
 class Hold:
-    """Stops a writer inside its database transaction until released."""
+    """Pause an operation until the test releases it."""
 
     def __init__(self) -> None:
         self.reached = Event()
@@ -131,7 +131,7 @@ class LifecycleConcurrencyTests(TransactionTestCase):
     def run_behind[T, U](
         self, hold: Hold, first: Callable[[], T], second: Callable[[], U]
     ) -> tuple[T, U]:
-        """Start `second` while `first` is held, and check that it waits."""
+        """Check that the second operation waits while the first is paused."""
         with ThreadPoolExecutor(max_workers=2) as executor:
             try:
                 holding = executor.submit(on_its_own_connection(first))
@@ -149,7 +149,7 @@ class LifecycleConcurrencyTests(TransactionTestCase):
             return [future.result(timeout=20) for future in running]
 
     def held_inside(self, target: Any, name: str, hold: Hold) -> Any:
-        """Patch `target.name` to stop at `hold` before doing its work."""
+        """Pause a function before it runs."""
         original = getattr(target, name)
 
         def held(*args: Any, **kwargs: Any) -> Any:
@@ -180,8 +180,7 @@ class LifecycleConcurrencyTests(TransactionTestCase):
                 self.act(self.borrower, ItemAction.MARK_COLLECTED, self.item),
             )
 
-        # The winner notifies the other party while that party holds its own
-        # gate. Neither is aborted; the loser finds collection already marked.
+        # Notifications must still work while the other user's account is locked.
         self.assertCountEqual(outcomes, ["done", "refused"])
         tx.refresh_from_db()
         self.assertEqual(tx.status, TransactionStatus.COLLECTION_ASSERTED)

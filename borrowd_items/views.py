@@ -204,7 +204,8 @@ def borrow_item(request: HttpRequest, pk: int) -> HttpResponse:
     try:
         if settings.MESSAGING_ENABLED and action in _TRANSACTION_REQUEST_ACTIONS:
             with atomic():
-                # Account before Item, the order process_action locks in.
+                # Match Item.process_action() in borrowd_items/models.py:
+                # lock the account first, then the item.
                 if not BorrowdUser.lock_account(user.pk).is_active:
                     raise PermissionDenied
                 if item.get_requesting_user() is not None:
@@ -298,7 +299,7 @@ class ItemCreateView(
     def form_valid(self, form: ItemCreateWithPhotoForm) -> HttpResponse:
         user = get_authenticated_user(self.request)
         with atomic():
-            # Account closure removes owned items under this same lock.
+            # Hold the account lock until the item is saved, so account deletion waits.
             if not BorrowdUser.lock_account(user.pk).is_active:
                 raise PermissionDenied
             form.instance.owner = user
@@ -669,15 +670,14 @@ class ItemUpdateView(
 
     def form_valid(self, form: ItemForm) -> HttpResponse:
         user = get_authenticated_user(self.request)
-        # commit=False writes nothing; it only defines save_m2m for later.
+        # Prepare save_m2m() without saving the old item instance.
         # https://docs.djangoproject.com/en/5.2/topics/forms/modelforms/#the-save-method
         form.save(commit=False)
         with atomic():
             item = Item.lock_for_update(form.instance.pk)
             if item.deleted_at is not None or not user.has_perm(ItemOLP.EDIT, item):
                 raise Http404
-            # Only the form's own fields are written, so an old edit page
-            # cannot put back a status or owner that has since changed.
+            # Keep any status or owner changes made since the form was opened.
             # https://docs.djangoproject.com/en/5.2/ref/models/instances/#ref-models-update-fields
             construct_instance(form, item)
             item.updated_by = user
