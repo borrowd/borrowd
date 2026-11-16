@@ -708,7 +708,7 @@ class Item(Model):
         valid_actions = self.get_actions_for(user=user)
         if action not in valid_actions:
             raise InvalidItemAction(
-                f"User '{user}' cannot perform action '{action}' on"
+                f"User '{user}' cannot perform action '{action}' on "
                 f"Item '{self}' at this time."
             )
 
@@ -1121,7 +1121,12 @@ class Transaction(Model):
         self, *, resolved_by: BorrowdUser, reason: ResolutionReason
     ) -> None:
         """
-        Close this Transaction forcibly.
+        Deprecated: close this Transaction forcibly for manual shell repairs.
+
+        Application actions use the transition executor. This helper is
+        retained only for manual repairs and is scheduled for removal with
+        the legacy flow code. It does not record status history; callers must
+        call _record_status_change() afterward in the same atomic block.
 
         For cases the standard flow can't finish: a party closed their account,
         a moderator stepped in, the counterparty went unresponsive, etc. The
