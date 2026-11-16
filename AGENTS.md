@@ -187,6 +187,28 @@ Domain-specific exceptions live in `<app>/exceptions.py`, all subclassing `Borro
 ### Data Migrations
 A `RunPython` migration that calls `apps.get_model(...)` gets a frozen historical model class, not the live one. Calling `.save()` on an instance of it does **not** dispatch `post_save`/`pre_save` to receivers registered against the live model (Django's dispatcher matches `sender` by exact class identity) — this class of bug has silently broken permission enrollment before (`borrowd_groups/signals.py`'s `sync_membership_permissions`, backfilled via `repair_membership_permissions`). If a migration needs a live model's signal side effects or another live-only behavior (e.g. guardian's `isinstance` checks against `auth.Group`, see `0012_backfill_item_view_perms_for_members.py`), import and use the live class/function directly instead of going through `apps.get_model()`.
 
+### Translating Cotton component attributes
+`makemessages` scans raw template source and only extracts strings inside `{% %}`/`{{ }}`. Use these forms for `<c-...>` attributes — this is mandatory:
+
+- Static text: put the tag directly in the attribute.
+  ```django
+  <c-form.field label="{% translate 'Item name' %}" />
+  ```
+- Text with variables or plurals: build it with `asvar`, then pass it in.
+  ```django
+  {% blocktranslate with name=item.name asvar title %}Borrow {{ name }}{% endblocktranslate %}
+  <c-card title="{{ title }}" />
+  ```
+
+Don't:
+- `:label="_('Item name')"` — renders, but is never extracted for translators.
+- `<c-slot name="label">{% translate ... %}</c-slot>` to fill a `c-vars` prop — renders empty.
+
+### Translating notification text
+Don't wrap `notify.send(description=...)` in `gettext` directly: it's resolved in the
+sender's language and saved, then reused for the recipient's email subject and for
+push and digest fallback text.
+
 ## Code Intelligence
 
 Prefer LSP over Grep/Glob/Read for code navigation:

@@ -112,6 +112,10 @@ hooks:
     # Collect static assets
     uv run manage.py collectstatic --noinput
 
+    # Compile translation catalogs (.po -> .mo)
+    command -v msgfmt >/dev/null || { echo "msgfmt not found: compilemessages needs GNU gettext" >&2; exit 1; }
+    uv run manage.py compilemessages --ignore=.venv --ignore=node_modules
+
   # The deploy hook is run after the app container has been started, but before it has started accepting requests.
   # More information: https://docs.platform.sh/create-apps/hooks/hooks-comparison.html#deploy-hook
   deploy: uv run manage.py migrate

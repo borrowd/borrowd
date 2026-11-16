@@ -8,7 +8,7 @@ from django.core.mail import send_mail
 from django.db.models import F, Q
 from django.template.loader import render_to_string
 from django.urls import reverse
-from django.utils import timezone
+from django.utils import timezone, translation
 from notifications.models import Notification
 from notifications.signals import notify
 
@@ -153,7 +153,8 @@ class NotificationService:
     @classmethod
     def send_notification(cls, notification: Notification) -> None:
         try:
-            cls._dispatch(notification)
+            with translation.override(settings.LANGUAGE_CODE):
+                cls._dispatch(notification)
         except Exception as exc:
             sentry_sdk.capture_exception(exc)
             logger.exception("Notification dispatch failed (pk=%s)", notification.pk)
@@ -425,7 +426,8 @@ class NotificationService:
             by_recipient[recipient.pk][1].append(notification)
 
         for recipient, notifications in by_recipient.values():
-            cls._send_digest_for_recipient(recipient, notifications)
+            with translation.override(settings.LANGUAGE_CODE):
+                cls._send_digest_for_recipient(recipient, notifications)
         return len(by_recipient)
 
     @classmethod

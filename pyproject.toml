@@ -34,7 +34,9 @@ dependencies = [
 dev = [
     "django-stubs[compatible-mypy]>=6.0.5",
     "mypy>=2.1.0",
+    "polib>=1.2.0",
     "pyyaml>=6.0.2",
+    "types-polib>=1.2.0.20260518",
 ]
 
 [tool.ruff.lint.per-file-ignores]

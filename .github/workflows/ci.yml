@@ -86,11 +86,13 @@ jobs:
           cache: npm
 
       # Mirrors(mostly) .platform.app.yaml -> hooks.build
+      - run: sudo apt-get update && sudo apt-get install -y gettext
       - run: uv sync --frozen
       - run: npm ci
       - run: npm run test:js
       - run: npm run build
       - run: uv run manage.py collectstatic --noinput
+      - run: uv run manage.py compilemessages --ignore=.venv --ignore=node_modules
 
       # Mirrors .platform.app.yaml -> hooks.deploy
       - run: uv run manage.py migrate
