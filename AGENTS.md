@@ -2,13 +2,15 @@
 
 ## AI Contribution Policy
 
-Read [docs/AI_POLICY.md](docs/AI_POLICY.md) before opening or updating a pull request. In short:
+Follow [docs/AI_POLICY.md](docs/AI_POLICY.md). In particular:
 
-- Open the PR `Summary` with a plain-language TL;DR; describe the final state, not your session.
-- Keep the `Co-Authored-By` commit trailer and note significant AI involvement in the PR description.
-- Never read or transmit `.env`, secrets, `db.sqlite3`, `media/`, or production data.
-- Don't post reviews, issues, or comments the human hasn't verified.
-- Help the human verify the change beyond unit tests and confirm they can explain it.
+- Open the PR `Summary` with the TL;DR. Describe the final state, not your session: no logs, abandoned attempts, or step-by-step narration, in the PR description or in code comments. Comments follow the evergreen rule in [Comments](#comments).
+- Keep the `Co-Authored-By` trailer, and note significant AI involvement in the PR description.
+- Don't read, print, or transmit `.env` files, secrets, `db.sqlite3`, `media/`, or production data.
+- Don't post reviews, issues, or comments the human hasn't verified. Never say a human reviewed or tested something unless they told you so.
+- Before the PR is ready, suggest manual checks beyond unit tests (run the app, walk the flow as each kind of user, try edge and failure cases) and ask what the human observed.
+- Make sure the human can explain the change; if they can't, explain it to them.
+- If you're unsure whether code is licensed compatibly, say so and don't commit it.
 
 ## Project Overview
 
