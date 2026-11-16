@@ -175,6 +175,19 @@ class ItemViewsRecheckUnderTheLockTests(LockingTestCase):
 
 
 class AccountClosureTests(LockingTestCase):
+    def test_closure_preserves_account_changes_made_before_the_lock(self) -> None:
+        last_login = timezone.now()
+        BorrowdUser.objects.filter(pk=self.borrower.pk).update(last_login=last_login)
+        self.assertIsNone(self.borrower.last_login)
+
+        soft_delete_account(self.borrower, deleted_by=self.borrower)
+
+        self.borrower.refresh_from_db()
+        self.assertEqual(self.borrower.last_login, last_login)
+        self.assertFalse(self.borrower.is_active)
+        self.assertEqual(self.borrower.first_name, "Deleted")
+        self.assertFalse(self.borrower.has_usable_password())
+
     def test_closing_an_already_closed_account_does_nothing(self) -> None:
         item = Item.objects.create(
             name="Ladder",

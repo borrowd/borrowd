@@ -9,9 +9,10 @@ from unittest import skipUnless
 from unittest.mock import Mock, patch
 
 from django.contrib.admin.sites import AdminSite
-from django.db import close_old_connections, connection, connections
+from django.db import close_old_connections, connection, connections, transaction
 from django.test import Client, RequestFactory, TransactionTestCase, override_settings
 from django.urls import reverse
+from django.utils import timezone
 from guardian.shortcuts import assign_perm
 
 from borrowd_groups.models import BorrowdGroup
@@ -246,6 +247,25 @@ class LifecycleConcurrencyTests(TransactionTestCase):
         self.assertEqual(self.item.name, "Hammer drill")
         self.assertEqual(self.item.status, ItemStatus.REQUESTED)
         self.assertEqual(self.open_transactions(item=self.item), 1)
+
+    def test_account_closure_preserves_an_update_committed_while_it_waited(
+        self,
+    ) -> None:
+        last_login = timezone.now()
+        hold = Hold()
+
+        def update_account() -> None:
+            with transaction.atomic():
+                user = BorrowdUser.lock_account(self.borrower.pk)
+                user.last_login = last_login
+                user.save(update_fields=["last_login"])
+                hold()
+
+        self.run_behind(hold, update_account, self.close_account(self.borrower))
+
+        self.borrower.refresh_from_db()
+        self.assertEqual(self.borrower.last_login, last_login)
+        self.assertFalse(self.borrower.is_active)
 
     def test_a_closing_borrower_cannot_make_a_new_request(self) -> None:
         cancelled = self.make_transaction(

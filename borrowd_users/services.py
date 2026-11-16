@@ -54,7 +54,8 @@ def soft_delete_account(user: BorrowdUser, *, deleted_by: BorrowdUser) -> None:
     with transaction.atomic():
         # The account, then every item it touches, before reading anything
         # those locks protect. Lifecycle actions lock in the same order.
-        if BorrowdUser.lock_account(user.pk).deleted_at is not None:
+        user = BorrowdUser.lock_account(user.pk)
+        if user.deleted_at is not None:
             return
         _lock_items_involving(user)
 
