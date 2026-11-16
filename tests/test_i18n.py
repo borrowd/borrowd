@@ -15,7 +15,7 @@ from borrowd_users.models import BorrowdUser
 
 class LocaleInfrastructureTests(TestCase):
     def test_foreign_accept_language_falls_back_to_english(self) -> None:
-        response = self.client.get("/", HTTP_ACCEPT_LANGUAGE="es")
+        response = self.client.get(reverse("account_login"), HTTP_ACCEPT_LANGUAGE="es")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.headers["Content-Language"], "en")
 
