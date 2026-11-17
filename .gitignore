@@ -3,6 +3,8 @@
 # Django
 *.log
 *.pot
+# Source template Weblate starts new languages from.
+!locale/django.pot
 db.sqlite3
 media
 staticfiles/
