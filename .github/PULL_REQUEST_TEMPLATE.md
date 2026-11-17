@@ -30,6 +30,7 @@ Closes #
 - [ ] I have added/updated relevant tests
 - [ ] I have checked this works for both moderators and regular members (if relevant)
 - [ ] No debug logs, or unrelated changes included
+- [ ] New user-facing functionality has an E2E test (or the description says why not), and E2E page objects (`e2e_tests/pages/`) are updated if UI text, markup or flows changed
 - [ ] Migrations are included (if model changes were made)
 
 ## Risk / Notes for Reviewer

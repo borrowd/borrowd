@@ -11,7 +11,8 @@ from pages.auth_flow import AuthFlow
 def test_user_can_log_in(page, base_url, beta_code, user_email, user_password):
     auth = AuthFlow(page)
     auth.open_base(base_url)
-    auth.pass_beta(beta_code)
+    if beta_code:
+        auth.pass_beta(beta_code)
     auth.open_email_password_login()
     auth.login_with_email_password(user_email, user_password)
     auth.expect_logged_in()

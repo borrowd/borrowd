@@ -2,27 +2,41 @@ from playwright.sync_api import Page, expect
 
 
 class SearchPage:
-    def __init__(self, page: Page):
+    """An item card and its modals on the item search or inventory page.
+
+    Card and modal ids embed the card's section (`context`, e.g. "search" or
+    "incoming-borrow-requests") and the item's primary key, so scoping by both
+    keeps every locator unambiguous however many items the page lists.
+    """
+
+    def __init__(self, page: Page, item_id: int | str, context: str = "search"):
         self.page = page
+        self.item_id = item_id
+        self.context = context
+        self.card = page.locator(f"#item-card-{context}-{item_id}")
 
         self.search_input = page.get_by_placeholder("Search for an item")
         self.search_button = page.get_by_role("button", name="Search")
         self.filter_button = page.get_by_role("button", name="Filter by category")
 
         # borrowing
-        self.request_item_button = page.get_by_role("button", name="Request item")
-        self.cancel_request_button = page.get_by_role("button", name="Cancel request")
-        self.accept_request_button = page.get_by_role("button", name="Accept")
-        self.decline_request_button = page.get_by_role("button", name="Decline")
-        self.confirm_picked_up_button = page.get_by_role(
+        self.request_item_button = self.card.get_by_role("button", name="Request item")
+        self.cancel_request_button = self.card.get_by_role(
+            "button", name="Cancel request"
+        )
+        self.accept_request_button = self.card.get_by_role("button", name="Accept")
+        self.decline_request_button = self.card.get_by_role("button", name="Decline")
+        self.confirm_picked_up_button = self.card.get_by_role(
             "button", name="Confirm picked up"
         )
-        self.confirm_returned_button = page.get_by_role(
+        self.confirm_returned_button = self.card.get_by_role(
             "button", name="Confirm returned"
         )
 
         # confirm request modal
-        self.confirm_requst_modal = page.locator("#request-item-modal-search-85")
+        self.confirm_requst_modal = page.locator(
+            f"#request-item-modal-{context}-{item_id}"
+        )
         self.confirm_requst_modal_heading = self.confirm_requst_modal.get_by_role(
             "heading", name="Confirm Request"
         )
@@ -47,7 +61,9 @@ class SearchPage:
         )
 
         # accept request modal
-        self.accept_request_modal = page.locator("#accept-request-modal-search-85")
+        self.accept_request_modal = page.locator(
+            f"#accept-request-modal-{context}-{item_id}"
+        )
         self.accept_request_modal_heading = self.accept_request_modal.get_by_role(
             "heading", name="Accept Request"
         )
@@ -72,7 +88,9 @@ class SearchPage:
         )
 
         # confirm collection modal borrower
-        self.confirm_collection_modal = page.locator("#mark-collected-modal-search-85")
+        self.confirm_collection_modal = page.locator(
+            f"#mark-collected-modal-{context}-{item_id}"
+        )
         self.confirm_collection_modal_heading = (
             self.confirm_collection_modal.get_by_role(
                 "heading", name="Confirm Collection"
@@ -90,7 +108,7 @@ class SearchPage:
 
         # cofirm collection modal lender
         self.confirm_collection_modal_lender = page.locator(
-            "#confirm-collected-modal-search-85"
+            f"#confirm-collected-modal-{context}-{item_id}"
         )
         self.confirm_collection_modal_lender_heading = (
             self.confirm_collection_modal_lender.get_by_role(
@@ -110,7 +128,9 @@ class SearchPage:
         )
 
         # confirm return modal
-        self.confirm_returned_modal = page.locator("#mark-returned-modal-search-85")
+        self.confirm_returned_modal = page.locator(
+            f"#mark-returned-modal-{context}-{item_id}"
+        )
         self.confirm_returned_modal_heading = self.confirm_returned_modal.get_by_role(
             "heading", name="Confirm Return"
         )
@@ -126,7 +146,7 @@ class SearchPage:
 
         # confirm return modal_borrower
         self.confirm_returned_modal_borrower = page.locator(
-            "#confirm-returned-modal-search-85"
+            f"#confirm-returned-modal-{context}-{item_id}"
         )
         self.confirm_returned_modal_borrower_heading = (
             self.confirm_returned_modal_borrower.get_by_role(
@@ -144,6 +164,19 @@ class SearchPage:
         self.confirm_returned_modal_borrower_confirm_button = (
             self.confirm_returned_modal_borrower.get_by_role("button", name="Confirm")
         )
+
+    def open_and_search(self, base_url: str, item_name: str):
+        """Load the item list fresh, search for the item and wait for its card."""
+        self.page.goto(f"{base_url}/items/", wait_until="domcontentloaded")
+        self.expect_opened()
+        self.search_input.fill(item_name)
+        self.search_button.click()
+        expect(self.card).to_be_visible()
+
+    def open_inventory(self, base_url: str):
+        """Load the inventory fresh and wait for this card's section to show it."""
+        self.page.goto(f"{base_url}/profile/inventory/", wait_until="domcontentloaded")
+        expect(self.card).to_be_visible()
 
     def expect_opened(self):
         expect(self.search_input).to_be_visible()
