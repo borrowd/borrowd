@@ -100,6 +100,39 @@ jobs:
 
       - run: uv run manage.py test
 
+  deploy-staging:
+    name: Deploy to Upsun staging
+    runs-on: ubuntu-latest
+    needs: [pre-commit, test]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    timeout-minutes: 30
+    environment: staging
+
+    # Separate from the workflow-level group, which cancels superseded runs;
+    # cancelling mid-deploy could leave the environment half-updated.
+    concurrency:
+      group: deploy-staging
+      cancel-in-progress: false
+
+    steps:
+      # Upsun rejects pushes from shallow clones, so fetch full history.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Upsun CLI
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/platformsh/cli/main/installer.sh | VENDOR=upsun bash
+          echo "$HOME/.upsun/bin" >> "$GITHUB_PATH"
+
+      # Pushes the merge commit to Upsun's `staging` environment and waits for
+      # the build and deploy (including migrations) to finish.
+      - name: Push to staging
+        env:
+          UPSUN_CLI_TOKEN: ${{ secrets.UPSUN_CLI_TOKEN }}
+          UPSUN_PROJECT_ID: ${{ vars.UPSUN_PROJECT_ID }}
+        run: upsun push --project "$UPSUN_PROJECT_ID" --target staging --force --yes
+
   e2e:
     name: E2E tests (Playwright/Python)
     runs-on: ubuntu-latest
