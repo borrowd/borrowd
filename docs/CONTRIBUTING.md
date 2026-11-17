@@ -339,6 +339,28 @@ and minified by [vite.js](https://vite.dev/).
 We also use [DaisyUI](https://daisyui.com/)
 for pre-built component styles. See [FigmaDaisyGuidelines.md](docs/FigmaDaisyGuidelines.md) for a walkthrough on how to apply or convert Figma designs to Daisy components in the app.
 
+### Translations
+
+Translators work in [Hosted Weblate](https://hosted.weblate.org/), which
+reads the gettext catalogues under `locale/`:
+
+* `locale/en/LC_MESSAGES/django.po` holds the English source strings, and
+  is also the template Weblate starts new languages from.
+* `locale/<lang>/LC_MESSAGES/django.po` holds each language's translations,
+  committed back to the repo by Weblate.
+
+When you add or change text marked for translation, regenerate the
+English catalogue and commit it with your change:
+
+```bash
+uv run manage.py makemessages -l en --add-location=file \
+  -i .venv -i node_modules -i build -i media -i mobile -i e2e_tests -i docs
+```
+
+`--add-location=file` leaves out line numbers, so unrelated edits don't
+churn the catalogue. Compiled `.mo` files are built at deploy time and
+are never committed.
+
 ## Users and Authentication
 
 We use [django-allauth](https://allauth.org/) for authentication. The
