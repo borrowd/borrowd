@@ -143,6 +143,7 @@ jobs:
       # Pushes the merge commit to Upsun's `staging` environment and waits for
       # the build and deploy (including migrations) to finish.
       - name: Push to staging
+        if: github.event_name != 'workflow_dispatch'
         env:
           UPSUN_CLI_TOKEN: ${{ secrets.UPSUN_CLI_TOKEN }}
           UPSUN_PROJECT_ID: ${{ vars.UPSUN_PROJECT_ID }}
