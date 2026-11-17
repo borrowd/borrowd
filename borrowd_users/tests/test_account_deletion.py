@@ -562,7 +562,11 @@ class DeleteAccountViewTests(TestCase):
         self.client.force_login(self.user)
         response = self.client.post(self.url, {"confirm_username": "wrong"})
 
-        self.assertRedirects(response, reverse("settings-account"))
+        self.assertRedirects(
+            response,
+            f"{reverse('settings')}#account",
+            fetch_redirect_response=False,
+        )
         self.user.refresh_from_db()
         self.assertTrue(self.user.is_active)
         self.assertEqual(self.user.username, "viewuser")
@@ -596,7 +600,11 @@ class DeleteAccountViewTests(TestCase):
         # match against the logged-in user.
         response = self.client.post(self.url, {"confirm_username": "victim"})
 
-        self.assertRedirects(response, reverse("settings-account"))
+        self.assertRedirects(
+            response,
+            f"{reverse('settings')}#account",
+            fetch_redirect_response=False,
+        )
         victim.refresh_from_db()
         self.user.refresh_from_db()
         self.assertTrue(victim.is_active)
@@ -633,12 +641,12 @@ class PublicProfileAfterDeletionTests(TestCase):
 
 @override_settings(MEDIA_ROOT=_TEST_MEDIA_ROOT)
 class AccountSettingsDeleteFlagsTests(TestCase):
-    """The modal-driving flags on the account settings page."""
+    """The modal-driving flags in the Account section of the settings page."""
 
     def setUp(self) -> None:
         self.user = _make_user("flaguser")
         self.client.force_login(self.user)
-        self.url = reverse("settings-account")
+        self.url = reverse("settings")
 
     def test_clean_account_flags(self) -> None:
         response = self.client.get(self.url)

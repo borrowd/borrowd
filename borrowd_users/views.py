@@ -19,10 +19,15 @@ from django.http import (
 )
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse, reverse_lazy
+from django.utils.functional import lazy
 from django.views.decorators.http import require_http_methods, require_POST
 from django.views.generic import CreateView
 
-from borrowd.util import BROWSABLE_BACK_TARGETS, resolve_back_url
+from borrowd.util import (
+    BROWSABLE_BACK_TARGETS,
+    resolve_back_url,
+    settings_section_url,
+)
 from borrowd_groups.models import Membership
 from borrowd_items.card_helpers import (
     active_subscription_item_ids,
@@ -33,6 +38,7 @@ from borrowd_items.card_helpers import (
 )
 from borrowd_items.models import Item, ItemStatus, Transaction
 from borrowd_notifications.services import NotificationService
+from borrowd_notifications.views import notification_settings_context
 
 from .exceptions import AccountDeletionBlocked
 from .forms import (
@@ -434,14 +440,32 @@ def inventory_view(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
+def settings_view(request: HttpRequest) -> HttpResponse:
+    """The settings page: Security, Notifications, Messaging (while the
+    messaging feature is on) and Account, as sections of one page."""
+    user = get_authenticated_user(request)
+
+    context = notification_settings_context(user)
+    context["allow_pre_request_chat"] = user.profile.allow_pre_request_chat
+    # Drives the delete-account modal. Borrowing blocks deletion; items still
+    # out on loan nudge the user to retrieve them first; owning only idle items
+    # just warns they'll be removed; with nothing at all it's a plain confirm.
+    context["is_borrowing"] = Transaction.get_active_borrows_for_user(user).exists()
+    context["is_lending"] = Transaction.get_active_lends_for_user(user).exists()
+    context["has_items"] = Item.objects.filter(owner=user).exists()
+    return render(request, "settings/index.html", context)
+
+
+@login_required
 def security_settings_view(request: HttpRequest) -> HttpResponse:
-    return render(request, "settings/security.html")
+    return redirect(settings_section_url("security"))
 
 
 @login_required
 @require_http_methods(["GET", "POST"])
 def messaging_settings_view(request: HttpRequest) -> HttpResponse:
-    """The lender's pre-request chat preference, saved one toggle at a time."""
+    """Saves the lender's pre-request chat preference, one toggle at a time.
+    A GET goes to the Messaging section of the settings page."""
     if not settings.MESSAGING_ENABLED:
         raise Http404
 
@@ -460,29 +484,12 @@ def messaging_settings_view(request: HttpRequest) -> HttpResponse:
         )
         return HttpResponse(status=204)
 
-    return render(
-        request,
-        "settings/messaging.html",
-        {"allow_pre_request_chat": profile.allow_pre_request_chat},
-    )
+    return redirect(settings_section_url("messaging"))
 
 
 @login_required
 def account_settings_view(request: HttpRequest) -> HttpResponse:
-    user = get_authenticated_user(request)
-
-    # Drives the delete-account modal. Borrowing blocks deletion; items still
-    # out on loan nudge the user to retrieve them first; owning only idle items
-    # just warns they'll be removed; with nothing at all it's a plain confirm.
-    return render(
-        request,
-        "settings/account.html",
-        {
-            "is_borrowing": Transaction.get_active_borrows_for_user(user).exists(),
-            "is_lending": Transaction.get_active_lends_for_user(user).exists(),
-            "has_items": Item.objects.filter(owner=user).exists(),
-        },
-    )
+    return redirect(settings_section_url("account"))
 
 
 @login_required
@@ -499,13 +506,13 @@ def delete_account_view(request: HttpRequest) -> HttpResponse:
         messages.error(
             request, "That username didn't match, so your account was not deleted."
         )
-        return redirect("settings-account")
+        return redirect(settings_section_url("account"))
 
     try:
         soft_delete_account(user, deleted_by=user)
     except AccountDeletionBlocked as exc:
         messages.error(request, str(exc))
-        return redirect("settings-account")
+        return redirect(settings_section_url("account"))
 
     logout(request)
     return redirect("profile-deleted")
@@ -569,7 +576,7 @@ class CustomPasswordChangeView(PasswordChangeView):
     per ux.
     """
 
-    success_url = reverse_lazy("settings-security")
+    success_url = lazy(settings_section_url, str)("security")
 
     def form_invalid(self, form: ChangePasswordForm) -> HttpResponse:
         """Add warning message when password validation fails."""

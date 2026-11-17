@@ -1,0 +1,58 @@
+{% extends "layouts/default.html" %}
+
+{% load i18n %}
+
+{% block head_title %}
+    {% trans "Settings" %}
+{% endblock %}
+
+{% block content %}
+    {# Each section's id is its anchor; settings_section_url() in borrowd/util.py links to them. #}
+    <div class="flex flex-col w-full max-w-2xl mx-auto px-4 py-4 gap-8 self-start">
+        <h1 class="text-xl font-semibold">
+            {% trans "Settings" %}
+        </h1>
+
+        <section id="security"
+                 aria-labelledby="security-heading"
+                 class="flex flex-col gap-3 scroll-mt-20">
+            <h2 id="security-heading" class="text-base font-semibold">
+                {% trans "Security" %}
+            </h2>
+            {% include "settings/_security.html" %}
+
+        </section>
+
+        <section id="notifications"
+                 aria-labelledby="notifications-heading"
+                 class="flex flex-col gap-3 scroll-mt-20">
+            <h2 id="notifications-heading" class="text-base font-semibold">
+                {% trans "Notifications" %}
+            </h2>
+            {% include "notifications/_preferences.html" %}
+
+        </section>
+
+        {% if messaging_enabled %}
+            <section id="messaging"
+                     aria-labelledby="messaging-heading"
+                     class="flex flex-col gap-3 scroll-mt-20">
+                <h2 id="messaging-heading" class="text-base font-semibold">
+                    {% trans "Messaging" %}
+                </h2>
+                {% include "settings/_messaging.html" %}
+
+            </section>
+        {% endif %}
+
+        <section id="account"
+                 aria-labelledby="account-heading"
+                 class="flex flex-col gap-3 scroll-mt-20">
+            <h2 id="account-heading" class="text-base font-semibold">
+                {% trans "Account" %}
+            </h2>
+            {% include "settings/_account.html" %}
+
+        </section>
+    </div>
+{% endblock %}
