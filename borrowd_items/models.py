@@ -1,3 +1,4 @@
+import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Optional, cast
@@ -30,7 +31,11 @@ from imagekit.processors import ResizeToFill, ResizeToFit
 from borrowd_permissions.models import ItemOLP
 from borrowd_users.models import BorrowdUser
 
-from .exceptions import InvalidItemAction, ItemAlreadyRequested
+from .exceptions import (
+    InvalidItemAction,
+    ItemAlreadyRequested,
+    TransactionLenderMismatch,
+)
 from .flow import execute_transition
 from .flow_parity import actions_for_open_transaction
 from .processors import AutoOrientProcessor
@@ -61,6 +66,8 @@ from .statuses import sync_item_status as sync_item_status
 
 if TYPE_CHECKING:
     from borrowd_groups.models import BorrowdGroup
+
+logger = logging.getLogger("borrowd.items")
 
 
 class ActiveItemQuerySet(QuerySet["Item"]):
@@ -242,6 +249,18 @@ class Item(Model):
         # M2M validation only works for saved instances
         if self.pk and not self.categories.exists():
             raise ValidationError({"categories": "At least one category is required."})
+
+    @classmethod
+    def lock_for_update(
+        cls, pk: int, *, select_related: tuple[str, ...] = ()
+    ) -> "Item":
+        """Fetch and lock this item, including soft-deleted items."""
+        # Only lock the item, even when select_related() loads other objects.
+        # https://docs.djangoproject.com/en/5.2/ref/models/querysets/#select-for-update
+        queryset = cls.all_objects.select_for_update(of=("self",))
+        if select_related:
+            queryset = queryset.select_related(*select_related)
+        return queryset.get(pk=pk)
 
     def soft_delete(self, deleted_by: BorrowdUser) -> None:
         self.deleted_at = timezone.now()
@@ -652,6 +671,31 @@ class Item(Model):
         """
         Process the given action for this Item and User.
         """
+        with transaction.atomic():
+            if not BorrowdUser.lock_account(user.pk).is_active:
+                raise InvalidItemAction("This account is no longer active.")
+            item = Item.lock_for_update(self.pk, select_related=("owner",))
+            item._process_action_locked(user, action)
+            self.refresh_from_db()
+
+    def _process_action_locked(self, user: BorrowdUser, action: ItemAction) -> None:
+        # A deleted item may still have an open loan that needs to be resolved.
+        if self.deleted_at is not None and action != ItemAction.RESOLVE_TRANSACTION:
+            raise InvalidItemAction("This item is no longer available.")
+
+        current_tx = self.get_current_transaction_for_user(user=user)
+        if current_tx is not None and current_tx.party1_id != self.owner_id:
+            logger.error(
+                "Open transaction %s has lender %s but item %s is owned by %s.",
+                current_tx.pk,
+                current_tx.party1_id,
+                self.pk,
+                self.owner_id,
+            )
+            raise TransactionLenderMismatch(
+                f"Transaction {current_tx.pk} and Item {self.pk} disagree on the lender."
+            )
+
         # Check for specific case: trying to request an item that already has a pending request
         if (
             action in (ItemAction.REQUEST_ITEM, ItemAction.REQUEST_GIVEAWAY)
@@ -664,7 +708,7 @@ class Item(Model):
         valid_actions = self.get_actions_for(user=user)
         if action not in valid_actions:
             raise InvalidItemAction(
-                f"User '{user}' cannot perform action '{action}' on"
+                f"User '{user}' cannot perform action '{action}' on "
                 f"Item '{self}' at this time."
             )
 
@@ -735,7 +779,6 @@ class Item(Model):
                 subscription.cancel_subscription()
             return
 
-        current_tx = self.get_current_transaction_for_user(user=user)
         if current_tx is None:
             # This should have been caught earlier, but check again
             # partly to keep mypy happy.
@@ -1078,13 +1121,15 @@ class Transaction(Model):
         self, *, resolved_by: BorrowdUser, reason: ResolutionReason
     ) -> None:
         """
-        Close this Transaction forcibly.
+        Resolve a transaction manually from the Django shell.
 
-        For cases the standard flow can't finish: a party closed their account,
-        a moderator stepped in, the counterparty went unresponsive, etc. The
-        transaction is always set to RESOLVED with the given reason. The item is
-        freed back to AVAILABLE if it's still active; a soft-deleted item (e.g. a
-        departed owner's) is left as-is.
+        Deprecated:
+            Kept for manual repairs. Normal item actions use Item.process_action().
+
+        Sets the transaction to RESOLVED and makes the item AVAILABLE unless
+        the item is soft-deleted.
+
+        Call _record_status_change() in the same atomic block to record the change.
         """
 
         with transaction.atomic():

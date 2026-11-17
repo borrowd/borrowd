@@ -109,6 +109,28 @@ Repo-local `PostToolUse` hooks (configured in `.claude/settings.json`, scripts i
 - Convention: `party1` is the lender/owner/giver; `party2` is the borrower/receiver.
 - Helpers: `Transaction.get_requested_status_transactions_for_user`, `get_active_borrows_for_user`, `get_active_lends_for_user`.
 
+**Lifecycle locking**: keep changes to transactions, item status, ownership,
+or deletion inside `atomic()`. Take locks in this order: account, items in
+pk order, transactions, then chat threads. This avoids deadlocks. Use the
+objects returned by the locks; previously loaded objects may be out of date.
+
+- `Item.process_action()` takes the locks for item actions. Other writers
+  take their own locks: `ItemUpdateView`, `ItemDeleteView`, `ItemAdmin`,
+  `soft_delete_account`, `repair_item_statuses`, and
+  `backfill_transaction_threads`.
+- Always use `BorrowdUser.lock_account()` for account locks. Its
+  `FOR NO KEY UPDATE` lock lets notifications and transactions reference
+  the user while locked. A regular `FOR UPDATE` lock can deadlock two users
+  acting on one item. See [PostgreSQL row locks](https://www.postgresql.org/docs/17/explicit-locking.html#LOCKING-ROWS)
+  and [Django select_for_update](https://docs.djangoproject.com/en/5.2/ref/models/querysets/#select-for-update).
+- Lock only the acting user's account. If multiple account locks are
+  needed, take them in pk order.
+- `Item._process_action_locked`, `Item.soft_delete`, and account deletion
+  helpers expect the caller to hold the locks. They should use the locked
+  objects without taking new locks or fetching them again.
+- Run locking tests against PostgreSQL. SQLite does not enforce row locks,
+  so `test_lifecycle_concurrency.py` is skipped on SQLite.
+
 **AvailabilitySubscription**: when an item is `BORROWED`/`RESERVED`, non-owners can subscribe via `NOTIFY_WHEN_AVAILABLE` to be notified when it's available again. A `UniqueConstraint` enforces one active subscription per (user, item).
 
 **Membership lifecycle** (`borrowd_groups/models.py`): `MembershipStatus` is `PENDING`, `ACTIVE`, `SUSPENDED`, `BANNED`, `ENDED`. Groups with `membership_requires_approval=True` create new memberships in `PENDING` until a moderator approves.
