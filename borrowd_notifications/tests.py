@@ -2090,15 +2090,15 @@ class NotificationPreferenceToggleViewTests(TestCase):
         )
         self.assertFalse(pref.in_app_enabled)
 
-    def test_bulk_toggle_email_for_tips_scope_returns_400(self) -> None:
-        """Every type in the tips category is email-excluded, so
+    def test_bulk_toggle_email_for_onboarding_scope_returns_400(self) -> None:
+        """Every type in the onboarding category is email-excluded, so
         there's nothing for a bulk EMAIL toggle in that scope to update."""
-        response = self._bulk_toggle("tips", "EMAIL", True)
+        response = self._bulk_toggle("onboarding", "EMAIL", True)
         self.assertEqual(response.status_code, 400)
 
-    def test_bulk_toggle_in_app_for_tips_scope_still_works(self) -> None:
+    def test_bulk_toggle_in_app_for_onboarding_scope_still_works(self) -> None:
         """Bulk in-app toggling for onboarding types is unaffected."""
-        response = self._bulk_toggle("tips", "APP", False)
+        response = self._bulk_toggle("onboarding", "APP", False)
         self.assertEqual(response.status_code, 204)
         pref = NotificationPreference.objects.get(
             user=self.user,
@@ -2187,14 +2187,16 @@ class PreferencesContextEmailExclusionTests(TestCase):
         type_ctx = self._type_ctx(context, NotificationType.ITEM_ADDED_NEEDS_GROUP)
         self.assertFalse(type_ctx["email_enabled"])
 
-    def test_tips_category_email_switch_is_not_togglable(self) -> None:
-        """Every type in the tips category is email-excluded, so its
+    def test_onboarding_category_email_switch_is_not_togglable(self) -> None:
+        """Every type in the onboarding category is email-excluded, so its
         EMAIL cell must render "n/a" rather than as a live control that
         400s when clicked."""
         context = _build_preferences_context(self.user)
 
-        tips = next(cat for cat in context["categories"] if cat["slug"] == "tips")
-        self.assertFalse(tips["has_togglable_email"])
+        onboarding = next(
+            cat for cat in context["categories"] if cat["slug"] == "onboarding"
+        )
+        self.assertFalse(onboarding["has_togglable_email"])
 
     def test_loans_category_email_switch_is_togglable(self) -> None:
         context = _build_preferences_context(self.user)
@@ -2214,7 +2216,7 @@ class NotificationCategoriesTests(TestCase):
     def test_rows_are_in_display_order(self) -> None:
         self.assertEqual(
             [cat["slug"] for cat in NOTIFICATION_CATEGORIES],
-            ["loans", "availability", "messages", "groups", "tips"],
+            ["loans", "availability", "messages", "groups", "onboarding"],
         )
 
 
@@ -2278,8 +2280,21 @@ class NotificationPreferencesPageTests(TestCase):
                 )
         self.assertContains(response, 'aria-label="Your groups, Email"')
         self.assertContains(
-            response, "What's included", count=len(NOTIFICATION_CATEGORIES)
+            response,
+            "What's included",
+            count=sum(1 for cat in NOTIFICATION_CATEGORIES if cat["included"]),
         )
+
+    def test_onboarding_row_has_no_whats_included(self) -> None:
+        response = self.client.get(reverse("notification-preferences"))
+
+        self.assertContains(
+            response, "Tips for getting set up, like adding an item or joining a group."
+        )
+        self.assertNotContains(
+            response, 'id="notification-category-onboarding-included"'
+        )
+        self.assertContains(response, 'id="notification-category-groups-included"')
 
     def test_has_no_per_event_or_all_notifications_controls(self) -> None:
         response = self.client.get(reverse("notification-preferences"))
@@ -2289,11 +2304,11 @@ class NotificationPreferencesPageTests(TestCase):
         self.assertNotContains(response, "Borrow request received")
         self.assertNotContains(response, "bulkToggle('master'")
 
-    def test_tips_row_shows_na_instead_of_an_email_switch(self) -> None:
+    def test_onboarding_row_shows_na_instead_of_an_email_switch(self) -> None:
         response = self.client.get(reverse("notification-preferences"))
 
-        self.assertNotContains(response, "bulkToggle('tips', 'EMAIL'")
-        self.assertNotContains(response, 'aria-label="Tips and reminders, Email"')
+        self.assertNotContains(response, "bulkToggle('onboarding', 'EMAIL'")
+        self.assertNotContains(response, 'aria-label="Onboarding, Email"')
         self.assertContains(response, "n/a")
 
     def test_explains_which_notifications_are_always_sent(self) -> None:
@@ -4527,13 +4542,13 @@ class AddProfilePhotoNudgePreferenceSeedMigrationTests(TestCase):
 
 class OnboardingNotificationCategoryTests(TestCase):
     """All onboarding nudges must be user-toggleable on the preferences
-    page, grouped together under "Tips and reminders"."""
+    page, grouped together under their own category."""
 
     def test_all_types_are_listed_in_a_dedicated_category(self) -> None:
-        tips_category = next(
-            cat for cat in NOTIFICATION_CATEGORIES if cat["slug"] == "tips"
+        onboarding_category = next(
+            cat for cat in NOTIFICATION_CATEGORIES if cat["slug"] == "onboarding"
         )
-        types = [ntype for ntype, _ in tips_category["types"]]
+        types = [ntype for ntype, _ in onboarding_category["types"]]
         self.assertIn(NotificationType.ITEM_ADDED_NEEDS_GROUP, types)
         self.assertIn(NotificationType.GROUP_CREATED_NEEDS_PHOTO, types)
         self.assertIn(NotificationType.PHOTO_ADDED_NEEDS_INVITES, types)
@@ -4547,7 +4562,7 @@ class OnboardingNotificationCategoryTests(TestCase):
 
         response = self.client.get(reverse("notification-preferences"))
 
-        self.assertContains(response, "Tips and reminders")
+        self.assertContains(response, "Onboarding")
 
 
 class InviteFriendsNudgeNotificationTests(TestCase):

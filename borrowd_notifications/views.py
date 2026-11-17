@@ -34,7 +34,8 @@ from .models import (
 
 # Rows on the notification settings page, in display order. Each row's
 # toggles switch every type in it on or off together; "included" is the
-# user-facing summary of those types shown under "What's included".
+# user-facing summary of those types shown under "What's included", which
+# is left out for a row whose description already says what it covers.
 # Each type entry is (NotificationType, title shown on its inbox card), and
 # `icon` is the fallback inbox icon for the row's types. Every
 # NotificationType belongs to exactly one row.
@@ -148,19 +149,13 @@ NOTIFICATION_CATEGORIES: list[dict[str, Any]] = [
         ],
     },
     {
-        "name": "Tips and reminders",
-        "slug": "tips",
+        "name": "Onboarding",
+        "slug": "onboarding",
         "icon": "sparkles",
         "description": (
-            "Suggestions for getting set up, like adding an item or a profile "
-            "photo. Never sent by email."
+            "Tips for getting set up, like adding an item or joining a group."
         ),
-        "included": [
-            "Join a group",
-            "Add a profile photo",
-            "Invite friends",
-            "Add an item",
-        ],
+        "included": [],
         "types": [
             (NotificationType.ITEM_ADDED_NEEDS_GROUP, "Join a group reminder"),
             (

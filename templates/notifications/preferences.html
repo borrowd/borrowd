@@ -84,26 +84,28 @@
                             <p class="text-xs text-base-content/60">
                                 {{ category.description }}
                             </p>
-                            <button type="button"
-                                    @click="open = !open"
-                                    :aria-expanded="open.toString()"
-                                    aria-expanded="false"
-                                    aria-controls="notification-category-{{ category.slug }}-included"
-                                    class="flex min-h-11 items-center gap-1 self-start text-xs font-semibold text-primary cursor-pointer">
-                                {% trans "What's included" %}
-                                <span class="transition-transform motion-reduce:transition-none"
-                                      :class="open && 'rotate-180'">{% heroicon_mini "chevron-down" class="size-4" %}</span>
-                            </button>
-                            <ul id="notification-category-{{ category.slug }}-included"
-                                x-show="open"
-                                x-cloak
-                                class="list-disc pl-5 text-xs text-base-content/70 flex flex-col gap-1 pb-1">
-                                {% for line in category.included %}
-                                    <li>
-                                        {{ line }}
-                                    </li>
-                                {% endfor %}
-                            </ul>
+                            {% if category.included %}
+                                <button type="button"
+                                        @click="open = !open"
+                                        :aria-expanded="open.toString()"
+                                        aria-expanded="false"
+                                        aria-controls="notification-category-{{ category.slug }}-included"
+                                        class="flex min-h-11 items-center gap-1 self-start text-xs font-semibold text-primary cursor-pointer">
+                                    {% trans "What's included" %}
+                                    <span class="transition-transform motion-reduce:transition-none"
+                                          :class="open && 'rotate-180'">{% heroicon_mini "chevron-down" class="size-4" %}</span>
+                                </button>
+                                <ul id="notification-category-{{ category.slug }}-included"
+                                    x-show="open"
+                                    x-cloak
+                                    class="list-disc pl-5 text-xs text-base-content/70 flex flex-col gap-1 pb-1">
+                                    {% for line in category.included %}
+                                        <li>
+                                            {{ line }}
+                                        </li>
+                                    {% endfor %}
+                                </ul>
+                            {% endif %}
                         </div>
                         <div class="flex shrink-0 items-center">
                             <label class="flex w-14 min-h-11 items-center justify-center cursor-pointer">
