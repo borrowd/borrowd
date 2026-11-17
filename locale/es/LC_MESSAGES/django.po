@@ -1,0 +1,705 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-11-17 01:24+0000\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: Automatically generated\n"
+"Language-Team: none\n"
+"Language: es\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=n != 1;\n"
+
+#: borrowd/config/base.py
+msgid "English"
+msgstr ""
+
+#: templates/account/confirm_login_code.html
+msgid "Enter Login Code"
+msgstr ""
+
+#: templates/account/confirm_login_code.html
+msgid "Enter sign-in code"
+msgstr ""
+
+#: templates/account/confirm_login_code.html
+msgid "We've sent a login code to your email, please enter it below."
+msgstr ""
+
+#: templates/account/confirm_login_code.html
+msgid "Code"
+msgstr ""
+
+#: templates/account/confirm_login_code.html
+msgid "Enter your code"
+msgstr ""
+
+#: templates/account/confirm_login_code.html
+msgid "Sign in"
+msgstr ""
+
+#: templates/account/confirm_login_code.html
+#: templates/account/password_change.html
+#: templates/account/password_reset_from_key.html
+#: templates/account/request_login_code.html templates/settings/account.html
+msgid "Cancel"
+msgstr ""
+
+#: templates/account/email/login_code_message.html
+#: templates/account/email/login_code_subject.txt
+msgid "Sign-In Code"
+msgstr ""
+
+#: templates/account/email/login_code_message.html
+msgid "Hi"
+msgstr ""
+
+#: templates/account/email/login_code_message.html
+#: templates/account/email/login_code_message.txt
+msgid ""
+"Your sign-in code is listed below. Please enter it in your open browser "
+"window."
+msgstr ""
+
+#: templates/account/email/login_code_message.html
+#: templates/account/email/login_code_message.txt
+msgid "This mail can be safely ignored if you did not initiate this action."
+msgstr ""
+
+#: templates/account/email/login_code_message.html
+msgid "Enter login code"
+msgstr ""
+
+#: templates/account/email/login_code_message.html
+#: templates/account/email/password_reset_key_message.html
+#, python-format
+msgid ""
+"You're receiving this email because you are a member of %(site_name)s. If "
+"you feel you received it by mistake or wish to unsubscribe, <a "
+"href=\"mailto:support@borrowd.org\" style=\"color:#3d5a99;\">click here</a>."
+msgstr ""
+
+#: templates/account/email/password_reset_key_message.html
+msgid "Password reset"
+msgstr ""
+
+#: templates/account/email/password_reset_key_message.html
+#: templates/account/email/password_reset_key_message.txt
+#, python-format
+msgid "Hi %(name)s,"
+msgstr ""
+
+#: templates/account/email/password_reset_key_message.html
+msgid ""
+"You're receiving this email because you or someone else has requested a "
+"password reset for your user account."
+msgstr ""
+
+#: templates/account/email/password_reset_key_message.html
+msgid ""
+"It can be safely ignored if you did not request a password reset. Click the "
+"link below to reset your password."
+msgstr ""
+
+#: templates/account/email/password_reset_key_message.html
+#: templates/account/login.html
+msgid "Reset password"
+msgstr ""
+
+#: templates/account/email/password_reset_key_message.txt
+msgid ""
+"You're receiving this email because you or someone else has requested a "
+"password reset for your user account.\n"
+"It can be safely ignored if you did not request a password reset. Click the "
+"link below to reset your password."
+msgstr ""
+
+#: templates/account/email/unknown_account_message.html
+msgid "Account not found"
+msgstr ""
+
+#: templates/account/email/unknown_account_message.html
+#: templates/account/email/unknown_account_message.txt
+#, python-format
+msgid ""
+"You are receiving this email because you, or someone else, tried to access "
+"an account with email %(email)s. However, we do not have any record of such "
+"an account in our database."
+msgstr ""
+
+#: templates/account/email/unknown_account_message.html
+#: templates/account/email/unknown_account_message.txt
+msgid "This email can be safely ignored if you did not initiate this action."
+msgstr ""
+
+#: templates/account/email/unknown_account_message.html
+msgid "If it was you, you can sign up for an account using the button below."
+msgstr ""
+
+#: templates/account/email/unknown_account_message.html
+#: templates/account/login.html
+msgid "Sign up"
+msgstr ""
+
+#: templates/account/email/unknown_account_message.html
+#, python-format
+msgid ""
+"You're receiving this email because someone tried to sign in with this "
+"address on %(site_name)s. If you feel you received it by mistake, you can "
+"safely ignore it."
+msgstr ""
+
+#: templates/account/email/unknown_account_message.txt
+msgid "If it was you, you can sign up for an account using the link below."
+msgstr ""
+
+#: templates/account/login.html
+#: templates/account/password_reset_from_key_done.html
+msgid "Log in"
+msgstr ""
+
+#: templates/account/login.html
+msgid "Welcome!"
+msgstr ""
+
+#: templates/account/login.html
+msgid ""
+"Borrow'd is a community-powered platform to help you share with the people "
+"you trust in real life."
+msgstr ""
+
+#: templates/account/login.html templates/account/password_reset.html
+#: templates/account/request_login_code.html templates/account/signup.html
+#: templates/notifications/preferences.html
+msgid "Email"
+msgstr ""
+
+#: templates/account/login.html templates/account/password_reset_from_key.html
+#: templates/account/signup.html
+msgid "Password"
+msgstr ""
+
+#: templates/account/login.html templates/account/request_login_code.html
+msgid "Request login code"
+msgstr ""
+
+#: templates/account/login.html
+msgid "New to Borrow'd?"
+msgstr ""
+
+#: templates/account/password_change.html
+#: templates/account/password_reset_from_key.html
+msgid "Change Password"
+msgstr ""
+
+#: templates/account/password_change.html
+#: templates/account/password_reset_from_key.html
+msgid "Change password"
+msgstr ""
+
+#: templates/account/password_reset.html
+msgid "Reset Password"
+msgstr ""
+
+#: templates/account/password_reset.html
+msgid "Forgot password"
+msgstr ""
+
+#: templates/account/password_reset.html
+msgid ""
+"Enter your email address for your account and we will send you instructions "
+"on how to reset it."
+msgstr ""
+
+#: templates/account/password_reset.html templates/account/signup.html
+msgid "Continue"
+msgstr ""
+
+#: templates/account/password_reset_done.html
+msgid "Password Reset Sent"
+msgstr ""
+
+#: templates/account/password_reset_done.html
+msgid "Check your email"
+msgstr ""
+
+#: templates/account/password_reset_done.html
+msgid ""
+"We've just sent Password Reset Instructions to you. If you don't receive it "
+"shortly, please check your spam folder."
+msgstr ""
+
+#: templates/account/password_reset_done.html
+msgid "Return to Log In"
+msgstr ""
+
+#: templates/account/password_reset_from_key.html
+msgid "Back"
+msgstr ""
+
+#: templates/account/password_reset_from_key.html
+msgid "Use 8+ characters and upper and lower cases."
+msgstr ""
+
+#: templates/account/password_reset_from_key.html
+msgid "Repeat password"
+msgstr ""
+
+#: templates/account/password_reset_from_key_done.html
+msgid "Password Changed"
+msgstr ""
+
+#: templates/account/password_reset_from_key_done.html
+msgid "Password changed"
+msgstr ""
+
+#: templates/account/password_reset_from_key_done.html
+msgid ""
+"Your password has been successfully changed. You can now log in with your "
+"new password."
+msgstr ""
+
+#: templates/account/password_reset_from_key_invalid.html
+msgid "Link expired"
+msgstr ""
+
+#: templates/account/password_reset_from_key_invalid.html
+msgid ""
+"This password reset link is invalid or has already been used. Please request "
+"a new one."
+msgstr ""
+
+#: templates/account/password_reset_from_key_invalid.html
+msgid "Request new reset link"
+msgstr ""
+
+#: templates/account/password_reset_from_key_invalid.html
+msgid "Back to log in"
+msgstr ""
+
+#: templates/account/request_login_code.html
+msgid "Request Login Code"
+msgstr ""
+
+#: templates/account/request_login_code.html
+msgid "Login"
+msgstr ""
+
+#: templates/account/request_login_code.html
+msgid ""
+"Enter your email address for your account and we will send you a code to "
+"login."
+msgstr ""
+
+#: templates/account/signup.html
+msgid "First name"
+msgstr ""
+
+#: templates/account/signup.html
+msgid "Last name"
+msgstr ""
+
+#: templates/account/signup.html
+msgid "Confirm password"
+msgstr ""
+
+#: templates/beta/signup_form.html
+msgid "Enter beta code"
+msgstr ""
+
+#: templates/beta/signup_form.html
+msgid "There was an error processing your beta code."
+msgstr ""
+
+#: templates/groups/group_poster.html
+#, python-format
+msgid "%(name)s poster"
+msgstr ""
+
+#: templates/groups/group_poster.html
+msgid "Print"
+msgstr ""
+
+#: templates/groups/group_poster.html
+msgid ""
+"The QR code below will stop working if a group moderator resets the group's "
+"invite link."
+msgstr ""
+
+#: templates/groups/group_poster.html
+msgid "Join our sharing group"
+msgstr ""
+
+#: templates/groups/group_poster.html
+msgid "A free way to borrow and lend everyday things with each other."
+msgstr ""
+
+#: templates/groups/group_poster.html
+msgid ""
+"Need a ladder for an afternoon or a tent for the weekend? Someone here might "
+"have one sitting in a closet."
+msgstr ""
+
+#: templates/groups/group_poster.html
+msgid ""
+"Share what you have, borrow what you need, and keep good stuff in use "
+"instead of buying new."
+msgstr ""
+
+#: templates/groups/group_poster.html
+msgid "<strong>Free.</strong> No fees, no ads, no data harvesting."
+msgstr ""
+
+#: templates/groups/group_poster.html
+msgid ""
+"<strong>Group only.</strong> You choose which groups you're sharing with, "
+"never with the public. You always decide who you lend to."
+msgstr ""
+
+#: templates/groups/group_poster.html
+msgid "<strong>Nonprofit.</strong> Borrow'd is a nonprofit and open source."
+msgstr ""
+
+#: templates/groups/group_poster.html
+msgid "QR code unavailable. Reload this page before printing."
+msgstr ""
+
+#: templates/groups/group_poster.html
+msgid "Scan to join"
+msgstr ""
+
+#: templates/groups/group_poster.html
+msgid "Opens in your browser. No app to download."
+msgstr ""
+
+#: templates/groups/group_poster.html
+msgid ""
+"Together, we waste less and share more. Learn how it works at "
+"<strong>borrowd.org</strong>"
+msgstr ""
+
+#: templates/includes/_community_request_badge.html
+msgid "New community requests:"
+msgstr ""
+
+#: templates/includes/_group_action_badge.html
+msgid "Group actions waiting:"
+msgstr ""
+
+#: templates/includes/_menu_toggle.html
+msgid "Menu, unread items"
+msgstr ""
+
+#: templates/includes/_menu_toggle.html
+msgid "Menu"
+msgstr ""
+
+#: templates/includes/beta.html
+msgid "This is a beta version of Borrow'd."
+msgstr ""
+
+#: templates/includes/header.html
+msgid "View profile"
+msgstr ""
+
+#: templates/includes/header.html
+msgid "Item search"
+msgstr ""
+
+#: templates/includes/header.html
+msgid "Groups"
+msgstr ""
+
+#: templates/includes/header.html
+msgid "Community requests"
+msgstr ""
+
+#: templates/includes/header.html
+msgid "My inventory"
+msgstr ""
+
+#: templates/includes/header.html
+msgid "Messages"
+msgstr ""
+
+#: templates/includes/header.html templates/layouts/settings.html
+msgid "Settings"
+msgstr ""
+
+#: templates/includes/header.html
+msgid "Help"
+msgstr ""
+
+#: templates/includes/header.html
+msgid "Log out"
+msgstr ""
+
+#: templates/layouts/settings.html
+msgid "Settings sections"
+msgstr ""
+
+#: templates/layouts/settings.html
+msgid "Security"
+msgstr ""
+
+#: templates/layouts/settings.html templates/notifications/inbox.html
+#: templates/notifications/notification_bell.html
+#: templates/notifications/popup.html
+msgid "Notifications"
+msgstr ""
+
+#: templates/layouts/settings.html
+msgid "Messaging"
+msgstr ""
+
+#: templates/layouts/settings.html
+msgid "Account"
+msgstr ""
+
+#: templates/notifications/_notification_card.html
+msgid "Mark as read"
+msgstr ""
+
+#: templates/notifications/_notification_card.html
+#: templates/settings/account.html templates/users/profile.html
+msgid "Delete"
+msgstr ""
+
+#: templates/notifications/inbox.html templates/notifications/popup.html
+msgid "Mark all as read"
+msgstr ""
+
+#: templates/notifications/inbox.html
+msgid "Delete all"
+msgstr ""
+
+#: templates/notifications/inbox.html
+msgid "Previous"
+msgstr ""
+
+#: templates/notifications/inbox.html
+msgid "Next"
+msgstr ""
+
+#: templates/notifications/inbox.html templates/notifications/popup.html
+msgid "No notifications yet."
+msgstr ""
+
+#: templates/notifications/popup.html
+msgid "View all"
+msgstr ""
+
+#: templates/notifications/preferences.html
+msgid "Notification settings"
+msgstr ""
+
+#: templates/notifications/preferences.html
+msgid "Choose how you want to be notified."
+msgstr ""
+
+#: templates/notifications/preferences.html
+msgid "Push notifications aren't available in the app yet."
+msgstr ""
+
+#: templates/notifications/preferences.html
+msgid ""
+"Push notifications are on in your settings, but this browser is blocking "
+"them. Enable notifications for this site in your browser settings to receive "
+"them here."
+msgstr ""
+
+#: templates/notifications/preferences.html
+msgid ""
+"Push notifications are on in your settings, but this browser isn't set up to "
+"receive them yet."
+msgstr ""
+
+#: templates/notifications/preferences.html
+msgid "Enable browser notifications"
+msgstr ""
+
+#: templates/notifications/preferences.html
+msgid "All notifications"
+msgstr ""
+
+#: templates/notifications/preferences.html
+msgid "In-app"
+msgstr ""
+
+#: templates/notifications/preferences.html
+msgid "Push"
+msgstr ""
+
+#: templates/notifications/preferences.html
+msgid "Enable or disable all optional notifications"
+msgstr ""
+
+#: templates/notifications/preferences.html
+msgid "Required for transaction handshakes"
+msgstr ""
+
+#: templates/notifications/preferences.html
+msgid "In-app only, no email alert"
+msgstr ""
+
+#: templates/settings/account.html
+msgid "Account settings"
+msgstr ""
+
+#: templates/settings/account.html
+msgid "Delete account"
+msgstr ""
+
+#: templates/settings/account.html
+msgid "You currently have pending transactions"
+msgstr ""
+
+#: templates/settings/account.html
+msgid ""
+"To delete your profile, you'll need to return the items you've borrowed or "
+"cancel any pending transactions. Once the owner confirms the return, you'll "
+"be able to delete your profile."
+msgstr ""
+
+#: templates/settings/account.html
+msgid "Close"
+msgstr ""
+
+#: templates/settings/account.html
+msgid "You're still lending items"
+msgstr ""
+
+#: templates/settings/account.html
+msgid ""
+"If you delete your profile, your listed items will also be removed. We "
+"recommend retrieving your items before deleting your profile."
+msgstr ""
+
+#: templates/settings/account.html
+msgid "Your listed items will be removed"
+msgstr ""
+
+#: templates/settings/account.html
+msgid ""
+"If you delete your profile, the items you've listed on Borrow'd will be "
+"removed too."
+msgstr ""
+
+#: templates/settings/account.html
+msgid "Are you sure you want to delete your profile?"
+msgstr ""
+
+#: templates/settings/account.html
+#, python-format
+msgid "To confirm, type %(username)s below"
+msgstr ""
+
+#: templates/settings/messaging.html
+msgid "Messaging settings"
+msgstr ""
+
+#: templates/settings/messaging.html
+msgid "Chat Preferences"
+msgstr ""
+
+#: templates/settings/messaging.html
+msgid "Allow pre-request messages"
+msgstr ""
+
+#: templates/settings/messaging.html
+msgid ""
+"When off, borrowers can still request your items but cannot message you "
+"before making a request."
+msgstr ""
+
+#: templates/settings/messaging.html
+msgid "Could not save your chat preference. Please try again."
+msgstr ""
+
+#: templates/settings/security.html
+msgid "Security settings"
+msgstr ""
+
+#: templates/users/profile-deleted.html
+msgid "Account deleted"
+msgstr ""
+
+#: templates/users/profile-deleted.html
+msgid "Your account has been deleted"
+msgstr ""
+
+#: templates/users/profile-deleted.html
+msgid "We hope to see you again soon in our community to keep sharing!"
+msgstr ""
+
+#: templates/users/profile-deleted.html
+msgid "Back to home"
+msgstr ""
+
+#: templates/users/profile.html templates/users/public-profile.html
+msgid "Profile"
+msgstr ""
+
+#: templates/users/profile.html
+msgid "Avatar"
+msgstr ""
+
+#: templates/users/profile.html
+msgid "Profile photo"
+msgstr ""
+
+#: templates/users/profile.html
+msgid "Edit"
+msgstr ""
+
+#: templates/users/profile.html
+msgid "Max size 10MB"
+msgstr ""
+
+#: templates/users/profile.html
+msgid "Personal information"
+msgstr ""
+
+#: templates/users/profile.html
+msgid "Update profile"
+msgstr ""
+
+#: templates/users/profile.html
+msgid "Stats"
+msgstr ""
+
+#: templates/users/profile.html
+msgid "Are you sure you want to delete your profile picture?"
+msgstr ""
+
+#: templates/users/profile.html
+msgid ""
+"We advise everyone to have a profile picture so they can identify each other."
+msgstr ""
+
+#: templates/users/profile.html
+msgid "No, cancel"
+msgstr ""
+
+#: templates/users/profile.html
+msgid "Yes, delete"
+msgstr ""
+
+#: templates/users/public-profile.html
+msgid "Platform transparency metrics"
+msgstr ""
+
+#: templates/web/faq.html
+msgid "FAQ"
+msgstr ""
+
+#: templates/web/faq.html
+msgid "Frequently Asked Questions"
+msgstr ""
