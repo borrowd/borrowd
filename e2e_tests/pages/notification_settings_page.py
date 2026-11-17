@@ -10,9 +10,7 @@ class NotificationSettingsPage:
         self.intro = page.get_by_text("Choose how you want to be notified.")
 
     def open(self, base_url: str):
-        self.page.goto(
-            f"{base_url}/settings/notifications/", wait_until="domcontentloaded"
-        )
+        self.page.goto(f"{base_url}/settings/", wait_until="domcontentloaded")
         expect(self.intro).to_be_visible()
 
     def row(self, slug: str):

@@ -49,10 +49,7 @@ class ProfileBackUrlTests(TestCase):
         for url_name in (
             "community-request-list",
             "notification-inbox",
-            "settings-security",
-            "notification-preferences",
-            "settings-messaging",
-            "settings-account",
+            "settings",
         ):
             with self.subTest(url_name=url_name):
                 referer_url = reverse(url_name)

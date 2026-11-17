@@ -8,7 +8,7 @@ from urllib.parse import urlparse
 
 from django.db.models import Model
 from django.http import HttpRequest
-from django.urls import Resolver404, resolve
+from django.urls import Resolver404, resolve, reverse
 
 logger = logging.getLogger(__name__)
 
@@ -33,12 +33,16 @@ BROWSABLE_BACK_TARGETS = frozenset(
         "public-profile",
         "community-request-list",
         "notification-inbox",
-        "settings-security",
-        "notification-preferences",
-        "settings-messaging",
-        "settings-account",
+        "settings",
     }
 )
+
+
+def settings_section_url(section: str) -> str:
+    """URL of one section of the settings page, e.g. "notifications". The
+    section ids are the `id`s on the sections in templates/settings/index.html.
+    """
+    return f"{reverse('settings')}#{section}"
 
 
 def is_safe_back_url(url: str, request: HttpRequest) -> bool:
