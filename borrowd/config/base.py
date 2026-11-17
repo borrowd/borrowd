@@ -18,6 +18,7 @@ from typing import cast
 
 import django_stubs_ext
 from django.urls import reverse_lazy
+from django.utils.translation import gettext_lazy as _
 from PIL import Image
 
 from borrowd.config.env import env
@@ -86,6 +87,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.locale.LocaleMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -117,6 +119,7 @@ TEMPLATES = [
             "context_processors": [
                 "django.template.context_processors.debug",
                 "django.template.context_processors.request",
+                "django.template.context_processors.i18n",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
                 "borrowd_beta.context_processors.beta_status",
@@ -250,13 +253,19 @@ ANDROID_CERT_SHA256_FINGERPRINTS: list[str] = env.list(
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
 
-LANGUAGE_CODE = "en-us"
+LANGUAGE_CODE = "en"
 
 TIME_ZONE = "UTC"
 
 USE_I18N = True
 
 USE_TZ = True
+
+LANGUAGES = [
+    ("en", _("English")),
+]
+
+LOCALE_PATHS = [BASE_DIR / "locale"]
 
 # URL to build links when HttpRequest not available (e.g. email notifications)
 BASE_URL = "http://localhost:8000"

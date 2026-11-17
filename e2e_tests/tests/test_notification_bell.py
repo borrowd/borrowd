@@ -3,7 +3,6 @@ import pytest
 from pages.notification_bell_page import NotificationBellPage
 
 
-@pytest.mark.smoke
 @pytest.mark.regression
 @allure.feature("Notifications")
 @allure.title("Notification bell opens a popup with recent notifications")

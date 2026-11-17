@@ -66,22 +66,4 @@ something came from, don't submit it.
 
 ## For AI agents
 
-Follow this policy. In particular:
-
-- Open the PR `Summary` with the TL;DR. Describe the final state, not your
-  session: no logs, abandoned attempts, or step-by-step narration, in the PR
-  description or in code comments. Comments follow the evergreen rule in
-  [AGENTS.md](../AGENTS.md#comments).
-- Keep the `Co-Authored-By` trailer, and note significant AI involvement in the
-  PR description.
-- Don't read, print, or transmit `.env` files, secrets, `db.sqlite3`, `media/`,
-  or production data.
-- Don't post reviews, issues, or comments the human hasn't verified. Never say
-  a human reviewed or tested something unless they told you so.
-- Before the PR is ready, suggest manual checks beyond unit tests (run the app,
-  walk the flow as each kind of user, try edge and failure cases) and ask what
-  the human observed.
-- Make sure the human can explain the change; if they can't, explain it to
-  them.
-- If you're unsure whether code is licensed compatibly, say so and don't commit
-  it.
+See [AGENTS.md](../AGENTS.md#ai-contribution-policy).

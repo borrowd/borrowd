@@ -673,6 +673,9 @@ pillow==12.3.0 \
     # via
     #   borrowd
     #   pilkit
+polib==1.2.0 \
+    --hash=sha256:1c77ee1b81feb31df9bca258cbc58db1bbb32d10214b173882452c73af06d62d \
+    --hash=sha256:f3ef94aefed6e183e342a8a269ae1fc4742ba193186ad76f175938621dbfc26b
 propcache==0.5.2 \
     --hash=sha256:01c4fc7480cd0598bb4b57022df55b9ca296da7fc5a8760bd8451a7e63a7d427 \
     --hash=sha256:06187263ddad280d05b4d8a8b3bb7d164cbebd469236544a42e6d9b28ac6a4fa \
@@ -853,6 +856,9 @@ tenacity==9.1.4 \
     --hash=sha256:6095a360c919085f28c6527de529e76a06ad89b23659fa881ae0649b867a9d55 \
     --hash=sha256:adb31d4c263f2bd041081ab33b498309a57c77f9acf2db65aadf0898179cf93a
     # via borrowd
+types-polib==1.2.0.20260518 \
+    --hash=sha256:1a6b9bd7eab3672a1c2e54c939b3fb720241e2b671e34a60cb82d2f791eba025 \
+    --hash=sha256:2b593a1c6eceb1c4d2ef41054d24ec17c5ee3ec4f2a29a26ece75d8f5715420f
 types-pyyaml==6.0.12.20260518 \
     --hash=sha256:d2150f75a231c9fe9c7463bd29487d93e60bac90400287351384bc2284eba7cd \
     --hash=sha256:d917f83fb38462550338c1297faedd860b3ec83912b96b1e3d73255f7473e466

@@ -198,7 +198,9 @@ dependencies = [
 dev = [
     { name = "django-stubs", extra = ["compatible-mypy"] },
     { name = "mypy" },
+    { name = "polib" },
     { name = "pyyaml" },
+    { name = "types-polib" },
 ]
 
 [package.metadata]
@@ -230,7 +232,9 @@ requires-dist = [
 dev = [
     { name = "django-stubs", extras = ["compatible-mypy"], specifier = ">=6.0.5" },
     { name = "mypy", specifier = ">=2.1.0" },
+    { name = "polib", specifier = ">=1.2.0" },
     { name = "pyyaml", specifier = ">=6.0.2" },
+    { name = "types-polib", specifier = ">=1.2.0.20260518" },
 ]
 
 [[package]]
@@ -1044,6 +1048,15 @@ wheels = [
 ]
 
 [[package]]
+name = "polib"
+version = "1.2.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/10/9a/79b1067d27e38ddf84fe7da6ec516f1743f31f752c6122193e7bce38bdbf/polib-1.2.0.tar.gz", hash = "sha256:f3ef94aefed6e183e342a8a269ae1fc4742ba193186ad76f175938621dbfc26b", size = 161658, upload-time = "2023-02-23T17:53:56.873Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/6b/99/45bb1f9926efe370c6dbe324741c749658e44cb060124f28dad201202274/polib-1.2.0-py2.py3-none-any.whl", hash = "sha256:1c77ee1b81feb31df9bca258cbc58db1bbb32d10214b173882452c73af06d62d", size = 20634, upload-time = "2023-02-23T17:53:59.919Z" },
+]
+
+[[package]]
 name = "propcache"
 version = "0.5.2"
 source = { registry = "https://pypi.org/simple" }
@@ -1339,6 +1352,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/47/c6/ee486fd809e357697ee8a44d3d69222b344920433d3b6666ccd9b374630c/tenacity-9.1.4.tar.gz", hash = "sha256:adb31d4c263f2bd041081ab33b498309a57c77f9acf2db65aadf0898179cf93a", size = 49413, upload-time = "2026-02-07T10:45:33.841Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/d7/c1/eb8f9debc45d3b7918a32ab756658a0904732f75e555402972246b0b8e71/tenacity-9.1.4-py3-none-any.whl", hash = "sha256:6095a360c919085f28c6527de529e76a06ad89b23659fa881ae0649b867a9d55", size = 28926, upload-time = "2026-02-07T10:45:32.24Z" },
+]
+
+[[package]]
+name = "types-polib"
+version = "1.2.0.20260518"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/f3/a0/bc3cfd4d6cb2e9798a28579dd4dd39675cde66a52dd9f5f158b0afc80420/types_polib-1.2.0.20260518.tar.gz", hash = "sha256:2b593a1c6eceb1c4d2ef41054d24ec17c5ee3ec4f2a29a26ece75d8f5715420f", size = 9285, upload-time = "2026-05-18T06:02:24.073Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/67/05/11cf19d219d4cdf53bbf8b3e0c9254d7a04d4b1a6df966124421e407138e/types_polib-1.2.0.20260518-py3-none-any.whl", hash = "sha256:1a6b9bd7eab3672a1c2e54c939b3fb720241e2b671e34a60cb82d2f791eba025", size = 8528, upload-time = "2026-05-18T06:02:22.737Z" },
 ]
 
 [[package]]
