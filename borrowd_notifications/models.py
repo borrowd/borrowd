@@ -39,8 +39,9 @@ from borrowd_users.models import BorrowdUser
         4. Add matching email body templates at
            templates/notifications/messages/<notification_type>.html and .txt.
            The filename is the lowercase NotificationType member name.
-        5. Add the type and its preference-page label to NOTIFICATION_CATEGORIES
-           in borrowd_notifications/views.py.
+        5. Add the type and its inbox title to one category in
+           NOTIFICATION_CATEGORIES in borrowd_notifications/views.py, and
+           extend that category's "included" list if the type isn't covered.
         6. If users must not disable the notification, add it to
            NotificationType.mandatory_types().
         7. Create a migration that adds the field choice and seeds a preference
@@ -52,7 +53,8 @@ from borrowd_users.models import BorrowdUser
         - In-app messages: _MESSAGE_TEMPLATES in this module.
         - Email subjects: notify.send(description=...) at the emitter.
         - Email bodies: templates/notifications/messages/*.html and *.txt.
-        - Preference labels: NOTIFICATION_CATEGORIES in views.py.
+        - Inbox titles and preference-page rows: NOTIFICATION_CATEGORIES in
+          views.py.
 """
 
 
@@ -424,6 +426,20 @@ class ChannelType(TextChoices):
     PUSH = "PUSH", "push_enabled"
 
 
+def default_preference_values(notification_type: NotificationType) -> dict[str, bool]:
+    """The channel settings a user has for a notification type before they
+    change anything: in-app on, email on unless the type is email-excluded,
+    push off. Used to seed new users, to create a missing row at send time,
+    and to display a missing row on the preferences page.
+    """
+    return {
+        "in_app_enabled": True,
+        "email_enabled": notification_type
+        not in NotificationType.email_excluded_types(),
+        "push_enabled": False,
+    }
+
+
 class NotificationPreference(Model):
     """
     To add a new channel:
@@ -454,16 +470,11 @@ class NotificationPreference(Model):
     def init_new_user_preferences(user: BorrowdUser) -> None:
         """When a new user is created, the preferences must be initialised."""
 
-        email_excluded = NotificationType.email_excluded_types()
-        for notification_type in NotificationType.values:
+        for notification_type in NotificationType:
             NotificationPreference.objects.update_or_create(
                 user=user,
-                notification_type=notification_type,
-                defaults={
-                    "in_app_enabled": True,
-                    "email_enabled": notification_type not in email_excluded,
-                    "push_enabled": False,
-                },
+                notification_type=notification_type.value,
+                defaults=default_preference_values(notification_type),
             )
 
     class Meta:

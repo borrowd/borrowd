@@ -29,15 +29,29 @@ from .models import (
     NotificationMetadata,
     NotificationPreference,
     NotificationType,
+    default_preference_values,
 )
 
-# Categories shown on the settings page, in display order.
-# Each entry is (NotificationType, human-readable label).
+# Rows on the notification settings page, in display order. Each row's
+# toggles switch every type in it on or off together; "included" is the
+# user-facing summary of those types shown under "What's included".
+# Each type entry is (NotificationType, title shown on its inbox card), and
+# `icon` is the fallback inbox icon for the row's types. Every
+# NotificationType belongs to exactly one row.
 NOTIFICATION_CATEGORIES: list[dict[str, Any]] = [
     {
-        "name": "Lending Lifecycle",
-        "slug": "lending",
+        "name": "Your loans and giveaways",
+        "slug": "loans",
         "icon": "arrows-right-left",
+        "description": "Updates on things you're borrowing, lending or giving away.",
+        "included": [
+            "Your borrow request was accepted or declined",
+            "Collection or return was confirmed",
+            "A request was cancelled or a loan ended",
+            "An item was disputed",
+            "Your giveaway offer or request was accepted, declined or completed",
+            "Someone responded to your community request",
+        ],
         "types": [
             (NotificationType.ITEM_REQUESTED, "Borrow request received"),
             (NotificationType.ITEM_REQUEST_ACCEPTED, "Request accepted"),
@@ -57,56 +71,6 @@ NOTIFICATION_CATEGORIES: list[dict[str, Any]] = [
             (NotificationType.LOAN_ENDED_OWNER_LEFT, "Loan ended - owner left"),
             (NotificationType.ITEM_RETURN_REQUESTED, "Item return requested"),
             (NotificationType.ITEM_DISPUTED, "Item disputed"),
-        ],
-    },
-    {
-        "name": "Group & Membership",
-        "slug": "membership",
-        "icon": "user-group",
-        "types": [
-            (
-                NotificationType.GROUP_MEMBER_JOINED,
-                "A member joined a group you're part of",
-            ),
-            (NotificationType.GROUP_NEEDS_MODERATOR, "Group needs moderator"),
-            (NotificationType.MEMBERSHIP_PENDING, "New member join request"),
-            (NotificationType.MEMBERSHIP_APPROVED, "Membership approved"),
-        ],
-    },
-    {
-        "name": "Onboarding",
-        "slug": "onboarding",
-        "icon": "sparkles",
-        "types": [
-            (NotificationType.ITEM_ADDED_NEEDS_GROUP, "Join a group reminder"),
-            (
-                NotificationType.GROUP_CREATED_NEEDS_PHOTO,
-                "Add a profile photo reminder",
-            ),
-            (
-                NotificationType.PHOTO_ADDED_NEEDS_INVITES,
-                "Invite friends reminder",
-            ),
-            (
-                NotificationType.GROUP_JOINED_NEEDS_ITEM,
-                "Add an item reminder",
-            ),
-        ],
-    },
-    {
-        "name": "Item Availability",
-        "slug": "availability",
-        "icon": "bell-alert",
-        "types": [
-            (NotificationType.ITEM_NOTIFY_WHEN_AVAILABLE, "Item now available"),
-            (NotificationType.ITEM_SUBSCRIPTION, "Item subscription"),
-        ],
-    },
-    {
-        "name": "Ownership Transfer",
-        "slug": "giveaway",
-        "icon": "gift",
-        "types": [
             (NotificationType.GIVEAWAY_OFFER_SENT, "Giveaway offer received"),
             (NotificationType.GIVEAWAY_ACCEPTED, "Giveaway accepted"),
             (NotificationType.GIVEAWAY_DECLINED, "Giveaway declined"),
@@ -123,14 +87,6 @@ NOTIFICATION_CATEGORIES: list[dict[str, Any]] = [
                 "Giveaway request declined",
             ),
             (NotificationType.GIVEAWAY_COMPLETED, "Giveaway completed"),
-        ],
-    },
-    {
-        "name": "Community Requests",
-        "slug": "community_requests",
-        "icon": "megaphone",
-        "types": [
-            (NotificationType.COMMUNITY_REQUEST_POSTED, "New community request posted"),
             (
                 NotificationType.COMMUNITY_REQUEST_FULFILLED,
                 "Your community request was fulfilled",
@@ -138,11 +94,87 @@ NOTIFICATION_CATEGORIES: list[dict[str, Any]] = [
         ],
     },
     {
+        "name": "Item availability",
+        "slug": "availability",
+        "icon": "bell-alert",
+        "description": (
+            "When an item you've asked about becomes available to borrow again."
+        ),
+        "included": [
+            "An item you asked about is available again",
+            "Confirmation that you'll be told when an item is available",
+        ],
+        "types": [
+            (NotificationType.ITEM_NOTIFY_WHEN_AVAILABLE, "Item now available"),
+            (NotificationType.ITEM_SUBSCRIPTION, "Item subscription"),
+        ],
+    },
+    {
         "name": "Messages",
         "slug": "messages",
         "icon": "chat-bubble-left-right",
+        "description": "New messages in your conversations.",
+        "included": [
+            "Someone sent you a message",
+        ],
         "types": [
             (NotificationType.NEW_MESSAGE, "New message in a conversation"),
+        ],
+    },
+    {
+        "name": "Your groups",
+        "slug": "groups",
+        "icon": "user-group",
+        "description": (
+            "New members, who can then see the items you share there, "
+            "community requests, and changes to your membership or a group's "
+            "moderator."
+        ),
+        "included": [
+            "Someone joined a group you're in",
+            "A member posted a community request",
+            "A group you're in needs a new moderator",
+            "Your request to join a group was approved",
+        ],
+        "types": [
+            (
+                NotificationType.GROUP_MEMBER_JOINED,
+                "A member joined a group you're part of",
+            ),
+            (NotificationType.COMMUNITY_REQUEST_POSTED, "New community request posted"),
+            (NotificationType.GROUP_NEEDS_MODERATOR, "Group needs moderator"),
+            (NotificationType.MEMBERSHIP_PENDING, "New member join request"),
+            (NotificationType.MEMBERSHIP_APPROVED, "Membership approved"),
+        ],
+    },
+    {
+        "name": "Tips and reminders",
+        "slug": "tips",
+        "icon": "sparkles",
+        "description": (
+            "Suggestions for getting set up, like adding an item or a profile "
+            "photo. Never sent by email."
+        ),
+        "included": [
+            "Join a group",
+            "Add a profile photo",
+            "Invite friends",
+            "Add an item",
+        ],
+        "types": [
+            (NotificationType.ITEM_ADDED_NEEDS_GROUP, "Join a group reminder"),
+            (
+                NotificationType.GROUP_CREATED_NEEDS_PHOTO,
+                "Add a profile photo reminder",
+            ),
+            (
+                NotificationType.PHOTO_ADDED_NEEDS_INVITES,
+                "Invite friends reminder",
+            ),
+            (
+                NotificationType.GROUP_JOINED_NEEDS_ITEM,
+                "Add an item reminder",
+            ),
         ],
     },
 ]
@@ -193,8 +225,9 @@ def _all_types_for_scope(scope: str) -> list[NotificationType]:
 def _build_preferences_context(user: BorrowdUser) -> dict[str, Any]:
     """Builds the template context for the notification preferences page:
     per-category, per-channel toggle state for every notification type,
-    plus a flat `prefs_json` blob the page's JS reads to drive the
-    category-level "select all" switches.
+    plus a flat `prefs_json` blob the page's JS reads to drive each row's
+    switches. A type with no stored preference row shows the values
+    NotificationService would create for it on its first send.
     """
     mandatory = NotificationType.mandatory_types()
     email_excluded = NotificationType.email_excluded_types()
@@ -220,11 +253,20 @@ def _build_preferences_context(user: BorrowdUser) -> dict[str, Any]:
             is_mandatory = ntype in mandatory
             is_email_excluded = ntype in email_excluded
             pref = prefs.get(ntype.value)
-            app_on = is_mandatory or (pref is not None and pref.in_app_enabled)
-            email_on = not is_email_excluded and (
-                is_mandatory or (pref is not None and pref.email_enabled)
+            stored = (
+                {
+                    "in_app_enabled": pref.in_app_enabled,
+                    "email_enabled": pref.email_enabled,
+                    "push_enabled": pref.push_enabled,
+                }
+                if pref is not None
+                else default_preference_values(ntype)
             )
-            push_on = pref is not None and pref.push_enabled
+            app_on = is_mandatory or stored["in_app_enabled"]
+            email_on = not is_email_excluded and (
+                is_mandatory or stored["email_enabled"]
+            )
+            push_on = stored["push_enabled"]
 
             if not is_mandatory:
                 if not app_on:
@@ -257,6 +299,8 @@ def _build_preferences_context(user: BorrowdUser) -> dict[str, Any]:
             {
                 "name": cat["name"],
                 "slug": cat["slug"],
+                "description": cat["description"],
+                "included": cat["included"],
                 "types": types_ctx,
                 "all_optional_app_enabled": cat_optional_app,
                 "all_optional_email_enabled": cat_optional_email,
@@ -289,6 +333,11 @@ def notification_preferences_view(request: HttpRequest) -> HttpResponse:
     user = get_authenticated_user(request)
     context = _build_preferences_context(user)
     context["vapid_public_key"] = settings.VAPID_PUBLIC_KEY
+    # Same condition PUSHNotificationStrategy checks before delivering: with
+    # no VAPID keypair configured, push is never sent, so it isn't offered.
+    context["push_available"] = bool(
+        settings.VAPID_PRIVATE_KEY and settings.VAPID_PUBLIC_KEY
+    )
     return render(request, "notifications/preferences.html", context)
 
 
