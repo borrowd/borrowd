@@ -97,6 +97,48 @@ jobs:
 
       - run: uv run manage.py test
 
+  deploy-staging:
+    name: Deploy to Upsun staging
+    runs-on: ubuntu-latest
+    needs: [pre-commit, test]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    timeout-minutes: 30
+    environment: staging
+
+    # Separate from the workflow-level group, which cancels superseded runs;
+    # cancelling mid-deploy could leave the environment half-updated.
+    concurrency:
+      group: deploy-staging
+      cancel-in-progress: false
+
+    steps:
+      # Upsun rejects pushes from shallow clones, so fetch full history.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Pinned release, verified against a committed SHA-256. To upgrade, bump
+      # both values (hash is in the release's checksums.txt).
+      - name: Install Upsun CLI
+        env:
+          UPSUN_CLI_VERSION: "5.9.0"
+          UPSUN_CLI_SHA256: "27c038877f5d12030024728bc2681606c8f8025f524c871c5006a5e8972d3f24"
+        run: |
+          archive="upsun_${UPSUN_CLI_VERSION}_linux_amd64.tar.gz"
+          curl -fsSLO "https://github.com/platformsh/cli/releases/download/${UPSUN_CLI_VERSION}/${archive}"
+          echo "${UPSUN_CLI_SHA256}  ${archive}" | sha256sum -c -
+          mkdir -p "$HOME/.local/bin"
+          tar -xzf "$archive" -C "$HOME/.local/bin" upsun
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      # Pushes the merge commit to Upsun's `staging` environment and waits for
+      # the build and deploy (including migrations) to finish.
+      - name: Push to staging
+        env:
+          UPSUN_CLI_TOKEN: ${{ secrets.UPSUN_CLI_TOKEN }}
+          UPSUN_PROJECT_ID: ${{ vars.UPSUN_PROJECT_ID }}
+        run: upsun push --project "$UPSUN_PROJECT_ID" --target staging --force --yes
+
   e2e:
     name: E2E regression tests (Playwright/Python)
     runs-on: ubuntu-latest
