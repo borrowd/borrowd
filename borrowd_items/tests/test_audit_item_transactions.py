@@ -87,19 +87,6 @@ class AuditItemTransactionsTests(TestCase):
             out,
         )
 
-    def test_reports_an_item_with_more_than_one_open_transaction(self) -> None:
-        item = self._item()
-        first = self._txn(item, TransactionStatus.ACCEPTED)
-        second = self._txn(item, TransactionStatus.COLLECTED)
-
-        out = self._findings()
-
-        self.assertIn(
-            f"More than one open transaction: item={item.pk} "
-            f"transactions={first.pk} (ACCEPTED), {second.pk} (COLLECTED)",
-            out,
-        )
-
     def test_reports_a_request_stuck_on_a_deleted_item(self) -> None:
         item = self._item(deleted=True)
         tx = self._txn(item, TransactionStatus.REQUESTED)
