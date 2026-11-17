@@ -22,6 +22,7 @@ class GroupCreatePage:
         self.approval_checkbox_description = page.get_by_text(
             "New members require Moderator", exact=False
         )
+        self.invite_link_checkbox = page.locator("#id_members_can_share_invite_link")
 
         self.create_group_button = page.get_by_role(
             "button", name=re.compile("create group", re.IGNORECASE)
@@ -32,6 +33,14 @@ class GroupCreatePage:
         expect(self.group_name_input).to_be_visible()
         expect(self.group_description_input).to_be_visible()
         expect(self.approval_checkbox_description).to_be_visible()
+
+    def expect_approval_unticked_by_default(self):
+        expect(self.approval_checkbox).not_to_be_checked()
+        expect(self.invite_link_checkbox).to_be_hidden()
+
+    def expect_invite_link_checkbox_visible(self):
+        expect(self.invite_link_checkbox).to_be_visible()
+        expect(self.invite_link_checkbox).to_be_checked()
 
     def fill_group_name(self, group_name: str):
         self.group_name_input.fill(group_name)
