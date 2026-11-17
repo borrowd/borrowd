@@ -51,12 +51,16 @@ class BorrowdGroupForm(forms.ModelForm[BorrowdGroup]):
             "description",
             "banner",
             "membership_requires_approval",
+            # Only applies when the group requires approval to join; the form
+            # shows it only while that box is ticked.
+            "members_can_share_invite_link",
         ]
 
         labels = {
             "name": "Group name",
             "description": "Group description",
             "membership_requires_approval": "",
+            "members_can_share_invite_link": "",
         }
 
         widgets = {
@@ -74,7 +78,13 @@ class BorrowdGroupForm(forms.ModelForm[BorrowdGroup]):
             ),
             "membership_requires_approval": forms.CheckboxInput(
                 attrs={
-                    "class": "h-5 w-5 rounded-md border-gray-300 text-black focus:ring-0",
+                    "class": "h-5 w-5 shrink-0 rounded-md border-gray-300 text-black focus:ring-0",
+                    "x-model": "requiresApproval",
+                }
+            ),
+            "members_can_share_invite_link": forms.CheckboxInput(
+                attrs={
+                    "class": "h-5 w-5 shrink-0 rounded-md border-gray-300 text-black focus:ring-0",
                 }
             ),
         }
@@ -108,26 +118,12 @@ class BorrowdGroupForm(forms.ModelForm[BorrowdGroup]):
 
 
 class GroupCreateForm(BorrowdGroupForm):
-    pass
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        # New groups start open to join; the model default still applies to
+        # groups created in code.
+        self.fields["membership_requires_approval"].initial = False
 
 
 class GroupUpdateForm(BorrowdGroupForm):
-    class Meta(BorrowdGroupForm.Meta):
-        # Only applies when the group requires approval to join; the edit
-        # page shows it only while that box is ticked.
-        fields = [*BorrowdGroupForm.Meta.fields, "members_can_share_invite_link"]
-        labels = {**BorrowdGroupForm.Meta.labels, "members_can_share_invite_link": ""}
-        widgets = {
-            **BorrowdGroupForm.Meta.widgets,
-            "members_can_share_invite_link": forms.CheckboxInput(
-                attrs={
-                    "class": "h-5 w-5 rounded-md border-gray-300 text-black focus:ring-0",
-                }
-            ),
-        }
-
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
-        self.fields["membership_requires_approval"].widget.attrs["x-model"] = (
-            "requiresApproval"
-        )
+    pass

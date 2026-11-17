@@ -67,9 +67,37 @@ class InviteLinkSharingTests(TestCase):
 
         self.assert_can_share(self.member, True)
 
-    def test_only_the_edit_form_has_the_setting(self) -> None:
+    def test_create_and_edit_forms_have_the_setting(self) -> None:
         self.assertIn("members_can_share_invite_link", GroupUpdateForm().fields)
-        self.assertNotIn("members_can_share_invite_link", GroupCreateForm().fields)
+        self.assertIn("members_can_share_invite_link", GroupCreateForm().fields)
+
+    def test_create_form_starts_with_approval_unticked(self) -> None:
+        form = GroupCreateForm(user=self.moderator)
+
+        self.assertFalse(form["membership_requires_approval"].value())
+        self.assertTrue(form["members_can_share_invite_link"].value())
+
+    def test_moderator_turns_it_off_from_the_create_page(self) -> None:
+        self.client.force_login(self.moderator)
+        create_url = reverse("borrowd_groups:group-create")
+
+        page = self.client.get(create_url)
+        self.assertContains(page, "Group members can share invitation links")
+        self.assertContains(page, "requiresApproval: false")
+
+        self.client.post(
+            create_url,
+            {
+                "name": "Oak Street Neighbours",
+                "description": "",
+                "membership_requires_approval": "on",
+                # Unticked checkboxes are absent from the POST.
+            },
+        )
+
+        group = BorrowdGroup.objects.get(name="Oak Street Neighbours")
+        self.assertTrue(group.membership_requires_approval)
+        self.assertFalse(group.members_can_share_invite_link)
 
     def test_moderator_turns_it_off_from_the_edit_page(self) -> None:
         self.client.force_login(self.moderator)
