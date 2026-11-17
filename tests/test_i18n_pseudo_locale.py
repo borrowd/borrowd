@@ -20,12 +20,18 @@ def pseudo_translate(text: str) -> str:
 
 
 def build_pseudo_catalog(locale_dir: Path) -> None:
-    call_command(
-        "makemessages",
-        locale=[PSEUDO_LOCALE],
-        ignore_patterns=[".venv", "node_modules"],
-        verbosity=0,
-    )
+    # makemessages deletes locale/django.pot, which is committed for Weblate.
+    pot_path = settings.BASE_DIR / "locale" / "django.pot"
+    pot_content = pot_path.read_bytes()
+    try:
+        call_command(
+            "makemessages",
+            locale=[PSEUDO_LOCALE],
+            ignore_patterns=[".venv", "node_modules"],
+            verbosity=0,
+        )
+    finally:
+        pot_path.write_bytes(pot_content)
     # makemessages always writes to the project's own locale/, ignoring LOCALE_PATHS.
     catalog_dir = locale_dir / PSEUDO_LOCALE
     shutil.move(settings.BASE_DIR / "locale" / PSEUDO_LOCALE, catalog_dir)

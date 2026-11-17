@@ -344,16 +344,16 @@ for pre-built component styles. See [FigmaDaisyGuidelines.md](docs/FigmaDaisyGui
 Translators work in [Hosted Weblate](https://hosted.weblate.org/), which
 reads the gettext catalogues under `locale/`:
 
-* `locale/en/LC_MESSAGES/django.po` holds the English source strings, and
-  is also the template Weblate starts new languages from.
+* `locale/en/LC_MESSAGES/django.po` holds the English source strings.
+* `locale/django.pot` is the template Weblate starts new languages from.
 * `locale/<lang>/LC_MESSAGES/django.po` holds each language's translations,
   committed back to the repo by Weblate.
 
 When you add or change text marked for translation, regenerate the
-English catalogue and commit it with your change:
+English catalogue and template and commit them with your change:
 
 ```bash
-uv run manage.py makemessages -l en --add-location=file \
+uv run manage.py makemessages -l en --keep-pot --add-location=file \
   -i .venv -i node_modules -i build -i media -i mobile -i e2e_tests -i docs
 ```
 
