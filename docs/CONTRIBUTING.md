@@ -362,6 +362,23 @@ Prod media and file storages are configured to use AWS S3 buckets (via wasabi).
 
 Platform.sh maintains a git repository whose branches are each deployed as separate environments with their own services. Environment variables can be configured to be shared across environments. `main` is considered the CI/CD build and tagged git branches will be merged to an official public `release` branch.
 
+### Automatic staging deploys
+
+Every push to GitHub `main` deploys to the Upsun `staging` environment. The
+`deploy-staging` job in `.github/workflows/ci.yml` runs only after the lint and
+Postgres test jobs pass, then force-pushes the commit to Upsun's `staging`
+branch and waits for the build and deploy (including migrations) to finish.
+Re-run the job from the Actions tab to redeploy.
+
+The job reads these from the GitHub `staging` environment:
+- secret `UPSUN_CLI_TOKEN` — an Upsun API token with access to the project
+- variable `UPSUN_PROJECT_ID` — the Upsun project ID
+
+The Upsun CLI is pinned to a specific release and verified against a SHA-256
+in the workflow; bump the version and hash together to upgrade.
+
+### Manual deploys
+
 To manually push and deploy the app (assuming platform.sh access):
 ```
 platform project:set-remote <project-id>
