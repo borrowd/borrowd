@@ -9,6 +9,11 @@
         {% trans "Choose how you want to be notified." %}
     </p>
 
+    <p class="flex items-start gap-2 text-sm text-base-content/60">
+        {% heroicon_outline "lock-closed" class="size-4 shrink-0 mt-0.5" %}
+        <span>{% trans "Some notifications are always sent in the app and by email, because someone is waiting on you to respond. They're marked with a lock under “What's included”." %}</span>
+    </p>
+
     {% if push_available %}
         <p x-show="nativeApp" x-cloak class="text-sm text-base-content/60">
             {% trans "Push notifications aren't available in the app yet." %}
@@ -77,7 +82,7 @@
                         <p class="text-xs text-base-content/60">
                             {{ category.description }}
                         </p>
-                        {% if category.included %}
+                        {% if category.included or category.always_sent %}
                             <button type="button"
                                     @click="open = !open"
                                     :aria-expanded="open.toString()"
@@ -91,10 +96,20 @@
                             <ul id="notification-category-{{ category.slug }}-included"
                                 x-show="open"
                                 x-cloak
-                                class="list-disc pl-5 text-xs text-base-content/70 flex flex-col gap-1 pb-1">
+                                class="text-xs text-base-content/70 flex flex-col gap-1.5 pb-1">
+                                {% for line in category.always_sent %}
+                                    <li class="flex items-start gap-2">
+                                        <span class="mt-px shrink-0" aria-hidden="true">{% heroicon_mini "lock-closed" class="size-3.5" %}</span>
+                                        <span class="flex flex-col">
+                                            <span>{{ line }}</span>
+                                            <span class="text-base-content/50">{% trans "Always sent in the app and by email" %}</span>
+                                        </span>
+                                    </li>
+                                {% endfor %}
                                 {% for line in category.included %}
-                                    <li>
-                                        {{ line }}
+                                    <li class="flex items-start gap-2">
+                                        <span class="flex w-3.5 shrink-0 justify-center pt-1.5" aria-hidden="true"><span class="size-1 rounded-full bg-current"></span></span>
+                                        <span>{{ line }}</span>
                                     </li>
                                 {% endfor %}
                             </ul>
@@ -137,11 +152,6 @@
                 </div>
             {% endfor %}
         </div>
-
-        <p class="flex items-start gap-2 px-1 text-xs text-base-content/60">
-            {% heroicon_outline "lock-closed" class="size-4 shrink-0 mt-0.5" %}
-            <span>{% trans "Some notifications are always sent in the app and by email, because someone is waiting on you to respond: borrow requests, giveaway offers and requests, a borrower saying they've collected or returned an item, return requests, and requests to join a group you moderate." %}</span>
-        </p>
     </div>
 
 </div>

@@ -36,6 +36,8 @@ from .models import (
 # toggles switch every type in it on or off together; "included" is the
 # user-facing summary of those types shown under "What's included", which
 # is left out for a row whose description already says what it covers.
+# "always_sent" lists, in the same disclosure, the row's mandatory types:
+# they stay on in the app and by email whatever the row's switches say.
 # Each type entry is (NotificationType, title shown on its inbox card), and
 # `icon` is the fallback inbox icon for the row's types. Every
 # NotificationType belongs to exactly one row.
@@ -45,6 +47,12 @@ NOTIFICATION_CATEGORIES: list[dict[str, Any]] = [
         "slug": "loans",
         "icon": "arrows-right-left",
         "description": "Updates on things you're borrowing, lending or giving away.",
+        "always_sent": [
+            "Someone asks to borrow your item",
+            "A borrower says they've collected or returned your item",
+            "An owner asks you to return their item",
+            "Someone offers you a giveaway or asks for one of yours",
+        ],
         "included": [
             "Your borrow request was accepted or declined",
             "Collection or return was confirmed",
@@ -101,6 +109,7 @@ NOTIFICATION_CATEGORIES: list[dict[str, Any]] = [
         "description": (
             "When an item you've asked about becomes available to borrow again."
         ),
+        "always_sent": [],
         "included": [
             "An item you asked about is available again",
             "Confirmation that you'll be told when an item is available",
@@ -115,9 +124,8 @@ NOTIFICATION_CATEGORIES: list[dict[str, Any]] = [
         "slug": "messages",
         "icon": "chat-bubble-left-right",
         "description": "New messages in your conversations.",
-        "included": [
-            "Someone sent you a message",
-        ],
+        "always_sent": [],
+        "included": [],
         "types": [
             (NotificationType.NEW_MESSAGE, "New message in a conversation"),
         ],
@@ -131,6 +139,9 @@ NOTIFICATION_CATEGORIES: list[dict[str, Any]] = [
             "community requests, and changes to your membership or a group's "
             "moderator."
         ),
+        "always_sent": [
+            "Someone asks to join a group you moderate",
+        ],
         "included": [
             "Someone joined a group you're in",
             "A member posted a community request",
@@ -155,6 +166,7 @@ NOTIFICATION_CATEGORIES: list[dict[str, Any]] = [
         "description": (
             "Tips for getting set up, like adding an item or joining a group."
         ),
+        "always_sent": [],
         "included": [],
         "types": [
             (NotificationType.ITEM_ADDED_NEEDS_GROUP, "Join a group reminder"),
@@ -295,6 +307,7 @@ def _build_preferences_context(user: BorrowdUser) -> dict[str, Any]:
                 "name": cat["name"],
                 "slug": cat["slug"],
                 "description": cat["description"],
+                "always_sent": cat["always_sent"],
                 "included": cat["included"],
                 "types": types_ctx,
                 "all_optional_app_enabled": cat_optional_app,

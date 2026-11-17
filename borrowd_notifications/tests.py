@@ -2219,6 +2219,15 @@ class NotificationCategoriesTests(TestCase):
             ["loans", "availability", "messages", "groups", "onboarding"],
         )
 
+    def test_rows_with_required_types_list_them_as_always_sent(self) -> None:
+        """A row that holds a type users can't turn off says so under
+        "What's included"; a row without one doesn't claim any."""
+        mandatory = NotificationType.mandatory_types()
+        for cat in NOTIFICATION_CATEGORIES:
+            has_mandatory = any(ntype in mandatory for ntype, _ in cat["types"])
+            with self.subTest(slug=cat["slug"]):
+                self.assertEqual(bool(cat["always_sent"]), has_mandatory)
+
 
 class PreferencesContextMissingRowTests(TestCase):
     """A type with no stored preference row shows what NotificationService
@@ -2281,8 +2290,12 @@ class NotificationPreferencesPageTests(TestCase):
         self.assertContains(response, 'aria-label="Your groups, Email"')
         self.assertContains(
             response,
-            "What's included",
-            count=sum(1 for cat in NOTIFICATION_CATEGORIES if cat["included"]),
+            'aria-controls="notification-category-',
+            count=sum(
+                1
+                for cat in NOTIFICATION_CATEGORIES
+                if cat["included"] or cat["always_sent"]
+            ),
         )
 
     def test_old_page_url_opens_the_notifications_section(self) -> None:
@@ -2290,16 +2303,29 @@ class NotificationPreferencesPageTests(TestCase):
 
         self.assertRedirects(response, f"{reverse('settings')}#notifications")
 
-    def test_onboarding_row_has_no_whats_included(self) -> None:
+    def test_onboarding_and_messages_rows_have_no_whats_included(self) -> None:
         response = self.client.get(reverse("settings"))
 
         self.assertContains(
             response, "Tips for getting set up, like adding an item or joining a group."
         )
-        self.assertNotContains(
-            response, 'id="notification-category-onboarding-included"'
-        )
+        for slug in ("onboarding", "messages"):
+            with self.subTest(slug=slug):
+                self.assertNotContains(
+                    response, f'id="notification-category-{slug}-included"'
+                )
         self.assertContains(response, 'id="notification-category-groups-included"')
+
+    def test_lists_always_sent_notifications_in_their_rows(self) -> None:
+        response = self.client.get(reverse("settings"))
+
+        self.assertContains(response, "Someone asks to borrow your item")
+        self.assertContains(response, "Someone asks to join a group you moderate")
+        self.assertContains(
+            response,
+            "Always sent in the app and by email",
+            count=sum(len(cat["always_sent"]) for cat in NOTIFICATION_CATEGORIES),
+        )
 
     def test_has_no_per_event_or_all_notifications_controls(self) -> None:
         response = self.client.get(reverse("settings"))
