@@ -32,7 +32,7 @@ Every new user-facing feature adds or extends a `regression` test in the same PR
 ## Keeping the suite healthy
 
 - **UI changes break locators.** When a change alters button labels, headings, template structure or a user flow, update the matching page object in the same PR, and run the affected tests locally.
-- **Failures.** Read the Allure report and `server.log` (uploaded by the CI job on failure) before changing anything. Don't add reruns, longer timeouts or skips to get green. Fix a real flake, or quarantine the test with a linked issue.
+- **Failures.** Read the test results and `server.log` (uploaded by the CI job on failure) before changing anything. On a PR, download the `allure-results` artifact from the run and open it with `allure serve <dir>`; the published Allure report only covers `main`. Don't add reruns, longer timeouts or skips to get green. Fix a real flake, or quarantine the test with a linked issue.
 - **Reruns.** `pytest.ini` retries failures; when measuring flakiness, pass `--reruns 0`.
 - **Pins.** `playwright` in `requirements.txt` is pinned and must support the Ubuntu image behind `ubuntu-latest`. When bumping it, rerun the whole suite.
 - **Blocking status.** The `e2e` job is non-blocking (`continue-on-error`) until the suite has proven stable. Don't remove that without being asked.
