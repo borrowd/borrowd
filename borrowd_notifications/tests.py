@@ -59,6 +59,7 @@ from .models import (
 from .views import (
     NOTIFICATION_CATEGORIES,
     _build_preferences_context,
+    _get_notification_icon,
     _notification_action_url,
     _notification_avatar_content,
     app_channel_qs,
@@ -1946,85 +1947,11 @@ class NotificationPreferenceToggleViewTests(TestCase):
         )
         self.client.force_login(self.user)
 
-    def _toggle(
-        self, ntype: NotificationType, channel: str, enabled: bool
-    ) -> HttpResponseBase:
-        return self.client.post(
-            "/settings/notifications/toggle/",
-            {
-                "notification_type": ntype.value,
-                "channel": channel,
-                "enabled": str(enabled).lower(),
-            },
-        )
-
     def _bulk_toggle(self, scope: str, channel: str, enabled: bool) -> HttpResponseBase:
         return self.client.post(
             "/settings/notifications/bulk-toggle/",
             {"scope": scope, "channel": channel, "enabled": str(enabled).lower()},
         )
-
-    def test_toggle_creates_preference_row_on_first_call(self) -> None:
-        """Toggling an optional type sets the stored value correctly."""
-
-        response = self._toggle(NotificationType.ITEM_REQUEST_ACCEPTED, "EMAIL", False)
-        self.assertEqual(response.status_code, 204)
-        pref = NotificationPreference.objects.get(
-            user=self.user,
-            notification_type=NotificationType.ITEM_REQUEST_ACCEPTED.value,
-        )
-        self.assertFalse(pref.email_enabled)
-
-    def test_toggle_updates_existing_preference(self) -> None:
-        """Toggling again flips the stored value."""
-        NotificationPreference.objects.update_or_create(
-            user=self.user,
-            notification_type=NotificationType.ITEM_REQUEST_ACCEPTED.value,
-            defaults={
-                "in_app_enabled": True,
-                "email_enabled": True,
-                "push_enabled": False,
-            },
-        )
-        self._toggle(NotificationType.ITEM_REQUEST_ACCEPTED, "EMAIL", False)
-        pref = NotificationPreference.objects.get(
-            user=self.user,
-            notification_type=NotificationType.ITEM_REQUEST_ACCEPTED.value,
-        )
-        self.assertFalse(pref.email_enabled)
-        self.assertTrue(pref.in_app_enabled)
-
-    def test_toggle_mandatory_type_returns_403(self) -> None:
-        """Attempting to toggle a mandatory type is rejected."""
-        pref_before = NotificationPreference.objects.get(
-            user=self.user, notification_type=NotificationType.ITEM_REQUESTED.value
-        )
-        response = self._toggle(NotificationType.ITEM_REQUESTED, "EMAIL", False)
-        self.assertEqual(response.status_code, 403)
-        pref_after = NotificationPreference.objects.get(
-            user=self.user, notification_type=NotificationType.ITEM_REQUESTED.value
-        )
-        self.assertEqual(pref_before.email_enabled, pref_after.email_enabled)
-
-    def test_toggle_invalid_notification_type_returns_400(self) -> None:
-        """An unrecognised notification_type value returns 400."""
-        response = self.client.post(
-            "/settings/notifications/toggle/",
-            {"notification_type": "not-a-type", "channel": "EMAIL", "enabled": "false"},
-        )
-        self.assertEqual(response.status_code, 400)
-
-    def test_toggle_invalid_channel_returns_400(self) -> None:
-        """An unrecognised channel value returns 400."""
-        response = self.client.post(
-            "/settings/notifications/toggle/",
-            {
-                "notification_type": NotificationType.ITEM_REQUEST_ACCEPTED.value,
-                "channel": "CARRIER_PIGEON",
-                "enabled": "false",
-            },
-        )
-        self.assertEqual(response.status_code, 400)
 
     def test_bulk_toggle_disables_all_optional_types_in_category(self) -> None:
         """Bulk-disable EMAIL for the loans category updates all existing rows in that scope."""
@@ -2065,31 +1992,6 @@ class NotificationPreferenceToggleViewTests(TestCase):
         response = self._bulk_toggle("nonexistent-scope", "EMAIL", False)
         self.assertEqual(response.status_code, 400)
 
-    def test_toggle_email_excluded_type_returns_403(self) -> None:
-        """Attempting to enable EMAIL for an onboarding nudge is rejected --
-        those types never go out over email."""
-        pref_before = NotificationPreference.objects.get(
-            user=self.user,
-            notification_type=NotificationType.ITEM_ADDED_NEEDS_GROUP.value,
-        )
-        response = self._toggle(NotificationType.ITEM_ADDED_NEEDS_GROUP, "EMAIL", True)
-        self.assertEqual(response.status_code, 403)
-        pref_after = NotificationPreference.objects.get(
-            user=self.user,
-            notification_type=NotificationType.ITEM_ADDED_NEEDS_GROUP.value,
-        )
-        self.assertEqual(pref_before.email_enabled, pref_after.email_enabled)
-
-    def test_toggle_email_excluded_type_allows_in_app_channel(self) -> None:
-        """The in-app channel is unaffected by the email exclusion."""
-        response = self._toggle(NotificationType.ITEM_ADDED_NEEDS_GROUP, "APP", False)
-        self.assertEqual(response.status_code, 204)
-        pref = NotificationPreference.objects.get(
-            user=self.user,
-            notification_type=NotificationType.ITEM_ADDED_NEEDS_GROUP.value,
-        )
-        self.assertFalse(pref.in_app_enabled)
-
     def test_bulk_toggle_email_for_onboarding_scope_returns_400(self) -> None:
         """Every type in the onboarding category is email-excluded, so
         there's nothing for a bulk EMAIL toggle in that scope to update."""
@@ -2105,43 +2007,6 @@ class NotificationPreferenceToggleViewTests(TestCase):
             notification_type=NotificationType.ITEM_ADDED_NEEDS_GROUP.value,
         )
         self.assertFalse(pref.in_app_enabled)
-
-    def test_bulk_toggle_master_email_updates_others_and_skips_excluded(self) -> None:
-        """A master-scope bulk EMAIL disable must update ordinary types
-        while leaving email-excluded onboarding types' stored value alone."""
-        NotificationPreference.objects.update_or_create(
-            user=self.user,
-            notification_type=NotificationType.ITEM_REQUEST_ACCEPTED.value,
-            defaults={
-                "in_app_enabled": True,
-                "email_enabled": True,
-                "push_enabled": False,
-            },
-        )
-        NotificationPreference.objects.update_or_create(
-            user=self.user,
-            notification_type=NotificationType.ITEM_ADDED_NEEDS_GROUP.value,
-            defaults={
-                "in_app_enabled": True,
-                "email_enabled": True,
-                "push_enabled": False,
-            },
-        )
-
-        response = self._bulk_toggle("master", "EMAIL", False)
-        self.assertEqual(response.status_code, 204)
-
-        accepted = NotificationPreference.objects.get(
-            user=self.user,
-            notification_type=NotificationType.ITEM_REQUEST_ACCEPTED.value,
-        )
-        self.assertFalse(accepted.email_enabled)
-
-        onboarding = NotificationPreference.objects.get(
-            user=self.user,
-            notification_type=NotificationType.ITEM_ADDED_NEEDS_GROUP.value,
-        )
-        self.assertTrue(onboarding.email_enabled)
 
 
 class PreferencesContextEmailExclusionTests(TestCase):
@@ -2578,6 +2443,30 @@ class BulkToggleCreatesRowsTests(TestCase):
             self.assertTrue(
                 pref.email_enabled, f"{ntype_value} email should be enabled"
             )
+
+
+class NotificationIconTests(TestCase):
+    """_get_notification_icon picks a type's own icon over its row's."""
+
+    def test_giveaway_types_keep_the_gift_icon(self) -> None:
+        self.assertEqual(
+            _get_notification_icon(NotificationType.GIVEAWAY_ACCEPTED, "loans"), "gift"
+        )
+
+    def test_community_request_types_keep_the_megaphone_icon(self) -> None:
+        self.assertEqual(
+            _get_notification_icon(NotificationType.COMMUNITY_REQUEST_POSTED, "groups"),
+            "megaphone",
+        )
+
+    def test_other_types_use_their_category_icon(self) -> None:
+        self.assertEqual(
+            _get_notification_icon(NotificationType.ITEM_REQUESTED, "loans"),
+            "arrows-right-left",
+        )
+
+    def test_unknown_type_uses_category_icon(self) -> None:
+        self.assertEqual(_get_notification_icon(None, "groups"), "user-group")
 
 
 class NotificationInboxViewTests(TestCase):
@@ -3578,33 +3467,10 @@ class NewMessagePushPreferenceTests(TestCase):
         self.assertNotIn(ChannelType.PUSH, channels)
         self.assertEqual(channels, {ChannelType.APP, ChannelType.EMAIL})
 
-    def test_single_toggle_can_enable_push(self) -> None:
-        response = self.client.post(
-            reverse("notification-toggle"),
-            {
-                "notification_type": NotificationType.NEW_MESSAGE.value,
-                "channel": ChannelType.PUSH.value,
-                "enabled": "true",
-            },
-        )
-
-        self.assertEqual(response.status_code, 204)
-        preference = NotificationPreference.objects.get(
-            user=self.user,
-            notification_type=NotificationType.NEW_MESSAGE.value,
-        )
-        self.assertTrue(preference.push_enabled)
-        self.assertIn(
-            ChannelType.PUSH,
-            NotificationService._get_enabled_channels(
-                self.user, NotificationType.NEW_MESSAGE
-            ),
-        )
-
     def test_bulk_toggle_can_enable_push(self) -> None:
         response = self.client.post(
             reverse("notification-bulk-toggle"),
-            {"scope": "master", "channel": ChannelType.PUSH.value, "enabled": "true"},
+            {"scope": "messages", "channel": ChannelType.PUSH.value, "enabled": "true"},
         )
 
         self.assertEqual(response.status_code, 204)

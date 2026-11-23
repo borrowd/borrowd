@@ -11,7 +11,7 @@ const template = fs.readFileSync(
     '..',
     'templates',
     'notifications',
-    'preferences.html',
+    '_preferences.html',
   ),
   'utf8',
 );
@@ -154,8 +154,8 @@ test('push controls are shown on the web and hidden in the native app', () => {
       .preferences.nativeApp,
     true,
   );
-  // Header, master, category and per-type push toggles.
-  assert.equal(template.match(/x-show="!nativeApp"/g).length, 4);
+  // Header and category push toggles.
+  assert.equal(template.match(/x-show="!nativeApp"/g).length, 2);
 });
 
 test('inside the native app the web-push CTA stays hidden and nothing subscribes', async () => {

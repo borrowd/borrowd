@@ -187,13 +187,27 @@ NOTIFICATION_CATEGORIES: list[dict[str, Any]] = [
 ]
 
 
+# Inbox icons for types that keep their own icon instead of their row's.
+_NOTIFICATION_TYPE_ICONS: dict[NotificationType, str] = {
+    NotificationType.GIVEAWAY_OFFER_SENT: "gift",
+    NotificationType.GIVEAWAY_ACCEPTED: "gift",
+    NotificationType.GIVEAWAY_DECLINED: "gift",
+    NotificationType.GIVEAWAY_REQUEST_RECEIVED: "gift",
+    NotificationType.GIVEAWAY_REQUEST_APPROVED: "gift",
+    NotificationType.GIVEAWAY_REQUEST_DECLINED: "gift",
+    NotificationType.GIVEAWAY_COMPLETED: "gift",
+    NotificationType.COMMUNITY_REQUEST_POSTED: "megaphone",
+    NotificationType.COMMUNITY_REQUEST_FULFILLED: "megaphone",
+}
+
+
 def _optional_types_for_scope(
     scope: str, channel: ChannelType | None = None
 ) -> list[NotificationType]:
-    """Returns the notification types in scope (a category slug, or
-    "master" for every category) that a user can actually toggle for the
-    given channel — excluding mandatory types always, and additionally
-    excluding email-excluded types when `channel` is EMAIL.
+    """Returns the notification types in a category (by slug) that a user
+    can actually toggle for the given channel — excluding mandatory types
+    always, and additionally excluding email-excluded types when `channel`
+    is EMAIL.
     """
     mandatory = NotificationType.mandatory_types()
     excluded = mandatory | (
@@ -201,13 +215,6 @@ def _optional_types_for_scope(
         if channel == ChannelType.EMAIL
         else frozenset()
     )
-    if scope == "master":
-        return [
-            ntype
-            for cat in NOTIFICATION_CATEGORIES
-            for ntype, _ in cat["types"]
-            if ntype not in excluded
-        ]
     for cat in NOTIFICATION_CATEGORIES:
         if cat["slug"] == scope:
             return [ntype for ntype, _ in cat["types"] if ntype not in excluded]
@@ -215,14 +222,13 @@ def _optional_types_for_scope(
 
 
 def _all_types_for_scope(scope: str) -> list[NotificationType]:
-    """Returns every notification type in scope, including mandatory ones.
+    """Returns every notification type in a category (by slug), including
+    mandatory ones.
 
     Used for the push channel: unlike app/email, push has no mandatory-type
     carve-out, so bulk push toggles must cover the full category rather
     than just the optional types.
     """
-    if scope == "master":
-        return [ntype for cat in NOTIFICATION_CATEGORIES for ntype, _ in cat["types"]]
     for cat in NOTIFICATION_CATEGORIES:
         if cat["slug"] == scope:
             return [ntype for ntype, _ in cat["types"]]
@@ -357,56 +363,9 @@ def notification_settings_context(user: BorrowdUser) -> dict[str, Any]:
 
 @login_required
 @require_POST
-def toggle_preference(request: HttpRequest) -> HttpResponse:
-    """Toggles a single (notification_type, channel) preference on/off for
-    the current user. Rejects disabling a mandatory type on a non-push
-    channel — those must always stay on.
-    """
-    user = get_authenticated_user(request)
-    type_value = request.POST.get("notification_type", "")
-    channel_value = request.POST.get("channel", "")
-    enabled = request.POST.get("enabled") == "true"
-
-    try:
-        ntype = NotificationType(type_value)
-        ChannelType(channel_value)
-    except ValueError:
-        return HttpResponse(status=400)
-
-    if (
-        ntype in NotificationType.mandatory_types()
-        and ChannelType(channel_value) != ChannelType.PUSH
-    ):
-        return HttpResponse(status=403)
-
-    if (
-        ntype in NotificationType.email_excluded_types()
-        and ChannelType(channel_value) == ChannelType.EMAIL
-    ):
-        return HttpResponse(status=403)
-
-    field_name = str(ChannelType(channel_value).label)
-    obj, _ = NotificationPreference.objects.get_or_create(
-        user=user,
-        notification_type=type_value,
-        defaults={
-            "in_app_enabled": False,
-            "email_enabled": False,
-            "push_enabled": False,
-        },
-    )
-    setattr(obj, field_name, enabled)
-    obj.save(update_fields=[field_name])
-
-    return HttpResponse(status=204)
-
-
-@login_required
-@require_POST
 def bulk_toggle_preferences(request: HttpRequest) -> HttpResponse:
-    """Toggles every applicable type in a scope (a category slug, or
-    "master" for all categories) for one channel at once — backs the
-    preferences page's category-level and global "select all" switches.
+    """Toggles every applicable type in a category (by slug) for one
+    channel at once — backs the switches on each row of the preferences page.
     """
     user = get_authenticated_user(request)
     scope = request.POST.get("scope", "")
@@ -561,6 +520,17 @@ def _get_category_icon(slug: str | None) -> str | None:
     return None
 
 
+def _get_notification_icon(
+    notification_type: NotificationType | None, slug: str | None
+) -> str | None:
+    """Returns the inbox icon for a notification: the type's own icon if it
+    has one, otherwise its category's.
+    """
+    if notification_type is not None and notification_type in _NOTIFICATION_TYPE_ICONS:
+        return _NOTIFICATION_TYPE_ICONS[notification_type]
+    return _get_category_icon(slug)
+
+
 def _notification_action_object(
     notification: Notification,
 ) -> Item | Membership | BorrowdGroup | CommunityRequest | ChatThread | None:
@@ -694,7 +664,7 @@ def _annotate_for_display(notifications: Iterable[Notification]) -> None:
         )
         notification.action_url = _notification_action_url(notification)
         notification.avatar_content = _notification_avatar_content(notification)
-        notification.category_icon = _get_category_icon(category)
+        notification.category_icon = _get_notification_icon(notification_type, category)
 
 
 @login_required
