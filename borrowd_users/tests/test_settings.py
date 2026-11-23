@@ -95,7 +95,7 @@ class ProfileWithoutSettingsTests(SettingsTestCase):
             with self.subTest(url_name=url_name):
                 self.assertNotContains(response, reverse(url_name))
 
-    def test_push_prompt_lives_on_settings(self) -> None:
+    def test_profile_has_no_push_prompt(self) -> None:
         self.assertNotContains(self.client.get(reverse("profile")), "pushPermissionCta")
 
     @override_settings(VAPID_PRIVATE_KEY="private", VAPID_PUBLIC_KEY="public")
