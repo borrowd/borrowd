@@ -259,7 +259,7 @@
                         if (
                             (channel === 'PUSH' || !pref.is_mandatory) &&
                             (channel !== 'EMAIL' || !pref.is_email_excluded) &&
-                            (scope === 'master' || pref.category === scope)
+                            pref.category === scope
                         ) {
                             this.prefs[type][field] = enabled;
                         }

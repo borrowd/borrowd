@@ -190,10 +190,10 @@ NOTIFICATION_CATEGORIES: list[dict[str, Any]] = [
 def _optional_types_for_scope(
     scope: str, channel: ChannelType | None = None
 ) -> list[NotificationType]:
-    """Returns the notification types in scope (a category slug, or
-    "master" for every category) that a user can actually toggle for the
-    given channel — excluding mandatory types always, and additionally
-    excluding email-excluded types when `channel` is EMAIL.
+    """Returns the notification types in a category (by slug) that a user
+    can actually toggle for the given channel — excluding mandatory types
+    always, and additionally excluding email-excluded types when `channel`
+    is EMAIL.
     """
     mandatory = NotificationType.mandatory_types()
     excluded = mandatory | (
@@ -201,13 +201,6 @@ def _optional_types_for_scope(
         if channel == ChannelType.EMAIL
         else frozenset()
     )
-    if scope == "master":
-        return [
-            ntype
-            for cat in NOTIFICATION_CATEGORIES
-            for ntype, _ in cat["types"]
-            if ntype not in excluded
-        ]
     for cat in NOTIFICATION_CATEGORIES:
         if cat["slug"] == scope:
             return [ntype for ntype, _ in cat["types"] if ntype not in excluded]
@@ -215,14 +208,13 @@ def _optional_types_for_scope(
 
 
 def _all_types_for_scope(scope: str) -> list[NotificationType]:
-    """Returns every notification type in scope, including mandatory ones.
+    """Returns every notification type in a category (by slug), including
+    mandatory ones.
 
     Used for the push channel: unlike app/email, push has no mandatory-type
     carve-out, so bulk push toggles must cover the full category rather
     than just the optional types.
     """
-    if scope == "master":
-        return [ntype for cat in NOTIFICATION_CATEGORIES for ntype, _ in cat["types"]]
     for cat in NOTIFICATION_CATEGORIES:
         if cat["slug"] == scope:
             return [ntype for ntype, _ in cat["types"]]
@@ -351,56 +343,9 @@ def notification_preferences_view(request: HttpRequest) -> HttpResponse:
 
 @login_required
 @require_POST
-def toggle_preference(request: HttpRequest) -> HttpResponse:
-    """Toggles a single (notification_type, channel) preference on/off for
-    the current user. Rejects disabling a mandatory type on a non-push
-    channel — those must always stay on.
-    """
-    user = get_authenticated_user(request)
-    type_value = request.POST.get("notification_type", "")
-    channel_value = request.POST.get("channel", "")
-    enabled = request.POST.get("enabled") == "true"
-
-    try:
-        ntype = NotificationType(type_value)
-        ChannelType(channel_value)
-    except ValueError:
-        return HttpResponse(status=400)
-
-    if (
-        ntype in NotificationType.mandatory_types()
-        and ChannelType(channel_value) != ChannelType.PUSH
-    ):
-        return HttpResponse(status=403)
-
-    if (
-        ntype in NotificationType.email_excluded_types()
-        and ChannelType(channel_value) == ChannelType.EMAIL
-    ):
-        return HttpResponse(status=403)
-
-    field_name = str(ChannelType(channel_value).label)
-    obj, _ = NotificationPreference.objects.get_or_create(
-        user=user,
-        notification_type=type_value,
-        defaults={
-            "in_app_enabled": False,
-            "email_enabled": False,
-            "push_enabled": False,
-        },
-    )
-    setattr(obj, field_name, enabled)
-    obj.save(update_fields=[field_name])
-
-    return HttpResponse(status=204)
-
-
-@login_required
-@require_POST
 def bulk_toggle_preferences(request: HttpRequest) -> HttpResponse:
-    """Toggles every applicable type in a scope (a category slug, or
-    "master" for all categories) for one channel at once — backs the
-    preferences page's category-level and global "select all" switches.
+    """Toggles every applicable type in a category (by slug) for one
+    channel at once — backs the switches on each row of the preferences page.
     """
     user = get_authenticated_user(request)
     scope = request.POST.get("scope", "")
