@@ -1939,7 +1939,7 @@ class NotificationEmailThrottleTests(TransactionTestCase):
 
 
 class NotificationPreferenceToggleViewTests(TestCase):
-    """Tests for the toggle_preference and bulk_toggle_preferences endpoints."""
+    """Tests for the bulk_toggle_preferences endpoint."""
 
     def setUp(self) -> None:
         self.user = BorrowdUser.objects.create_user(
