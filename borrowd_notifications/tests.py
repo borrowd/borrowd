@@ -59,6 +59,7 @@ from .models import (
 from .views import (
     NOTIFICATION_CATEGORIES,
     _build_preferences_context,
+    _get_notification_icon,
     _notification_action_url,
     _notification_avatar_content,
     app_channel_qs,
@@ -2437,6 +2438,30 @@ class BulkToggleCreatesRowsTests(TestCase):
             self.assertTrue(
                 pref.email_enabled, f"{ntype_value} email should be enabled"
             )
+
+
+class NotificationIconTests(TestCase):
+    """_get_notification_icon picks a type's own icon over its row's."""
+
+    def test_giveaway_types_keep_the_gift_icon(self) -> None:
+        self.assertEqual(
+            _get_notification_icon(NotificationType.GIVEAWAY_ACCEPTED, "loans"), "gift"
+        )
+
+    def test_community_request_types_keep_the_megaphone_icon(self) -> None:
+        self.assertEqual(
+            _get_notification_icon(NotificationType.COMMUNITY_REQUEST_POSTED, "groups"),
+            "megaphone",
+        )
+
+    def test_other_types_use_their_category_icon(self) -> None:
+        self.assertEqual(
+            _get_notification_icon(NotificationType.ITEM_REQUESTED, "loans"),
+            "arrows-right-left",
+        )
+
+    def test_unknown_type_uses_category_icon(self) -> None:
+        self.assertEqual(_get_notification_icon(None, "groups"), "user-group")
 
 
 class NotificationInboxViewTests(TestCase):

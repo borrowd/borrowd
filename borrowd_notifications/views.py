@@ -187,6 +187,20 @@ NOTIFICATION_CATEGORIES: list[dict[str, Any]] = [
 ]
 
 
+# Inbox icons for types that keep their own icon instead of their row's.
+_NOTIFICATION_TYPE_ICONS: dict[NotificationType, str] = {
+    NotificationType.GIVEAWAY_OFFER_SENT: "gift",
+    NotificationType.GIVEAWAY_ACCEPTED: "gift",
+    NotificationType.GIVEAWAY_DECLINED: "gift",
+    NotificationType.GIVEAWAY_REQUEST_RECEIVED: "gift",
+    NotificationType.GIVEAWAY_REQUEST_APPROVED: "gift",
+    NotificationType.GIVEAWAY_REQUEST_DECLINED: "gift",
+    NotificationType.GIVEAWAY_COMPLETED: "gift",
+    NotificationType.COMMUNITY_REQUEST_POSTED: "megaphone",
+    NotificationType.COMMUNITY_REQUEST_FULFILLED: "megaphone",
+}
+
+
 def _optional_types_for_scope(
     scope: str, channel: ChannelType | None = None
 ) -> list[NotificationType]:
@@ -500,6 +514,17 @@ def _get_category_icon(slug: str | None) -> str | None:
     return None
 
 
+def _get_notification_icon(
+    notification_type: NotificationType | None, slug: str | None
+) -> str | None:
+    """Returns the inbox icon for a notification: the type's own icon if it
+    has one, otherwise its category's.
+    """
+    if notification_type is not None and notification_type in _NOTIFICATION_TYPE_ICONS:
+        return _NOTIFICATION_TYPE_ICONS[notification_type]
+    return _get_category_icon(slug)
+
+
 def _notification_action_object(
     notification: Notification,
 ) -> Item | Membership | BorrowdGroup | CommunityRequest | ChatThread | None:
@@ -633,7 +658,7 @@ def _annotate_for_display(notifications: Iterable[Notification]) -> None:
         )
         notification.action_url = _notification_action_url(notification)
         notification.avatar_content = _notification_avatar_content(notification)
-        notification.category_icon = _get_category_icon(category)
+        notification.category_icon = _get_notification_icon(notification_type, category)
 
 
 @login_required
