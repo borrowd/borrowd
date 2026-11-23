@@ -16,7 +16,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_GET, require_POST
 from notifications.models import Notification
 
-from borrowd.util import is_safe_back_url
+from borrowd.util import is_safe_back_url, settings_section_url
 from borrowd_community_requests.models import CommunityRequest
 from borrowd_groups.models import BorrowdGroup, Membership
 from borrowd_items.models import Item
@@ -343,8 +343,14 @@ def _build_preferences_context(user: BorrowdUser) -> dict[str, Any]:
 
 @login_required
 def notification_preferences_view(request: HttpRequest) -> HttpResponse:
-    """Renders the notification preferences page."""
-    user = get_authenticated_user(request)
+    """Sends the old standalone page's URL to the Notifications section of
+    the settings page."""
+    return redirect(settings_section_url("notifications"))
+
+
+def notification_settings_context(user: BorrowdUser) -> dict[str, Any]:
+    """Template context for the Notifications section of the settings page
+    (templates/notifications/_preferences.html)."""
     context = _build_preferences_context(user)
     context["vapid_public_key"] = settings.VAPID_PUBLIC_KEY
     # Same condition PUSHNotificationStrategy checks before delivering: with
@@ -352,7 +358,7 @@ def notification_preferences_view(request: HttpRequest) -> HttpResponse:
     context["push_available"] = bool(
         settings.VAPID_PRIVATE_KEY and settings.VAPID_PUBLIC_KEY
     )
-    return render(request, "notifications/preferences.html", context)
+    return context
 
 
 @login_required
@@ -500,7 +506,7 @@ def _get_notification_category(
 
 
 def _get_category_icon(slug: str | None) -> str | None:
-    """Returns the heroicon name (see `templates/notifications/preferences.html`
+    """Returns the heroicon name (see `templates/notifications/_preferences.html`
     and `{% heroicon_outline %}`) for a NOTIFICATION_CATEGORIES slug, or
     None if no category has that slug.
     """

@@ -11,7 +11,7 @@ const template = fs.readFileSync(
     '..',
     'templates',
     'notifications',
-    'preferences.html',
+    '_preferences.html',
   ),
   'utf8',
 );

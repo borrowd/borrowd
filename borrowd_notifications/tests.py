@@ -1280,7 +1280,7 @@ class CommunityRequestNotificationCategoryTests(TestCase):
         )
         self.client.force_login(user)
 
-        response = self.client.get(reverse("notification-preferences"))
+        response = self.client.get(reverse("settings"))
 
         self.assertContains(response, "A member posted a community request")
         self.assertContains(response, "Someone responded to your community request")
@@ -2013,7 +2013,7 @@ class PreferencesContextEmailExclusionTests(TestCase):
     """_build_preferences_context's handling of email-excluded types: the
     per-type flag, forcing email off despite a stale enabled row, and the
     per-category flag that drives whether a category's bulk EMAIL switch is
-    rendered as toggleable (see templates/notifications/preferences.html)."""
+    rendered as toggleable (see templates/notifications/_preferences.html)."""
 
     def setUp(self) -> None:
         self.user = BorrowdUser.objects.create_user(
@@ -2142,7 +2142,7 @@ class NotificationPreferencesPageTests(TestCase):
         self.client.force_login(self.user)
 
     def test_shows_one_row_per_category_with_named_switches(self) -> None:
-        response = self.client.get(reverse("notification-preferences"))
+        response = self.client.get(reverse("settings"))
 
         for cat in NOTIFICATION_CATEGORIES:
             with self.subTest(slug=cat["slug"]):
@@ -2163,8 +2163,13 @@ class NotificationPreferencesPageTests(TestCase):
             ),
         )
 
-    def test_onboarding_and_messages_rows_have_no_whats_included(self) -> None:
+    def test_old_page_url_opens_the_notifications_section(self) -> None:
         response = self.client.get(reverse("notification-preferences"))
+
+        self.assertRedirects(response, f"{reverse('settings')}#notifications")
+
+    def test_onboarding_and_messages_rows_have_no_whats_included(self) -> None:
+        response = self.client.get(reverse("settings"))
 
         self.assertContains(
             response, "Tips for getting set up, like adding an item or joining a group."
@@ -2177,7 +2182,7 @@ class NotificationPreferencesPageTests(TestCase):
         self.assertContains(response, 'id="notification-category-groups-included"')
 
     def test_lists_always_sent_notifications_in_their_rows(self) -> None:
-        response = self.client.get(reverse("notification-preferences"))
+        response = self.client.get(reverse("settings"))
 
         self.assertContains(response, "Someone asks to borrow your item")
         self.assertContains(response, "Someone asks to join a group you moderate")
@@ -2188,7 +2193,7 @@ class NotificationPreferencesPageTests(TestCase):
         )
 
     def test_has_no_per_event_or_all_notifications_controls(self) -> None:
-        response = self.client.get(reverse("notification-preferences"))
+        response = self.client.get(reverse("settings"))
 
         self.assertNotContains(response, "All notifications")
         self.assertNotContains(response, "Required for transaction handshakes")
@@ -2196,14 +2201,14 @@ class NotificationPreferencesPageTests(TestCase):
         self.assertNotContains(response, "bulkToggle('master'")
 
     def test_onboarding_row_shows_na_instead_of_an_email_switch(self) -> None:
-        response = self.client.get(reverse("notification-preferences"))
+        response = self.client.get(reverse("settings"))
 
         self.assertNotContains(response, "bulkToggle('onboarding', 'EMAIL'")
         self.assertNotContains(response, 'aria-label="Onboarding, Email"')
         self.assertContains(response, "n/a")
 
     def test_explains_which_notifications_are_always_sent(self) -> None:
-        response = self.client.get(reverse("notification-preferences"))
+        response = self.client.get(reverse("settings"))
 
         self.assertContains(
             response,
@@ -3480,7 +3485,7 @@ class NewMessagePushPreferenceTests(TestCase):
         VAPID_PUBLIC_KEY="test-public-key",
     )
     def test_preferences_page_offers_a_push_toggle(self) -> None:
-        response = self.client.get(reverse("notification-preferences"))
+        response = self.client.get(reverse("settings"))
 
         self.assertContains(
             response,
@@ -3492,7 +3497,7 @@ class NewMessagePushPreferenceTests(TestCase):
         MESSAGING_ENABLED=True, VAPID_PRIVATE_KEY="", VAPID_PUBLIC_KEY=""
     )
     def test_preferences_page_hides_push_without_vapid_keys(self) -> None:
-        response = self.client.get(reverse("notification-preferences"))
+        response = self.client.get(reverse("settings"))
 
         self.assertFalse(response.context["push_available"])
         self.assertNotContains(response, "'PUSH', 'push'")
@@ -3510,7 +3515,7 @@ class MessageCategoryVisibilityTests(TestCase):
 
     @override_settings(MESSAGING_ENABLED=True)
     def test_the_category_shows_while_messaging_is_on(self) -> None:
-        response = self.client.get(reverse("notification-preferences"))
+        response = self.client.get(reverse("settings"))
 
         self.assertContains(response, "New messages in your conversations.")
         self.assertIn(
@@ -3519,7 +3524,7 @@ class MessageCategoryVisibilityTests(TestCase):
 
     @override_settings(MESSAGING_ENABLED=False)
     def test_the_category_is_hidden_while_messaging_is_off(self) -> None:
-        response = self.client.get(reverse("notification-preferences"))
+        response = self.client.get(reverse("settings"))
 
         self.assertNotContains(response, "New messages in your conversations.")
         self.assertNotIn(
@@ -4452,7 +4457,7 @@ class OnboardingNotificationCategoryTests(TestCase):
         )
         self.client.force_login(user)
 
-        response = self.client.get(reverse("notification-preferences"))
+        response = self.client.get(reverse("settings"))
 
         self.assertContains(response, "Onboarding")
 

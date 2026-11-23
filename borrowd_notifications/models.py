@@ -447,7 +447,7 @@ class NotificationPreference(Model):
         2. Add a BooleanField here for the new channel (e.g. sms_enabled).
         3. Create and apply a migration.
         4. Add a NotificationStrategy subclass in channels.py and wire it into NotificationService._get_strategy_for() in services.py.
-        5. Add the channel column to the preferences UI in templates/notifications/preferences.html.
+        5. Add the channel column to the preferences UI in templates/notifications/_preferences.html.
         6. For channels that require external credentials (like PUSH), guard the send() call with a settings check.
     """
 
