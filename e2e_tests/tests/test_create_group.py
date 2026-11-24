@@ -27,9 +27,11 @@ def test_create_group(user_page, base_url):
 
     create = GroupCreatePage(user_page)
     create.expect_opened()
+    create.expect_approval_unticked_by_default()
     create.fill_group_name(group_name)
     create.fill_group_description(description)
     create.set_approval_checkbox(True)
+    create.expect_invite_link_checkbox_visible()
     create.upload_banner("tests/assets/group_banner.png")
 
     create.click_create_group_button()

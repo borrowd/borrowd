@@ -52,8 +52,15 @@ check if we are creating or editing. {% endcomment %}
                                      errors="{{ field.errors }}" />
 
                 {% elif field.field.widget.input_type == "checkbox" %}
-                    <div class="flex items-center gap-3 font-sans font-normal leading-snug text-sm text-black/60{% if field.name == "members_can_share_invite_link" %} ml-8{% endif %}"
+                    {# items-start pins each checkbox to the row top, so the connector's geometry holds when the help text wraps. #}
+                    <div class="relative flex items-start gap-3 font-sans font-normal leading-snug text-sm text-black/60{% if field.name == "members_can_share_invite_link" %} ml-8{% endif %}"
                          {% if field.name == "members_can_share_invite_link" %}x-show="requiresApproval"{% endif %}>
+                        {% if field.name == "membership_requires_approval" %}
+                            {# L-shaped connector from under this checkbox into the nested invite-link checkbox: past this row (100%), across the form's gap-4, to the child checkbox's centre. #}
+                            <span aria-hidden="true"
+                                  x-show="requiresApproval"
+                                  class="pointer-events-none absolute left-[9px] top-6 h-[calc(100%+3px)] w-[19px] rounded-bl-md border-b-2 border-l-2 border-gray-300"></span>
+                        {% endif %}
                         {{ field.as_widget }}
                         <div>
                             {% if field.help_text %}
