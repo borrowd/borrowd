@@ -1,0 +1,3 @@
+"DESCRIPTION","DURATION IN MS","NAME","PARENT SUITE","START TIME","STATUS","STOP TIME","SUB SUITE","SUITE","TEST CLASS","TEST METHOD"
+"","10135","User can add a new item to their inventory","tests","2026-07-21","passed","2026-07-21","","test_add_item","",""
+"","0","Full borrow and return flow — from request to confirmed return","tests","2026-07-21","skipped","2026-07-21","","test_borrow_return_flow","",""
