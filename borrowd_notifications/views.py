@@ -29,15 +29,38 @@ from .models import (
     NotificationMetadata,
     NotificationPreference,
     NotificationType,
+    default_preference_values,
 )
 
-# Categories shown on the settings page, in display order.
-# Each entry is (NotificationType, human-readable label).
+# Rows on the notification settings page, in display order. Each row's
+# toggles switch every type in it on or off together; "included" is the
+# user-facing summary of those types shown under "What's included", which
+# is left out for a row whose description already says what it covers.
+# "always_sent" lists, in the same disclosure, the row's mandatory types:
+# they stay on in the app and by email whatever the row's switches say.
+# Each type entry is (NotificationType, title shown on its inbox card), and
+# `icon` is the fallback inbox icon for the row's types. Every
+# NotificationType belongs to exactly one row.
 NOTIFICATION_CATEGORIES: list[dict[str, Any]] = [
     {
-        "name": "Lending Lifecycle",
-        "slug": "lending",
+        "name": "Your loans and giveaways",
+        "slug": "loans",
         "icon": "arrows-right-left",
+        "description": "Updates on things you're borrowing, lending or giving away.",
+        "always_sent": [
+            "Someone asks to borrow your item",
+            "A borrower says they've collected or returned your item",
+            "An owner asks you to return their item",
+            "Someone offers you a giveaway or asks for one of yours",
+        ],
+        "included": [
+            "Your borrow request was accepted or declined",
+            "Collection or return was confirmed",
+            "A request was cancelled or a loan ended",
+            "An item was disputed",
+            "Your giveaway offer or request was accepted, declined or completed",
+            "Someone responded to your community request",
+        ],
         "types": [
             (NotificationType.ITEM_REQUESTED, "Borrow request received"),
             (NotificationType.ITEM_REQUEST_ACCEPTED, "Request accepted"),
@@ -57,56 +80,6 @@ NOTIFICATION_CATEGORIES: list[dict[str, Any]] = [
             (NotificationType.LOAN_ENDED_OWNER_LEFT, "Loan ended - owner left"),
             (NotificationType.ITEM_RETURN_REQUESTED, "Item return requested"),
             (NotificationType.ITEM_DISPUTED, "Item disputed"),
-        ],
-    },
-    {
-        "name": "Group & Membership",
-        "slug": "membership",
-        "icon": "user-group",
-        "types": [
-            (
-                NotificationType.GROUP_MEMBER_JOINED,
-                "A member joined a group you're part of",
-            ),
-            (NotificationType.GROUP_NEEDS_MODERATOR, "Group needs moderator"),
-            (NotificationType.MEMBERSHIP_PENDING, "New member join request"),
-            (NotificationType.MEMBERSHIP_APPROVED, "Membership approved"),
-        ],
-    },
-    {
-        "name": "Onboarding",
-        "slug": "onboarding",
-        "icon": "sparkles",
-        "types": [
-            (NotificationType.ITEM_ADDED_NEEDS_GROUP, "Join a group reminder"),
-            (
-                NotificationType.GROUP_CREATED_NEEDS_PHOTO,
-                "Add a profile photo reminder",
-            ),
-            (
-                NotificationType.PHOTO_ADDED_NEEDS_INVITES,
-                "Invite friends reminder",
-            ),
-            (
-                NotificationType.GROUP_JOINED_NEEDS_ITEM,
-                "Add an item reminder",
-            ),
-        ],
-    },
-    {
-        "name": "Item Availability",
-        "slug": "availability",
-        "icon": "bell-alert",
-        "types": [
-            (NotificationType.ITEM_NOTIFY_WHEN_AVAILABLE, "Item now available"),
-            (NotificationType.ITEM_SUBSCRIPTION, "Item subscription"),
-        ],
-    },
-    {
-        "name": "Ownership Transfer",
-        "slug": "giveaway",
-        "icon": "gift",
-        "types": [
             (NotificationType.GIVEAWAY_OFFER_SENT, "Giveaway offer received"),
             (NotificationType.GIVEAWAY_ACCEPTED, "Giveaway accepted"),
             (NotificationType.GIVEAWAY_DECLINED, "Giveaway declined"),
@@ -123,14 +96,6 @@ NOTIFICATION_CATEGORIES: list[dict[str, Any]] = [
                 "Giveaway request declined",
             ),
             (NotificationType.GIVEAWAY_COMPLETED, "Giveaway completed"),
-        ],
-    },
-    {
-        "name": "Community Requests",
-        "slug": "community_requests",
-        "icon": "megaphone",
-        "types": [
-            (NotificationType.COMMUNITY_REQUEST_POSTED, "New community request posted"),
             (
                 NotificationType.COMMUNITY_REQUEST_FULFILLED,
                 "Your community request was fulfilled",
@@ -138,23 +103,111 @@ NOTIFICATION_CATEGORIES: list[dict[str, Any]] = [
         ],
     },
     {
+        "name": "Item availability",
+        "slug": "availability",
+        "icon": "bell-alert",
+        "description": (
+            "When an item you've asked about becomes available to borrow again."
+        ),
+        "always_sent": [],
+        "included": [
+            "An item you asked about is available again",
+            "Confirmation that you'll be told when an item is available",
+        ],
+        "types": [
+            (NotificationType.ITEM_NOTIFY_WHEN_AVAILABLE, "Item now available"),
+            (NotificationType.ITEM_SUBSCRIPTION, "Item subscription"),
+        ],
+    },
+    {
         "name": "Messages",
         "slug": "messages",
         "icon": "chat-bubble-left-right",
+        "description": "New messages in your conversations.",
+        "always_sent": [],
+        "included": [],
         "types": [
             (NotificationType.NEW_MESSAGE, "New message in a conversation"),
+        ],
+    },
+    {
+        "name": "Your groups",
+        "slug": "groups",
+        "icon": "user-group",
+        "description": (
+            "New members, who can then see the items you share there, "
+            "community requests, and changes to your membership or a group's "
+            "moderator."
+        ),
+        "always_sent": [
+            "Someone asks to join a group you moderate",
+        ],
+        "included": [
+            "Someone joined a group you're in",
+            "A member posted a community request",
+            "A group you're in needs a new moderator",
+            "Your request to join a group was approved",
+        ],
+        "types": [
+            (
+                NotificationType.GROUP_MEMBER_JOINED,
+                "A member joined a group you're part of",
+            ),
+            (NotificationType.COMMUNITY_REQUEST_POSTED, "New community request posted"),
+            (NotificationType.GROUP_NEEDS_MODERATOR, "Group needs moderator"),
+            (NotificationType.MEMBERSHIP_PENDING, "New member join request"),
+            (NotificationType.MEMBERSHIP_APPROVED, "Membership approved"),
+        ],
+    },
+    {
+        "name": "Onboarding",
+        "slug": "onboarding",
+        "icon": "sparkles",
+        "description": (
+            "Tips for getting set up, like adding an item or joining a group."
+        ),
+        "always_sent": [],
+        "included": [],
+        "types": [
+            (NotificationType.ITEM_ADDED_NEEDS_GROUP, "Join a group reminder"),
+            (
+                NotificationType.GROUP_CREATED_NEEDS_PHOTO,
+                "Add a profile photo reminder",
+            ),
+            (
+                NotificationType.PHOTO_ADDED_NEEDS_INVITES,
+                "Invite friends reminder",
+            ),
+            (
+                NotificationType.GROUP_JOINED_NEEDS_ITEM,
+                "Add an item reminder",
+            ),
         ],
     },
 ]
 
 
+# Inbox icons for types that keep their own icon instead of their row's.
+_NOTIFICATION_TYPE_ICONS: dict[NotificationType, str] = {
+    NotificationType.GIVEAWAY_OFFER_SENT: "gift",
+    NotificationType.GIVEAWAY_ACCEPTED: "gift",
+    NotificationType.GIVEAWAY_DECLINED: "gift",
+    NotificationType.GIVEAWAY_REQUEST_RECEIVED: "gift",
+    NotificationType.GIVEAWAY_REQUEST_APPROVED: "gift",
+    NotificationType.GIVEAWAY_REQUEST_DECLINED: "gift",
+    NotificationType.GIVEAWAY_COMPLETED: "gift",
+    NotificationType.COMMUNITY_REQUEST_POSTED: "megaphone",
+    NotificationType.COMMUNITY_REQUEST_FULFILLED: "megaphone",
+}
+
+
 def _optional_types_for_scope(
     scope: str, channel: ChannelType | None = None
 ) -> list[NotificationType]:
-    """Returns the notification types in scope (a category slug, or
-    "master" for every category) that a user can actually toggle for the
-    given channel — excluding mandatory types always, and additionally
-    excluding email-excluded types when `channel` is EMAIL.
+    """Returns the notification types in a category (by slug) that a user
+    can actually toggle for the given channel — excluding mandatory types
+    always, and additionally excluding email-excluded types when `channel`
+    is EMAIL.
     """
     mandatory = NotificationType.mandatory_types()
     excluded = mandatory | (
@@ -162,13 +215,6 @@ def _optional_types_for_scope(
         if channel == ChannelType.EMAIL
         else frozenset()
     )
-    if scope == "master":
-        return [
-            ntype
-            for cat in NOTIFICATION_CATEGORIES
-            for ntype, _ in cat["types"]
-            if ntype not in excluded
-        ]
     for cat in NOTIFICATION_CATEGORIES:
         if cat["slug"] == scope:
             return [ntype for ntype, _ in cat["types"] if ntype not in excluded]
@@ -176,14 +222,13 @@ def _optional_types_for_scope(
 
 
 def _all_types_for_scope(scope: str) -> list[NotificationType]:
-    """Returns every notification type in scope, including mandatory ones.
+    """Returns every notification type in a category (by slug), including
+    mandatory ones.
 
     Used for the push channel: unlike app/email, push has no mandatory-type
     carve-out, so bulk push toggles must cover the full category rather
     than just the optional types.
     """
-    if scope == "master":
-        return [ntype for cat in NOTIFICATION_CATEGORIES for ntype, _ in cat["types"]]
     for cat in NOTIFICATION_CATEGORIES:
         if cat["slug"] == scope:
             return [ntype for ntype, _ in cat["types"]]
@@ -193,8 +238,9 @@ def _all_types_for_scope(scope: str) -> list[NotificationType]:
 def _build_preferences_context(user: BorrowdUser) -> dict[str, Any]:
     """Builds the template context for the notification preferences page:
     per-category, per-channel toggle state for every notification type,
-    plus a flat `prefs_json` blob the page's JS reads to drive the
-    category-level "select all" switches.
+    plus a flat `prefs_json` blob the page's JS reads to drive each row's
+    switches. A type with no stored preference row shows the values
+    NotificationService would create for it on its first send.
     """
     mandatory = NotificationType.mandatory_types()
     email_excluded = NotificationType.email_excluded_types()
@@ -220,11 +266,20 @@ def _build_preferences_context(user: BorrowdUser) -> dict[str, Any]:
             is_mandatory = ntype in mandatory
             is_email_excluded = ntype in email_excluded
             pref = prefs.get(ntype.value)
-            app_on = is_mandatory or (pref is not None and pref.in_app_enabled)
-            email_on = not is_email_excluded and (
-                is_mandatory or (pref is not None and pref.email_enabled)
+            stored = (
+                {
+                    "in_app_enabled": pref.in_app_enabled,
+                    "email_enabled": pref.email_enabled,
+                    "push_enabled": pref.push_enabled,
+                }
+                if pref is not None
+                else default_preference_values(ntype)
             )
-            push_on = pref is not None and pref.push_enabled
+            app_on = is_mandatory or stored["in_app_enabled"]
+            email_on = not is_email_excluded and (
+                is_mandatory or stored["email_enabled"]
+            )
+            push_on = stored["push_enabled"]
 
             if not is_mandatory:
                 if not app_on:
@@ -257,6 +312,9 @@ def _build_preferences_context(user: BorrowdUser) -> dict[str, Any]:
             {
                 "name": cat["name"],
                 "slug": cat["slug"],
+                "description": cat["description"],
+                "always_sent": cat["always_sent"],
+                "included": cat["included"],
                 "types": types_ctx,
                 "all_optional_app_enabled": cat_optional_app,
                 "all_optional_email_enabled": cat_optional_email,
@@ -289,61 +347,19 @@ def notification_preferences_view(request: HttpRequest) -> HttpResponse:
     user = get_authenticated_user(request)
     context = _build_preferences_context(user)
     context["vapid_public_key"] = settings.VAPID_PUBLIC_KEY
+    # Same condition PUSHNotificationStrategy checks before delivering: with
+    # no VAPID keypair configured, push is never sent, so it isn't offered.
+    context["push_available"] = bool(
+        settings.VAPID_PRIVATE_KEY and settings.VAPID_PUBLIC_KEY
+    )
     return render(request, "notifications/preferences.html", context)
 
 
 @login_required
 @require_POST
-def toggle_preference(request: HttpRequest) -> HttpResponse:
-    """Toggles a single (notification_type, channel) preference on/off for
-    the current user. Rejects disabling a mandatory type on a non-push
-    channel — those must always stay on.
-    """
-    user = get_authenticated_user(request)
-    type_value = request.POST.get("notification_type", "")
-    channel_value = request.POST.get("channel", "")
-    enabled = request.POST.get("enabled") == "true"
-
-    try:
-        ntype = NotificationType(type_value)
-        ChannelType(channel_value)
-    except ValueError:
-        return HttpResponse(status=400)
-
-    if (
-        ntype in NotificationType.mandatory_types()
-        and ChannelType(channel_value) != ChannelType.PUSH
-    ):
-        return HttpResponse(status=403)
-
-    if (
-        ntype in NotificationType.email_excluded_types()
-        and ChannelType(channel_value) == ChannelType.EMAIL
-    ):
-        return HttpResponse(status=403)
-
-    field_name = str(ChannelType(channel_value).label)
-    obj, _ = NotificationPreference.objects.get_or_create(
-        user=user,
-        notification_type=type_value,
-        defaults={
-            "in_app_enabled": False,
-            "email_enabled": False,
-            "push_enabled": False,
-        },
-    )
-    setattr(obj, field_name, enabled)
-    obj.save(update_fields=[field_name])
-
-    return HttpResponse(status=204)
-
-
-@login_required
-@require_POST
 def bulk_toggle_preferences(request: HttpRequest) -> HttpResponse:
-    """Toggles every applicable type in a scope (a category slug, or
-    "master" for all categories) for one channel at once — backs the
-    preferences page's category-level and global "select all" switches.
+    """Toggles every applicable type in a category (by slug) for one
+    channel at once — backs the switches on each row of the preferences page.
     """
     user = get_authenticated_user(request)
     scope = request.POST.get("scope", "")
@@ -498,6 +514,17 @@ def _get_category_icon(slug: str | None) -> str | None:
     return None
 
 
+def _get_notification_icon(
+    notification_type: NotificationType | None, slug: str | None
+) -> str | None:
+    """Returns the inbox icon for a notification: the type's own icon if it
+    has one, otherwise its category's.
+    """
+    if notification_type is not None and notification_type in _NOTIFICATION_TYPE_ICONS:
+        return _NOTIFICATION_TYPE_ICONS[notification_type]
+    return _get_category_icon(slug)
+
+
 def _notification_action_object(
     notification: Notification,
 ) -> Item | Membership | BorrowdGroup | CommunityRequest | ChatThread | None:
@@ -631,7 +658,7 @@ def _annotate_for_display(notifications: Iterable[Notification]) -> None:
         )
         notification.action_url = _notification_action_url(notification)
         notification.avatar_content = _notification_avatar_content(notification)
-        notification.category_icon = _get_category_icon(category)
+        notification.category_icon = _get_notification_icon(notification_type, category)
 
 
 @login_required

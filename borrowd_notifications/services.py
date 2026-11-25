@@ -28,6 +28,7 @@ from borrowd_notifications.models import (
     NotificationPreference,
     NotificationState,
     NotificationType,
+    default_preference_values,
 )
 from borrowd_users.models import BorrowdUser, Profile
 from borrowd_users.system import get_system_user
@@ -91,12 +92,7 @@ class NotificationService:
         pref, _ = NotificationPreference.objects.get_or_create(
             user=user,
             notification_type=notification_type.value,
-            defaults={
-                "in_app_enabled": True,
-                "email_enabled": notification_type
-                not in NotificationType.email_excluded_types(),
-                "push_enabled": False,
-            },
+            defaults=default_preference_values(notification_type),
         )
 
         if pref.in_app_enabled:
